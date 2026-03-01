@@ -28,24 +28,39 @@ This repository is currently in active design/prototyping.
 
 ## Quickstart
 
-Prerequisites:
+Prerequisite:
 
-- MLton: `TODO_VERSION`
-- LLVM toolchain: `TODO_VERSION`
-- Platform(s): `TODO_PLATFORMS`
+- Nix package manager (`nix` command available)
+
+If your local Nix config does not enable flakes by default, prefix commands with:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' ...
+```
+
+Enter the reproducible development shell:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' develop
+```
 
 Build:
 
 ```sh
-# TODO: add build command once project layout is in place
+nix --extra-experimental-features 'nix-command flakes' build
 ```
 
 Run (example):
 
 ```sh
-# TODO: add executable command
-# Example AWK program:
-# BEGIN { print "hello, world" }
+# Runtime executable is not implemented yet.
+# Current default package builds and installs project documentation artifacts.
+```
+
+Format Nix files:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' fmt
 ```
 
 ## Execution Model
@@ -94,6 +109,9 @@ High-level frontend/backend plan:
 
 Strategy details:
 
+- [BUILD.md](/Users/fred/dev/quawk/BUILD.md)
+- [PLAN.md](/Users/fred/dev/quawk/PLAN.md)
+- [TASKS.md](/Users/fred/dev/quawk/TASKS.md)
 - [STRATEGY.md](/Users/fred/dev/quawk/STRATEGY.md)
 - [EXECUTION.md](/Users/fred/dev/quawk/EXECUTION.md)
 
@@ -104,20 +122,35 @@ Test strategy (planned):
 - parser unit tests (grammar and disambiguation edge cases)
 - semantic/runtime behavioral tests
 - compatibility checks against reference AWK implementations
+- differential testing against `one-true-awk` and `gawk --posix`
+- SML test framework baseline: QCheck
+- phase-based TDD: tests are authored first and start as `xfail` before implementation
+
+Compatibility strategy details:
+
+- [TESTING.md](/Users/fred/dev/quawk/TESTING.md)
+- QCheck (SML testing library): <https://github.com/league/qcheck>
 
 Run tests:
 
 ```sh
-# TODO: add test command(s)
+nix --extra-experimental-features 'nix-command flakes' flake check
 ```
 
 ## Repository Layout
 
 ```text
 .
+├── flake.nix       # Reproducible toolchain and outputs
+├── flake.lock      # Pinned nixpkgs and transitive inputs
+├── .gitignore
 ├── GRAMMAR.md      # EBNF + disambiguation rules
+├── BUILD.md        # Build system and repository layout policy
+├── PLAN.md         # Phased implementation roadmap
+├── TASKS.md        # Execution backlog mapped to phases
 ├── STRATEGY.md     # High-level parser/front-end strategy
 ├── EXECUTION.md    # Realtime execution + JIT caching strategy
+├── TESTING.md      # Reference-oracle testing strategy
 └── README.md       # Project entrypoint for users/contributors
 ```
 
@@ -125,10 +158,10 @@ Run tests:
 
 | Component | Supported | Notes |
 |---|---|---|
-| OS | `TODO` | |
-| Architecture | `TODO` | |
-| MLton | `TODO` | |
-| LLVM | `TODO` | |
+| OS | Linux, macOS | Declared by flake target systems |
+| Architecture | x86_64, aarch64 | Declared by flake target systems |
+| MLton | Pinned via `flake.lock` (`nixpkgs` input) | Use `nix develop` |
+| LLVM | Pinned via `flake.lock` (`nixpkgs` input) | Use `nix develop` |
 
 ## FAQ
 
@@ -150,4 +183,4 @@ Contributions are welcome. Please open an issue describing:
 
 ## License
 
-`TODO: choose and add license file (for example MIT, Apache-2.0, or BSD-2-Clause)`
+BSD 3-Clause. See [LICENSE](/Users/fred/dev/quawk/LICENSE).
