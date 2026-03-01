@@ -26,8 +26,11 @@ Priority values:
 | T-051 | P0 | P0 | Pin QCheck and one-true-awk via Nix flake inputs | T-003 | `flake.lock` contains pinned `qcheck` and `oneTrueAwk` inputs | done |
 | T-052 | P0 | P0 | Define simple test manifest contract and examples (`TEST_SPEC.md`) | T-004 | Spec is documented and referenced by testing docs | done |
 | T-053 | P0 | P0 | Define CI gate policy document (`CI.md`) and required jobs | T-004, T-052 | CI policy doc defines required blocking jobs and phase gate checks | done |
-| T-054 | P0 | P1 | Implement `scripts/check-phase-gate` for manifest + xfail validation | T-052, T-053 | Script fails invalid manifests and phase-gate violations | todo |
+| T-054 | P0 | P1 | Implement `scripts/check-phase-gate` in SML (using `huml-sml`) for manifest + xfail validation | T-052, T-053 | Script fails invalid manifests and phase-gate violations | todo |
 | T-049 | P0 | P0 | Integrate QCheck as default SML test framework and add sample test target | T-004 | QCheck-based sample test runs under `nix flake check` | todo |
+| T-055 | P0 | P2 | Add Millet as optional dev-shell language server tooling and workspace note | T-003 | `millet` is available in `nix develop` and documented as non-blocking DX tooling | done |
+| T-056 | P0 | P2 | Add `huml-sml` availability for phase-gate metadata validation | T-003 | `huml-sml` source path is available in `nix develop` for validator integration | done |
+| T-057 | P0 | P0 | Pin `huml-sml` via Nix flake input | T-003 | `flake.lock` contains pinned `humlSml` input | done |
 | T-043 | P1 | P0 | Author full P1 parser/frontend tests and check in as `xfail` baseline | T-004, T-049, T-054 | P1 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
 | T-007 | P1 | P0 | Define token types and source span representation | T-002, T-043 | Token/span modules compile and unit tests pass | todo |
 | T-008 | P1 | P0 | Implement lexer core with newline/separator handling | T-007 | Lexer fixture tests pass for separator-sensitive inputs | todo |

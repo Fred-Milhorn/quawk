@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "humlSml": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1761592958,
+        "narHash": "sha256-XdTcyNJ5SoOUL6Q0t+m9jS9yvtqNgMCYxH5jXvcpvII=",
+        "owner": "Fred-Milhorn",
+        "repo": "huml-sml",
+        "rev": "a987edaef28893118dd85d03477198a917623fb9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Fred-Milhorn",
+        "repo": "huml-sml",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1772173633,
@@ -50,6 +66,7 @@
     },
     "root": {
       "inputs": {
+        "humlSml": "humlSml",
         "nixpkgs": "nixpkgs",
         "oneTrueAwk": "oneTrueAwk",
         "qcheck": "qcheck"

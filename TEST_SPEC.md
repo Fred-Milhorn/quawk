@@ -8,14 +8,14 @@ Goal:
 
 ## Format
 
-One manifest file per test case in YAML.
+One manifest file per test case in HUML.
 
 Recommended location:
-- `tests/**/case.yaml`
+- `tests/**/case.huml`
 
 ## Required Fields
 
-```yaml
+```text
 id: parser.regex.division.001
 phase: P1
 suite: parser
@@ -64,6 +64,10 @@ The test runner must:
   - manifest is invalid
   - `known_gap` has no `tracking`
   - completed phase still has `xfail_reason=phase_bootstrap`
+
+Implementation language/tooling:
+- phase-gate validator is implemented in SML.
+- metadata parsing uses `huml-sml`.
 
 ## Phase Gate Rule
 

@@ -131,7 +131,11 @@ Compatibility strategy details:
 
 - [TESTING.md](/Users/fred/dev/quawk/TESTING.md)
 - [TEST_SPEC.md](/Users/fred/dev/quawk/TEST_SPEC.md)
+- [CI.md](/Users/fred/dev/quawk/CI.md)
 - QCheck (SML testing library): <https://github.com/league/qcheck>
+- huml-sml (HUML parser for SML): <https://github.com/Fred-Milhorn/huml-sml>
+- Millet (SML language server, optional DX tool): <https://github.com/azdavis/millet>
+- Phase-gate validator: SML tool (`scripts/check-phase-gate`) using `huml-sml`.
 
 Run tests:
 

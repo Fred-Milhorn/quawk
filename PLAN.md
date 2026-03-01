@@ -16,7 +16,10 @@ It is execution-oriented:
 - Phase delivery uses TDD: tests are written first and initially marked `xfail`.
 - QCheck is the default SML framework for unit/property testing.
 - QCheck and one-true-awk sources are pinned via Nix flake inputs.
+- `huml-sml` is pinned via Nix for test metadata parsing.
 - Test metadata and CI gates are specified in `TEST_SPEC.md` and `CI.md`.
+- Millet is included as optional SML language-server tooling for developer productivity.
+- Phase-gate metadata validation is implemented in SML.
 
 ## Phase Overview
 

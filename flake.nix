@@ -7,6 +7,10 @@
       url = "github:league/qcheck";
       flake = false;
     };
+    humlSml = {
+      url = "github:Fred-Milhorn/huml-sml";
+      flake = false;
+    };
     oneTrueAwk = {
       url = "github:onetrueawk/awk";
       flake = false;
@@ -18,6 +22,7 @@
       self,
       nixpkgs,
       qcheck,
+      humlSml,
       oneTrueAwk,
     }:
     let
@@ -56,19 +61,22 @@
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           QCHECK_SRC = "${qcheck}";
+          HUML_SML_SRC = "${humlSml}";
           ONE_TRUE_AWK_SRC = "${oneTrueAwk}";
 
-          packages = with pkgs; [
-            mlton
-            llvm
-            clang
-            lld
-            gnumake
-            pkg-config
-            gawk
-            jq
-            nixpkgs-fmt
-          ];
+          packages =
+            (with pkgs; [
+              mlton
+              llvm
+              clang
+              lld
+              gnumake
+              pkg-config
+              gawk
+              jq
+              millet
+              nixpkgs-fmt
+            ]);
         };
       });
 

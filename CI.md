@@ -23,6 +23,10 @@ This document defines the minimum CI gates required for `quawk`.
   - `xfail_reason=known_gap` has `tracking`
   - completed phases contain no `xfail_reason=phase_bootstrap`
 
+Implementation note:
+- `phase-gate` validator is implemented in SML.
+- test metadata parsing uses `huml-sml`.
+
 ## Optional Jobs (Non-Blocking Initially)
 
 1. `compat-smoke`
