@@ -20,6 +20,9 @@ Implementation follows strict phase-based TDD:
 Allowed exception:
 - a test may remain `xfail` only if reclassified as `known-gap` with explicit documentation and linked tracking item.
 
+Metadata contract:
+- test case manifests must follow [TEST_SPEC.md](/Users/fred/dev/quawk/TEST_SPEC.md)
+
 ## Test Framework Baseline
 
 Default SML test framework:
@@ -103,6 +106,7 @@ Release gate recommendation:
 - No failing `posix-required` tests.
 - No remaining `xfail` tests with reason `phase_bootstrap` in a completed phase.
 - `xfail` with reason `known_gap` allowed only when explicitly tagged and documented.
+- CI gate requirements are defined in [CI.md](/Users/fred/dev/quawk/CI.md).
 
 ## Milestones
 

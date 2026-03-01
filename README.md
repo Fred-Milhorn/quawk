@@ -112,6 +112,7 @@ Strategy details:
 - [BUILD.md](/Users/fred/dev/quawk/BUILD.md)
 - [PLAN.md](/Users/fred/dev/quawk/PLAN.md)
 - [TASKS.md](/Users/fred/dev/quawk/TASKS.md)
+- [CI.md](/Users/fred/dev/quawk/CI.md)
 - [STRATEGY.md](/Users/fred/dev/quawk/STRATEGY.md)
 - [EXECUTION.md](/Users/fred/dev/quawk/EXECUTION.md)
 
@@ -129,6 +130,7 @@ Test strategy (planned):
 Compatibility strategy details:
 
 - [TESTING.md](/Users/fred/dev/quawk/TESTING.md)
+- [TEST_SPEC.md](/Users/fred/dev/quawk/TEST_SPEC.md)
 - QCheck (SML testing library): <https://github.com/league/qcheck>
 
 Run tests:
@@ -148,9 +150,11 @@ nix --extra-experimental-features 'nix-command flakes' flake check
 ├── BUILD.md        # Build system and repository layout policy
 ├── PLAN.md         # Phased implementation roadmap
 ├── TASKS.md        # Execution backlog mapped to phases
+├── CI.md           # Required CI gate policy
 ├── STRATEGY.md     # High-level parser/front-end strategy
 ├── EXECUTION.md    # Realtime execution + JIT caching strategy
 ├── TESTING.md      # Reference-oracle testing strategy
+├── TEST_SPEC.md    # Simple test manifest contract
 └── README.md       # Project entrypoint for users/contributors
 ```
 

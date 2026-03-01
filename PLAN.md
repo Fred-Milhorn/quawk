@@ -15,6 +15,8 @@ It is execution-oriented:
 - Reference behavior is checked against `one-true-awk` and `gawk --posix`.
 - Phase delivery uses TDD: tests are written first and initially marked `xfail`.
 - QCheck is the default SML framework for unit/property testing.
+- QCheck and one-true-awk sources are pinned via Nix flake inputs.
+- Test metadata and CI gates are specified in `TEST_SPEC.md` and `CI.md`.
 
 ## Phase Overview
 

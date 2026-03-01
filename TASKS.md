@@ -23,8 +23,12 @@ Priority values:
 | T-004 | P0 | P1 | Add base test package/check wiring to flake outputs | T-001 | `nix flake check` includes test check derivation | todo |
 | T-005 | P0 | P1 | Add CI workflow spec for `fmt`, `build`, `flake check` | T-003, T-004 | CI config draft checked in and runnable | todo |
 | T-006 | P0 | P2 | Add `CONTRIBUTING.md` with workflow and coding standards | none | README links contributing guide; guide is coherent | todo |
+| T-051 | P0 | P0 | Pin QCheck and one-true-awk via Nix flake inputs | T-003 | `flake.lock` contains pinned `qcheck` and `oneTrueAwk` inputs | done |
+| T-052 | P0 | P0 | Define simple test manifest contract and examples (`TEST_SPEC.md`) | T-004 | Spec is documented and referenced by testing docs | done |
+| T-053 | P0 | P0 | Define CI gate policy document (`CI.md`) and required jobs | T-004, T-052 | CI policy doc defines required blocking jobs and phase gate checks | done |
+| T-054 | P0 | P1 | Implement `scripts/check-phase-gate` for manifest + xfail validation | T-052, T-053 | Script fails invalid manifests and phase-gate violations | todo |
 | T-049 | P0 | P0 | Integrate QCheck as default SML test framework and add sample test target | T-004 | QCheck-based sample test runs under `nix flake check` | todo |
-| T-043 | P1 | P0 | Author full P1 parser/frontend tests and check in as `xfail` baseline | T-004, T-049 | P1 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
+| T-043 | P1 | P0 | Author full P1 parser/frontend tests and check in as `xfail` baseline | T-004, T-049, T-054 | P1 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
 | T-007 | P1 | P0 | Define token types and source span representation | T-002, T-043 | Token/span modules compile and unit tests pass | todo |
 | T-008 | P1 | P0 | Implement lexer core with newline/separator handling | T-007 | Lexer fixture tests pass for separator-sensitive inputs | todo |
 | T-009 | P1 | P0 | Implement `REGEX` vs `/` context-sensitive lexing | T-008 | Dedicated ambiguity tests pass | todo |
@@ -76,9 +80,10 @@ Start here unless priorities are explicitly changed:
 2. `T-002` initial `.mlb` and `main.sml`
 3. `T-003` flake package transition from docs-only to source skeleton
 4. `T-004` base test wiring in `flake check`
-5. `T-049` integrate QCheck and add sample test target
-6. `T-043` write P1 tests as `xfail` baseline
-7. `T-007` token/span definitions
+5. `T-054` implement phase gate checker script
+6. `T-049` integrate QCheck and add sample test target
+7. `T-043` write P1 tests as `xfail` baseline
+8. `T-007` token/span definitions
 
 ## Maintenance Rules
 

@@ -3,10 +3,23 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    qcheck = {
+      url = "github:league/qcheck";
+      flake = false;
+    };
+    oneTrueAwk = {
+      url = "github:onetrueawk/awk";
+      flake = false;
+    };
   };
 
   outputs =
-    { self, nixpkgs }:
+    {
+      self,
+      nixpkgs,
+      qcheck,
+      oneTrueAwk,
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -28,7 +41,7 @@
           installPhase = ''
             runHook preInstall
             mkdir -p "$out/share/doc/quawk"
-            cp README.md GRAMMAR.md STRATEGY.md EXECUTION.md TESTING.md LICENSE "$out/share/doc/quawk/"
+            cp README.md GRAMMAR.md BUILD.md PLAN.md TASKS.md STRATEGY.md EXECUTION.md TESTING.md TEST_SPEC.md CI.md LICENSE "$out/share/doc/quawk/"
             runHook postInstall
           '';
 
@@ -42,6 +55,9 @@
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
+          QCHECK_SRC = "${qcheck}";
+          ONE_TRUE_AWK_SRC = "${oneTrueAwk}";
+
           packages = with pkgs; [
             mlton
             llvm
@@ -50,6 +66,7 @@
             gnumake
             pkg-config
             gawk
+            jq
             nixpkgs-fmt
           ];
         };

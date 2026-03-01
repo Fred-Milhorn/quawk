@@ -51,9 +51,11 @@ Do not vendor:
 ├── flake.nix
 ├── flake.lock
 ├── BUILD.md
+├── CI.md
 ├── README.md
 ├── LICENSE
 ├── GRAMMAR.md
+├── TEST_SPEC.md
 ├── STRATEGY.md
 ├── EXECUTION.md
 ├── TESTING.md

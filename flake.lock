@@ -16,9 +16,43 @@
         "type": "github"
       }
     },
+    "oneTrueAwk": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1766688079,
+        "narHash": "sha256-8QocZx6Diy3xLakZQxqmWdOywvhVYRjSndY5EiV+dng=",
+        "owner": "onetrueawk",
+        "repo": "awk",
+        "rev": "61a7c75e225e3035390be32d635545e40d8c5faf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "onetrueawk",
+        "repo": "awk",
+        "type": "github"
+      }
+    },
+    "qcheck": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1595407786,
+        "narHash": "sha256-LpWfooRPIunCIDK2dOqqcca7mA9u72kI8IJoFyYZVzc=",
+        "owner": "league",
+        "repo": "qcheck",
+        "rev": "91cdd61a9ab75dfb6d92951eaa38372a94cddbaf",
+        "type": "github"
+      },
+      "original": {
+        "owner": "league",
+        "repo": "qcheck",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "oneTrueAwk": "oneTrueAwk",
+        "qcheck": "qcheck"
       }
     }
   },
