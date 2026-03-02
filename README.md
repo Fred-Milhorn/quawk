@@ -110,6 +110,7 @@ High-level frontend/backend plan:
 Strategy details:
 
 - [BUILD.md](/Users/fred/dev/quawk/BUILD.md)
+- [STANDARDS.md](/Users/fred/dev/quawk/STANDARDS.md)
 - [PLAN.md](/Users/fred/dev/quawk/PLAN.md)
 - [TASKS.md](/Users/fred/dev/quawk/TASKS.md)
 - [CI.md](/Users/fred/dev/quawk/CI.md)
@@ -152,6 +153,7 @@ nix --extra-experimental-features 'nix-command flakes' flake check
 ├── .gitignore
 ├── GRAMMAR.md      # EBNF + disambiguation rules
 ├── BUILD.md        # Build system and repository layout policy
+├── STANDARDS.md    # Coding standards and style rules
 ├── PLAN.md         # Phased implementation roadmap
 ├── TASKS.md        # Execution backlog mapped to phases
 ├── CI.md           # Required CI gate policy
