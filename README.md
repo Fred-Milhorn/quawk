@@ -113,6 +113,7 @@ Strategy details:
 - [STANDARDS.md](/Users/fred/dev/quawk/STANDARDS.md)
 - [PLAN.md](/Users/fred/dev/quawk/PLAN.md)
 - [TASKS.md](/Users/fred/dev/quawk/TASKS.md)
+- [CLI.md](/Users/fred/dev/quawk/CLI.md)
 - [CI.md](/Users/fred/dev/quawk/CI.md)
 - [STRATEGY.md](/Users/fred/dev/quawk/STRATEGY.md)
 - [EXECUTION.md](/Users/fred/dev/quawk/EXECUTION.md)
@@ -156,6 +157,7 @@ nix --extra-experimental-features 'nix-command flakes' flake check
 ├── STANDARDS.md    # Coding standards and style rules
 ├── PLAN.md         # Phased implementation roadmap
 ├── TASKS.md        # Execution backlog mapped to phases
+├── CLI.md          # CLI contract and option behavior
 ├── CI.md           # Required CI gate policy
 ├── STRATEGY.md     # High-level parser/front-end strategy
 ├── EXECUTION.md    # Realtime execution + JIT caching strategy
