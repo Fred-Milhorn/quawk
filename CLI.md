@@ -2,6 +2,48 @@
 
 This document defines the `quawk` command line interface.
 
+## Canonical Usage Message
+
+```text
+Usage:
+  quawk [options] -f progfile ... [--] [file ...]
+  quawk [options] 'program' [--] [file ...]
+  quawk -h | --help
+  quawk --version
+  quawk --qk-version
+
+POSIX-style options:
+  -F fs                 Set input field separator FS.
+  -f progfile           Read AWK program source from file (repeatable, in order).
+  -v var=value          Assign variable before program execution (repeatable).
+
+quawk options:
+  --qk-cache=MODE       Cache mode: auto | off | read-only | refresh.
+  --qk-cache-dir PATH   Cache directory.
+  --qk-jit=MODE         JIT mode: on | off.
+  --qk-dump-ast         Print parsed AST, then continue.
+  --qk-dump-ir          Print generated IR, then continue.
+  --qk-metrics          Print execution/cache metrics.
+  --qk-posix-strict     Enable strict POSIX behavior checks.
+  --qk-version          Print detailed build/runtime/toolchain info.
+
+Program selection:
+  - If one or more -f options are given, program text comes only from those files.
+  - Otherwise, the first non-option argument is the AWK program text.
+  - Mixing -f with inline program text is an error.
+
+Input files:
+  - Remaining operands are input files processed in order.
+  - If no input files are provided, read standard input.
+  - Operand "-" means standard input.
+
+Exit status:
+  0  Success
+  2  Usage, parse, semantic, or configuration error
+  3  Runtime execution error
+  4  Internal compiler/runtime failure
+```
+
 ## Goals
 
 - Preserve familiar AWK invocation patterns.
@@ -58,20 +100,11 @@ Guidelines:
 
 ## Exit Codes
 
-Proposed exit code mapping:
-
-- `0`: successful execution
-- `2`: command line usage, parse, or semantic/configuration error
-- `3`: runtime execution error
-- `4`: internal compiler/runtime failure
+Use the exit code mapping defined in the canonical usage message above.
 
 ## Help and Version
 
-Required:
-
-- `-h` / `--help`: print usage and option summary
-- `--version`: print user-facing version
-- `--qk-version`: print detailed build/toolchain/runtime metadata
+Use the help/version behavior defined in the canonical usage message above.
 
 ## Examples
 
