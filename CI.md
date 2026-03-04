@@ -4,28 +4,30 @@ This document defines the minimum CI gates required for `quawk`.
 
 ## Required Jobs (Blocking)
 
-1. `format`
-- command: `nix --extra-experimental-features 'nix-command flakes' fmt -- --check`
-- fails on formatting drift
+1. `format-lint`
+- setup: install project dev dependencies in Python 3.14 venv
+- commands:
+  - `ruff format --check .`
+  - `ruff check .`
+- fails on formatting drift or lint errors
 
-2. `build`
-- command: `nix --extra-experimental-features 'nix-command flakes' build`
-- fails on build/package errors
+2. `type-check`
+- setup: install project dev dependencies
+- command: `mypy src`
+- fails on type-check regressions
 
-3. `flake-check`
-- command: `nix --extra-experimental-features 'nix-command flakes' flake check`
-- fails on check derivation failures
+3. `tests`
+- setup: install project dev dependencies
+- command: `pytest`
+- fails on unit/integration/property test failures
 
 4. `phase-gate`
-- command: `scripts/check-phase-gate`
+- setup: install project dev dependencies
+- command: `python scripts/check_phase_gate.py`
 - validates:
   - test manifests match `TEST_SPEC.md`
   - `xfail_reason=known_gap` has `tracking`
   - completed phases contain no `xfail_reason=phase_bootstrap`
-
-Implementation note:
-- `phase-gate` validator is implemented in SML.
-- test metadata parsing uses `huml-sml`.
 
 ## Optional Jobs (Non-Blocking Initially)
 
@@ -38,11 +40,11 @@ Implementation note:
 ## CI Matrix
 
 Minimum required:
-- default developer platform
+- Python 3.14 on Linux x86_64
 
 Planned expansion:
-- Linux x86_64
-- macOS x86_64/aarch64 (as available in CI provider)
+- Python 3.14 on macOS (x86_64/aarch64 as available)
+- compatibility job matrix by reference awk versions
 
 ## Promotion Rule
 

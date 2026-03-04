@@ -9,8 +9,8 @@ Scope:
 - failure and fallback behavior
 
 Out of scope:
-- concrete SML module APIs
-- LLVM ORC wiring details
+- concrete Python module APIs
+- low-level LLVM JIT wiring details
 - storage implementation specifics
 
 ## Goals
@@ -58,7 +58,7 @@ Required fields:
 - `frontend_version`: parser/semantic pipeline version
 - `awk_mode`: POSIX mode and language feature toggles
 - `runtime_abi_version`: internal runtime/data-layout version
-- `llvm_version`: LLVM major/minor used for codegen
+- `llvm_version`: LLVM version used by `llvmlite`
 - `target_triple`: architecture-vendor-os
 - `target_cpu`: selected CPU model
 - `target_features`: CPU feature set (for example SIMD flags)
@@ -69,7 +69,7 @@ Optional fields:
 - `jit_policy`: options that alter emission or relocation behavior
 
 Recommendation:
-- define a canonical serialized key payload and hash that payload for directory/file naming.
+- define a canonical serialized key payload and hash that payload for directory/file naming
 
 ## Cache Artifacts
 
@@ -87,19 +87,19 @@ Metadata sidecar should include:
 
 ## Lookup and Validation Rules
 
-- Memory cache lookup uses exact key match.
-- Disk lookup requires:
+- memory cache lookup uses exact key match
+- disk lookup requires:
   - exact key match
   - metadata/artifact format compatibility
   - integrity check pass (if enabled)
-- If validation fails, treat as miss and continue to realtime compile.
+- if validation fails, treat as miss and continue to realtime compile
 
 ## Store Policy
 
-- Memory cache:
+- memory cache:
   - insert on successful compile or successful disk load
   - bounded by LRU or size cap
-- Disk cache:
+- disk cache:
   - best-effort write after successful compile
   - bounded by size and/or entry count
   - eviction policy: LRU preferred
@@ -111,22 +111,22 @@ Suggested default behavior:
 ## Failure Behavior
 
 Rules:
-- Cache read failure: log and continue as miss.
-- Cache write failure: log and continue; do not fail execution.
-- Artifact load/link failure: invalidate entry and fallback to realtime compile.
-- Compile/JIT failure: report deterministic compile/runtime error and exit non-zero.
+- cache read failure: log and continue as miss
+- cache write failure: log and continue; do not fail execution
+- artifact load/link failure: invalidate entry and fallback to realtime compile
+- compile/JIT failure: report deterministic compile/runtime error and exit non-zero
 
 Design principle:
-- cache is a performance layer, never a correctness dependency.
+- cache is a performance layer, never a correctness dependency
 
 ## Concurrency and Process Safety
 
-- Memory cache is process-local; guard with runtime locks if multithreaded.
-- Disk cache should use atomic writes:
+- memory cache is process-local; guard with runtime locks if multithreaded
+- disk cache should use atomic writes:
   - write temp file
   - fsync as needed
   - atomic rename into final key path
-- For concurrent processes, allow duplicate compilation; correctness over dedup complexity.
+- for concurrent processes, allow duplicate compilation; correctness over dedup complexity
 
 ## Observability
 
@@ -141,17 +141,17 @@ Expose a compact execution summary for profiling startup behavior.
 
 ## Default Policy Profile
 
-- Realtime compile enabled always.
-- Memory cache enabled, bounded LRU.
-- Disk cache enabled, best-effort writes.
-- Exact key matching, strict invalidation.
-- Fallback-to-compile on all cache-layer failures.
+- realtime compile enabled always
+- memory cache enabled, bounded LRU
+- disk cache enabled, best-effort writes
+- exact key matching, strict invalidation
+- fallback-to-compile on all cache-layer failures
 
 ## Acceptance Scenarios
 
-- First run with empty cache compiles and executes successfully.
-- Second run with same source/options hits disk or memory cache and reduces startup time.
-- Changing source invalidates prior cache entry.
-- Changing LLVM version or target features invalidates prior cache entry.
-- Corrupt cache artifact is ignored and rebuilt automatically.
-- Disk cache unavailable still permits successful realtime execution.
+- first run with empty cache compiles and executes successfully
+- second run with same source/options hits disk or memory cache and reduces startup time
+- changing source invalidates prior cache entry
+- changing LLVM version or target features invalidates prior cache entry
+- corrupt cache artifact is ignored and rebuilt automatically
+- disk cache unavailable still permits successful realtime execution

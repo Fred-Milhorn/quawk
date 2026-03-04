@@ -12,6 +12,11 @@ Usage:
   quawk --version
   quawk --qk-version
 
+Help and version:
+  -h, --help            Print usage and option summary.
+  --version             Print user-facing version.
+  --qk-version          Print detailed build/runtime/toolchain info.
+
 POSIX-style options:
   -F fs                 Set input field separator FS.
   -f progfile           Read AWK program source from file (repeatable, in order).
@@ -25,7 +30,6 @@ quawk options:
   --qk-dump-ir          Print generated IR, then continue.
   --qk-metrics          Print execution/cache metrics.
   --qk-posix-strict     Enable strict POSIX behavior checks.
-  --qk-version          Print detailed build/runtime/toolchain info.
 
 Program selection:
   - If one or more -f options are given, program text comes only from those files.

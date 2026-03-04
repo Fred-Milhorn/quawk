@@ -1,18 +1,18 @@
 # AWK Parsing Strategy (High-Level)
 
-This document outlines a practical parsing strategy for a POSIX-oriented AWK compiler written in SML (MLton) with an LLVM backend.
+This document outlines a practical parsing strategy for a POSIX-oriented AWK compiler written in Python with an LLVM-backed execution pipeline.
 
 ## Goals
 
 - Match POSIX AWK behavior closely, including context-sensitive syntax.
-- Keep the parser implementation understandable and testable in Standard ML.
+- Keep the parser implementation understandable and testable in Python.
 - Produce a clean AST suitable for semantic analysis and LLVM lowering.
 
 ## Recommended Approach
 
 - Use a two-layer design:
-  - Context-sensitive lexer for tokenization decisions.
-  - Hand-written parser for syntax (recursive descent for statements, precedence-driven parsing for expressions).
+  - context-sensitive lexer for tokenization decisions
+  - hand-written parser for syntax (recursive descent for statements, precedence-driven parsing for expressions)
 - Represent implicit concatenation as a synthetic operator in expression parsing.
 - Treat regex literals as lexer-level context decisions (`REGEX` vs `/`).
 
@@ -21,7 +21,7 @@ This document outlines a practical parsing strategy for a POSIX-oriented AWK com
 1. Source normalization: line tracking, newline tokens, comment handling.
 2. Lexing: emit tokens with source spans and minimal semantic payloads.
 3. Parsing: build AST from tokens using grammar in `GRAMMAR.md`.
-4. AST validation: enforce grammar-adjacent constraints and better diagnostics.
+4. AST validation: enforce grammar-adjacent constraints and improve diagnostics.
 5. Lowering prep: normalize AST shapes expected by semantic/codegen phases.
 
 ## Error Handling and Diagnostics

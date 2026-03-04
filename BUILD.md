@@ -4,76 +4,82 @@ This document defines how `quawk` should be built and how the repository should 
 
 ## Build System Policy
 
-`quawk` uses a two-layer build model:
+`quawk` uses a Python-native build model:
 
-1. Outer build/toolchain layer: Nix flake (`flake.nix`, `flake.lock`)
-2. Inner source/dependency layer: MLton project graph (`.mlb`)
+1. Environment/toolchain layer: `pyenv` + Python `3.14.x`, project-local `venv`, optional `direnv`
+2. Source/dependency layer: `pyproject.toml` with pinned development/test dependencies
 
 Rationale:
-- Nix pins toolchains and system dependencies for reproducibility.
-- ML Basis files keep SML module dependencies explicit and maintainable.
+- local contributor workflow should be simple and explicit
+- package/test tooling should be standard Python and editor-friendly
+- LLVM JIT integration is handled via `llvmlite`
 
 ## Toolchain Policy
 
-Toolchains are **not vendored** in this repo.
+Toolchains are not vendored in this repo.
 
-- MLton, LLVM, clang, and related build tools come from Nix inputs.
-- Versions are pinned by `flake.lock`.
-- Do not add these toolchains under `vendor/` or `third_party/`.
+Required:
+- Python `3.14.x` (managed via `pyenv`)
+- `pip` in project `venv`
+
+Required Python package dependencies:
+- runtime: `llvmlite` (as implementation progresses)
+- testing: `pytest`, `hypothesis`
+
+Optional:
+- `direnv` for shell activation
 
 ## Output Directories
 
-Nix-managed outputs:
-- built artifacts go to `/nix/store`
-- local convenience symlink is `result` (ignored by Git)
+Local outputs:
+- `.venv/` local virtual environment
+- `.pytest_cache/` pytest cache
+- `build/`, `dist/` package artifacts when built
+- coverage/type/lint artifacts as configured by tools
 
-Optional local non-Nix outputs:
-- use `build/` for ad hoc local artifacts (also ignored by Git)
+These should be ignored by Git as needed.
 
 ## Vendoring Policy
 
-Use a source-vendoring directory only when necessary for copied source dependencies:
-
-- preferred name: `third_party/`
-- include upstream provenance and license text for each dependency
-- keep vendored code minimal and explicit
+Use `third_party/` only when source vendoring is unavoidable.
 
 Do not vendor:
-- compilers
-- linkers
+- Python interpreter toolchains
 - LLVM distributions
-- package-manager outputs
+- package manager caches
+
+If vendoring is necessary:
+- include upstream provenance and license text
+- keep vendored code minimal and explicit
 
 ## Recommended Repository Structure
 
 ```text
 .
-├── flake.nix
-├── flake.lock
+├── pyproject.toml
+├── README.md
 ├── BUILD.md
 ├── CI.md
-├── README.md
-├── LICENSE
-├── GRAMMAR.md
-├── TEST_SPEC.md
-├── STRATEGY.md
-├── EXECUTION.md
+├── PLAN.md
+├── TASKS.md
+├── CLI.md
 ├── TESTING.md
+├── TEST_SPEC.md
+├── EXECUTION.md
+├── STANDARDS.md
+├── GRAMMAR.md
 ├── src/
-│   ├── quawk.mlb
-│   ├── main.sml
-│   ├── common/
-│   ├── frontend/
-│   │   ├── lexer/
-│   │   ├── parser/
-│   │   └── ast/
-│   ├── sema/
-│   ├── backend/
-│   │   ├── llvm/
-│   │   └── cshim/
-│   └── runtime/
-│       ├── awk/
-│       └── c/
+│   └── quawk/
+│       ├── __init__.py
+│       ├── cli.py
+│       ├── frontend/
+│       │   ├── lexer.py
+│       │   ├── parser.py
+│       │   └── ast.py
+│       ├── sema/
+│       ├── backend/
+│       │   └── llvm/
+│       └── runtime/
 ├── tests/
 │   ├── parser/
 │   ├── runtime/
@@ -86,35 +92,41 @@ Do not vendor:
 
 ## Build and Check Commands
 
-If flakes are not globally enabled, prefix commands with:
+Bootstrap:
 
 ```sh
-nix --extra-experimental-features 'nix-command flakes' ...
+pyenv install 3.14.0
+pyenv local 3.14.0
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+# once pyproject is in place:
+# pip install -e .[dev]
 ```
 
-Common commands:
+Common commands (after dependency bootstrap):
 
 ```sh
-# enter reproducible development shell
-nix --extra-experimental-features 'nix-command flakes' develop
+# run tests
+pytest
 
-# build default package
-nix --extra-experimental-features 'nix-command flakes' build
+# run property tests (subset marker example)
+pytest -m property
 
-# run flake checks
-nix --extra-experimental-features 'nix-command flakes' flake check
-
-# format Nix files
-nix --extra-experimental-features 'nix-command flakes' fmt
+# run compatibility smoke tests
+pytest tests/compat -m smoke
 ```
+
+Formatting/lint/type-check commands are defined by CI policy in [CI.md](/Users/fred/dev/quawk/CI.md).
 
 ## Near-Term Implementation Plan
 
-1. Add `src/` with initial `quawk.mlb` and `main.sml`.
-2. Add `tests/` skeleton aligned with `TESTING.md`.
-3. Update `flake.nix` default package from docs-only to binary package.
-4. Keep `quawk-docs` as a secondary package output.
+1. Add `src/quawk/` package skeleton and CLI entrypoint.
+2. Add `tests/` skeleton aligned with [TESTING.md](/Users/fred/dev/quawk/TESTING.md).
+3. Add `pyproject.toml` with runtime + dev/test dependencies.
+4. Add Python-based phase-gate validator in `scripts/`.
+5. Wire CI checks for format/lint/type/test/gate.
 
-Track implementation progress in:
-- `PLAN.md` for phased milestones and exit criteria
-- `TASKS.md` for task-level execution details
+Track progress in:
+- [PLAN.md](/Users/fred/dev/quawk/PLAN.md) for phase milestones
+- [TASKS.md](/Users/fred/dev/quawk/TASKS.md) for task-level execution

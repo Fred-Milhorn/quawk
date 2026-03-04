@@ -17,80 +17,72 @@ Priority values:
 
 | ID | Phase | Priority | Task | Depends On | Acceptance | Status |
 |---|---|---|---|---|---|---|
+| T-000 | P0 | P0 | Rebaseline docs to Python/llvmlite implementation plan | none | Core docs reflect Python 3.14 + `pyenv`/`venv`/`direnv` workflow | done |
 | T-001 | P0 | P0 | Create `src/`, `tests/`, `examples/`, `scripts/` directories | none | Directories exist and are documented | todo |
-| T-002 | P0 | P0 | Add initial `src/quawk.mlb` and `src/main.sml` placeholders | T-001 | `mlton` can evaluate source graph placeholder under Nix shell | todo |
-| T-003 | P0 | P0 | Update `flake.nix` default package from docs-only to source package skeleton | T-002 | `nix build` produces expected package layout | todo |
-| T-004 | P0 | P1 | Add base test package/check wiring to flake outputs | T-001 | `nix flake check` includes test check derivation | todo |
-| T-005 | P0 | P1 | Add CI workflow spec for `fmt`, `build`, `flake check` | T-003, T-004 | CI config draft checked in and runnable | todo |
-| T-006 | P0 | P2 | Add `CONTRIBUTING.md` with workflow and coding standards | none | README links contributing guide; guide is coherent | todo |
-| T-051 | P0 | P0 | Pin QCheck and one-true-awk via Nix flake inputs | T-003 | `flake.lock` contains pinned `qcheck` and `oneTrueAwk` inputs | done |
-| T-052 | P0 | P0 | Define simple test manifest contract and examples (`TEST_SPEC.md`) | T-004 | Spec is documented and referenced by testing docs | done |
-| T-053 | P0 | P0 | Define CI gate policy document (`CI.md`) and required jobs | T-004, T-052 | CI policy doc defines required blocking jobs and phase gate checks | done |
-| T-054 | P0 | P1 | Implement `scripts/check-phase-gate` in SML (using `huml-sml`) for manifest + xfail validation | T-052, T-053 | Script fails invalid manifests and phase-gate violations | todo |
-| T-049 | P0 | P0 | Integrate QCheck as default SML test framework and add sample test target | T-004 | QCheck-based sample test runs under `nix flake check` | todo |
-| T-055 | P0 | P2 | Add Millet as optional dev-shell language server tooling and workspace note | T-003 | `millet` is available in `nix develop` and documented as non-blocking DX tooling | done |
-| T-056 | P0 | P2 | Add `huml-sml` availability for phase-gate metadata validation | T-003 | `huml-sml` source path is available in `nix develop` for validator integration | done |
-| T-057 | P0 | P0 | Pin `huml-sml` via Nix flake input | T-003 | `flake.lock` contains pinned `humlSml` input | done |
-| T-043 | P1 | P0 | Author full P1 parser/frontend tests and check in as `xfail` baseline | T-004, T-049, T-054 | P1 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-007 | P1 | P0 | Define token types and source span representation | T-002, T-043 | Token/span modules compile and unit tests pass | todo |
-| T-008 | P1 | P0 | Implement lexer core with newline/separator handling | T-007 | Lexer fixture tests pass for separator-sensitive inputs | todo |
-| T-009 | P1 | P0 | Implement `REGEX` vs `/` context-sensitive lexing | T-008 | Dedicated ambiguity tests pass | todo |
-| T-010 | P1 | P0 | Define AST node set for grammar in `GRAMMAR.md` | T-007 | AST module covers grammar forms and compiles | todo |
-| T-011 | P1 | P0 | Implement parser for top-level items and statements | T-010 | Parser accepts representative valid programs | todo |
-| T-012 | P1 | P0 | Implement expression parser with implicit concat | T-011 | Precedence/concat tests pass (including ambiguity edges) | todo |
-| T-013 | P1 | P1 | Add parser error recovery at statement boundaries | T-011 | Multi-error fixture tests produce stable error count | todo |
-| T-014 | P1 | P1 | Add parser golden tests for AST snapshots | T-010, T-012 | Golden updates deterministic and reviewed | todo |
-| T-015 | P1 | P1 | Add parser conformance fixtures mapped to `GRAMMAR.md` sections | T-011, T-012 | Coverage matrix shows each grammar area tested | todo |
-| T-044 | P2 | P0 | Author full P2 semantic-analysis tests and check in as `xfail` baseline | T-015 | P2 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-016 | P2 | P0 | Build symbol table/scoping infrastructure | T-010, T-044 | Scope tests pass for nested contexts/functions | todo |
-| T-017 | P2 | P0 | Implement semantic checks for lvalues/assignment legality | T-016 | Invalid lvalue tests fail with expected errors | todo |
-| T-018 | P2 | P0 | Implement control-flow legality checks | T-016 | `break/continue/return` legality tests pass | todo |
-| T-019 | P2 | P1 | Implement function declaration/definition checks | T-016 | Duplicate/conflicting definitions handled deterministically | todo |
-| T-020 | P2 | P1 | Add semantic normalization pass for backend consumption | T-017, T-018, T-019 | Normalized form consumed by backend prototype | todo |
-| T-021 | P2 | P1 | Define semantic error code catalog | T-017, T-018, T-019 | Errors emitted with stable code + source span | todo |
-| T-045 | P3 | P0 | Author full P3 backend/runtime tests and check in as `xfail` baseline | T-021 | P3 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-022 | P3 | P0 | Define runtime value model for core AWK semantics | T-020, T-045 | Runtime model doc + compile-time representation checked in | todo |
-| T-023 | P3 | P0 | Implement minimal LLVM interop C shim API | T-003 | Shim compiles and links in Nix environment | todo |
-| T-024 | P3 | P0 | Implement lowering from normalized IR to LLVM IR (core subset) | T-020, T-023 | Core sample programs execute through JIT path | todo |
-| T-025 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) | T-022, T-024 | Record-processing fixtures pass | todo |
-| T-026 | P3 | P1 | Implement builtins subset required for core compatibility suite | T-022, T-025 | Builtin fixture tests pass for selected subset | todo |
-| T-027 | P3 | P1 | Add backend integration tests (stdout/stderr/exit status) | T-024, T-025 | Integration tests run in `flake check` | todo |
-| T-046 | P4 | P0 | Author full P4 JIT/cache tests and check in as `xfail` baseline | T-027 | P4 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-028 | P4 | P0 | Implement execution state machine from `EXECUTION.md` | T-024, T-025, T-046 | End-to-end run path works without cache | todo |
-| T-029 | P4 | P0 | Implement cache key generation and metadata schema | T-028 | Key fields include required invalidation inputs | todo |
-| T-030 | P4 | P0 | Implement process-local memory cache | T-029 | Repeated run in same process shows cache hit behavior | todo |
-| T-031 | P4 | P0 | Implement disk cache read/write with atomic write protocol | T-029 | Cross-process cache reuse tests pass | todo |
-| T-032 | P4 | P1 | Implement cache invalidation and corruption fallback paths | T-031 | Corrupt/mismatch cases force safe recompilation | todo |
-| T-033 | P4 | P1 | Add runtime/cache metrics and optional summary output | T-028, T-030, T-031 | Metrics exposed for hits/misses/compile time | todo |
-| T-047 | P5 | P0 | Author full P5 compatibility/hardening tests and check in as `xfail` baseline | T-033 | P5 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-034 | P5 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-027, T-047 | Runner emits comparable normalized outputs | todo |
-| T-035 | P5 | P0 | Seed compatibility corpus for parser/runtime core behaviors | T-034 | Core corpus executes and reports per-case status | todo |
-| T-036 | P5 | P1 | Add divergence manifest and classification workflow | T-034 | Divergences tracked with explicit category | todo |
-| T-037 | P5 | P1 | Establish release gating policy in CI for `posix-required` tests | T-035, T-036 | CI fails on disallowed status transitions | todo |
-| T-038 | P5 | P2 | Expand compatibility corpus for regex/io/edge semantics | T-035 | Coverage report shows expanded scope | todo |
-| T-048 | P6 | P0 | Author full P6 release-readiness tests and check in as `xfail` baseline | T-038 | P6 tests committed with `xfail` (`phase_bootstrap`) and baseline report | todo |
-| T-039 | P6 | P0 | Define CLI contract and document in `CLI.md` | T-028, T-031, T-048 | CLI flags and exit codes stable and documented | todo |
-| T-040 | P6 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-035 | Feature matrix aligns with tests and docs | todo |
-| T-041 | P6 | P1 | Add performance baseline doc and thresholds (`PERF.md`) | T-033 | Benchmarks recorded with repeatable method | todo |
+| T-002 | P0 | P0 | Add `pyproject.toml` with package metadata and console entrypoint | T-001 | `quawk --help` entrypoint resolves in local venv | todo |
+| T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | todo |
+| T-004 | P0 | P1 | Add `.python-version` and bootstrap instructions for `pyenv` + `venv` | none | Clean checkout setup succeeds with documented commands | todo |
+| T-005 | P0 | P1 | Add optional `.envrc` template for automatic venv activation | T-004 | `direnv allow` activates expected environment | todo |
+| T-006 | P0 | P0 | Add Python phase-gate validator (`scripts/check_phase_gate.py`) | none | Invalid manifests and gate violations fail with deterministic output | todo |
+| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test/phase-gate checks | T-002, T-006 | CI blocks merges on required failures | todo |
+| T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | todo |
+| T-043 | P1 | P0 | Author full P1 frontend tests as `xfail` baseline | T-002, T-006 | P1 tests committed with `xfail_reason=phase_bootstrap` | todo |
+| T-009 | P1 | P0 | Define token types and source-span representation | T-003, T-043 | Token/span modules tested and stable | todo |
+| T-010 | P1 | P0 | Implement lexer core with newline/separator handling | T-009 | Lexer fixtures pass for separator-sensitive inputs | todo |
+| T-011 | P1 | P0 | Implement `REGEX` vs `/` context-sensitive lexing | T-010 | Dedicated ambiguity tests pass | todo |
+| T-012 | P1 | P0 | Define AST node set for grammar in `GRAMMAR.md` | T-009 | AST model covers planned grammar forms | todo |
+| T-013 | P1 | P0 | Implement parser for top-level items and statements | T-012 | Parser accepts representative valid programs | todo |
+| T-014 | P1 | P0 | Implement expression parser with implicit concatenation | T-013 | Precedence and concat tests pass | todo |
+| T-015 | P1 | P1 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
+| T-016 | P1 | P1 | Add parser golden tests for AST snapshots | T-012, T-014 | Golden outputs deterministic and reviewed | todo |
+| T-017 | P1 | P1 | Add parser conformance fixtures mapped to grammar sections | T-013, T-014 | Coverage matrix shows each grammar area tested | todo |
+| T-044 | P2 | P0 | Author full P2 semantic-analysis tests as `xfail` baseline | T-017 | P2 baseline committed with expected failures | todo |
+| T-018 | P2 | P0 | Build symbol table/scoping infrastructure | T-012, T-044 | Scope tests pass for nested contexts/functions | todo |
+| T-019 | P2 | P0 | Implement semantic checks for lvalues/assignment legality | T-018 | Invalid lvalue tests fail with expected error codes | todo |
+| T-020 | P2 | P0 | Implement control-flow legality checks | T-018 | `break`/`continue`/`return` legality tests pass | todo |
+| T-021 | P2 | P1 | Implement function declaration/definition checks | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
+| T-022 | P2 | P1 | Add semantic normalization pass for backend consumption | T-019, T-020, T-021 | Normalized IR consumed by backend prototype | todo |
+| T-023 | P2 | P1 | Define semantic error code catalog | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-045 | P3 | P0 | Author full P3 backend/runtime tests as `xfail` baseline | T-023 | P3 baseline committed with expected failures | todo |
+| T-024 | P3 | P0 | Define runtime value model for core AWK semantics | T-022, T-045 | Runtime model doc + representation checked in | todo |
+| T-025 | P3 | P0 | Implement lowering from normalized IR to LLVM IR via `llvmlite` | T-022 | Core sample programs execute through JIT path | todo |
+| T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) | T-024, T-025 | Record-processing fixtures pass | todo |
+| T-027 | P3 | P1 | Implement core builtin subset required by compatibility suite | T-024, T-026 | Builtin fixture tests pass for selected subset | todo |
+| T-028 | P3 | P1 | Add backend integration tests (stdout/stderr/exit status) | T-025, T-026 | Integration tests run in required CI jobs | todo |
+| T-039 | P3 | P0 | Implement CLI contract behavior from `CLI.md` | T-026 | Help/version/exit behaviors are stable and tested | todo |
+| T-046 | P4 | P0 | Author full P4 JIT/cache tests as `xfail` baseline | T-028 | P4 baseline committed with expected failures | todo |
+| T-029 | P4 | P0 | Implement execution state machine from `EXECUTION.md` | T-025, T-026, T-046 | End-to-end run path works with cache disabled | todo |
+| T-030 | P4 | P0 | Implement cache key generation and metadata schema | T-029 | Key fields include required invalidation inputs | todo |
+| T-031 | P4 | P0 | Implement process-local memory cache | T-030 | Repeated run in same process shows cache hits | todo |
+| T-032 | P4 | P0 | Implement disk cache read/write with atomic write protocol | T-030 | Cross-process cache reuse tests pass | todo |
+| T-033 | P4 | P1 | Implement cache invalidation and corruption fallback paths | T-032 | Corrupt/mismatch cases force safe recompilation | todo |
+| T-034 | P4 | P1 | Add runtime/cache metrics and optional summary output | T-029, T-031, T-032 | Metrics exposed for hits/misses/compile time | todo |
+| T-047 | P5 | P0 | Author full P5 compatibility tests as `xfail` baseline | T-034 | P5 baseline committed with expected failures | todo |
+| T-035 | P5 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-036 | P5 | P0 | Seed compatibility corpus for parser/runtime core behaviors | T-035 | Core corpus executes and reports per-case status | todo |
+| T-037 | P5 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-038 | P5 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
+| T-048 | P6 | P0 | Author full P6 release-readiness tests as `xfail` baseline | T-038 | P6 baseline committed with expected failures | todo |
+| T-040 | P6 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
+| T-041 | P6 | P1 | Add performance baseline doc and thresholds (`PERF.md`) | T-034 | Benchmarks recorded with repeatable method | todo |
 | T-042 | P6 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
-| T-050 | P6 | P2 | Evaluate continued QCheck suitability and document any framework split decisions | T-041 | Decision note added to `TESTING.md` with rationale | todo |
 
 ## Immediate Next Tasks
 
-Start here unless priorities are explicitly changed:
+Start here unless priorities change:
 
 1. `T-001` directory skeleton
-2. `T-002` initial `.mlb` and `main.sml`
-3. `T-003` flake package transition from docs-only to source skeleton
-4. `T-004` base test wiring in `flake check`
-5. `T-054` implement phase gate checker script
-6. `T-049` integrate QCheck and add sample test target
+2. `T-002` `pyproject.toml` and package entrypoint
+3. `T-003` initial `src/quawk` placeholders
+4. `T-004` Python env bootstrap policy (`pyenv` + `venv`)
+5. `T-006` phase-gate validator in Python
+6. `T-007` CI required jobs wiring
 7. `T-043` write P1 tests as `xfail` baseline
-8. `T-007` token/span definitions
+8. `T-009` token/span definitions
 
 ## Maintenance Rules
 
 - Any accepted scope change must update both `PLAN.md` and `TASKS.md` in the same change.
-- New tasks should include phase, dependency links, and acceptance criteria.
-- Completed tasks should reference the implementing commit/PR in a follow-up note.
-- Phase implementation tasks should not move to `in_progress` until their phase `xfail` baseline task is `done`.
+- New tasks must include phase, dependencies, and acceptance criteria.
+- Completed tasks should reference implementing commit/PR in follow-up notes.
+- Phase implementation tasks should not move to `in_progress` until that phase `xfail` baseline task is `done`.
