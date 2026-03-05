@@ -144,7 +144,6 @@ Target structure during implementation:
 ├── STANDARDS.md
 ├── GRAMMAR.md
 ├── src/
-│   └── quawk/
 ├── tests/
 ├── examples/
 └── scripts/
