@@ -1,0 +1,12 @@
+LICENSE
+README.md
+pyproject.toml
+src/aster/__init__.py
+src/aster/__main__.py
+src/aster/cli.py
+src/aster.egg-info/PKG-INFO
+src/aster.egg-info/SOURCES.txt
+src/aster.egg-info/dependency_links.txt
+src/aster.egg-info/entry_points.txt
+src/aster.egg-info/top_level.txt
+tests/test_main.py

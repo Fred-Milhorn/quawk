@@ -1,3 +1,12 @@
+Metadata-Version: 2.4
+Name: aster
+Version: 0.1.0
+Summary: Aster AWK compiler
+Requires-Python: >=3.14
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
 # quawk
 
 POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM via `llvmlite`.
