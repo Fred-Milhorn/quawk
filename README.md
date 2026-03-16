@@ -10,9 +10,10 @@ Implemented now:
 - consolidated project documentation
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
+- initial Python package/bootstrap scaffold with a placeholder `quawk` CLI
 
 Planned next:
-- Python package/bootstrap scaffold
+- complete scaffold tooling and repo layout
 - lexer/parser implementation
 - semantic analysis, LLVM lowering, and JIT execution
 - compatibility and differential test harness

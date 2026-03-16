@@ -25,7 +25,7 @@ uv venv --python 3.14 .venv
 source .venv/bin/activate
 ```
 
-Once `pyproject.toml` is present:
+Install the project and development dependencies:
 
 ```sh
 uv pip install -e .[dev]
@@ -45,7 +45,7 @@ mypy src
 python scripts/check_phase_gate.py
 ```
 
-Not every command is runnable yet because the implementation scaffold is still being built. The command list here reflects the intended contributor workflow and CI gates.
+Not every command is runnable yet because the implementation scaffold is still being built out beyond the initial package bootstrap. The command list here reflects the intended contributor workflow and CI gates.
 
 ## Local Outputs
 
@@ -60,7 +60,8 @@ These local outputs should be ignored by Git as needed:
 
 Current state:
 - docs-first repository with design, testing, and roadmap material
-- implementation scaffold is planned but not yet committed
+- initial `src/quawk` package scaffold and placeholder CLI are committed
+- `examples/`, `scripts/`, and phase-gate tooling are still pending
 
 Target implementation layout:
 

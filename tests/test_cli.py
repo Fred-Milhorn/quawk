@@ -1,14 +1,13 @@
 from pathlib import Path
 import subprocess
-import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_main_script_exits_zero() -> None:
+def test_quawk_exits_zero() -> None:
     result = subprocess.run(
-        [sys.executable, str(ROOT / "main.py")],
+        ["quawk"],
         cwd=ROOT,
         capture_output=True,
         text=True,

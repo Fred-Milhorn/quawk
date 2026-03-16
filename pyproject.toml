@@ -3,15 +3,15 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aster"
+name = "quawk"
 version = "0.1.0"
-description = "Aster AWK compiler"
+description = "Quawk AWK compiler"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
 
 [project.scripts]
-aster = "aster.cli:main"
+quawk = "quawk.cli:main"
 
 [dependency-groups]
 dev = [
