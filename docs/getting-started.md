@@ -36,16 +36,15 @@ uv pip install -e .[dev]
 After dependency bootstrap:
 
 ```sh
+quawk --help
 pytest
-pytest -m property
-pytest tests/compat -m smoke
 ruff format --check .
 ruff check .
-mypy src
+mypy src scripts
 python scripts/check_phase_gate.py
 ```
 
-Not every command is runnable yet because the implementation scaffold is still being built out beyond the initial package bootstrap. The command list here reflects the intended contributor workflow and CI gates.
+The commands above should run from a clean scaffold checkout after `uv pip install -e .[dev]`.
 
 ## Local Outputs
 
@@ -60,8 +59,9 @@ These local outputs should be ignored by Git as needed:
 
 Current state:
 - docs-first repository with design, testing, and roadmap material
-- initial `src/quawk` package scaffold and placeholder CLI are committed
-- `examples/`, `scripts/`, and phase-gate tooling are still pending
+- initial `src/quawk` package scaffold and CLI contract stub are committed
+- `examples/` and `scripts/` are present for scaffold work
+- frontend, runtime, and compatibility implementation are still pending
 
 Target implementation layout:
 

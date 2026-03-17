@@ -95,28 +95,27 @@ Never silently pick one behavior. Every persistent divergence needs an explicit 
 
 ## Test Manifest Specification
 
-Use one manifest file per test case in HUML.
+Use one manifest file per test case in TOML.
 
 Recommended location:
-- `tests/**/case.huml`
+- `tests/**/case.toml`
 
 Required fields:
 
-```text
-id: parser.regex.division.001
-phase: P1
-suite: parser
-status: xfail
-xfail_reason: phase_bootstrap
-tracking: null
-program: tests/parser/regex_division_001.awk
-stdin: tests/fixtures/empty.txt
-expect:
-  stdout: ""
-  stderr_class: syntax_error
-  exit: 2
-tags:
-  - posix-required
+```toml
+id = "parser.regex.division.001"
+phase = "P1"
+suite = "parser"
+status = "xfail"
+xfail_reason = "phase_bootstrap"
+program = "tests/parser/regex_division_001.awk"
+stdin = "tests/fixtures/empty.txt"
+tags = ["posix-required"]
+
+[expect]
+stdout = ""
+stderr_class = "syntax_error"
+exit = 2
 ```
 
 Field rules:
@@ -125,9 +124,9 @@ Field rules:
 - `suite`: logical suite name such as `parser`, `runtime`, or `compat`
 - `status`: `pass` or `xfail`
 - `xfail_reason`: required when `status=xfail`; allowed values are `phase_bootstrap` and `known_gap`
-- `tracking`: required when `xfail_reason=known_gap`
+- `tracking`: required when `xfail_reason=known_gap`; otherwise omit it
 - `program`: path to the AWK program under repo
-- `stdin`: path to input fixture or `null`
+- `stdin`: optional path to input fixture; omit when no stdin fixture is needed
 - `expect`: expected output and exit behavior
 - `tags`: must include at least one of `posix-required`, `unspecified`, `extension`, `known-gap`
 
@@ -139,8 +138,8 @@ Runner contract:
 4. fail if the manifest is invalid, `known_gap` has no `tracking`, or a completed phase still has `phase_bootstrap`
 
 Implementation language and tooling:
-- phase-gate validator is implemented in Python
-- metadata parsing may use a Python HUML parser or a repository-defined equivalent parser
+- phase-gate validator is implemented in Python under `scripts/check_phase_gate.py`
+- metadata parsing uses Python's standard-library `tomllib`
 
 ## Pass/Fail Policy
 
@@ -193,12 +192,11 @@ Promotion rule:
 Common local commands once the scaffold exists:
 
 ```sh
+quawk --help
 pytest
-pytest -m property
-pytest tests/compat -m smoke
 ruff format --check .
 ruff check .
-mypy src
+mypy src scripts
 python scripts/check_phase_gate.py
 ```
 

@@ -79,10 +79,11 @@ Reference behavior:
 Current local checks are defined in [docs/testing.md](docs/testing.md). When the project scaffold is in place, contributors should expect to run:
 
 ```sh
+quawk --help
 pytest
 ruff format --check .
 ruff check .
-mypy src
+mypy src scripts
 python scripts/check_phase_gate.py
 ```
 

@@ -161,14 +161,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-001` create `src/`, `tests/`, `examples/`, and `scripts/`
-2. `T-002` add `pyproject.toml` and package entrypoint
-3. `T-003` add initial `src/quawk` placeholders
-4. `T-004` add Python env bootstrap policy (`uv` + project `.venv`)
-5. `T-006` add the phase-gate validator in Python
-6. `T-007` wire required CI jobs
-7. `T-043` write P1 tests as the initial `xfail` baseline
-8. `T-009` define token and source-span models
+1. `T-043` write P1 tests as the initial `xfail` baseline
+2. `T-009` define token and source-span models
+3. `T-010` implement lexer core with newline/separator handling
+4. `T-011` implement `REGEX` vs `/` context-sensitive lexing
+5. `T-012` define AST node set for grammar in `docs/design.md`
+6. `T-013` implement parser for top-level items and statements
+7. `T-014` implement expression parser with implicit concatenation
+8. `T-015` add parser error recovery at statement boundaries
 
 ## Backlog
 
@@ -186,13 +186,13 @@ Priority values:
 | ID | Phase | Priority | Task | Depends On | Acceptance | Status |
 |---|---|---|---|---|---|---|
 | T-000 | P0 | P0 | Rebaseline docs to Python/llvmlite implementation plan | none | Core docs reflect Python 3.14 + `uv` workflow | done |
-| T-001 | P0 | P0 | Create `src/`, `tests/`, `examples/`, `scripts/` directories | none | Directories exist and are documented | todo |
-| T-002 | P0 | P0 | Add `pyproject.toml` with package metadata and console entrypoint | T-001 | `quawk --help` entrypoint resolves in the local `.venv` | todo |
-| T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | todo |
-| T-004 | P0 | P1 | Add `uv` bootstrap instructions for Python `3.14.x` and the project `.venv` | none | Clean checkout setup succeeds with documented `uv` commands | todo |
-| T-005 | P0 | P1 | Add `uv`-based contributor command shortcuts or workflow notes | T-004 | Common contributor commands run cleanly from the documented `uv` environment | todo |
-| T-006 | P0 | P0 | Add Python phase-gate validator (`scripts/check_phase_gate.py`) | none | Invalid manifests and gate violations fail with deterministic output | todo |
-| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test/phase-gate checks | T-002, T-006 | CI blocks merges on required failures | todo |
+| T-001 | P0 | P0 | Create `src/`, `tests/`, `examples/`, and `scripts/` directories | none | Directories exist and are documented | done |
+| T-002 | P0 | P0 | Add `pyproject.toml` with package metadata and console entrypoint | T-001 | `quawk --help` entrypoint resolves in the local `.venv` | done |
+| T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | done |
+| T-004 | P0 | P1 | Add `uv` bootstrap instructions for Python `3.14.x` and the project `.venv` | none | Clean checkout setup succeeds with documented `uv` commands | done |
+| T-005 | P0 | P1 | Add `uv`-based contributor command shortcuts or workflow notes | T-004 | Common contributor commands run cleanly from the documented `uv` environment | done |
+| T-006 | P0 | P0 | Add Python phase-gate validator (`scripts/check_phase_gate.py`) | none | Invalid manifests and gate violations fail with deterministic output | done |
+| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test/phase-gate checks | T-002, T-006 | CI blocks merges on required failures | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
 | T-043 | P1 | P0 | Author full P1 frontend tests as `xfail` baseline | T-002, T-006 | P1 tests committed with `xfail_reason=phase_bootstrap` | todo |
 | T-009 | P1 | P0 | Define token types and source-span representation | T-003, T-043 | Token/span modules tested and stable | todo |

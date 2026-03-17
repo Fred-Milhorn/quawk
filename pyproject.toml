@@ -15,8 +15,28 @@ quawk = "quawk.cli:main"
 
 [dependency-groups]
 dev = [
+    "mypy>=1.18,<2",
     "pytest>=8.4,<9",
+    "ruff>=0.13,<0.14",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "property: reserved for property-based tests",
+    "smoke: reserved for smoke coverage",
+]
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
