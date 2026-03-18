@@ -17,18 +17,18 @@ High-level pipeline:
 Goals:
 - match POSIX AWK behavior closely
 - keep the implementation understandable and testable in Python
-- deliver a tiny end-to-end executable slice before broad feature coverage
+- deliver an MVP end-to-end executable path before broad feature coverage
 
 ## Implementation Strategy
 
-Delivery is vertical-slice first, not subsystem-complete first.
+Delivery is MVP-first, not subsystem-complete first.
 
 That means the project should prefer:
 - a tiny lexer, parser, lowering path, and runtime that can execute a very small supported program
 - incremental growth of the supported AWK subset
-- deferring broad parser coverage, detailed diagnostics, and optimization work until after the first executable slice exists
+- deferring broad parser coverage, detailed diagnostics, and optimization work until after the MVP path exists
 
-Initial target slice:
+Initial MVP target:
 - inline program or `-f` file input
 - a single `BEGIN` action
 - `print` with a string literal
@@ -70,8 +70,8 @@ Error handling and diagnostics:
 - prefer deterministic error messages over aggressive recovery heuristics
 
 Milestone order:
-1. minimal executable slice for `BEGIN { print "literal" }`
-2. extend expressions and statements needed for the next runnable slice
+1. MVP executable path for `BEGIN { print "literal" }`
+2. extend expressions and statements needed for the next runnable increment
 3. add records, fields, and pattern-action execution
 4. broaden diagnostics and recovery only after execution coverage exists
 5. expand conformance testing as supported behavior grows
@@ -251,7 +251,7 @@ Runtime state machine for the initial implementation:
 5. `LowerToLLVM`
 6. `Execute`
 
-Initial supported execution slice:
+Initial supported MVP path:
 - one `BEGIN` action
 - one or more `print` statements
 - string literals
@@ -262,7 +262,7 @@ Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
-- expanding the supported subset does not break earlier working slices
+- expanding the supported subset does not break the earlier working MVP path
 
 ## Command Line Interface
 

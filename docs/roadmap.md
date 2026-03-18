@@ -9,8 +9,8 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - LLVM-backed JIT uses `llvmlite`
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
-- implementation grows by executable vertical slices
-- phase delivery uses TDD for the next supported slice
+- implementation grows from an end-to-end MVP JIT path
+- phase delivery uses TDD for the next MVP increment
 - `pytest` is the default test framework
 
 ## Phase Overview
@@ -18,8 +18,8 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | Phase | Name | Primary Outcome |
 |---|---|---|
 | P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, CI basics |
-| P1 | Minimal Vertical Slice | First runnable `quawk` path for a tiny AWK subset |
-| P2 | Incremental Language Expansion | Grow supported AWK behavior slice by slice |
+| P1 | End-to-End MVP Path | First runnable `quawk` JIT path for the simplest AWK program |
+| P2 | Incremental Language Expansion | Grow supported AWK behavior from the MVP |
 | P3 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P4 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
@@ -27,13 +27,13 @@ This document is the phased implementation roadmap and active backlog for `quawk
 
 Entry gate for every phase:
 
-1. author tests for the next supported slice in phase scope
+1. author tests for the next MVP increment in phase scope
 2. check in those tests before or alongside implementation
 3. use `xfail` only where it makes the temporary expected failure clearer
-4. start implementation only after the slice is concretely specified in tests
+4. start implementation only after the target MVP behavior is concretely specified in tests
 
 Phase completion rule:
-- a phase should not close while its claimed slice still lacks real test coverage
+- a phase should not close while its claimed MVP behavior still lacks real test coverage
 - the roadmap, not a custom validator, is the source of truth for phase status
 
 ## Phase Details
@@ -53,16 +53,17 @@ Exit criteria:
 - bootstrap flow works from a clean checkout
 - CI required jobs pass on default branch target platforms
 
-### P1: Minimal Vertical Slice
+### P1: End-to-End MVP Path
 
 Objective:
-- execute a tiny but real AWK program through the full pipeline
+- execute the simplest useful AWK program through the full CLI-to-JIT pipeline
 
 In scope:
 - inline program text and `-f` file input
 - minimal lexer and parser support for `BEGIN { print "literal" }`
-- LLVM lowering and runtime path sufficient for that slice
+- LLVM lowering and runtime path sufficient for the MVP
 - stable stdout, exit status, and basic CLI invocation
+- CLI-driven end-to-end tests as the primary acceptance signal
 
 Exit criteria:
 - `quawk 'BEGIN { print "hello" }'` executes correctly
@@ -72,17 +73,17 @@ Exit criteria:
 ### P2: Incremental Language Expansion
 
 Objective:
-- expand the supported AWK subset one coherent feature slice at a time
+- expand the supported AWK subset one coherent MVP increment at a time
 
 In scope:
-- tokens, expressions, statements, and runtime behavior needed for the next slice
-- semantic checks only when a new slice requires them
+- tokens, expressions, statements, and runtime behavior needed for the next increment
+- semantic checks only when a new increment requires them
 - records, fields, pattern-action execution, control flow, and functions in staged increments
 - diagnostics and recovery improvements after the related execution path exists
 
 Exit criteria:
 - each newly claimed language feature has an executable implementation
-- earlier working slices stay green as coverage expands
+- the earlier working MVP path stays green as coverage expands
 - the supported subset is always explicit in tests and docs
 
 ### P3: Compatibility and Hardening
@@ -123,11 +124,11 @@ Start here unless priorities change:
 1. `T-050` implement minimal parser support for `BEGIN { print "literal" }`
 2. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
 3. `T-052` wire CLI execution for inline program text and `-f` files
-4. `T-053` add end-to-end execution tests for the initial supported slice
-5. `T-009` extend token/source-span modeling for the next supported slice
-6. `T-010` extend lexing for the next supported slice
-7. `T-012` define and extend AST nodes for the next supported slice
-8. `T-013` extend parser for the next runnable slice
+4. `T-053` add end-to-end execution tests for the MVP path
+5. `T-009` extend token/source-span modeling for the next MVP increment
+6. `T-010` extend lexing for the next MVP increment
+7. `T-012` define and extend AST nodes for the next MVP increment
+8. `T-013` extend parser for the next runnable increment
 
 ## Backlog
 
@@ -153,33 +154,33 @@ Priority values:
 | T-006 | P0 | P0 | Keep testing workflow centered on pytest rather than custom gate tooling | none | Repo workflow is described without a second metadata/checking system | done |
 | T-007 | P0 | P1 | Add CI workflow for format/lint/type/test checks | T-002 | CI blocks merges on required failures | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
-| T-043 | P1 | P0 | Author P1 vertical-slice tests for the initial executable slice | T-002, T-006 | Minimal end-to-end execution tests are committed before implementation | done |
-| T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | Initial slice tokenization is stable and tested | done |
-| T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | Initial slice parses into a stable AST form | todo |
-| T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | Minimal slice executes through the JIT path | todo |
-| T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | Minimal slice runs from both invocation forms | todo |
-| T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the initial slice | T-052 | Inline and file-based smoke cases pass end-to-end | todo |
-| T-009 | P2 | P0 | Extend token types and source-span representation for the next supported slice | T-053 | Token/span modules support the next planned language increment | todo |
-| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next slice | T-009 | Lexer fixtures pass for the next targeted syntax slice | todo |
+| T-043 | P1 | P0 | Author P1 MVP end-to-end tests for the initial executable path | T-002, T-006 | Minimal end-to-end CLI execution tests are committed before implementation | done |
+| T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | MVP tokenization is stable and supporting lexer tests pass | done |
+| T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | MVP program parses into a stable AST form | todo |
+| T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | MVP program executes through the JIT path | todo |
+| T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | MVP path runs from both invocation forms | todo |
+| T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the MVP path | T-052 | Inline and file-based MVP smoke cases pass end-to-end | todo |
+| T-009 | P2 | P0 | Extend token types and source-span representation for the next MVP increment | T-053 | Token/span modules support the next planned language increment | todo |
+| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next MVP increment | T-009 | Lexer fixtures pass for the next targeted syntax increment | todo |
 | T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
-| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next supported slice | T-009 | AST model matches currently supported language forms | todo |
-| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012 | Parser accepts the next planned runnable slice | todo |
-| T-014 | P2 | P1 | Implement expression parsing with precedence and implicit concatenation | T-013 | Precedence and concat tests pass when that slice is enabled | todo |
+| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next MVP increment | T-009 | AST model matches currently supported language forms | todo |
+| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012 | Parser accepts the next planned runnable increment | todo |
+| T-014 | P2 | P1 | Implement expression parsing with precedence and implicit concatenation | T-013 | Precedence and concat tests pass when that increment is enabled | todo |
 | T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
 | T-017 | P2 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
-| T-044 | P2 | P1 | Author tests for semantic checks needed by the next supported slice | T-017 | Semantic tests are committed before the related feature work | todo |
+| T-044 | P2 | P1 | Author tests for semantic checks needed by the next MVP increment | T-017 | Semantic tests are committed before the related feature work | todo |
 | T-018 | P2 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
 | T-019 | P2 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
 | T-020 | P2 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
 | T-021 | P2 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
-| T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported slices | todo |
-| T-023 | P2 | P2 | Define semantic error code catalog after core execution slices stabilize | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
+| T-023 | P2 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
 | T-024 | P2 | P0 | Extend runtime value model for newly supported AWK semantics | T-022 | Runtime representation matches supported behavior | todo |
 | T-025 | P2 | P0 | Extend lowering from supported IR/AST forms to LLVM IR via `llvmlite` | T-022 | New sample programs execute through JIT path | todo |
 | T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
-| T-027 | P2 | P1 | Implement builtins only as required by the active slice or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
-| T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status across supported slices | T-025, T-026 | Integration tests run in required CI jobs | todo |
+| T-027 | P2 | P1 | Implement builtins only as required by the active MVP increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status across supported behavior increments | T-025, T-026 | Integration tests run in required CI jobs | todo |
 | T-039 | P2 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
 | T-047 | P3 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
 | T-035 | P3 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
@@ -203,7 +204,7 @@ Priority values:
 |---|---|---|
 | AWK semantic corner-case drift | High | Differential tests and explicit divergence classification |
 | LLVM binding feature limits (`llvmlite`) | High | Keep backend abstraction narrow; add fallback only if blocked |
-| Over-scoped early milestones | High | Force work into small runnable slices before broad feature coverage |
+| Over-scoped early milestones | High | Force work into a working MVP path before broad feature coverage |
 | Scope creep from extensions | Medium | POSIX-first gate and defer extensions until compatibility baseline |
 | Python dependency drift | Medium | Pin dependency ranges and enforce CI |
 
@@ -212,4 +213,4 @@ Priority values:
 - any accepted scope change must update both the roadmap text and the backlog in the same change
 - new tasks must include phase, dependencies, and acceptance criteria
 - completed tasks should reference the implementing commit or PR in follow-up notes
-- phase implementation tasks should not move to `in_progress` until that phase's `xfail` baseline task is `done`
+- phase implementation tasks should not move to `in_progress` until that phase's MVP test-baseline task is `done`

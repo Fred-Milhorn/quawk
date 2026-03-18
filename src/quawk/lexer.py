@@ -30,45 +30,41 @@ def lex(source: str) -> list[Token]:
     while index < len(source):
         char = source[index]
 
-        if char.isspace():
-            index += 1
-            continue
-
-        if source.startswith("BEGIN", index) and is_word_boundary(source, index + 5):
-            tokens.append(Token(TokenKind.BEGIN, "BEGIN"))
-            index += 5
-            continue
-
-        if source.startswith("print", index) and is_word_boundary(source, index + 5):
-            tokens.append(Token(TokenKind.PRINT, "print"))
-            index += 5
-            continue
-
-        if char == "{":
-            tokens.append(Token(TokenKind.LBRACE, char))
-            index += 1
-            continue
-
-        if char == "}":
-            tokens.append(Token(TokenKind.RBRACE, char))
-            index += 1
-            continue
-
-        if char == '"':
-            token, index = lex_string(source, index)
-            tokens.append(token)
-            continue
-
-        raise LexError(f"unsupported token at offset {index}: {char!r}")
+        match char:
+            case _ if char.isspace():
+                index += 1
+            case "{":
+                tokens.append(Token(TokenKind.LBRACE, char))
+                index += 1
+            case "}":
+                tokens.append(Token(TokenKind.RBRACE, char))
+                index += 1
+            case '"':
+                token, index = lex_string(source, index)
+                tokens.append(token)
+            case _ if char.isalpha() or char == "_":
+                token, index = lex_word(source, index)
+                tokens.append(token)
+            case _:
+                raise LexError(f"unsupported token at offset {index}: {char!r}")
 
     tokens.append(Token(TokenKind.EOF, ""))
     return tokens
 
 
-def is_word_boundary(source: str, index: int) -> bool:
-    if index >= len(source):
-        return True
-    return not (source[index].isalnum() or source[index] == "_")
+def lex_word(source: str, start: int) -> tuple[Token, int]:
+    index = start
+    while index < len(source) and (source[index].isalnum() or source[index] == "_"):
+        index += 1
+
+    word = source[start:index]
+    match word:
+        case "BEGIN":
+            return Token(TokenKind.BEGIN, word), index
+        case "print":
+            return Token(TokenKind.PRINT, word), index
+        case _:
+            raise LexError(f"unsupported token at offset {start}: {word!r}")
 
 
 def lex_string(source: str, start: int) -> tuple[Token, int]:

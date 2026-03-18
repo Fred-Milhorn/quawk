@@ -14,15 +14,15 @@ Implemented now:
 - example program and CI workflow scaffold
 
 Planned next:
-- first end-to-end executable slice for a tiny AWK subset
-- incremental language and runtime expansion from that slice
+- first end-to-end MVP JIT path for the simplest AWK program
+- incremental language and runtime expansion from that MVP
 - compatibility and differential test harness after the executable core exists
 
 ## Goals
 
 - POSIX-first AWK behavior and compatibility
 - an early end-to-end executable path for a tiny AWK subset
-- incremental expansion driven by small vertical slices
+- incremental expansion driven by the working MVP path
 
 ## Non-Goals
 
