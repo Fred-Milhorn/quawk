@@ -40,8 +40,7 @@ quawk --help
 pytest
 ruff format --check .
 ruff check .
-mypy src scripts
-uv run gates
+mypy src
 ```
 
 The commands above should run from a clean scaffold checkout after `uv pip install -e .[dev]`.

@@ -10,9 +10,8 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - LLVM-backed JIT uses `llvmlite`
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows by executable vertical slices
-- phase delivery uses TDD with `xfail` baselines for the next supported slice
+- phase delivery uses TDD for the next supported slice
 - `pytest` is the default test framework
-- phase-gate metadata validation is implemented in Python
 
 ## Phase Overview
 
@@ -29,13 +28,13 @@ This document is the phased implementation roadmap and active backlog for `quawk
 Entry gate for every phase:
 
 1. author tests for the next supported slice in phase scope
-2. register tests in the runner with `xfail` status and reason `phase_bootstrap`
-3. capture a baseline report showing expected failures
-4. start implementation only after the baseline is checked in
+2. check in those tests before or alongside implementation
+3. use `xfail` only where it makes the temporary expected failure clearer
+4. start implementation only after the slice is concretely specified in tests
 
 Phase completion rule:
-- a phase cannot close with remaining `xfail` tests tagged `phase_bootstrap`
-- intentional residual `xfail` must be reclassified to `known_gap` with explicit tracking
+- a phase should not close while its claimed slice still lacks real test coverage
+- the roadmap, not a custom validator, is the source of truth for phase status
 
 ## Phase Details
 
@@ -48,12 +47,11 @@ In scope:
 - create `src/`, `tests/`, `examples/`, and `scripts/`
 - add initial package and CLI entrypoint placeholder
 - add `pyproject.toml` and dependency policy
-- add CI-ready baseline checks and phase-gate validator
+- add CI-ready baseline checks
 
 Exit criteria:
 - bootstrap flow works from a clean checkout
 - CI required jobs pass on default branch target platforms
-- phase-gate validation is executable in CI
 
 ### P1: Minimal Vertical Slice
 
@@ -152,10 +150,10 @@ Priority values:
 | T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | done |
 | T-004 | P0 | P1 | Add `uv` bootstrap instructions for Python `3.14.x` and the project `.venv` | none | Clean checkout setup succeeds with documented `uv` commands | done |
 | T-005 | P0 | P1 | Add `uv`-based contributor command shortcuts or workflow notes | T-004 | Common contributor commands run cleanly from the documented `uv` environment | done |
-| T-006 | P0 | P0 | Add Python phase-gate validator (`scripts/check_phase_gate.py`) | none | Invalid manifests and gate violations fail with deterministic output | done |
-| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test/phase-gate checks | T-002, T-006 | CI blocks merges on required failures | done |
+| T-006 | P0 | P0 | Keep testing workflow centered on pytest rather than custom gate tooling | none | Repo workflow is described without a second metadata/checking system | done |
+| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test checks | T-002 | CI blocks merges on required failures | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
-| T-043 | P1 | P0 | Author P1 vertical-slice tests as `xfail` baseline | T-002, T-006 | Minimal end-to-end execution tests committed with `xfail_reason=phase_bootstrap` | todo |
+| T-043 | P1 | P0 | Author P1 vertical-slice tests for the initial executable slice | T-002, T-006 | Minimal end-to-end execution tests are committed before implementation | todo |
 | T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | Initial slice tokenization is stable and tested | todo |
 | T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | Initial slice parses into a stable AST form | todo |
 | T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | Minimal slice executes through the JIT path | todo |

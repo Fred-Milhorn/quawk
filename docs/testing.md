@@ -11,19 +11,14 @@ This document defines how `quawk` validates behavior, tracks incomplete work, an
 
 ## TDD Workflow Policy
 
-Implementation follows strict phase-based TDD:
+Implementation should stay test-driven without adding a second metadata system:
 
-1. before implementation starts for a slice, author tests for that next supported slice
-2. mark the new tests as `xfail` while functionality is unimplemented
-3. implement the smallest coherent runtime slice that burns those tests down to `pass`
-4. do not close a phase with unresolved phase-bootstrap `xfail` tests for that phase
+1. before implementation starts for a slice, author the tests for that next supported slice
+2. use ordinary failing tests by default
+3. use `pytest.mark.xfail` only when an expected temporary failure is clearer than a hard fail
+4. implement the smallest coherent runtime slice that burns those tests down to `pass`
 
-Allowed exception:
-- a test may remain `xfail` only if reclassified as `known_gap` with explicit documentation and linked tracking
-
-Phase gate rule:
-- before implementation for phase `Px`, tests for the next supported slice in `Px` are added as `xfail` with `phase_bootstrap`
-- at phase close, no `phase_bootstrap` entries may remain for `Px`
+Roadmap state should be tracked in [docs/roadmap.md](roadmap.md), not in separate manifest files or a custom validator.
 
 ## Framework Baseline
 
@@ -96,54 +91,15 @@ When references disagree, classify once and record it:
 
 Never silently pick one behavior. Every persistent divergence needs an explicit classification.
 
-## Test Manifest Specification
+## Expected Failures
 
-Use one manifest file per test case in TOML.
+Use `pytest.mark.xfail` when:
+- a test documents behavior you intend to implement shortly
+- a known platform or dependency issue makes the failure expected for now
+- the temporary failure is still worth keeping visible in the suite
 
-Recommended location:
-- `tests/**/case.toml`
-
-Required fields:
-
-```toml
-id = "parser.regex.division.001"
-phase = "P1"
-suite = "parser"
-status = "xfail"
-xfail_reason = "phase_bootstrap"
-program = "tests/parser/regex_division_001.awk"
-stdin = "tests/fixtures/empty.txt"
-tags = ["posix-required"]
-
-[expect]
-stdout = ""
-stderr_class = "syntax_error"
-exit = 2
-```
-
-Field rules:
-- `id`: stable identifier, lowercase dotted path preferred
-- `phase`: one of `P0`..`P4`
-- `suite`: logical suite name such as `parser`, `runtime`, or `compat`
-- `status`: `pass` or `xfail`
-- `xfail_reason`: required when `status=xfail`; allowed values are `phase_bootstrap` and `known_gap`
-- `tracking`: required when `xfail_reason=known_gap`; otherwise omit it
-- `program`: path to the AWK program under repo
-- `stdin`: optional path to input fixture; omit when no stdin fixture is needed
-- `expect`: expected output and exit behavior
-- `tags`: must include at least one of `posix-required`, `unspecified`, `extension`, `known-gap`
-
-Runner contract:
-
-1. validate manifest schema before execution
-2. execute test and compare against `expect`
-3. emit per-test result: `pass`, `xfail`, or `fail`
-4. fail if the manifest is invalid, `known_gap` has no `tracking`, or a completed phase still has `phase_bootstrap`
-
-Implementation language and tooling:
-- phase-gate validator is implemented in Python under `scripts/check_phase_gate.py`
-- the preferred project entrypoint is `uv run gates`
-- metadata parsing uses Python's standard-library `tomllib`
+Do not create a parallel manifest or checklist entry for the same behavior.
+The test itself should remain the source of truth.
 
 ## Pass/Fail Policy
 
@@ -154,8 +110,8 @@ Test statuses:
 
 Release gate recommendation:
 - no failing `posix-required` tests
-- no remaining `xfail` tests with reason `phase_bootstrap` in completed phases
-- `known_gap` is allowed only when explicitly tagged and documented
+- no stale `xfail` tests whose reason no longer matches reality
+- compatibility gaps are documented in tests, roadmap notes, or issue tracking
 
 ## CI Gate Specification
 
@@ -168,13 +124,6 @@ Required jobs:
    - `mypy src`
 3. `tests`
    - `pytest`
-4. `phase-gate`
-   - `uv run gates`
-
-`phase-gate` validates:
-- test manifests match the schema above
-- `xfail_reason=known_gap` has `tracking`
-- completed phases contain no `xfail_reason=phase_bootstrap`
 
 Optional jobs initially:
 - `compat-smoke`
@@ -199,8 +148,7 @@ quawk --help
 pytest
 ruff format --check .
 ruff check .
-mypy src scripts
-uv run gates
+mypy src
 ```
 
 ## Operational Notes

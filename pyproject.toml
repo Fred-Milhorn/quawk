@@ -11,7 +11,6 @@ requires-python = ">=3.14"
 dependencies = []
 
 [project.scripts]
-gates = "quawk.phase_gate:main"
 quawk = "quawk.cli:main"
 
 [dependency-groups]
@@ -27,7 +26,7 @@ where = ["src"]
 [tool.mypy]
 python_version = "3.14"
 strict = true
-files = ["src", "scripts"]
+files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

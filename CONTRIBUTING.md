@@ -64,13 +64,10 @@ Apply these rules to Python source, tests, scripts, and documentation unless a d
 
 Implementation follows strict phase-based TDD:
 
-1. Before a phase starts, author that phase's planned tests.
-2. Mark unimplemented behavior as `xfail` with reason `phase_bootstrap`.
+1. Before implementing a slice, add the tests for that slice.
+2. Use ordinary failing tests or `pytest.mark.xfail` when a temporary expected failure is clearer.
 3. Burn those tests down to `pass` during implementation.
-4. Do not close a phase with remaining `phase_bootstrap` tests.
-
-Allowed exception:
-- a remaining `xfail` must be reclassified as `known_gap` with explicit tracking
+4. Keep roadmap state in the roadmap, not in separate test metadata files.
 
 Reference behavior:
 - primary: `one-true-awk`
@@ -83,8 +80,7 @@ quawk --help
 pytest
 ruff format --check .
 ruff check .
-mypy src scripts
-uv run gates
+mypy src
 ```
 
 ## Pull Request Checklist
@@ -95,7 +91,6 @@ Before opening or updating a PR, verify that:
 - tests were added or updated when behavior changed
 - compatibility impact is called out explicitly
 - local links are relative and not broken
-- no undocumented `known_gap` was introduced
 - required local checks pass when the relevant tooling exists
 
 ## Review Notes

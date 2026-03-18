@@ -11,7 +11,7 @@ Implemented now:
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
 - Python package/bootstrap scaffold with a stubbed `quawk` CLI
-- phase-gate validation script, example program, and CI workflow scaffold
+- example program and CI workflow scaffold
 
 Planned next:
 - first end-to-end executable slice for a tiny AWK subset
