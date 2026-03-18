@@ -125,10 +125,6 @@ Start here unless priorities change:
 2. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
 3. `T-052` wire CLI execution for inline program text and `-f` files
 4. `T-053` add end-to-end execution tests for the MVP path
-5. `T-009` extend token/source-span modeling for the next MVP increment
-6. `T-010` extend lexing for the next MVP increment
-7. `T-012` define and extend AST nodes for the next MVP increment
-8. `T-013` extend parser for the next runnable increment
 
 ## Backlog
 
