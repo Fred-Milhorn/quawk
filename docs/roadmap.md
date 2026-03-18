@@ -120,14 +120,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-043` write P1 vertical-slice tests as the initial `xfail` baseline
-2. `T-049` implement minimal lexer support for `BEGIN`, `print`, braces, and string literals
-3. `T-050` implement minimal parser support for `BEGIN { print "literal" }`
-4. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
-5. `T-052` wire CLI execution for inline program text and `-f` files
-6. `T-053` add end-to-end execution tests for the initial supported slice
-7. `T-009` extend token/source-span modeling for the next supported slice
-8. `T-010` extend lexing for the next supported slice
+1. `T-050` implement minimal parser support for `BEGIN { print "literal" }`
+2. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
+3. `T-052` wire CLI execution for inline program text and `-f` files
+4. `T-053` add end-to-end execution tests for the initial supported slice
+5. `T-009` extend token/source-span modeling for the next supported slice
+6. `T-010` extend lexing for the next supported slice
+7. `T-012` define and extend AST nodes for the next supported slice
+8. `T-013` extend parser for the next runnable slice
 
 ## Backlog
 
@@ -153,8 +153,8 @@ Priority values:
 | T-006 | P0 | P0 | Keep testing workflow centered on pytest rather than custom gate tooling | none | Repo workflow is described without a second metadata/checking system | done |
 | T-007 | P0 | P1 | Add CI workflow for format/lint/type/test checks | T-002 | CI blocks merges on required failures | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
-| T-043 | P1 | P0 | Author P1 vertical-slice tests for the initial executable slice | T-002, T-006 | Minimal end-to-end execution tests are committed before implementation | todo |
-| T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | Initial slice tokenization is stable and tested | todo |
+| T-043 | P1 | P0 | Author P1 vertical-slice tests for the initial executable slice | T-002, T-006 | Minimal end-to-end execution tests are committed before implementation | done |
+| T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | Initial slice tokenization is stable and tested | done |
 | T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | Initial slice parses into a stable AST form | todo |
 | T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | Minimal slice executes through the JIT path | todo |
 | T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | Minimal slice runs from both invocation forms | todo |
