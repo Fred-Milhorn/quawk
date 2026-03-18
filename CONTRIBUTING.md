@@ -84,7 +84,7 @@ pytest
 ruff format --check .
 ruff check .
 mypy src scripts
-python scripts/check_phase_gate.py
+uv run gates
 ```
 
 ## Pull Request Checklist

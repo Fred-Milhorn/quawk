@@ -1,7 +1,5 @@
 import subprocess
 
-from quawk.cli import build_info
-
 
 def run_quawk(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -17,7 +15,7 @@ def test_quawk_help_exits_zero() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "usage: quawk" in result.stdout
-    assert "--qk-version" in result.stdout
+    assert "--version" in result.stdout
 
 
 def test_quawk_version_exits_zero() -> None:
@@ -25,13 +23,6 @@ def test_quawk_version_exits_zero() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("quawk 0.1.0")
-
-
-def test_quawk_qk_version_reports_runtime_details() -> None:
-    result = run_quawk("--qk-version")
-
-    assert result.returncode == 0, result.stderr
-    assert result.stdout == f"{build_info()}\n"
 
 
 def test_quawk_requires_program_source() -> None:

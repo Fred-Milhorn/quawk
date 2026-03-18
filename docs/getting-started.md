@@ -41,7 +41,7 @@ pytest
 ruff format --check .
 ruff check .
 mypy src scripts
-python scripts/check_phase_gate.py
+uv run gates
 ```
 
 The commands above should run from a clean scaffold checkout after `uv pip install -e .[dev]`.

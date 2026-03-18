@@ -13,27 +13,26 @@ This document defines how `quawk` validates behavior, tracks incomplete work, an
 
 Implementation follows strict phase-based TDD:
 
-1. before a phase starts, author that phase's full planned test set
+1. before implementation starts for a slice, author tests for that next supported slice
 2. mark the new tests as `xfail` while functionality is unimplemented
-3. implement features by burning down phase `xfail` tests to `pass`
-4. do not close a phase with unresolved phase-bootstrap `xfail` tests
+3. implement the smallest coherent runtime slice that burns those tests down to `pass`
+4. do not close a phase with unresolved phase-bootstrap `xfail` tests for that phase
 
 Allowed exception:
 - a test may remain `xfail` only if reclassified as `known_gap` with explicit documentation and linked tracking
 
 Phase gate rule:
-- before implementation for phase `Px`, tests for `Px` are added as `xfail` with `phase_bootstrap`
+- before implementation for phase `Px`, tests for the next supported slice in `Px` are added as `xfail` with `phase_bootstrap`
 - at phase close, no `phase_bootstrap` entries may remain for `Px`
 
 ## Framework Baseline
 
 Default framework stack:
 - `pytest` for unit and integration execution
-- `hypothesis` for property-based testing
 
 Framework policy:
 - use `pytest` for parser, semantic, backend, and runtime tests
-- use `hypothesis` for parser, semantic, and runtime invariants where property testing is useful
+- use property-based testing only when a stable behavior area clearly benefits from it
 - keep compatibility and differential orchestration in dedicated harness code invoked by pytest
 - use deterministic fixture-driven tests when property testing is not ergonomic
 
@@ -51,7 +50,9 @@ Decision rule:
 
 ## Test Corpus Structure
 
-Organize tests into behavior-focused suites:
+Start with small end-to-end fixtures for the currently supported slice.
+
+Expand into behavior-focused suites only as the supported subset grows, for example:
 - `parser/`
 - `runtime/records_fields/`
 - `runtime/types_coercions/`
@@ -82,6 +83,8 @@ Normalize before comparison:
 - line endings
 - trailing whitespace policy
 - locale and timezone-sensitive values via a fixed environment
+
+This oracle model becomes a primary workflow in the compatibility phase, not a blocker for the first executable slice.
 
 ## Divergence Classification
 
@@ -120,7 +123,7 @@ exit = 2
 
 Field rules:
 - `id`: stable identifier, lowercase dotted path preferred
-- `phase`: one of `P0`..`P6`
+- `phase`: one of `P0`..`P4`
 - `suite`: logical suite name such as `parser`, `runtime`, or `compat`
 - `status`: `pass` or `xfail`
 - `xfail_reason`: required when `status=xfail`; allowed values are `phase_bootstrap` and `known_gap`
@@ -139,6 +142,7 @@ Runner contract:
 
 Implementation language and tooling:
 - phase-gate validator is implemented in Python under `scripts/check_phase_gate.py`
+- the preferred project entrypoint is `uv run gates`
 - metadata parsing uses Python's standard-library `tomllib`
 
 ## Pass/Fail Policy
@@ -165,7 +169,7 @@ Required jobs:
 3. `tests`
    - `pytest`
 4. `phase-gate`
-   - `python scripts/check_phase_gate.py`
+   - `uv run gates`
 
 `phase-gate` validates:
 - test manifests match the schema above
@@ -174,7 +178,6 @@ Required jobs:
 
 Optional jobs initially:
 - `compat-smoke`
-- `perf-smoke`
 
 Minimum CI matrix:
 - Python 3.14 on Linux x86_64
@@ -197,7 +200,7 @@ pytest
 ruff format --check .
 ruff check .
 mypy src scripts
-python scripts/check_phase_gate.py
+uv run gates
 ```
 
 ## Operational Notes

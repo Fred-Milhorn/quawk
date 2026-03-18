@@ -1,6 +1,6 @@
 # Design
 
-This document is the technical reference for `quawk`: architecture, frontend strategy, language grammar, execution model, caching, and CLI contract.
+This document is the technical reference for `quawk`: architecture, frontend strategy, language grammar, execution model, and CLI contract.
 
 ## Overview
 
@@ -12,12 +12,41 @@ High-level pipeline:
 2. parsing to AST
 3. semantic validation and normalization
 4. LLVM lowering and JIT materialization
-5. execution and cache store
+5. execution
 
 Goals:
 - match POSIX AWK behavior closely
 - keep the implementation understandable and testable in Python
-- preserve fast first-run execution with optional cache reuse
+- deliver a tiny end-to-end executable slice before broad feature coverage
+
+## Implementation Strategy
+
+Delivery is vertical-slice first, not subsystem-complete first.
+
+That means the project should prefer:
+- a tiny lexer, parser, lowering path, and runtime that can execute a very small supported program
+- incremental growth of the supported AWK subset
+- deferring broad parser coverage, detailed diagnostics, and optimization work until after the first executable slice exists
+
+Initial target slice:
+- inline program or `-f` file input
+- a single `BEGIN` action
+- `print` with a string literal
+- correct stdout and exit status
+
+Example initial success case:
+
+```sh
+quawk 'BEGIN { print "hello" }'
+```
+
+Expansion should happen by adding one coherent capability at a time, for example:
+- numeric literals and arithmetic
+- simple expressions and assignments
+- pattern-action without functions
+- records and fields
+- builtins and control flow
+- functions and broader POSIX coverage
 
 ## Frontend Strategy
 
@@ -41,11 +70,11 @@ Error handling and diagnostics:
 - prefer deterministic error messages over aggressive recovery heuristics
 
 Milestone order:
-1. lexer with context-sensitive `/` handling
-2. expression parser with precedence and implicit concatenation
-3. statement and top-level parsing
-4. error recovery and diagnostics polish
-5. conformance testing against POSIX-oriented cases
+1. minimal executable slice for `BEGIN { print "literal" }`
+2. extend expressions and statements needed for the next runnable slice
+3. add records, fields, and pattern-action execution
+4. broaden diagnostics and recovery only after execution coverage exists
+5. expand conformance testing as supported behavior grows
 
 ## AWK Grammar
 
@@ -201,86 +230,39 @@ Examples:
 - `x = a / b` uses division
 - `x = (/ab+/ ~ $0)` uses `REGEX` due to operand context after `(`
 
-## Execution Model and Caching
+## Execution Model
 
 Scope:
 - runtime execution path
-- cache lookup and store behavior
-- cache key and invalidation rules
-- failure and fallback behavior
+- failure behavior
+- incremental delivery expectations
 
 Out of scope:
 - concrete Python module APIs
 - low-level LLVM JIT wiring details
-- storage implementation specifics
+- persistent optimization mechanisms such as compiled artifact caching
 
-Runtime uses a two-tier cache with guaranteed realtime fallback:
-
-1. process-local memory cache
-2. persistent disk cache
-3. compile now and execute on miss or cache-layer failure
-
-Runtime state machine:
+Runtime state machine for the initial implementation:
 
 1. `LoadInput`
 2. `NormalizeSource`
-3. `ComputeCacheKey`
-4. `MemoryLookup`
-5. `DiskLookup`
-6. `CompileRealtime`
-7. `Execute`
-8. `StoreCache`
+3. `LexSupportedSubset`
+4. `ParseSupportedSubset`
+5. `LowerToLLVM`
+6. `Execute`
 
-Cache key fields must include all inputs that can change generated machine code or runtime behavior:
-- `source_hash`
-- `frontend_version`
-- `awk_mode`
-- `runtime_abi_version`
-- `llvm_version`
-- `target_triple`
-- `target_cpu`
-- `target_features`
-- `opt_level`
-
-Optional fields:
-- `stdlib_profile`
-- `jit_policy`
-
-Recommended disk artifact:
-- native object file plus metadata sidecar
-
-Metadata sidecar should include:
-- full unhashed key payload
-- creation timestamp
-- artifact format version
-- optional integrity hash
-
-Store policy:
-- memory cache inserts on successful compile or disk load
-- disk cache writes are best-effort after successful compile
-- eviction should prefer LRU
-
-Failure behavior:
-- cache read failure logs and continues as miss
-- cache write failure logs and does not fail execution
-- artifact load or link failure invalidates the entry and falls back to realtime compile
-- compile or JIT failure reports deterministic error and exits non-zero
-
-Design principle:
-- cache is a performance layer, never a correctness dependency
-
-Observability should track:
-- memory and disk cache hit/miss counts
-- compile duration
-- load/link duration
-- cache write failures
+Initial supported execution slice:
+- one `BEGIN` action
+- one or more `print` statements
+- string literals
+- no record-processing loop required yet
+- no function definitions required yet
 
 Acceptance scenarios:
-- first run with empty cache compiles and executes
-- second run with same source and options hits cache and reduces startup time
-- changing source or toolchain invalidates prior cache entry
-- corrupt cache artifacts are ignored and rebuilt
-- unavailable disk cache still allows successful realtime execution
+- inline `BEGIN { print "hello" }` compiles and executes
+- `-f hello.awk` with the same program compiles and executes
+- unsupported syntax fails with deterministic diagnostics
+- expanding the supported subset does not break earlier working slices
 
 ## Command Line Interface
 
@@ -292,26 +274,15 @@ Usage:
   quawk [options] 'program' [--] [file ...]
   quawk -h | --help
   quawk --version
-  quawk --qk-version
 
 Help and version:
   -h, --help            Print usage and option summary.
   --version             Print user-facing version.
-  --qk-version          Print detailed build/runtime/toolchain info.
 
 POSIX-style options:
   -F fs                 Set input field separator FS.
   -f progfile           Read AWK program source from file (repeatable, in order).
   -v var=value          Assign variable before program execution (repeatable).
-
-quawk options:
-  --qk-cache=MODE       Cache mode: auto | off | read-only | refresh.
-  --qk-cache-dir PATH   Cache directory.
-  --qk-jit=MODE         JIT mode: on | off.
-  --qk-dump-ast         Print parsed AST, then continue.
-  --qk-dump-ir          Print generated IR, then continue.
-  --qk-metrics          Print execution/cache metrics.
-  --qk-posix-strict     Enable strict POSIX behavior checks.
 
 Program selection:
   - If one or more -f options are given, program text comes only from those files.
@@ -333,7 +304,7 @@ Exit status:
 Goals:
 - preserve familiar AWK invocation patterns
 - keep POSIX-style options front and center
-- reserve `--qk-` for `quawk`-specific controls
+- keep the initial CLI contract small until real implementation pressure justifies expansion
 
 Program source rules:
 - if one or more `-f` options are present, concatenate those files in order
@@ -341,16 +312,14 @@ Program source rules:
 - remaining arguments are input files or stdin if none are provided
 - mixing `-f` with inline program text is an error
 
-`--qk-` options are implementation controls and must never shadow POSIX option names. Repeated `-v` assignments apply in argument order, while repeated cache settings use last-value-wins semantics.
+Repeated `-v` assignments apply in argument order.
 
 Examples:
 
 ```sh
 quawk 'BEGIN { print "hello" }'
 quawk -f script.awk input.txt
-quawk -F: -v limit=10 -f script.awk --qk-cache=auto --qk-metrics data.txt
-quawk -f script.awk --qk-dump-ast
-quawk -f script.awk --qk-cache=off
+quawk -F: -v limit=10 -f script.awk data.txt
 ```
 
 ## Compatibility Direction

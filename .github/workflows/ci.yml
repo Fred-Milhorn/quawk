@@ -48,4 +48,4 @@ jobs:
         with:
           python-version: "3.14"
       - run: uv sync --dev
-      - run: uv run python scripts/check_phase_gate.py
+      - run: uv run gates

@@ -11,6 +11,7 @@ requires-python = ">=3.14"
 dependencies = []
 
 [project.scripts]
+gates = "quawk.phase_gate:main"
 quawk = "quawk.cli:main"
 
 [dependency-groups]

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-VALID_PHASES = {f"P{index}" for index in range(7)}
+VALID_PHASES = {f"P{index}" for index in range(5)}
 VALID_STATUSES = {"pass", "xfail"}
 VALID_XFAIL_REASONS = {"phase_bootstrap", "known_gap"}
 VALID_TAGS = {"posix-required", "unspecified", "extension", "known-gap"}

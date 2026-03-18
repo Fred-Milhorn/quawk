@@ -9,9 +9,9 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - LLVM-backed JIT uses `llvmlite`
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
-- phase delivery uses TDD with `xfail` baselines
+- implementation grows by executable vertical slices
+- phase delivery uses TDD with `xfail` baselines for the next supported slice
 - `pytest` is the default test framework
-- `hypothesis` is the default property-testing framework
 - phase-gate metadata validation is implemented in Python
 
 ## Phase Overview
@@ -19,18 +19,16 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | Phase | Name | Primary Outcome |
 |---|---|---|
 | P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, CI basics |
-| P1 | Frontend Parsing Core | Lexer/parser and AST for POSIX-core grammar |
-| P2 | Semantic Analysis Core | Deterministic semantic checks and normalized IR |
-| P3 | LLVM Lowering + Runtime Core | First runnable `quawk` execution path |
-| P4 | JIT Execution + Cache Layer | Memory/disk cache with safe fallback |
-| P5 | Compatibility and Hardening | Differential compatibility gates and regression control |
-| P6 | Pre-Release Readiness | Documentation completion, perf baseline, release checklist |
+| P1 | Minimal Vertical Slice | First runnable `quawk` path for a tiny AWK subset |
+| P2 | Incremental Language Expansion | Grow supported AWK behavior slice by slice |
+| P3 | Compatibility and Hardening | Differential compatibility gates and regression control |
+| P4 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
 ## Phase Entry and Exit Rules
 
 Entry gate for every phase:
 
-1. author full planned tests for the phase scope
+1. author tests for the next supported slice in phase scope
 2. register tests in the runner with `xfail` status and reason `phase_bootstrap`
 3. capture a baseline report showing expected failures
 4. start implementation only after the baseline is checked in
@@ -57,75 +55,39 @@ Exit criteria:
 - CI required jobs pass on default branch target platforms
 - phase-gate validation is executable in CI
 
-### P1: Frontend Parsing Core
+### P1: Minimal Vertical Slice
 
 Objective:
-- parse POSIX AWK core programs into a stable AST
+- execute a tiny but real AWK program through the full pipeline
 
 In scope:
-- token model and source spans
-- context-sensitive lexer for `REGEX` vs `/`
-- parser for program, function, pattern-action, statements, and expressions
-- implicit concatenation handling
-- diagnostics and statement-boundary recovery
+- inline program text and `-f` file input
+- minimal lexer and parser support for `BEGIN { print "literal" }`
+- LLVM lowering and runtime path sufficient for that slice
+- stable stdout, exit status, and basic CLI invocation
 
 Exit criteria:
-- grammar forms are parsed or rejected correctly
-- regex-vs-division and concat ambiguity tests pass
-- diagnostics include stable source spans and error classes
+- `quawk 'BEGIN { print "hello" }'` executes correctly
+- the same program executes from `-f`
+- unsupported syntax fails cleanly without pretending broader support exists
 
-### P2: Semantic Analysis Core
+### P2: Incremental Language Expansion
 
 Objective:
-- validate parsed AST and normalize into semantically checked IR
+- expand the supported AWK subset one coherent feature slice at a time
 
 In scope:
-- symbol tables and scope management
-- function declaration and definition checks
-- lvalue and assignment validity
-- control-flow legality checks
-- normalization for backend-ready forms
+- tokens, expressions, statements, and runtime behavior needed for the next slice
+- semantic checks only when a new slice requires them
+- records, fields, pattern-action execution, control flow, and functions in staged increments
+- diagnostics and recovery improvements after the related execution path exists
 
 Exit criteria:
-- invalid programs fail with deterministic diagnostics
-- valid programs become stable backend inputs
-- backend does not depend on parser-only assumptions
+- each newly claimed language feature has an executable implementation
+- earlier working slices stay green as coverage expands
+- the supported subset is always explicit in tests and docs
 
-### P3: LLVM Lowering + Runtime Core
-
-Objective:
-- execute core AWK programs through LLVM-generated machine code
-
-In scope:
-- IR-to-LLVM lowering via `llvmlite`
-- runtime representation for records, fields, and core builtins
-- baseline execution path for `BEGIN`, input loop, and `END`
-- CLI help/version/run-path behavior
-
-Exit criteria:
-- representative programs execute with expected stdout and exit status
-- core field and record semantics are correct for covered cases
-- CLI behavior matches the design contract
-
-### P4: JIT Execution + Cache Layer
-
-Objective:
-- complete realtime JIT execution with safe cache reuse
-
-In scope:
-- execution state machine
-- process-local memory cache and persistent disk cache
-- cache key generation and validation
-- fallback behavior for cache failures
-- basic metrics for hit/miss and compile latency
-
-Exit criteria:
-- first-run compile executes successfully
-- second-run cache hit reduces startup latency in a benchmark scenario
-- invalidation triggers recompilation correctly
-- cache failures never block execution
-
-### P5: Compatibility and Hardening
+### P3: Compatibility and Hardening
 
 Objective:
 - maximize POSIX compatibility and reduce behavioral gaps
@@ -141,14 +103,13 @@ Exit criteria:
 - known divergences are documented and tagged
 - hardening pass shows no high-severity regressions
 
-### P6: Pre-Release Readiness
+### P4: Pre-Release Readiness
 
 Objective:
 - ship an initial public release candidate
 
 In scope:
 - CLI contract freeze and doc completion
-- performance baseline and regression thresholds
 - release packaging metadata and changelog process
 - contributor/support workflow polish
 
@@ -161,14 +122,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-043` write P1 tests as the initial `xfail` baseline
-2. `T-009` define token and source-span models
-3. `T-010` implement lexer core with newline/separator handling
-4. `T-011` implement `REGEX` vs `/` context-sensitive lexing
-5. `T-012` define AST node set for grammar in `docs/design.md`
-6. `T-013` implement parser for top-level items and statements
-7. `T-014` implement expression parser with implicit concatenation
-8. `T-015` add parser error recovery at statement boundaries
+1. `T-043` write P1 vertical-slice tests as the initial `xfail` baseline
+2. `T-049` implement minimal lexer support for `BEGIN`, `print`, braces, and string literals
+3. `T-050` implement minimal parser support for `BEGIN { print "literal" }`
+4. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
+5. `T-052` wire CLI execution for inline program text and `-f` files
+6. `T-053` add end-to-end execution tests for the initial supported slice
+7. `T-009` extend token/source-span modeling for the next supported slice
+8. `T-010` extend lexing for the next supported slice
 
 ## Backlog
 
@@ -194,52 +155,47 @@ Priority values:
 | T-006 | P0 | P0 | Add Python phase-gate validator (`scripts/check_phase_gate.py`) | none | Invalid manifests and gate violations fail with deterministic output | done |
 | T-007 | P0 | P1 | Add CI workflow for format/lint/type/test/phase-gate checks | T-002, T-006 | CI blocks merges on required failures | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
-| T-043 | P1 | P0 | Author full P1 frontend tests as `xfail` baseline | T-002, T-006 | P1 tests committed with `xfail_reason=phase_bootstrap` | todo |
-| T-009 | P1 | P0 | Define token types and source-span representation | T-003, T-043 | Token/span modules tested and stable | todo |
-| T-010 | P1 | P0 | Implement lexer core with newline/separator handling | T-009 | Lexer fixtures pass for separator-sensitive inputs | todo |
-| T-011 | P1 | P0 | Implement `REGEX` vs `/` context-sensitive lexing | T-010 | Dedicated ambiguity tests pass | todo |
-| T-012 | P1 | P0 | Define AST node set for grammar in `docs/design.md` | T-009 | AST model covers planned grammar forms | todo |
-| T-013 | P1 | P0 | Implement parser for top-level items and statements | T-012 | Parser accepts representative valid programs | todo |
-| T-014 | P1 | P0 | Implement expression parser with implicit concatenation | T-013 | Precedence and concat tests pass | todo |
-| T-015 | P1 | P1 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
-| T-016 | P1 | P1 | Add parser golden tests for AST snapshots | T-012, T-014 | Golden outputs deterministic and reviewed | todo |
-| T-017 | P1 | P1 | Add parser conformance fixtures mapped to grammar sections | T-013, T-014 | Coverage matrix shows each grammar area tested | todo |
-| T-044 | P2 | P0 | Author full P2 semantic-analysis tests as `xfail` baseline | T-017 | P2 baseline committed with expected failures | todo |
-| T-018 | P2 | P0 | Build symbol table/scoping infrastructure | T-012, T-044 | Scope tests pass for nested contexts/functions | todo |
-| T-019 | P2 | P0 | Implement semantic checks for lvalues/assignment legality | T-018 | Invalid lvalue tests fail with expected error codes | todo |
-| T-020 | P2 | P0 | Implement control-flow legality checks | T-018 | `break`/`continue`/`return` legality tests pass | todo |
-| T-021 | P2 | P1 | Implement function declaration/definition checks | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
-| T-022 | P2 | P1 | Add semantic normalization pass for backend consumption | T-019, T-020, T-021 | Normalized IR consumed by backend prototype | todo |
-| T-023 | P2 | P1 | Define semantic error code catalog | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
-| T-045 | P3 | P0 | Author full P3 backend/runtime tests as `xfail` baseline | T-023 | P3 baseline committed with expected failures | todo |
-| T-024 | P3 | P0 | Define runtime value model for core AWK semantics | T-022, T-045 | Runtime model doc + representation checked in | todo |
-| T-025 | P3 | P0 | Implement lowering from normalized IR to LLVM IR via `llvmlite` | T-022 | Core sample programs execute through JIT path | todo |
-| T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) | T-024, T-025 | Record-processing fixtures pass | todo |
-| T-027 | P3 | P1 | Implement core builtin subset required by compatibility suite | T-024, T-026 | Builtin fixture tests pass for selected subset | todo |
-| T-028 | P3 | P1 | Add backend integration tests (stdout/stderr/exit status) | T-025, T-026 | Integration tests run in required CI jobs | todo |
-| T-039 | P3 | P0 | Implement CLI contract behavior from `docs/design.md` | T-026 | Help/version/exit behaviors are stable and tested | todo |
-| T-046 | P4 | P0 | Author full P4 JIT/cache tests as `xfail` baseline | T-028 | P4 baseline committed with expected failures | todo |
-| T-029 | P4 | P0 | Implement execution state machine from `docs/design.md` | T-025, T-026, T-046 | End-to-end run path works with cache disabled | todo |
-| T-030 | P4 | P0 | Implement cache key generation and metadata schema | T-029 | Key fields include required invalidation inputs | todo |
-| T-031 | P4 | P0 | Implement process-local memory cache | T-030 | Repeated run in same process shows cache hits | todo |
-| T-032 | P4 | P0 | Implement disk cache read/write with atomic write protocol | T-030 | Cross-process cache reuse tests pass | todo |
-| T-033 | P4 | P1 | Implement cache invalidation and corruption fallback paths | T-032 | Corrupt/mismatch cases force safe recompilation | todo |
-| T-034 | P4 | P1 | Add runtime/cache metrics and optional summary output | T-029, T-031, T-032 | Metrics exposed for hits/misses/compile time | todo |
-| T-047 | P5 | P0 | Author full P5 compatibility tests as `xfail` baseline | T-034 | P5 baseline committed with expected failures | todo |
-| T-035 | P5 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
-| T-036 | P5 | P0 | Seed compatibility corpus for parser/runtime core behaviors | T-035 | Core corpus executes and reports per-case status | todo |
-| T-037 | P5 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
-| T-038 | P5 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
-| T-048 | P6 | P0 | Author full P6 release-readiness tests as `xfail` baseline | T-038 | P6 baseline committed with expected failures | todo |
-| T-040 | P6 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
-| T-041 | P6 | P1 | Add performance baseline doc and thresholds (`PERF.md`) | T-034 | Benchmarks recorded with repeatable method | todo |
-| T-042 | P6 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-043 | P1 | P0 | Author P1 vertical-slice tests as `xfail` baseline | T-002, T-006 | Minimal end-to-end execution tests committed with `xfail_reason=phase_bootstrap` | todo |
+| T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | Initial slice tokenization is stable and tested | todo |
+| T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | Initial slice parses into a stable AST form | todo |
+| T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | Minimal slice executes through the JIT path | todo |
+| T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | Minimal slice runs from both invocation forms | todo |
+| T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the initial slice | T-052 | Inline and file-based smoke cases pass end-to-end | todo |
+| T-009 | P2 | P0 | Extend token types and source-span representation for the next supported slice | T-053 | Token/span modules support the next planned language increment | todo |
+| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next slice | T-009 | Lexer fixtures pass for the next targeted syntax slice | todo |
+| T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
+| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next supported slice | T-009 | AST model matches currently supported language forms | todo |
+| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012 | Parser accepts the next planned runnable slice | todo |
+| T-014 | P2 | P1 | Implement expression parsing with precedence and implicit concatenation | T-013 | Precedence and concat tests pass when that slice is enabled | todo |
+| T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
+| T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
+| T-017 | P2 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
+| T-044 | P2 | P1 | Author tests for semantic checks needed by the next supported slice | T-017 | Semantic tests are committed before the related feature work | todo |
+| T-018 | P2 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
+| T-019 | P2 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
+| T-020 | P2 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
+| T-021 | P2 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
+| T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported slices | todo |
+| T-023 | P2 | P2 | Define semantic error code catalog after core execution slices stabilize | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-024 | P2 | P0 | Extend runtime value model for newly supported AWK semantics | T-022 | Runtime representation matches supported behavior | todo |
+| T-025 | P2 | P0 | Extend lowering from supported IR/AST forms to LLVM IR via `llvmlite` | T-022 | New sample programs execute through JIT path | todo |
+| T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
+| T-027 | P2 | P1 | Implement builtins only as required by the active slice or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status across supported slices | T-025, T-026 | Integration tests run in required CI jobs | todo |
+| T-039 | P2 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
+| T-047 | P3 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
+| T-035 | P3 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-036 | P3 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
+| T-037 | P3 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-038 | P3 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
+| T-048 | P4 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-038 | Release-readiness baseline committed with expected failures | todo |
+| T-040 | P4 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
+| T-042 | P4 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
 
 ## Cross-Cutting Tracks
 
 - documentation maintenance
 - CI coverage and quality gates
-- performance measurement and regression tracking
 - risk tracking and decision log updates
 - phase TDD discipline
 
@@ -249,7 +205,7 @@ Priority values:
 |---|---|---|
 | AWK semantic corner-case drift | High | Differential tests and explicit divergence classification |
 | LLVM binding feature limits (`llvmlite`) | High | Keep backend abstraction narrow; add fallback only if blocked |
-| Cache invalidation bugs | High | Strict key schema plus corruption/invalidation tests |
+| Over-scoped early milestones | High | Force work into small runnable slices before broad feature coverage |
 | Scope creep from extensions | Medium | POSIX-first gate and defer extensions until compatibility baseline |
 | Python dependency drift | Medium | Pin dependency ranges and enforce CI |
 

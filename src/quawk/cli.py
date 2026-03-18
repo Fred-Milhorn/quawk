@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import platform
 import sys
 from importlib import metadata
 from typing import Sequence
@@ -42,48 +41,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the user-facing version and exit.",
     )
     parser.add_argument(
-        "--qk-version",
-        action="store_true",
-        help="Print detailed build and runtime information and exit.",
-    )
-    parser.add_argument(
-        "--qk-cache",
-        choices=["auto", "off", "read-only", "refresh"],
-        default="auto",
-        help="Cache mode for compiled artifacts.",
-    )
-    parser.add_argument(
-        "--qk-cache-dir",
-        metavar="PATH",
-        help="Cache directory.",
-    )
-    parser.add_argument(
-        "--qk-jit",
-        choices=["on", "off"],
-        default="on",
-        help="Enable or disable JIT execution.",
-    )
-    parser.add_argument(
-        "--qk-dump-ast",
-        action="store_true",
-        help="Print parsed AST, then continue.",
-    )
-    parser.add_argument(
-        "--qk-dump-ir",
-        action="store_true",
-        help="Print generated IR, then continue.",
-    )
-    parser.add_argument(
-        "--qk-metrics",
-        action="store_true",
-        help="Print execution and cache metrics.",
-    )
-    parser.add_argument(
-        "--qk-posix-strict",
-        action="store_true",
-        help="Enable strict POSIX behavior checks.",
-    )
-    parser.add_argument(
         "program",
         nargs="?",
         help="Inline AWK program text when -f is not used.",
@@ -104,10 +61,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"quawk {get_version()}")
         return 0
 
-    if args.qk_version:
-        print(build_info())
-        return 0
-
     if args.program_files and args.program is not None:
         parser.error("cannot mix -f progfile with inline program text")
 
@@ -123,13 +76,3 @@ def get_version() -> str:
         return metadata.version("quawk")
     except metadata.PackageNotFoundError:
         return __version__
-
-
-def build_info() -> str:
-    return "\n".join(
-        [
-            f"quawk {get_version()}",
-            f"python {platform.python_version()}",
-            f"platform {platform.platform()}",
-        ]
-    )

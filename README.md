@@ -14,21 +14,21 @@ Implemented now:
 - phase-gate validation script, example program, and CI workflow scaffold
 
 Planned next:
-- lexer/parser implementation
-- semantic analysis, LLVM lowering, and JIT execution
-- compatibility and differential test harness
+- first end-to-end executable slice for a tiny AWK subset
+- incremental language and runtime expansion from that slice
+- compatibility and differential test harness after the executable core exists
 
 ## Goals
 
 - POSIX-first AWK behavior and compatibility
-- realtime parse + JIT for interactive and short-lived workloads
-- optional compiled artifact caching for fast repeated execution
+- an early end-to-end executable path for a tiny AWK subset
+- incremental expansion driven by small vertical slices
 
 ## Non-Goals
 
 - full GNU awk extension parity on first release
 - a full ahead-of-time native compiler workflow
-- cross-target portable cache artifacts as a default path
+- compiled artifact caching in the initial implementation
 
 ## Quickstart
 
@@ -69,7 +69,7 @@ Q: Is this a drop-in replacement for all AWK variants?
 A: Not yet. The target is POSIX behavior first; extension coverage is phased in.
 
 Q: Does `quawk` cache compiled results?  
-A: Planned yes, with strict invalidation keyed by source and runtime/toolchain configuration.
+A: Not in the initial implementation plan. If startup cost matters later, caching can be revisited as a separate optimization track.
 
 ## License
 
