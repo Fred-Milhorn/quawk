@@ -38,7 +38,7 @@ After dependency bootstrap:
 ```sh
 quawk --help
 pytest
-ruff format --check .
+yapf --diff --recursive src tests scripts
 ruff check .
 mypy src
 ```

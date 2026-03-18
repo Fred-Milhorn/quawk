@@ -32,8 +32,8 @@ def test_quawk_requires_program_source() -> None:
     assert "missing AWK program text or -f progfile" in result.stderr
 
 
-def test_quawk_execution_stub_returns_usage_error() -> None:
-    result = run_quawk("BEGIN { print 1 }")
+def test_quawk_reports_parse_errors() -> None:
+    result = run_quawk("BEGIN {")
 
     assert result.returncode == 2
-    assert result.stderr == "quawk: execution path not implemented yet\n"
+    assert "expected PRINT" in result.stderr

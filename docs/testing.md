@@ -7,7 +7,7 @@ This document defines how `quawk` validates behavior, tracks incomplete work, an
 - catch parser and runtime regressions early
 - make compatibility decisions explicit and reproducible
 - prioritize POSIX-conformant behavior over implementation-specific quirks
-- keep phase-based TDD machine-checkable
+- keep TDD workflow lightweight and reviewable
 
 ## TDD Workflow Policy
 
@@ -121,7 +121,7 @@ Release gate recommendation:
 Required jobs:
 
 1. `format-lint`
-   - `ruff format --check .`
+   - `yapf --diff --recursive src tests scripts`
    - `ruff check .`
 2. `type-check`
    - `mypy src`
@@ -149,7 +149,7 @@ Common local commands once the scaffold exists:
 ```sh
 quawk --help
 pytest
-ruff format --check .
+yapf --diff --recursive src tests scripts
 ruff check .
 mypy src
 ```

@@ -7,7 +7,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - language target is POSIX-oriented AWK first
 - implementation language is Python `3.14.x`
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
-- LLVM-backed JIT uses `llvmlite`
+- current LLVM-backed MVP execution uses local LLVM tools (`lli`)
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows from an end-to-end MVP JIT path
 - phase delivery uses TDD for the next MVP increment
@@ -121,10 +121,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-050` implement minimal parser support for `BEGIN { print "literal" }`
-2. `T-051` implement LLVM lowering/runtime for literal-print `BEGIN` programs
-3. `T-052` wire CLI execution for inline program text and `-f` files
-4. `T-053` add end-to-end execution tests for the MVP path
+1. `T-009` extend token/source-span modeling for the next MVP increment
+2. `T-010` extend lexing for the next MVP increment
+3. `T-012` define and extend AST nodes for the next MVP increment
+4. `T-013` extend parser for the next runnable increment
+5. `T-014` implement expression parsing with precedence and implicit concatenation
+6. `T-024` extend runtime value model for newly supported AWK semantics
+7. `T-025` extend lowering from supported AST forms to LLVM IR for the next increment
+8. `T-028` add integration tests for stdout/stderr/exit status across supported behavior increments
 
 ## Backlog
 
@@ -141,7 +145,7 @@ Priority values:
 
 | ID | Phase | Priority | Task | Depends On | Acceptance | Status |
 |---|---|---|---|---|---|---|
-| T-000 | P0 | P0 | Rebaseline docs to Python/llvmlite implementation plan | none | Core docs reflect Python 3.14 + `uv` workflow | done |
+| T-000 | P0 | P0 | Rebaseline docs to the Python/LLVM implementation plan | none | Core docs reflect Python 3.14 + `uv` workflow | done |
 | T-001 | P0 | P0 | Create `src/`, `tests/`, `examples/`, and `scripts/` directories | none | Directories exist and are documented | done |
 | T-002 | P0 | P0 | Add `pyproject.toml` with package metadata and console entrypoint | T-001 | `quawk --help` entrypoint resolves in the local `.venv` | done |
 | T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | done |
@@ -152,10 +156,10 @@ Priority values:
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
 | T-043 | P1 | P0 | Author P1 MVP end-to-end tests for the initial executable path | T-002, T-006 | Minimal end-to-end CLI execution tests are committed before implementation | done |
 | T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | MVP tokenization is stable and supporting lexer tests pass | done |
-| T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | MVP program parses into a stable AST form | todo |
-| T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | MVP program executes through the JIT path | todo |
-| T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | MVP path runs from both invocation forms | todo |
-| T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the MVP path | T-052 | Inline and file-based MVP smoke cases pass end-to-end | todo |
+| T-050 | P1 | P0 | Implement minimal parser for `BEGIN { print "literal" }` | T-049 | MVP program parses into a stable AST form | done |
+| T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | MVP program executes through the JIT path | done |
+| T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | MVP path runs from both invocation forms | done |
+| T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the MVP path | T-052 | Inline and file-based MVP smoke cases pass end-to-end | done |
 | T-009 | P2 | P0 | Extend token types and source-span representation for the next MVP increment | T-053 | Token/span modules support the next planned language increment | todo |
 | T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next MVP increment | T-009 | Lexer fixtures pass for the next targeted syntax increment | todo |
 | T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
@@ -173,7 +177,7 @@ Priority values:
 | T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
 | T-023 | P2 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
 | T-024 | P2 | P0 | Extend runtime value model for newly supported AWK semantics | T-022 | Runtime representation matches supported behavior | todo |
-| T-025 | P2 | P0 | Extend lowering from supported IR/AST forms to LLVM IR via `llvmlite` | T-022 | New sample programs execute through JIT path | todo |
+| T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for the next increment | T-022 | New sample programs execute through the LLVM-backed path | todo |
 | T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
 | T-027 | P2 | P1 | Implement builtins only as required by the active MVP increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status across supported behavior increments | T-025, T-026 | Integration tests run in required CI jobs | todo |
@@ -199,7 +203,7 @@ Priority values:
 | Risk | Impact | Mitigation |
 |---|---|---|
 | AWK semantic corner-case drift | High | Differential tests and explicit divergence classification |
-| LLVM binding feature limits (`llvmlite`) | High | Keep backend abstraction narrow; add fallback only if blocked |
+| LLVM toolchain integration complexity | High | Keep backend abstraction narrow and preserve a simple end-to-end execution path |
 | Over-scoped early milestones | High | Force work into a working MVP path before broad feature coverage |
 | Scope creep from extensions | Medium | POSIX-first gate and defer extensions until compatibility baseline |
 | Python dependency drift | Medium | Pin dependency ranges and enforce CI |

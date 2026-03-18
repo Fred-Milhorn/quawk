@@ -3,9 +3,13 @@ from __future__ import annotations
 import argparse
 import sys
 from importlib import metadata
+from pathlib import Path
 from typing import Sequence
 
 from . import __version__
+from .jit import execute
+from .lexer import LexError, lex
+from .parser import ParseError, parse
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -64,11 +68,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.program_files and args.program is not None:
         parser.error("cannot mix -f progfile with inline program text")
 
-    if not args.program_files and args.program is None:
+    source_text = load_program_source(args.program_files, args.program)
+    if source_text is None:
         parser.error("missing AWK program text or -f progfile")
 
-    sys.stderr.write("quawk: execution path not implemented yet\n")
-    return 2
+    try:
+        tokens = lex(source_text)
+        program = parse(tokens)
+        return execute(program)
+    except OSError as exc:
+        sys.stderr.write(f"quawk: {exc}\n")
+        return 2
+    except (LexError, ParseError) as exc:
+        sys.stderr.write(f"quawk: {exc}\n")
+        return 2
+    except RuntimeError as exc:
+        sys.stderr.write(f"quawk: {exc}\n")
+        return 4
 
 
 def get_version() -> str:
@@ -76,3 +92,12 @@ def get_version() -> str:
         return metadata.version("quawk")
     except metadata.PackageNotFoundError:
         return __version__
+
+
+def load_program_source(
+    program_files: list[str],
+    inline_program: str | None,
+) -> str | None:
+    if program_files:
+        return "\n".join(Path(program_file).read_text(encoding="utf-8") for program_file in program_files)
+    return inline_program

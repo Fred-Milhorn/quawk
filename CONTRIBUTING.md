@@ -62,9 +62,9 @@ Apply these rules to Python source, tests, scripts, and documentation unless a d
 
 ## Testing Expectations
 
-Implementation follows strict phase-based TDD:
+Implementation follows strict MVP-first TDD:
 
-1. Before implementing a slice, add the tests for that slice.
+1. Before implementing the MVP path or the next MVP increment, add the tests first.
 2. Use ordinary failing tests or `pytest.mark.xfail` when a temporary expected failure is clearer.
 3. Burn those tests down to `pass` during implementation.
 4. Keep roadmap state in the roadmap, not in separate test metadata files.
@@ -78,7 +78,7 @@ Current local checks are defined in [docs/testing.md](docs/testing.md). When the
 ```sh
 quawk --help
 pytest
-ruff format --check .
+yapf --diff --recursive src tests scripts
 ruff check .
 mypy src
 ```
@@ -98,7 +98,7 @@ Before opening or updating a PR, verify that:
 Review should focus on:
 - semantic correctness
 - compatibility implications
-- stability of diagnostics and test metadata
+- stability of diagnostics and test coverage
 - clarity of public behavior and design intent
 
 When a change affects grammar, execution, CLI behavior, or CI/test gates, update the matching section in the docs instead of leaving the design split across multiple files.

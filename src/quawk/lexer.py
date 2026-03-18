@@ -78,7 +78,7 @@ def lex_string(source: str, start: int) -> tuple[Token, int]:
         elif char == "\\":
             escaped = True
         elif char == '"':
-            return Token(TokenKind.STRING, source[start : index + 1]), index + 1
+            return Token(TokenKind.STRING, source[start:index + 1]), index + 1
         index += 1
 
     raise LexError("unterminated string literal")

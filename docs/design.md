@@ -4,7 +4,7 @@ This document is the technical reference for `quawk`: architecture, frontend str
 
 ## Overview
 
-`quawk` is a POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM via `llvmlite`.
+`quawk` is a POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tooling.
 
 High-level pipeline:
 
@@ -13,6 +13,10 @@ High-level pipeline:
 3. semantic validation and normalization
 4. LLVM lowering and JIT materialization
 5. execution
+
+Current MVP note:
+- the current execution path lowers to LLVM IR text and runs it through `lli`
+- an in-process LLVM binding can be revisited later if it becomes worthwhile
 
 Goals:
 - match POSIX AWK behavior closely

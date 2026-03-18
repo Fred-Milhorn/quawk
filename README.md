@@ -1,6 +1,6 @@
 # quawk
 
-POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM via `llvmlite`.
+POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tooling.
 
 ## Status
 
@@ -10,11 +10,11 @@ Implemented now:
 - consolidated project documentation
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
-- Python package/bootstrap scaffold with a stubbed `quawk` CLI
+- Python package/bootstrap scaffold with a working MVP `quawk` CLI path
+- end-to-end MVP execution for `BEGIN { print "literal" }`
 - example program and CI workflow scaffold
 
 Planned next:
-- first end-to-end MVP JIT path for the simplest AWK program
 - incremental language and runtime expansion from that MVP
 - compatibility and differential test harness after the executable core exists
 
@@ -51,7 +51,7 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor workflow, standards, and PR expectations
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [docs/design.md](docs/design.md): architecture, grammar, execution, and CLI design
-- [docs/testing.md](docs/testing.md): test strategy, manifest rules, and CI gates
+- [docs/testing.md](docs/testing.md): test strategy, workflow, and CI gates
 - [docs/roadmap.md](docs/roadmap.md): phased implementation plan and active backlog
 
 ## Compatibility Snapshot
@@ -61,7 +61,7 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 | OS | Linux, macOS | CI matrix expands over time |
 | Architecture | x86_64, aarch64 | As available in CI provider |
 | Python | 3.14.x | Managed by `uv` |
-| LLVM binding | `llvmlite` | Used for JIT path |
+| LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`) | Used for the current MVP JIT path |
 
 ## FAQ
 
