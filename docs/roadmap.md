@@ -76,6 +76,7 @@ Objective:
 - expand the supported AWK subset one coherent MVP increment at a time
 
 In scope:
+- tighten the frontend architecture before the next syntax increment so lexer/parser growth happens on the right abstractions
 - tokens, expressions, statements, and runtime behavior needed for the next increment
 - semantic checks only when a new increment requires them
 - records, fields, pattern-action execution, control flow, and functions in staged increments
@@ -121,14 +122,15 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-009` extend token/source-span modeling for the next MVP increment
-2. `T-010` extend lexing for the next MVP increment
-3. `T-012` define and extend AST nodes for the next MVP increment
-4. `T-013` extend parser for the next runnable increment
-5. `T-014` implement expression parsing with precedence and implicit concatenation
-6. `T-024` extend runtime value model for newly supported AWK semantics
-7. `T-025` extend lowering from supported AST forms to LLVM IR for the next increment
-8. `T-028` add integration tests for stdout/stderr/exit status across supported behavior increments
+1. `T-054` refactor the frontend architecture around source manager, scanner, generalized tokens, and generalized AST categories
+2. `T-009` extend token/source-span modeling for the next MVP increment
+3. `T-010` extend lexing for the next MVP increment
+4. `T-012` define and extend AST nodes for the next MVP increment
+5. `T-013` extend parser for the next runnable increment
+6. `T-014` implement expression parsing with precedence and implicit concatenation
+7. `T-024` extend runtime value model for newly supported AWK semantics
+8. `T-025` extend lowering from supported AST forms to LLVM IR for the next increment
+9. `T-028` add integration tests for stdout/stderr/exit status across supported behavior increments
 
 ## Backlog
 
@@ -160,11 +162,12 @@ Priority values:
 | T-051 | P1 | P0 | Implement lowering/runtime for literal-print `BEGIN` programs | T-050 | MVP program executes through the JIT path | done |
 | T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | MVP path runs from both invocation forms | done |
 | T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the MVP path | T-052 | Inline and file-based MVP smoke cases pass end-to-end | done |
-| T-009 | P2 | P0 | Extend token types and source-span representation for the next MVP increment | T-053 | Token/span modules support the next planned language increment | todo |
-| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next MVP increment | T-009 | Lexer fixtures pass for the next targeted syntax increment | todo |
+| T-054 | P2 | P0 | Refactor the frontend architecture before the next syntax increment | T-053 | Source manager/cursor replaces concatenated source, scanner/token model are generalized, and parser uses broader `Program`/`PatternAction`/`Action`/`Stmt`/`Expr` categories without materially expanding accepted syntax | todo |
+| T-009 | P2 | P0 | Extend token types and source-span representation for the next MVP increment | T-054 | Token/span modules support the next planned language increment | todo |
+| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next MVP increment | T-009, T-054 | Lexer fixtures pass for the next targeted syntax increment | todo |
 | T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
-| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next MVP increment | T-009 | AST model matches currently supported language forms | todo |
-| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012 | Parser accepts the next planned runnable increment | todo |
+| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next MVP increment | T-009, T-054 | AST model matches currently supported language forms | todo |
+| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012, T-054 | Parser accepts the next planned runnable increment | todo |
 | T-014 | P2 | P1 | Implement expression parsing with precedence and implicit concatenation | T-013 | Precedence and concat tests pass when that increment is enabled | todo |
 | T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |

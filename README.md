@@ -50,7 +50,9 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor workflow, standards, and PR expectations
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
-- [docs/design.md](docs/design.md): architecture, grammar, execution, and CLI design
+- [docs/design.md](docs/design.md): architecture, execution, and CLI design
+- [docs/grammar.ebnf](docs/grammar.ebnf): concrete syntax grammar
+- [docs/quawk.asdl](docs/quawk.asdl): abstract syntax tree schema
 - [docs/testing.md](docs/testing.md): test strategy, workflow, and CI gates
 - [docs/roadmap.md](docs/roadmap.md): phased implementation plan and active backlog
 

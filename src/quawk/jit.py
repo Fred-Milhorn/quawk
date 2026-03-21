@@ -9,6 +9,23 @@ from tempfile import NamedTemporaryFile
 from .parser import BeginProgram
 
 
+def emit_assembly(llvm_ir: str) -> str:
+    llc_path = shutil.which("llc")
+    if llc_path is None:
+        raise RuntimeError("LLVM code generation tool 'llc' is not available on PATH")
+
+    result = subprocess.run(
+        [llc_path, "-o", "-", "-"],
+        input=llvm_ir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "llc failed to produce assembly output")
+    return result.stdout
+
+
 def execute(program: BeginProgram) -> int:
     lli_path = shutil.which("lli")
     if lli_path is None:

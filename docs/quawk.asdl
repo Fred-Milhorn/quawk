@@ -1,0 +1,106 @@
+-- quawk abstract syntax definition
+--
+-- This file describes quawk's abstract syntax tree, not its concrete syntax.
+-- The EBNF in docs/grammar.ebnf remains the source of truth for parsing,
+-- precedence, separators, and context-sensitive lexical rules.
+--
+-- The intent of this file is to define the long-term AST shape now, while the
+-- implementation grows into it incrementally. Many constructors described here
+-- are not implemented yet.
+
+module Quawk {
+    loc = Loc(
+        string source,
+        int start_line,
+        int start_column,
+        int end_line,
+        int end_column
+    )
+
+    program = Program(item* items) attributes (loc? loc)
+
+    item = FunctionDef(identifier name, identifier* params, action body)
+         | PatternAction(pattern? pattern, action? action)
+         attributes (loc? loc)
+
+    pattern = Begin
+            | End
+            | ExprPattern(expr test)
+            | RangePattern(pattern left, pattern right)
+            attributes (loc? loc)
+
+    action = Action(stmt* statements) attributes (loc? loc)
+
+    stmt = Block(action body)
+         | If(expr test, stmt then_branch, stmt? else_branch)
+         | While(expr test, stmt body)
+         | DoWhile(stmt body, expr test)
+         | For(expr* init, expr? test, expr* update, stmt body)
+         | ForIn(identifier name, expr iterable, stmt body)
+         | Break
+         | Continue
+         | Next
+         | NextFile
+         | Exit(expr? value)
+         | Return(expr? value)
+         | Delete(lvalue target)
+         | Print(expr* args)
+         | Printf(expr format, expr* args)
+         | ExprStmt(expr value)
+         attributes (loc? loc)
+
+    expr = StringLiteral(string value, string raw_text)
+         | NumberLiteral(string text)
+         | RegexLiteral(string text)
+         | Name(identifier id)
+         | ArrayRef(identifier name, expr* subscripts)
+         | FieldRef(expr index)
+         | Call(identifier function, expr* args)
+         | Assign(lvalue target, assign_op op, expr value)
+         | Conditional(expr test, expr if_true, expr if_false)
+         | Binary(expr left, binary_op op, expr right)
+         | Unary(unary_op op, expr operand)
+         | Postfix(expr operand, postfix_op op)
+         attributes (loc? loc)
+
+    lvalue = NameLValue(identifier id)
+           | ArrayLValue(identifier name, expr* subscripts)
+           | FieldLValue(expr index)
+           attributes (loc? loc)
+
+    assign_op = PlainAssign
+              | AddAssign
+              | SubAssign
+              | MulAssign
+              | DivAssign
+              | ModAssign
+              | PowAssign
+
+    binary_op = Or
+              | And
+              | Match
+              | NotMatch
+              | In
+              | Eq
+              | Ne
+              | Lt
+              | Le
+              | Gt
+              | Ge
+              | Concat
+              | Add
+              | Sub
+              | Mul
+              | Div
+              | Mod
+              | Pow
+
+    unary_op = UPlus
+             | UMinus
+             | Not
+             | PreInc
+             | PreDec
+
+    postfix_op = PostInc
+               | PostDec
+}

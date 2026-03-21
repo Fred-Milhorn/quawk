@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Sequence
 
 from . import __version__
-from .jit import execute
-from .lexer import LexError, lex
-from .parser import ParseError, parse
+from .diagnostics import LexError, ParseError, format_error
+from .jit import emit_assembly, execute, lower_to_llvm_ir
+from .lexer import format_tokens, lex
+from .parser import format_program, parse
+from .source import SourceText
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,6 +46,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the user-facing version and exit.",
     )
+    stop_stage = parser.add_mutually_exclusive_group()
+    stop_stage.add_argument(
+        "--lex",
+        action="store_true",
+        help="Print tokens for the input program and exit.",
+    )
+    stop_stage.add_argument(
+        "--parse",
+        action="store_true",
+        help="Print the parsed AST for the input program and exit.",
+    )
+    stop_stage.add_argument(
+        "--ir",
+        action="store_true",
+        help="Print the generated LLVM IR and exit.",
+    )
+    stop_stage.add_argument(
+        "--asm",
+        action="store_true",
+        help="Print the generated assembly and exit.",
+    )
     parser.add_argument(
         "program",
         nargs="?",
@@ -68,19 +91,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.program_files and args.program is not None:
         parser.error("cannot mix -f progfile with inline program text")
 
-    source_text = load_program_source(args.program_files, args.program)
-    if source_text is None:
+    source = load_program_source(args.program_files, args.program)
+    if source is None:
         parser.error("missing AWK program text or -f progfile")
 
     try:
-        tokens = lex(source_text)
+        tokens = lex(source)
+        if args.lex:
+            sys.stdout.write(format_tokens(tokens))
+            return 0
+
         program = parse(tokens)
+        if args.parse:
+            sys.stdout.write(format_program(program))
+            return 0
+
+        llvm_ir = lower_to_llvm_ir(program)
+        if args.ir:
+            sys.stdout.write(llvm_ir)
+            return 0
+        if args.asm:
+            sys.stdout.write(emit_assembly(llvm_ir))
+            return 0
+
         return execute(program)
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
         return 2
     except (LexError, ParseError) as exc:
-        sys.stderr.write(f"quawk: {exc}\n")
+        sys.stderr.write(format_error(exc))
         return 2
     except RuntimeError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
@@ -97,7 +136,10 @@ def get_version() -> str:
 def load_program_source(
     program_files: list[str],
     inline_program: str | None,
-) -> str | None:
+) -> SourceText | None:
     if program_files:
-        return "\n".join(Path(program_file).read_text(encoding="utf-8") for program_file in program_files)
-    return inline_program
+        files = [(program_file, Path(program_file).read_text(encoding="utf-8")) for program_file in program_files]
+        return SourceText.from_files(files)
+    if inline_program is None:
+        return None
+    return SourceText.from_inline(inline_program)

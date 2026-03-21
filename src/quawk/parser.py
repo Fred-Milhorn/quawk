@@ -2,26 +2,38 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .diagnostics import ParseError
 from .lexer import Token, TokenKind
+from .source import SourceSpan, combine_spans
 
 
 @dataclass(frozen=True)
 class PrintStatement:
     literal: str
+    span: SourceSpan
 
 
 @dataclass(frozen=True)
 class BeginProgram:
     statements: tuple[PrintStatement, ...]
-
-
-class ParseError(ValueError):
-    pass
+    span: SourceSpan
 
 
 def parse(tokens: list[Token]) -> BeginProgram:
     parser = Parser(tokens)
     return parser.parse_program()
+
+
+def format_program(program: BeginProgram) -> str:
+    lines = [f"BeginProgram span={program.span.format_start()}"]
+    for statement in program.statements:
+        lines.extend(
+            [
+                f"  PrintStatement span={statement.span.format_start()}",
+                f"    literal={statement.literal!r}",
+            ]
+        )
+    return "\n".join(lines) + "\n"
 
 
 class Parser:
@@ -31,21 +43,24 @@ class Parser:
         self.index = 0
 
     def parse_program(self) -> BeginProgram:
-        self.expect(TokenKind.BEGIN)
+        begin_token = self.expect(TokenKind.BEGIN)
         self.expect(TokenKind.LBRACE)
 
         statements: list[PrintStatement] = []
         while self.current().kind is not TokenKind.RBRACE:
             statements.append(self.parse_print_statement())
 
-        self.expect(TokenKind.RBRACE)
+        rbrace_token = self.expect(TokenKind.RBRACE)
         self.expect(TokenKind.EOF)
-        return BeginProgram(tuple(statements))
+        return BeginProgram(tuple(statements), combine_spans(begin_token.span, rbrace_token.span))
 
     def parse_print_statement(self) -> PrintStatement:
-        self.expect(TokenKind.PRINT)
+        print_token = self.expect(TokenKind.PRINT)
         literal_token = self.expect(TokenKind.STRING)
-        return PrintStatement(decode_string_literal(literal_token.lexeme))
+        return PrintStatement(
+            decode_string_literal(literal_token),
+            combine_spans(print_token.span, literal_token.span),
+        )
 
     def current(self) -> Token:
         return self.tokens[self.index]
@@ -53,13 +68,13 @@ class Parser:
     def expect(self, kind: TokenKind) -> Token:
         token = self.current()
         if token.kind is not kind:
-            raise ParseError(f"expected {kind.value}, got {token.kind.value}")
+            raise ParseError(f"expected {kind.value}, got {token.kind.value}", token.span)
         self.index += 1
         return token
 
 
-def decode_string_literal(lexeme: str) -> str:
-    inner = lexeme[1:-1]
+def decode_string_literal(token: Token) -> str:
+    inner = token.lexeme[1:-1]
     result: list[str] = []
     index = 0
 
@@ -72,7 +87,7 @@ def decode_string_literal(lexeme: str) -> str:
 
         index += 1
         if index >= len(inner):
-            raise ParseError("unterminated escape sequence in string literal")
+            raise ParseError("unterminated escape sequence in string literal", token.span)
 
         escaped = inner[index]
         match escaped:
@@ -83,7 +98,7 @@ def decode_string_literal(lexeme: str) -> str:
             case "t":
                 result.append("\t")
             case _:
-                raise ParseError(f"unsupported escape sequence: \\{escaped}")
+                raise ParseError(f"unsupported escape sequence: \\{escaped}", token.span)
         index += 1
 
     return "".join(result)
