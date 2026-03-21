@@ -20,7 +20,7 @@ class ParseError(QuawkError):
 
 
 def format_error(error: QuawkError) -> str:
-    location = error.span.start()
+    location = error.span.start_location()
     caret_indent = " " * (location.column - 1)
     return (f"{error.span.format_start()}: error: {error.message}\n"
             f"{location.line_text}\n"

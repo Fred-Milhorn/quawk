@@ -1,90 +1,192 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 
 from .diagnostics import LexError
-from .source import SourceSpan, SourceText
+from .source import ProgramSource, SourceCursor, SourcePoint, SourceSpan
 
 
-class TokenKind(str, Enum):
-    BEGIN = "BEGIN"
-    PRINT = "PRINT"
-    LBRACE = "LBRACE"
-    RBRACE = "RBRACE"
-    STRING = "STRING"
-    EOF = "EOF"
+class TokenKind(Enum):
+    BEGIN = auto()
+    END = auto()
+    FUNCTION = auto()
+    PRINT = auto()
+    PRINTF = auto()
+    IDENT = auto()
+    STRING = auto()
+    NUMBER = auto()
+    LBRACE = auto()
+    RBRACE = auto()
+    LPAREN = auto()
+    RPAREN = auto()
+    COMMA = auto()
+    SEMICOLON = auto()
+    NEWLINE = auto()
+    EOF = auto()
+
+
+KEYWORDS: dict[str, TokenKind] = {
+    "BEGIN": TokenKind.BEGIN,
+    "END": TokenKind.END,
+    "function": TokenKind.FUNCTION,
+    "print": TokenKind.PRINT,
+    "printf": TokenKind.PRINTF,
+}
+
+FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
+    TokenKind.BEGIN: "BEGIN",
+    TokenKind.END: "END",
+    TokenKind.FUNCTION: "function",
+    TokenKind.PRINT: "print",
+    TokenKind.PRINTF: "printf",
+    TokenKind.LBRACE: "{",
+    TokenKind.RBRACE: "}",
+    TokenKind.LPAREN: "(",
+    TokenKind.RPAREN: ")",
+    TokenKind.COMMA: ",",
+    TokenKind.SEMICOLON: ";",
+    TokenKind.NEWLINE: "\n",
+}
+
+PUNCTUATION_KINDS: dict[str, TokenKind] = {
+    "{": TokenKind.LBRACE,
+    "}": TokenKind.RBRACE,
+    "(": TokenKind.LPAREN,
+    ")": TokenKind.RPAREN,
+    ",": TokenKind.COMMA,
+    ";": TokenKind.SEMICOLON,
+}
 
 
 @dataclass(frozen=True)
 class Token:
     kind: TokenKind
-    lexeme: str
     span: SourceSpan
+    text: str | None = None
+
+    def display_text(self) -> str | None:
+        if self.text is not None:
+            return self.text
+        return FIXED_TOKEN_TEXT.get(self.kind)
 
 
-def lex(source: str | SourceText) -> list[Token]:
-    source_text = source if isinstance(source, SourceText) else SourceText.from_inline(source)
-    tokens: list[Token] = []
-    index = 0
-
-    while index < len(source_text.text):
-        char = source_text.text[index]
-
-        match char:
-            case _ if char.isspace():
-                index += 1
-            case "{":
-                tokens.append(Token(TokenKind.LBRACE, char, source_text.span(index, index + 1)))
-                index += 1
-            case "}":
-                tokens.append(Token(TokenKind.RBRACE, char, source_text.span(index, index + 1)))
-                index += 1
-            case '"':
-                token, index = lex_string(source_text, index)
-                tokens.append(token)
-            case _ if char.isalpha() or char == "_":
-                token, index = lex_word(source_text, index)
-                tokens.append(token)
-            case _:
-                raise LexError(f"unsupported token: {char!r}", source_text.span(index, index + 1))
-
-    tokens.append(Token(TokenKind.EOF, "", source_text.span(len(source_text.text), len(source_text.text))))
-    return tokens
+def lex(source: str | ProgramSource) -> list[Token]:
+    source_text = source if isinstance(source, ProgramSource) else ProgramSource.from_inline(source)
+    return Lexer(source_text).scan_tokens()
 
 
 def format_tokens(tokens: list[Token]) -> str:
-    return "".join(f"{token.kind.value} lexeme={token.lexeme!r} span={token.span.format_start()}\n" for token in tokens)
+    lines: list[str] = []
+    for token in tokens:
+        text = token.display_text()
+        if text is None:
+            lines.append(f"{token.kind.name} span={token.span.format_start()}")
+        else:
+            lines.append(f"{token.kind.name} text={text!r} span={token.span.format_start()}")
+    return "\n".join(lines) + "\n"
 
 
-def lex_word(source: SourceText, start: int) -> tuple[Token, int]:
-    index = start
-    while index < len(source.text) and (source.text[index].isalnum() or source.text[index] == "_"):
-        index += 1
+class Lexer:
 
-    word = source.text[start:index]
-    span = source.span(start, index)
-    match word:
-        case "BEGIN":
-            return Token(TokenKind.BEGIN, word, span), index
-        case "print":
-            return Token(TokenKind.PRINT, word, span), index
-        case _:
-            raise LexError(f"unsupported token: {word!r}", span)
+    def __init__(self, source: ProgramSource) -> None:
+        self.source = source
+        self.cursor = SourceCursor(source)
 
+    def scan_tokens(self) -> list[Token]:
+        tokens: list[Token] = []
+        while True:
+            token = self.scan_token()
+            if token is None:
+                continue
+            tokens.append(token)
+            if token.kind is TokenKind.EOF:
+                return tokens
 
-def lex_string(source: SourceText, start: int) -> tuple[Token, int]:
-    index = start + 1
-    escaped = False
+    def scan_token(self) -> Token | None:
+        char = self.cursor.peek()
+        if char is None:
+            eof = self.cursor.point()
+            return Token(TokenKind.EOF, self.source.span(eof, eof))
 
-    while index < len(source.text):
-        char = source.text[index]
-        if escaped:
-            escaped = False
-        elif char == "\\":
-            escaped = True
-        elif char == '"':
-            return Token(TokenKind.STRING, source.text[start:index + 1], source.span(start, index + 1)), index + 1
-        index += 1
+        if char in " \t\r\f\v":
+            self.skip_horizontal_whitespace()
+            return None
 
-    raise LexError("unterminated string literal", source.span(start, len(source.text)))
+        start = self.cursor.point()
+
+        if char == "\n":
+            self.cursor.advance()
+            end = self.cursor.point()
+            return Token(TokenKind.NEWLINE, self.source.span(start, end))
+
+        if char in PUNCTUATION_KINDS:
+            self.cursor.advance()
+            end = self.cursor.point()
+            return Token(PUNCTUATION_KINDS[char], self.source.span(start, end))
+
+        if char == '"':
+            return self.scan_string_literal(start)
+
+        if char.isalpha() or char == "_":
+            return self.scan_identifier_or_keyword(start)
+
+        if char.isdigit():
+            return self.scan_number(start)
+
+        self.cursor.advance()
+        raise LexError(f"unexpected character: {char!r}", self.source.span(start, self.cursor.point()))
+
+    def skip_horizontal_whitespace(self) -> None:
+        while (char := self.cursor.peek()) is not None and char in " \t\r\f\v":
+            self.cursor.advance()
+
+    def scan_identifier_or_keyword(self, start: SourcePoint) -> Token:
+        text = self.take_while(lambda char: char.isalnum() or char == "_")
+        end = self.cursor.point()
+        kind = KEYWORDS.get(text, TokenKind.IDENT)
+        token_text = text if kind is TokenKind.IDENT else None
+        return Token(kind, self.source.span(start, end), token_text)
+
+    def scan_string_literal(self, start: SourcePoint) -> Token:
+        chars = [self.cursor.advance() or ""]
+        escaped = False
+
+        while (char := self.cursor.peek()) is not None:
+            if char == "\n" and not escaped:
+                break
+
+            chars.append(self.cursor.advance() or "")
+            if escaped:
+                escaped = False
+                continue
+            if char == "\\":
+                escaped = True
+                continue
+            if char == '"':
+                return Token(TokenKind.STRING, self.source.span(start, self.cursor.point()), "".join(chars))
+
+        raise LexError("unterminated string literal", self.source.span(start, self.cursor.point()))
+
+    def scan_number(self, start: SourcePoint) -> Token:
+        seen_decimal = False
+
+        def should_continue(char: str) -> bool:
+            nonlocal seen_decimal
+            if char.isdigit():
+                return True
+            if char == "." and not seen_decimal:
+                seen_decimal = True
+                return True
+            return False
+
+        text = self.take_while(should_continue)
+        end = self.cursor.point()
+        return Token(TokenKind.NUMBER, self.source.span(start, end), text)
+
+    def take_while(self, predicate: Callable[[str], bool]) -> str:
+        chars: list[str] = []
+        while (char := self.cursor.peek()) is not None and predicate(char):
+            chars.append(self.cursor.advance() or "")
+        return "".join(chars)

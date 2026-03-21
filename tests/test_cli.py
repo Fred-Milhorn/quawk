@@ -55,12 +55,12 @@ def test_quawk_lex_flag_prints_tokens_and_stops() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == (
-        "BEGIN lexeme='BEGIN' span=<inline>:1:1\n"
-        "LBRACE lexeme='{' span=<inline>:1:7\n"
-        "PRINT lexeme='print' span=<inline>:1:9\n"
-        "STRING lexeme='\"hello\"' span=<inline>:1:15\n"
-        "RBRACE lexeme='}' span=<inline>:1:23\n"
-        "EOF lexeme='' span=<inline>:1:24\n"
+        "BEGIN text='BEGIN' span=<inline>:1:1\n"
+        "LBRACE text='{' span=<inline>:1:7\n"
+        "PRINT text='print' span=<inline>:1:9\n"
+        "STRING text='\"hello\"' span=<inline>:1:15\n"
+        "RBRACE text='}' span=<inline>:1:23\n"
+        "EOF span=<inline>:1:24\n"
     )
     assert result.stderr == ""
 
@@ -70,9 +70,12 @@ def test_quawk_parse_flag_prints_ast_and_stops() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == (
-        "BeginProgram span=<inline>:1:1\n"
-        "  PrintStatement span=<inline>:1:9\n"
-        "    literal='hello'\n"
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        StringLiteralExpr span=<inline>:1:15 value='hello'\n"
     )
     assert result.stderr == ""
 
@@ -124,6 +127,6 @@ def test_quawk_reports_the_correct_file_for_multi_file_errors() -> None:
     result = run_quawk("-f", str(first_path), "-f", str(second_path))
 
     assert result.returncode == 2
-    assert result.stderr == (f"{second_path}:1:1: error: unsupported token: 'x'\n"
+    assert result.stderr == (f"{second_path}:1:1: error: expected PRINT, got IDENT\n"
                              "x\n"
                              "^\n")

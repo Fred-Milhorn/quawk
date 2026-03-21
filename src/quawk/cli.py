@@ -11,7 +11,7 @@ from .diagnostics import LexError, ParseError, format_error
 from .jit import emit_assembly, execute, lower_to_llvm_ir
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
-from .source import SourceText
+from .source import ProgramSource
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -136,10 +136,10 @@ def get_version() -> str:
 def load_program_source(
     program_files: list[str],
     inline_program: str | None,
-) -> SourceText | None:
+) -> ProgramSource | None:
     if program_files:
         files = [(program_file, Path(program_file).read_text(encoding="utf-8")) for program_file in program_files]
-        return SourceText.from_files(files)
+        return ProgramSource.from_files(files)
     if inline_program is None:
         return None
-    return SourceText.from_inline(inline_program)
+    return ProgramSource.from_inline(inline_program)

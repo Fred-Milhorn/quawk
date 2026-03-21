@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from .parser import BeginProgram
+from .parser import Action, BeginPattern, PatternAction, PrintStmt, Program, StringLiteralExpr
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -26,7 +26,7 @@ def emit_assembly(llvm_ir: str) -> str:
     return result.stdout
 
 
-def execute(program: BeginProgram) -> int:
+def execute(program: Program) -> int:
     lli_path = shutil.which("lli")
     if lli_path is None:
         raise RuntimeError("LLVM JIT tool 'lli' is not available on PATH")
@@ -53,11 +53,10 @@ def execute(program: BeginProgram) -> int:
     return result.returncode
 
 
-def lower_to_llvm_ir(program: BeginProgram) -> str:
-    string_lengths = [len(statement.literal.encode("utf-8")) + 1 for statement in program.statements]
-    globals_block = "\n".join(
-        declare_string(index, statement.literal) for index, statement in enumerate(program.statements)
-    )
+def lower_to_llvm_ir(program: Program) -> str:
+    literals = collect_print_literals(program)
+    string_lengths = [len(literal.encode("utf-8")) + 1 for literal in literals]
+    globals_block = "\n".join(declare_string(index, literal) for index, literal in enumerate(literals))
     calls_block = "\n".join(emit_puts_call(index, byte_length) for index, byte_length in enumerate(string_lengths))
 
     return "\n".join(
@@ -74,6 +73,29 @@ def lower_to_llvm_ir(program: BeginProgram) -> str:
             "",
         ]
     )
+
+
+def collect_print_literals(program: Program) -> tuple[str, ...]:
+    if len(program.items) != 1:
+        raise RuntimeError("the MVP backend supports exactly one top-level pattern-action")
+
+    item = program.items[0]
+    if not isinstance(item, PatternAction):
+        raise RuntimeError("the MVP backend only supports pattern-action items")
+    if not isinstance(item.pattern, BeginPattern):
+        raise RuntimeError("the MVP backend only supports BEGIN actions")
+    if not isinstance(item.action, Action):
+        raise RuntimeError("the MVP backend requires an action block")
+
+    literals: list[str] = []
+    for statement in item.action.statements:
+        if not isinstance(statement, PrintStmt):
+            raise RuntimeError("the MVP backend only supports print statements")
+        if len(statement.arguments) != 1 or not isinstance(statement.arguments[0], StringLiteralExpr):
+            raise RuntimeError("the MVP backend only supports print with one string literal argument")
+        literals.append(statement.arguments[0].value)
+
+    return tuple(literals)
 
 
 def declare_string(index: int, literal: str) -> str:
