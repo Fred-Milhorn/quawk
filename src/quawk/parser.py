@@ -1,3 +1,7 @@
+# Parser and AST definitions for the current language subset.
+# This module lowers the token stream into the generalized AST categories that
+# the rest of the compiler is meant to grow around.
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -58,10 +62,12 @@ class Program:
 
 
 def parse(tokens: list[Token]) -> Program:
+    """Parse tokens into the generalized MVP AST."""
     return Parser(tokens).parse_program()
 
 
 def format_program(program: Program) -> str:
+    """Render the AST in a stable text form for `quawk --parse`."""
     lines = [f"Program span={program.span.format_start()}"]
     for item in program.items:
         lines.append(f"  PatternAction span={item.span.format_start()}")
@@ -79,12 +85,15 @@ def format_program(program: Program) -> str:
 
 
 class Parser:
+    """Recursive-descent parser for the currently supported MVP grammar."""
 
     def __init__(self, tokens: list[Token]) -> None:
+        """Create a parser over an already-tokenized input stream."""
         self.tokens = tokens
         self.index = 0
 
     def parse_program(self) -> Program:
+        """Parse the whole program and require EOF afterward."""
         self.consume_separators()
         item = self.parse_pattern_action()
         self.consume_separators()
@@ -92,15 +101,18 @@ class Parser:
         return Program(items=(item, ), span=item.span)
 
     def parse_pattern_action(self) -> PatternAction:
+        """Parse the single top-level pattern-action the MVP supports."""
         pattern = self.parse_pattern()
         action = self.parse_action()
         return PatternAction(pattern=pattern, action=action, span=combine_spans(pattern.span, action.span))
 
     def parse_pattern(self) -> Pattern:
+        """Parse the currently supported pattern form."""
         begin_token = self.expect(TokenKind.BEGIN)
         return BeginPattern(begin_token.span)
 
     def parse_action(self) -> Action:
+        """Parse a braced action block."""
         lbrace_token = self.expect(TokenKind.LBRACE)
         self.consume_separators()
 
@@ -116,14 +128,17 @@ class Parser:
         return Action(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
 
     def parse_statement(self) -> Stmt:
+        """Parse a statement in the MVP subset."""
         return self.parse_print_statement()
 
     def parse_print_statement(self) -> PrintStmt:
+        """Parse a `print` statement with the currently supported argument form."""
         print_token = self.expect(TokenKind.PRINT)
         argument = self.parse_expression()
         return PrintStmt(arguments=(argument, ), span=combine_spans(print_token.span, argument.span))
 
     def parse_expression(self) -> Expr:
+        """Parse an expression in the MVP subset."""
         token = self.current()
         if token.kind is not TokenKind.STRING:
             raise ParseError(f"expected STRING, got {token.kind.name}", token.span)
@@ -136,18 +151,22 @@ class Parser:
         )
 
     def current(self) -> Token:
+        """Return the current token without consuming it."""
         return self.tokens[self.index]
 
     def advance(self) -> Token:
+        """Consume and return the current token."""
         token = self.current()
         if token.kind is not TokenKind.EOF:
             self.index += 1
         return token
 
     def check(self, kind: TokenKind) -> bool:
+        """Report whether the current token has `kind`."""
         return self.current().kind is kind
 
     def expect(self, kind: TokenKind) -> Token:
+        """Consume a token of `kind` or raise a parse error at the current span."""
         token = self.current()
         if token.kind is not kind:
             raise ParseError(f"expected {kind.name}, got {token.kind.name}", token.span)
@@ -155,6 +174,7 @@ class Parser:
         return token
 
     def consume_separators(self) -> bool:
+        """Consume statement separators and report whether any were present."""
         consumed = False
         while self.check(TokenKind.NEWLINE) or self.check(TokenKind.SEMICOLON):
             self.advance()
@@ -163,6 +183,7 @@ class Parser:
 
 
 def decode_string_literal(token: Token) -> str:
+    """Decode the raw text of a string token into its runtime value."""
     raw_text = token.text or ""
     inner = raw_text[1:-1]
     result: list[str] = []

@@ -1,3 +1,7 @@
+# MVP lowering and execution backend.
+# This module converts the currently supported AST subset into LLVM IR text and
+# shells out to LLVM tools for assembly emission and execution.
+
 from __future__ import annotations
 
 import shutil
@@ -10,6 +14,7 @@ from .parser import Action, BeginPattern, PatternAction, PrintStmt, Program, Str
 
 
 def emit_assembly(llvm_ir: str) -> str:
+    """Run `llc` on LLVM IR and return the emitted assembly text."""
     llc_path = shutil.which("llc")
     if llc_path is None:
         raise RuntimeError("LLVM code generation tool 'llc' is not available on PATH")
@@ -27,6 +32,7 @@ def emit_assembly(llvm_ir: str) -> str:
 
 
 def execute(program: Program) -> int:
+    """Lower `program` to IR, run it with `lli`, and return the process status."""
     lli_path = shutil.which("lli")
     if lli_path is None:
         raise RuntimeError("LLVM JIT tool 'lli' is not available on PATH")
@@ -54,6 +60,7 @@ def execute(program: Program) -> int:
 
 
 def lower_to_llvm_ir(program: Program) -> str:
+    """Lower the currently supported AST subset to LLVM IR text."""
     literals = collect_print_literals(program)
     string_lengths = [len(literal.encode("utf-8")) + 1 for literal in literals]
     globals_block = "\n".join(declare_string(index, literal) for index, literal in enumerate(literals))
@@ -76,6 +83,11 @@ def lower_to_llvm_ir(program: Program) -> str:
 
 
 def collect_print_literals(program: Program) -> tuple[str, ...]:
+    """Extract the literal strings accepted by the MVP backend.
+
+    The parser is intentionally broader than the current lowering path, so the
+    backend validates that it only sees the AST forms the MVP can execute.
+    """
     if len(program.items) != 1:
         raise RuntimeError("the MVP backend supports exactly one top-level pattern-action")
 
@@ -99,12 +111,14 @@ def collect_print_literals(program: Program) -> tuple[str, ...]:
 
 
 def declare_string(index: int, literal: str) -> str:
+    """Emit one global LLVM string constant for `literal`."""
     data = literal.encode("utf-8") + b"\x00"
     escaped = "".join(f"\\{byte:02X}" for byte in data)
     return f'@.str.{index} = private unnamed_addr constant [{len(data)} x i8] c"{escaped}"'
 
 
 def emit_puts_call(index: int, byte_length: int) -> str:
+    """Emit the GEP and `puts` call for one lowered string constant."""
     return (
         f"  %strptr.{index} = getelementptr inbounds "
         f"[{byte_length} x i8], ptr @.str.{index}, i64 0, i64 0\n"

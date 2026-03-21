@@ -1,3 +1,7 @@
+# Scanner and token-location tests.
+# These cases verify token classification, text capture, and source-position
+# tracking in the frontend scanner.
+
 from __future__ import annotations
 
 import pytest

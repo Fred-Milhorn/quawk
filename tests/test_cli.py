@@ -1,3 +1,7 @@
+# CLI-level behavioral tests.
+# These cases exercise the installed `quawk` command, including stage-dump
+# modes, diagnostics, and end-to-end command-line behavior.
+
 import subprocess
 from pathlib import Path
 

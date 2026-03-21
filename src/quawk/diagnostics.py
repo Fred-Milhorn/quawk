@@ -1,3 +1,7 @@
+# Structured compiler diagnostics.
+# This module defines frontend error types and the shared formatting used for
+# human-readable file:line:column error output.
+
 from __future__ import annotations
 
 from .source import SourceSpan
@@ -20,6 +24,7 @@ class ParseError(QuawkError):
 
 
 def format_error(error: QuawkError) -> str:
+    """Render a compiler error with source context and a caret indicator."""
     location = error.span.start_location()
     caret_indent = " " * (location.column - 1)
     return (f"{error.span.format_start()}: error: {error.message}\n"

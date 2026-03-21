@@ -1,3 +1,7 @@
+# User-facing command-line entrypoint.
+# This module turns CLI options into compiler pipeline stages and owns the
+# top-level source-loading and error-reporting flow.
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +19,7 @@ from .source import ProgramSource
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser for the user-facing `quawk` CLI."""
     parser = argparse.ArgumentParser(
         prog="quawk",
         description="POSIX-oriented AWK compiler and JIT runtime.",
@@ -81,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the CLI entrypoint and return a process-style exit status."""
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -106,6 +112,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(format_program(program))
             return 0
 
+        # Lower once for the stop-after inspection modes so IR and assembly are
+        # derived from the same pipeline the execution path uses.
         llvm_ir = lower_to_llvm_ir(program)
         if args.ir:
             sys.stdout.write(llvm_ir)
@@ -127,6 +135,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def get_version() -> str:
+    """Return the installed package version, or the local fallback during development."""
     try:
         return metadata.version("quawk")
     except metadata.PackageNotFoundError:
@@ -137,9 +146,23 @@ def load_program_source(
     program_files: list[str],
     inline_program: str | None,
 ) -> ProgramSource | None:
+    """Return the logical AWK program source for `-f` inputs or inline text.
+
+    The result is a `ProgramSource` that the frontend can lex and diagnose
+    against. If no program was supplied, return `None` so the caller can emit
+    the normal CLI usage error.
+    """
     if program_files:
+        # AWK allows multiple `-f` flags. Preserve each file as a distinct
+        # physical source so diagnostics can still point at the correct origin,
+        # while treating the sequence as one logical program.
         files = [(program_file, Path(program_file).read_text(encoding="utf-8")) for program_file in program_files]
         return ProgramSource.from_files(files)
+
+    # Without `-f`, the first positional argument is the whole AWK program.
+    # Returning `None` lets the caller report the standard "missing program"
+    # usage error instead of inventing an empty program here.
     if inline_program is None:
         return None
+
     return ProgramSource.from_inline(inline_program)

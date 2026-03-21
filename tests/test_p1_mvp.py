@@ -1,3 +1,7 @@
+# MVP execution tests.
+# These cases keep the smallest runnable AWK program working through the full
+# CLI-to-LLVM execution path.
+
 from __future__ import annotations
 
 import subprocess

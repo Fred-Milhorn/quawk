@@ -1,3 +1,7 @@
+# Parser and AST-shape tests.
+# These cases verify that the generalized frontend structure still accepts the
+# MVP program and produces the intended AST categories.
+
 from __future__ import annotations
 
 import pytest

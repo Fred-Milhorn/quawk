@@ -1,3 +1,7 @@
+# Scanner and token model for the frontend.
+# This module turns source text into positioned tokens while preserving enough
+# structure for diagnostics, parsing, and `--lex` inspection output.
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -67,17 +71,20 @@ class Token:
     text: str | None = None
 
     def display_text(self) -> str | None:
+        """Return the token text used by debugging and inspection output."""
         if self.text is not None:
             return self.text
         return FIXED_TOKEN_TEXT.get(self.kind)
 
 
 def lex(source: str | ProgramSource) -> list[Token]:
+    """Lex inline text or tracked program input into tokens."""
     source_text = source if isinstance(source, ProgramSource) else ProgramSource.from_inline(source)
     return Lexer(source_text).scan_tokens()
 
 
 def format_tokens(tokens: list[Token]) -> str:
+    """Render tokens in a stable text form for `quawk --lex`."""
     lines: list[str] = []
     for token in tokens:
         text = token.display_text()
@@ -89,12 +96,15 @@ def format_tokens(tokens: list[Token]) -> str:
 
 
 class Lexer:
+    """Scanner for the currently supported quawk token set."""
 
     def __init__(self, source: ProgramSource) -> None:
+        """Create a scanner over `source`."""
         self.source = source
         self.cursor = SourceCursor(source)
 
     def scan_tokens(self) -> list[Token]:
+        """Scan the full token stream, always terminating with EOF."""
         tokens: list[Token] = []
         while True:
             token = self.scan_token()
@@ -105,6 +115,7 @@ class Lexer:
                 return tokens
 
     def scan_token(self) -> Token | None:
+        """Scan one token, or return `None` after consuming ignored trivia."""
         char = self.cursor.peek()
         if char is None:
             eof = self.cursor.point()
@@ -139,10 +150,12 @@ class Lexer:
         raise LexError(f"unexpected character: {char!r}", self.source.span(start, self.cursor.point()))
 
     def skip_horizontal_whitespace(self) -> None:
+        """Consume non-newline whitespace."""
         while (char := self.cursor.peek()) is not None and char in " \t\r\f\v":
             self.cursor.advance()
 
     def scan_identifier_or_keyword(self, start: SourcePoint) -> Token:
+        """Scan an identifier and reclassify it if it matches a keyword."""
         text = self.take_while(lambda char: char.isalnum() or char == "_")
         end = self.cursor.point()
         kind = KEYWORDS.get(text, TokenKind.IDENT)
@@ -150,6 +163,7 @@ class Lexer:
         return Token(kind, self.source.span(start, end), token_text)
 
     def scan_string_literal(self, start: SourcePoint) -> Token:
+        """Scan a double-quoted string literal without decoding escapes yet."""
         chars = [self.cursor.advance() or ""]
         escaped = False
 
@@ -170,6 +184,7 @@ class Lexer:
         raise LexError("unterminated string literal", self.source.span(start, self.cursor.point()))
 
     def scan_number(self, start: SourcePoint) -> Token:
+        """Scan a simple integer or decimal literal."""
         seen_decimal = False
 
         def should_continue(char: str) -> bool:
@@ -186,6 +201,7 @@ class Lexer:
         return Token(TokenKind.NUMBER, self.source.span(start, end), text)
 
     def take_while(self, predicate: Callable[[str], bool]) -> str:
+        """Consume characters while `predicate` returns true."""
         chars: list[str] = []
         while (char := self.cursor.peek()) is not None and predicate(char):
             chars.append(self.cursor.advance() or "")
