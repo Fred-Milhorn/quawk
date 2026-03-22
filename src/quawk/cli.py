@@ -97,11 +97,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.program_files and args.program is not None:
         parser.error("cannot mix -f progfile with inline program text")
 
-    source = load_program_source(args.program_files, args.program)
-    if source is None:
-        parser.error("missing AWK program text or -f progfile")
-
     try:
+        source = load_program_source(args.program_files, args.program)
+        if source is None:
+            parser.error("missing AWK program text or -f progfile")
+
         tokens = lex(source)
         if args.lex:
             sys.stdout.write(format_tokens(tokens))
@@ -156,7 +156,16 @@ def load_program_source(
         # AWK allows multiple `-f` flags. Preserve each file as a distinct
         # physical source so diagnostics can still point at the correct origin,
         # while treating the sequence as one logical program.
-        files = [(program_file, Path(program_file).read_text(encoding="utf-8")) for program_file in program_files]
+        files: list[tuple[str, str]] = []
+        for program_file in program_files:
+            try:
+                file_text = Path(program_file).read_text(encoding="utf-8")
+            except OSError as exc:
+                # Keep file-open failures as normal CLI diagnostics instead of
+                # letting Python render a traceback from deep inside `pathlib`.
+                message = exc.strerror or str(exc)
+                raise OSError(f"{program_file}: {message}") from exc
+            files.append((program_file, file_text))
         return ProgramSource.from_files(files)
 
     # Without `-f`, the first positional argument is the whole AWK program.

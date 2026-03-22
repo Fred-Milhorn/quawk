@@ -215,3 +215,11 @@ def test_quawk_reports_the_correct_file_for_multi_file_errors() -> None:
     assert result.stderr == (f"{second_path}:1:1: error: expected statement, got IDENT\n"
                              "x\n"
                              "^\n")
+
+
+def test_quawk_reports_missing_progfile_without_traceback() -> None:
+    missing_path = ROOT / "tests" / "fixtures" / "diagnostics" / "does_not_exist.awk"
+    result = run_quawk("-f", str(missing_path))
+
+    assert result.returncode == 2
+    assert result.stderr == f"quawk: {missing_path}: No such file or directory\n"
