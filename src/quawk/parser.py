@@ -41,6 +41,12 @@ class NameExpr:
     span: SourceSpan
 
 
+@dataclass(frozen=True)
+class FieldExpr:
+    index: int
+    span: SourceSpan
+
+
 class BinaryOp(Enum):
     ADD = auto()
 
@@ -53,7 +59,7 @@ class BinaryExpr:
     span: SourceSpan
 
 
-Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | NameExpr | BinaryExpr
+Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | NameExpr | FieldExpr | BinaryExpr
 
 
 @dataclass(frozen=True)
@@ -129,6 +135,8 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
             return [f"{indent}NumericLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
         case NameExpr():
             return [f"{indent}NameExpr span={expression.span.format_start()} name={expression.name!r}"]
+        case FieldExpr():
+            return [f"{indent}FieldExpr span={expression.span.format_start()} index={expression.index}"]
         case BinaryExpr():
             lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
             lines.extend(format_expression(expression.left, indent + "  "))
@@ -155,6 +163,10 @@ class Parser:
 
     def parse_pattern_action(self) -> PatternAction:
         """Parse the single top-level pattern-action the MVP supports."""
+        if self.check(TokenKind.LBRACE):
+            action = self.parse_action()
+            return PatternAction(pattern=None, action=action, span=action.span)
+
         pattern = self.parse_pattern()
         action = self.parse_action()
         return PatternAction(pattern=pattern, action=action, span=combine_spans(pattern.span, action.span))
@@ -246,6 +258,13 @@ class Parser:
             case TokenKind.IDENT:
                 name_token = self.advance()
                 return NameExpr(name=name_token.text or "", span=name_token.span)
+            case TokenKind.DOLLAR:
+                dollar_token = self.advance()
+                number_token = self.expect(TokenKind.NUMBER)
+                raw_text = number_token.text or ""
+                if "." in raw_text:
+                    raise ParseError("field index must be an integer literal", number_token.span)
+                return FieldExpr(index=int(raw_text), span=combine_spans(dollar_token.span, number_token.span))
             case _:
                 raise ParseError(f"expected expression, got {token.kind.name}", token.span)
 

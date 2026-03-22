@@ -14,6 +14,7 @@ from quawk.parser import (
     BeginPattern,
     BinaryExpr,
     BinaryOp,
+    FieldExpr,
     NameExpr,
     NumericLiteralExpr,
     PatternAction,
@@ -84,3 +85,16 @@ def test_parses_assignment_and_variable_read() -> None:
     assert isinstance(print_stmt, PrintStmt)
     assert isinstance(print_stmt.arguments[0], NameExpr)
     assert print_stmt.arguments[0].name == "x"
+
+
+def test_parses_bare_action_with_field_expression() -> None:
+    program = parse(lex("{ print $1 }"))
+
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert item.pattern is None
+    assert isinstance(item.action, Action)
+    statement = item.action.statements[0]
+    assert isinstance(statement, PrintStmt)
+    assert isinstance(statement.arguments[0], FieldExpr)
+    assert statement.arguments[0].index == 1

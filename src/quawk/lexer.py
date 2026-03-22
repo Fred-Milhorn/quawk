@@ -23,6 +23,7 @@ class TokenKind(Enum):
     NUMBER = auto()
     PLUS = auto()
     EQUAL = auto()
+    DOLLAR = auto()
     LBRACE = auto()
     RBRACE = auto()
     LPAREN = auto()
@@ -49,6 +50,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.PRINTF: "printf",
     TokenKind.PLUS: "+",
     TokenKind.EQUAL: "=",
+    TokenKind.DOLLAR: "$",
     TokenKind.LBRACE: "{",
     TokenKind.RBRACE: "}",
     TokenKind.LPAREN: "(",
@@ -61,6 +63,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
     "+": TokenKind.PLUS,
     "=": TokenKind.EQUAL,
+    "$": TokenKind.DOLLAR,
     "{": TokenKind.LBRACE,
     "}": TokenKind.RBRACE,
     "(": TokenKind.LPAREN,

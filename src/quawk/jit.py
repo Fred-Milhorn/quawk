@@ -18,6 +18,7 @@ from .parser import (
     BinaryExpr,
     BinaryOp,
     Expr,
+    FieldExpr,
     NameExpr,
     NumericLiteralExpr,
     PatternAction,
@@ -68,6 +69,9 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
+    if is_record_program(program):
+        raise RuntimeError("record-driven programs require input-aware execution")
+
     lli_path = shutil.which("lli")
     if lli_path is None:
         raise RuntimeError("LLVM JIT tool 'lli' is not available on PATH")
@@ -96,6 +100,9 @@ def execute(program: Program) -> int:
 
 def lower_to_llvm_ir(program: Program) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
+    if is_record_program(program):
+        return lower_record_program_to_llvm_ir(program)
+
     state = LoweringState()
     for statement in collect_supported_statements(program):
         lower_statement(statement, state)
@@ -147,6 +154,54 @@ def collect_supported_statements(program: Program) -> tuple[PrintStmt | AssignSt
         statements.append(statement)
 
     return tuple(statements)
+
+
+def is_record_program(program: Program) -> bool:
+    """Report whether `program` is a bare-action record processor."""
+    if len(program.items) != 1:
+        return False
+    item = program.items[0]
+    return isinstance(item, PatternAction) and item.pattern is None and isinstance(item.action, Action)
+
+
+def lower_record_program_to_llvm_ir(program: Program) -> str:
+    """Lower a bare-action record program to an inspectable per-record IR shape."""
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.action, Action)
+
+    declarations = ["declare i32 @puts(ptr)"]
+    instructions: list[str] = []
+    temp_index = 0
+
+    def next_temp(prefix: str) -> str:
+        nonlocal temp_index
+        name = f"%{prefix}.{temp_index}"
+        temp_index += 1
+        return name
+
+    for statement in item.action.statements:
+        if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
+            raise RuntimeError("the record-loop increment only supports single-argument print statements")
+        argument = statement.arguments[0]
+        if not isinstance(argument, FieldExpr):
+            raise RuntimeError("the record-loop increment only supports $0 and $1 field expressions")
+        param_name = field_parameter_name(argument.index)
+        call_temp = next_temp("call")
+        instructions.append(f"  {call_temp} = call i32 @puts(ptr {param_name})")
+
+    return "\n".join(
+        [
+            *declarations,
+            "",
+            "define i32 @quawk_record(ptr %field0, ptr %field1) {",
+            "entry:",
+            *instructions,
+            "  ret i32 0",
+            "}",
+            "",
+        ]
+    )
 
 
 def lower_statement(statement: PrintStmt | AssignStmt, state: LoweringState) -> None:
@@ -230,6 +285,81 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
         return temp
 
     raise RuntimeError("the numeric-print increment currently supports only numeric literals and addition")
+
+
+def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
+    """Execute record-driven programs over input files or standard input."""
+    if is_record_program(program):
+        execute_record_program(program, input_files, field_separator)
+        return 0
+    return execute(program)
+
+
+def execute_record_program(program: Program, input_files: list[str], field_separator: str | None) -> None:
+    """Execute a bare-action record program using the Python host input loop."""
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.action, Action)
+
+    for line in iter_input_records(input_files):
+        field0 = line.rstrip("\n")
+        field1 = extract_first_field(field0, field_separator)
+        for statement in item.action.statements:
+            execute_record_statement(statement, field0, field1)
+
+
+def iter_input_records(input_files: list[str]) -> list[str]:
+    """Collect logical input records from files or standard input."""
+    records: list[str] = []
+    if not input_files:
+        records.extend(sys.stdin.readlines())
+        return records
+
+    for path in input_files:
+        if path == "-":
+            records.extend(sys.stdin.readlines())
+            continue
+        with Path(path).open("r", encoding="utf-8") as handle:
+            records.extend(handle.readlines())
+    return records
+
+
+def extract_first_field(line: str, field_separator: str | None) -> str:
+    """Return `$1` for the current record under the supported field rules."""
+    if field_separator is None:
+        parts = line.split()
+    else:
+        parts = line.split(field_separator)
+    return parts[0] if parts else ""
+
+
+def execute_record_statement(statement: PrintStmt | AssignStmt, field0: str, field1: str) -> None:
+    """Execute one supported record-loop statement."""
+    if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
+        raise RuntimeError("the record-loop increment only supports single-argument print statements")
+
+    argument = statement.arguments[0]
+    if not isinstance(argument, FieldExpr):
+        raise RuntimeError("the record-loop increment only supports $0 and $1 field expressions")
+    print(resolve_field_value(argument.index, field0, field1))
+
+
+def resolve_field_value(index: int, field0: str, field1: str) -> str:
+    """Resolve the value of a supported field expression."""
+    if index == 0:
+        return field0
+    if index == 1:
+        return field1
+    return ""
+
+
+def field_parameter_name(index: int) -> str:
+    """Return the IR parameter name used for a supported field index."""
+    if index == 0:
+        return "%field0"
+    if index == 1:
+        return "%field1"
+    raise RuntimeError("the record-loop increment only supports $0 and $1")
 
 
 def declare_string(state: LoweringState, literal: str) -> tuple[str, int]:

@@ -12,7 +12,7 @@ from typing import Sequence
 
 from . import __version__
 from .diagnostics import LexError, ParseError, format_error
-from .jit import emit_assembly, execute, lower_to_llvm_ir
+from .jit import emit_assembly, execute_with_inputs, lower_to_llvm_ir
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
 from .source import ProgramSource
@@ -123,7 +123,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(emit_assembly(llvm_ir))
             return 0
 
-        return execute(program)
+        return execute_with_inputs(program, args.files, args.field_separator)
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
         return 2

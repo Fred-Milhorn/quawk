@@ -162,7 +162,8 @@ Initial supported MVP path:
 - additive numeric expressions
 - scalar assignments in `BEGIN`
 - scalar variable reads in expressions
-- no record-processing loop required yet
+- bare action record processing
+- `$0` and `$1` field reads
 - no function definitions required yet
 
 Acceptance scenarios:
@@ -171,6 +172,8 @@ Acceptance scenarios:
 - inline `BEGIN { print 1 + 2 }` compiles and executes
 - inline `BEGIN { x = 1; print x }` compiles and executes
 - inline `BEGIN { x = 1 + 2; print x }` compiles and executes
+- inline `{ print $0 }` processes stdin records correctly
+- inline `{ print $1 }` processes stdin records correctly
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
 - expanding the supported subset does not break the earlier working MVP path

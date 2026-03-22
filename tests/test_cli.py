@@ -120,6 +120,20 @@ def test_quawk_parse_flag_prints_assignment_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_bare_action_ast() -> None:
+    result = run_quawk("--parse", "{ print $1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    Action span=<inline>:1:1\n"
+        "      PrintStmt span=<inline>:1:3\n"
+        "        FieldExpr span=<inline>:1:9 index=1\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 
@@ -150,6 +164,15 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     assert "store double %add.1, ptr %var.x.0" in result.stdout
     assert "load double, ptr %var.x.0" in result.stdout
     assert "call i32 (ptr, ...) @printf(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
+    result = run_quawk("--ir", "{ print $1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define i32 @quawk_record(ptr %field0, ptr %field1)" in result.stdout
+    assert "call i32 @puts(ptr %field1)" in result.stdout
     assert result.stderr == ""
 
 

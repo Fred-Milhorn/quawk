@@ -114,6 +114,19 @@ def test_lexes_assignment_tokens() -> None:
     ]
 
 
+def test_lexes_bare_action_field_tokens() -> None:
+    tokens = lex("{ print $1 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.DOLLAR,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+
+
 def test_rejects_unexpected_characters() -> None:
     with pytest.raises(LexError, match="unexpected character") as excinfo:
         lex("BEGIN { @ }")
