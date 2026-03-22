@@ -72,6 +72,48 @@ def test_lexes_general_identifiers_and_numbers() -> None:
     assert [token.text for token in tokens] == ["foo", "123", "4.5", None]
 
 
+def test_lexes_numeric_print_expression_tokens() -> None:
+    tokens = lex("BEGIN { print 1 + 2 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.NUMBER,
+        TokenKind.PLUS,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert [token.display_text() for token in tokens] == [
+        "BEGIN",
+        "{",
+        "print",
+        "1",
+        "+",
+        "2",
+        "}",
+        None,
+    ]
+
+
+def test_lexes_assignment_tokens() -> None:
+    tokens = lex("BEGIN { x = 1; print x }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.IDENT,
+        TokenKind.EQUAL,
+        TokenKind.NUMBER,
+        TokenKind.SEMICOLON,
+        TokenKind.PRINT,
+        TokenKind.IDENT,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+
+
 def test_rejects_unexpected_characters() -> None:
     with pytest.raises(LexError, match="unexpected character") as excinfo:
         lex("BEGIN { @ }")

@@ -11,7 +11,7 @@ Implemented now:
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
 - Python package/bootstrap scaffold with a working MVP `quawk` CLI path
-- end-to-end MVP execution for `BEGIN { print "literal" }`
+- end-to-end execution for `BEGIN { print "literal" }`, `BEGIN { print 1 }`, `BEGIN { print 1 + 2 }`, and scalar assignment in `BEGIN`
 - example program and CI workflow scaffold
 
 Planned next:

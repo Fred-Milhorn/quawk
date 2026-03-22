@@ -21,6 +21,8 @@ class TokenKind(Enum):
     IDENT = auto()
     STRING = auto()
     NUMBER = auto()
+    PLUS = auto()
+    EQUAL = auto()
     LBRACE = auto()
     RBRACE = auto()
     LPAREN = auto()
@@ -45,6 +47,8 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.FUNCTION: "function",
     TokenKind.PRINT: "print",
     TokenKind.PRINTF: "printf",
+    TokenKind.PLUS: "+",
+    TokenKind.EQUAL: "=",
     TokenKind.LBRACE: "{",
     TokenKind.RBRACE: "}",
     TokenKind.LPAREN: "(",
@@ -55,6 +59,8 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 }
 
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
+    "+": TokenKind.PLUS,
+    "=": TokenKind.EQUAL,
     "{": TokenKind.LBRACE,
     "}": TokenKind.RBRACE,
     "(": TokenKind.LPAREN,

@@ -87,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI entrypoint and return a process-style exit status."""
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

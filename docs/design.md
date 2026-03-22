@@ -52,6 +52,34 @@ Expansion should happen by adding one coherent capability at a time, for example
 - builtins and control flow
 - functions and broader POSIX coverage
 
+Planned implementation increments:
+
+1. Literal string print in `BEGIN` (current MVP)
+   Example:
+   `BEGIN { print "hello" }`
+2. Numeric print in `BEGIN`
+   Examples:
+   `BEGIN { print 1 }`
+   `BEGIN { print 1 + 2 }`
+3. Scalar variables and assignment in `BEGIN`
+   Examples:
+   `BEGIN { x = 1; print x }`
+   `BEGIN { x = 1 + 2; print x }`
+4. Record loop with bare action, `$0`, and simple fields
+   Examples:
+   `{ print $0 }`
+   `{ print $1 }`
+5. Comparisons and control flow over the supported expression subset
+   Examples:
+   `BEGIN { if (1 < 2) print 3 }`
+   `BEGIN { while (x < 3) x = x + 1 }`
+6. Functions and broader POSIX-oriented coverage
+   Examples:
+   `function f(x) { return x + 1 } BEGIN { print f(2) }`
+
+Each increment should land only when the full CLI-to-IR-to-execution path works
+for that increment's example programs.
+
 ## Frontend Strategy
 
 Recommended parser architecture:
@@ -89,10 +117,10 @@ Error handling and diagnostics:
 Milestone order:
 1. MVP executable path for `BEGIN { print "literal" }`
 2. refactor the frontend so the lexer, token model, source model, and parser shape match the intended long-term compiler structure
-3. extend expressions and statements needed for the next runnable increment
-4. add records, fields, and pattern-action execution
-5. broaden diagnostics and recovery only after execution coverage exists
-6. expand conformance testing as supported behavior grows
+3. implement numeric print in `BEGIN` end to end
+4. implement scalar variables and assignment in `BEGIN`
+5. add record processing, fields, and bare actions
+6. broaden control flow, functions, diagnostics, and conformance coverage as execution support grows
 
 ## Syntax and AST Specs
 
@@ -130,11 +158,19 @@ Initial supported MVP path:
 - one `BEGIN` action
 - one or more `print` statements
 - string literals
+- numeric literals
+- additive numeric expressions
+- scalar assignments in `BEGIN`
+- scalar variable reads in expressions
 - no record-processing loop required yet
 - no function definitions required yet
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes
+- inline `BEGIN { print 1 }` compiles and executes
+- inline `BEGIN { print 1 + 2 }` compiles and executes
+- inline `BEGIN { x = 1; print x }` compiles and executes
+- inline `BEGIN { x = 1 + 2; print x }` compiles and executes
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
 - expanding the supported subset does not break the earlier working MVP path

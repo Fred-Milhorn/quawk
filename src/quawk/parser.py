@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TypeAlias
 
 from .diagnostics import ParseError
@@ -27,7 +28,32 @@ class StringLiteralExpr:
     span: SourceSpan
 
 
-Expr: TypeAlias = StringLiteralExpr
+@dataclass(frozen=True)
+class NumericLiteralExpr:
+    value: float
+    raw_text: str
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class NameExpr:
+    name: str
+    span: SourceSpan
+
+
+class BinaryOp(Enum):
+    ADD = auto()
+
+
+@dataclass(frozen=True)
+class BinaryExpr:
+    left: Expr
+    op: BinaryOp
+    right: Expr
+    span: SourceSpan
+
+
+Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | NameExpr | BinaryExpr
 
 
 @dataclass(frozen=True)
@@ -36,7 +62,14 @@ class PrintStmt:
     span: SourceSpan
 
 
-Stmt: TypeAlias = PrintStmt
+@dataclass(frozen=True)
+class AssignStmt:
+    name: str
+    value: Expr
+    span: SourceSpan
+
+
+Stmt: TypeAlias = PrintStmt | AssignStmt
 
 
 @dataclass(frozen=True)
@@ -76,12 +109,32 @@ def format_program(program: Program) -> str:
         if item.action is not None:
             lines.append(f"    Action span={item.action.span.format_start()}")
             for statement in item.action.statements:
-                lines.append(f"      PrintStmt span={statement.span.format_start()}")
-                for argument in statement.arguments:
-                    lines.append(
-                        f"        StringLiteralExpr span={argument.span.format_start()} value={argument.value!r}"
-                    )
+                match statement:
+                    case PrintStmt():
+                        lines.append(f"      PrintStmt span={statement.span.format_start()}")
+                        for argument in statement.arguments:
+                            lines.extend(format_expression(argument, "        "))
+                    case AssignStmt():
+                        lines.append(f"      AssignStmt span={statement.span.format_start()} name={statement.name!r}")
+                        lines.extend(format_expression(statement.value, "        "))
     return "\n".join(lines) + "\n"
+
+
+def format_expression(expression: Expr, indent: str) -> list[str]:
+    """Render an expression node for stable `--parse` inspection output."""
+    match expression:
+        case StringLiteralExpr():
+            return [f"{indent}StringLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
+        case NumericLiteralExpr():
+            return [f"{indent}NumericLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
+        case NameExpr():
+            return [f"{indent}NameExpr span={expression.span.format_start()} name={expression.name!r}"]
+        case BinaryExpr():
+            lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
+            lines.extend(format_expression(expression.left, indent + "  "))
+            lines.extend(format_expression(expression.right, indent + "  "))
+            return lines
+    raise AssertionError(f"unhandled expression type: {type(expression)!r}")
 
 
 class Parser:
@@ -129,7 +182,12 @@ class Parser:
 
     def parse_statement(self) -> Stmt:
         """Parse a statement in the MVP subset."""
-        return self.parse_print_statement()
+        if self.check(TokenKind.PRINT):
+            return self.parse_print_statement()
+        if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.EQUAL:
+            return self.parse_assignment_statement()
+        token = self.current()
+        raise ParseError(f"expected statement, got {token.kind.name}", token.span)
 
     def parse_print_statement(self) -> PrintStmt:
         """Parse a `print` statement with the currently supported argument form."""
@@ -137,18 +195,59 @@ class Parser:
         argument = self.parse_expression()
         return PrintStmt(arguments=(argument, ), span=combine_spans(print_token.span, argument.span))
 
+    def parse_assignment_statement(self) -> AssignStmt:
+        """Parse a scalar assignment statement in the current subset."""
+        name_token = self.expect(TokenKind.IDENT)
+        self.expect(TokenKind.EQUAL)
+        value = self.parse_expression()
+        return AssignStmt(
+            name=name_token.text or "",
+            value=value,
+            span=combine_spans(name_token.span, value.span),
+        )
+
     def parse_expression(self) -> Expr:
         """Parse an expression in the MVP subset."""
-        token = self.current()
-        if token.kind is not TokenKind.STRING:
-            raise ParseError(f"expected STRING, got {token.kind.name}", token.span)
+        return self.parse_additive_expression()
 
-        literal_token = self.advance()
-        return StringLiteralExpr(
-            value=decode_string_literal(literal_token),
-            raw_text=literal_token.text or "",
-            span=literal_token.span,
-        )
+    def parse_additive_expression(self) -> Expr:
+        """Parse the currently supported additive expression subset."""
+        expression = self.parse_primary_expression()
+        while self.check(TokenKind.PLUS):
+            self.advance()
+            right = self.parse_primary_expression()
+            expression = BinaryExpr(
+                left=expression,
+                op=BinaryOp.ADD,
+                right=right,
+                span=combine_spans(expression.span, right.span),
+            )
+        return expression
+
+    def parse_primary_expression(self) -> Expr:
+        """Parse a primary expression in the current subset."""
+        token = self.current()
+        match token.kind:
+            case TokenKind.STRING:
+                literal_token = self.advance()
+                return StringLiteralExpr(
+                    value=decode_string_literal(literal_token),
+                    raw_text=literal_token.text or "",
+                    span=literal_token.span,
+                )
+            case TokenKind.NUMBER:
+                literal_token = self.advance()
+                raw_text = literal_token.text or ""
+                return NumericLiteralExpr(
+                    value=float(raw_text),
+                    raw_text=raw_text,
+                    span=literal_token.span,
+                )
+            case TokenKind.IDENT:
+                name_token = self.advance()
+                return NameExpr(name=name_token.text or "", span=name_token.span)
+            case _:
+                raise ParseError(f"expected expression, got {token.kind.name}", token.span)
 
     def current(self) -> Token:
         """Return the current token without consuming it."""
@@ -164,6 +263,11 @@ class Parser:
     def check(self, kind: TokenKind) -> bool:
         """Report whether the current token has `kind`."""
         return self.current().kind is kind
+
+    def peek_kind(self) -> TokenKind:
+        """Return the kind of the next token without consuming it."""
+        next_index = min(self.index + 1, len(self.tokens) - 1)
+        return self.tokens[next_index].kind
 
     def expect(self, kind: TokenKind) -> Token:
         """Consume a token of `kind` or raise a parse error at the current span."""

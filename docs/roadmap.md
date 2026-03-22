@@ -73,19 +73,40 @@ Exit criteria:
 ### P2: Incremental Language Expansion
 
 Objective:
-- expand the supported AWK subset one coherent MVP increment at a time
+- expand the supported AWK subset one runnable capability increment at a time
 
 In scope:
-- tighten the frontend architecture before the next syntax increment so lexer/parser growth happens on the right abstractions
-- tokens, expressions, statements, and runtime behavior needed for the next increment
-- semantic checks only when a new increment requires them
-- records, fields, pattern-action execution, control flow, and functions in staged increments
-- diagnostics and recovery improvements after the related execution path exists
+- each increment must name the exact AWK behavior it delivers, plus example programs that should execute at phase completion
+- each increment should have lex, parse, lowering/runtime, and integration-test work scoped to that behavior
+- semantic checks land only when the increment requires them
+- diagnostics and recovery improvements follow the related execution support rather than leading it
 
 Exit criteria:
 - each newly claimed language feature has an executable implementation
 - the earlier working MVP path stays green as coverage expands
 - the supported subset is always explicit in tests and docs
+
+Planned capability increments inside `P2`:
+
+1. Numeric print in `BEGIN`
+   Target programs:
+   - `BEGIN { print 1 }`
+   - `BEGIN { print 1 + 2 }`
+2. Scalar variables and assignment in `BEGIN`
+   Target programs:
+   - `BEGIN { x = 1; print x }`
+   - `BEGIN { x = 1 + 2; print x }`
+3. Record loop with bare actions and simple fields
+   Target programs:
+   - `{ print $0 }`
+   - `{ print $1 }`
+4. Comparisons and control flow over the supported subset
+   Target programs:
+   - `BEGIN { if (1 < 2) print 3 }`
+   - `BEGIN { while (x < 3) x = x + 1 }`
+5. Functions and broader POSIX-oriented coverage
+   Target programs:
+   - `function f(x) { return x + 1 } BEGIN { print f(2) }`
 
 ### P3: Compatibility and Hardening
 
@@ -122,14 +143,26 @@ Exit criteria:
 
 Start here unless priorities change:
 
-1. `T-009` extend token/source-span modeling for the next MVP increment
-2. `T-010` extend lexing for the next MVP increment
-3. `T-012` define and extend AST nodes for the next MVP increment
-4. `T-013` extend parser for the next runnable increment
-5. `T-014` implement expression parsing with precedence and implicit concatenation
-6. `T-024` extend runtime value model for newly supported AWK semantics
-7. `T-025` extend lowering from supported AST forms to LLVM IR for the next increment
-8. `T-028` add integration tests for stdout/stderr/exit status across supported behavior increments
+Next capability increment: scalar variables and assignment in `BEGIN`
+
+Target programs:
+- `BEGIN { x = 1; print x }`
+- `BEGIN { x = 1 + 2; print x }`
+
+Next capability increment: record loop with bare actions and simple fields
+
+Target programs:
+- `{ print $0 }`
+- `{ print $1 }`
+
+1. `T-064` author end-to-end tests for bare actions and simple field reads
+2. `T-065` extend token/source-span modeling for `$` and field-oriented record syntax
+3. `T-066` extend lexing for `$` and the active record-processing path
+4. `T-067` define AST nodes for bare actions, field references, and record-driven execution
+5. `T-068` extend the parser for bare action programs and `$` field expressions
+6. `T-069` implement the runtime input loop for record-driven execution
+7. `T-070` extend LLVM lowering for `$0` and `$1` reads in bare actions
+8. `T-071` add integration tests for stdout/stderr/exit status of the record-loop increment
 
 ## Backlog
 
@@ -162,12 +195,13 @@ Priority values:
 | T-052 | P1 | P0 | Wire CLI execution for inline programs and `-f` files | T-051 | MVP path runs from both invocation forms | done |
 | T-053 | P1 | P0 | Add end-to-end tests for stdout and exit status of the MVP path | T-052 | Inline and file-based MVP smoke cases pass end-to-end | done |
 | T-054 | P2 | P0 | Refactor the frontend architecture before the next syntax increment | T-053 | Source manager/cursor replaces concatenated source, scanner/token model are generalized, and parser uses broader `Program`/`PatternAction`/`Action`/`Stmt`/`Expr` categories without materially expanding accepted syntax | done |
-| T-009 | P2 | P0 | Extend token types and source-span representation for the next MVP increment | T-054 | Token/span modules support the next planned language increment | todo |
-| T-010 | P2 | P0 | Extend lexing with separators and operators needed for the next MVP increment | T-009, T-054 | Lexer fixtures pass for the next targeted syntax increment | todo |
+| T-055 | P2 | P0 | Author end-to-end tests for numeric print in `BEGIN` | T-054 | CLI tests exist for `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` before implementation | done |
+| T-009 | P2 | P0 | Extend token/source-span modeling for numeric literals and `+` | T-054, T-055 | Token/span code cleanly supports numeric literals and additive operators | done |
+| T-010 | P2 | P0 | Extend lexing for numeric literals, `+`, and the print-expression path | T-009, T-054, T-055 | Lexer fixtures pass for the numeric-print increment | done |
 | T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
-| T-012 | P2 | P0 | Define and extend AST nodes only as needed for the next MVP increment | T-009, T-054 | AST model matches currently supported language forms | todo |
-| T-013 | P2 | P0 | Extend parser for additional top-level items and statements | T-012, T-054 | Parser accepts the next planned runnable increment | todo |
-| T-014 | P2 | P1 | Implement expression parsing with precedence and implicit concatenation | T-013 | Precedence and concat tests pass when that increment is enabled | todo |
+| T-012 | P2 | P0 | Define AST nodes for numeric literals and additive binary expressions | T-009, T-054, T-055 | AST matches the numeric-print increment | done |
+| T-013 | P2 | P0 | Extend the parser for `print` expressions in `BEGIN` | T-012, T-054, T-055 | The parser accepts `BEGIN { print 1 }` and the additive form | done |
+| T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
 | T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
 | T-017 | P2 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
@@ -178,11 +212,27 @@ Priority values:
 | T-021 | P2 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
 | T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
 | T-023 | P2 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
-| T-024 | P2 | P0 | Extend runtime value model for newly supported AWK semantics | T-022 | Runtime representation matches supported behavior | todo |
-| T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for the next increment | T-022 | New sample programs execute through the LLVM-backed path | todo |
+| T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
+| T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
 | T-027 | P2 | P1 | Implement builtins only as required by the active MVP increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
-| T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status across supported behavior increments | T-025, T-026 | Integration tests run in required CI jobs | todo |
+| T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
+| T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
+| T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |
+| T-058 | P2 | P0 | Extend lexing for names, `=`, and assignment-oriented statement paths | T-057, T-056 | Lexer fixtures pass for the assignment increment | done |
+| T-059 | P2 | P0 | Define AST nodes for names, assignments, and variable references | T-057, T-056 | AST matches the assignment increment | done |
+| T-060 | P2 | P0 | Extend the parser for assignment statements and variable expressions in `BEGIN` | T-059, T-056 | The parser accepts assignment and variable-read programs for the increment | done |
+| T-061 | P2 | P0 | Extend the runtime value model for scalar bindings | T-060 | Runtime representation supports assignment and lookup of scalar values | done |
+| T-062 | P2 | P0 | Extend LLVM lowering for assignment and variable reads | T-061 | `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` execute through the LLVM-backed path | done |
+| T-063 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the assignment increment | T-062 | Integration tests run for the assignment increment in required CI jobs | done |
+| T-064 | P2 | P0 | Author end-to-end tests for bare actions and simple field reads | T-063 | CLI tests exist for `{ print $0 }` and `{ print $1 }` before implementation | todo |
+| T-065 | P2 | P0 | Extend token/source-span modeling for `$` and field-oriented record syntax | T-063 | Token/span code cleanly supports the record-loop increment | todo |
+| T-066 | P2 | P0 | Extend lexing for `$` and the active record-processing path | T-065, T-064 | Lexer fixtures pass for the record-loop increment | todo |
+| T-067 | P2 | P0 | Define AST nodes for bare actions, field references, and record-driven execution | T-065, T-064 | AST matches the record-loop increment | todo |
+| T-068 | P2 | P0 | Extend the parser for bare action programs and `$` field expressions | T-067, T-064 | The parser accepts `{ print $0 }` and `{ print $1 }` | todo |
+| T-069 | P2 | P0 | Implement the runtime input loop for record-driven execution | T-068 | Runtime executes actions once per input record | todo |
+| T-070 | P2 | P0 | Extend LLVM lowering for `$0` and `$1` reads in bare actions | T-069 | Bare action programs execute through the LLVM-backed path | todo |
+| T-071 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the record-loop increment | T-070 | Integration tests run for the record-loop increment in required CI jobs | todo |
 | T-039 | P2 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
 | T-047 | P3 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
 | T-035 | P3 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |

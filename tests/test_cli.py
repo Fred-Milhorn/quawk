@@ -44,7 +44,7 @@ def test_quawk_reports_parse_errors() -> None:
     result = run_quawk("BEGIN {")
 
     assert result.returncode == 2
-    assert result.stderr == "<inline>:1:8: error: expected PRINT, got EOF\nBEGIN {\n       ^\n"
+    assert result.stderr == "<inline>:1:8: error: expected statement, got EOF\nBEGIN {\n       ^\n"
 
 
 def test_quawk_rejects_multiple_stop_stage_flags() -> None:
@@ -84,6 +84,42 @@ def test_quawk_parse_flag_prints_ast_and_stops() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_numeric_expression_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { print 1 + 2 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        BinaryExpr span=<inline>:1:15 op=ADD\n"
+        "          NumericLiteralExpr span=<inline>:1:15 value=1.0\n"
+        "          NumericLiteralExpr span=<inline>:1:19 value=2.0\n"
+    )
+    assert result.stderr == ""
+
+
+def test_quawk_parse_flag_prints_assignment_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { x = 1 + 2; print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      AssignStmt span=<inline>:1:9 name='x'\n"
+        "        BinaryExpr span=<inline>:1:13 op=ADD\n"
+        "          NumericLiteralExpr span=<inline>:1:13 value=1.0\n"
+        "          NumericLiteralExpr span=<inline>:1:17 value=2.0\n"
+        "      PrintStmt span=<inline>:1:20\n"
+        "        NameExpr span=<inline>:1:26 name='x'\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 
@@ -92,6 +128,28 @@ def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     assert "@.str.0 = private unnamed_addr constant [6 x i8] c\"\\68\\65\\6C\\6C\\6F\\00\"" in result.stdout
     assert "define i32 @quawk_main()" in result.stdout
     assert "call i32 @puts(ptr %strptr.0)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
+    result = run_quawk("--ir", "BEGIN { print 1 + 2 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "declare i32 @printf(ptr, ...)" in result.stdout
+    assert "@.fmt.num = private unnamed_addr constant [4 x i8] c\"\\25\\67\\0A\\00\"" in result.stdout
+    assert "fadd double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
+    assert "call i32 (ptr, ...) @printf(ptr %fmtptr.0, double %add.1)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
+    result = run_quawk("--ir", "BEGIN { x = 1 + 2; print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert "alloca double" in result.stdout
+    assert "store double %add.1, ptr %var.x.0" in result.stdout
+    assert "load double, ptr %var.x.0" in result.stdout
+    assert "call i32 (ptr, ...) @printf(" in result.stdout
     assert result.stderr == ""
 
 
@@ -120,7 +178,7 @@ def test_quawk_reports_file_based_errors_with_file_line_and_column() -> None:
     result = run_quawk("-f", str(program_path))
 
     assert result.returncode == 2
-    assert result.stderr == (f"{program_path}:1:8: error: expected PRINT, got EOF\n"
+    assert result.stderr == (f"{program_path}:1:8: error: expected statement, got EOF\n"
                              "BEGIN {\n"
                              "       ^\n")
 
@@ -131,6 +189,6 @@ def test_quawk_reports_the_correct_file_for_multi_file_errors() -> None:
     result = run_quawk("-f", str(first_path), "-f", str(second_path))
 
     assert result.returncode == 2
-    assert result.stderr == (f"{second_path}:1:1: error: expected PRINT, got IDENT\n"
+    assert result.stderr == (f"{second_path}:1:1: error: expected statement, got IDENT\n"
                              "x\n"
                              "^\n")
