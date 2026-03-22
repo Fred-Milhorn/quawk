@@ -14,25 +14,25 @@ High-level pipeline:
 4. LLVM lowering and JIT materialization
 5. execution
 
-Current MVP note:
+Current execution-path note:
 - the current execution path lowers to LLVM IR text and runs it through `lli`
 - an in-process LLVM binding can be revisited later if it becomes worthwhile
 
 Goals:
 - match POSIX AWK behavior closely
 - keep the implementation understandable and testable in Python
-- deliver an MVP end-to-end executable path before broad feature coverage
+- deliver an end-to-end executable path before broad feature coverage
 
 ## Implementation Strategy
 
-Delivery is MVP-first, not subsystem-complete first.
+Delivery starts with a single end-to-end path, not subsystem-complete first.
 
 That means the project should prefer:
 - a tiny lexer, parser, lowering path, and runtime that can execute a very small supported program
 - incremental growth of the supported AWK subset
-- deferring broad parser coverage, detailed diagnostics, and optimization work until after the MVP path exists
+- deferring broad parser coverage, detailed diagnostics, and optimization work until after the initial `P1` path exists
 
-Initial MVP target:
+Initial `P1` target:
 - inline program or `-f` file input
 - a single `BEGIN` action
 - `print` with a string literal
@@ -94,9 +94,9 @@ Agreed refactor direction before the next language increment:
 - preserve repeated `-f` inputs as distinct physical sources instead of flattening them into one backing string
 - move token representation away from string-backed token kinds toward general token categories plus spans
 - use a hybrid token model: `kind`, `span`, and cached text or payload only where it improves diagnostics or debugging
-- turn the lexer into a reusable scanner for identifiers, keywords, literals, punctuation, and separators rather than a recognizer specialized to the current MVP program
+- turn the lexer into a reusable scanner for identifiers, keywords, literals, punctuation, and separators rather than a recognizer specialized to the initial `P1` program
 - introduce broader AST categories now, such as `Program`, `PatternAction`, `Action`, `Stmt`, and `Expr`, while implementing only the currently supported variants
-- route the current MVP program through those broader interfaces so later grammar growth extends existing abstractions instead of replacing them
+- route the initial `P1` program through those broader interfaces so later grammar growth extends existing abstractions instead of replacing them
 - keep current human-readable diagnostics, but have them originate from generic scanner and parser helpers rather than one-off code paths
 
 Front-end pipeline:
@@ -115,7 +115,7 @@ Error handling and diagnostics:
 - prefer deterministic error messages over aggressive recovery heuristics
 
 Milestone order:
-1. MVP executable path for `BEGIN { print "literal" }`
+1. Initial end-to-end path for `BEGIN { print "literal" }`
 2. refactor the frontend so the lexer, token model, source model, and parser shape match the intended long-term compiler structure
 3. implement numeric print in `BEGIN` end to end
 4. implement scalar variables and assignment in `BEGIN`
@@ -154,7 +154,7 @@ Runtime state machine for the initial implementation:
 5. `LowerToLLVM`
 6. `Execute`
 
-Initial supported MVP path:
+Currently supported execution path:
 - one `BEGIN` action
 - one or more `print` statements
 - string literals
@@ -176,7 +176,7 @@ Acceptance scenarios:
 - inline `{ print $1 }` processes stdin records correctly
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
-- expanding the supported subset does not break the earlier working MVP path
+- expanding the supported subset does not break the earlier working `P1` path
 
 ## Command Line Interface
 
@@ -238,7 +238,7 @@ Inspection rules:
 - `--lex`, `--parse`, `--ir`, and `--asm` are mutually exclusive
 - each inspection flag prints the selected stage output to stdout and exits without executing later stages
 - inspection output is intended to be stable and human-readable for debugging and review
-- `--lex` and `--parse` output includes source-position metadata for the current MVP nodes and tokens
+- `--lex` and `--parse` output includes source-position metadata for the currently supported nodes and tokens
 
 Examples:
 
@@ -261,6 +261,6 @@ Target baseline:
 - standard expression and operator behavior, including implicit concatenation
 
 Current limitations:
-- the executable MVP path currently supports only `BEGIN { print "literal" }`
+- the initial `P1` execution path supports only `BEGIN { print "literal" }`
 - assembly inspection output is backend- and platform-dependent
 - compatibility corpus is still in bootstrap phase

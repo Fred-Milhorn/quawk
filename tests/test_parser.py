@@ -1,6 +1,6 @@
 # Parser and AST-shape tests.
 # These cases verify that the generalized frontend structure still accepts the
-# MVP program and produces the intended AST categories.
+# initial `P1` program and produces the intended AST categories.
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from quawk.parser import (
 )
 
 
-def test_parses_mvp_program_into_general_ast_categories() -> None:
+def test_parses_p1_program_into_general_ast_categories() -> None:
     program = parse(lex('BEGIN { print "hello" }'))
 
     assert isinstance(program, Program)

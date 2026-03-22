@@ -7,10 +7,10 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - language target is POSIX-oriented AWK first
 - implementation language is Python `3.14.x`
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
-- current LLVM-backed MVP execution uses local LLVM tools (`lli`)
+- current LLVM-backed execution uses local LLVM tools (`lli`)
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
-- implementation grows from an end-to-end MVP JIT path
-- phase delivery uses TDD for the next MVP increment
+- implementation grows from an initial end-to-end JIT path
+- phase delivery uses TDD for the next capability increment
 - `pytest` is the default test framework
 
 ## Phase Overview
@@ -19,7 +19,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 |---|---|---|
 | P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, CI basics |
 | P1 | End-to-End MVP Path | First runnable `quawk` JIT path for the simplest AWK program |
-| P2 | Incremental Language Expansion | Grow supported AWK behavior from the MVP |
+| P2 | Incremental Language Expansion | Grow supported AWK behavior from the initial `P1` path |
 | P3 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P4 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
@@ -27,13 +27,13 @@ This document is the phased implementation roadmap and active backlog for `quawk
 
 Entry gate for every phase:
 
-1. author tests for the next MVP increment in phase scope
+1. author tests for the next capability increment in phase scope
 2. check in those tests before or alongside implementation
 3. use `xfail` only where it makes the temporary expected failure clearer
-4. start implementation only after the target MVP behavior is concretely specified in tests
+4. start implementation only after the target behavior is concretely specified in tests
 
 Phase completion rule:
-- a phase should not close while its claimed MVP behavior still lacks real test coverage
+- a phase should not close while its claimed behavior still lacks real test coverage
 - the roadmap, not a custom validator, is the source of truth for phase status
 
 ## Phase Details
@@ -83,7 +83,7 @@ In scope:
 
 Exit criteria:
 - each newly claimed language feature has an executable implementation
-- the earlier working MVP path stays green as coverage expands
+- the earlier working `P1` path stays green as coverage expands
 - the supported subset is always explicit in tests and docs
 
 Planned capability increments inside `P2`:
@@ -143,26 +143,19 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next capability increment: record loop with bare actions and simple fields
-
-Target programs:
-- `{ print $0 }`
-- `{ print $1 }`
-
 Next capability increment: comparisons and control flow over the supported subset
 
 Target programs:
 - `BEGIN { if (1 < 2) print 3 }`
 - `BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }`
 
-1. `T-072` author end-to-end tests for comparisons and control flow in `BEGIN`
-2. `T-073` extend token/source-span modeling for comparison and control-flow syntax
-3. `T-074` extend lexing for `<`, parentheses, and the active control-flow keywords
-4. `T-075` define AST nodes for comparisons, blocks, `if`, and `while`
-5. `T-076` extend the parser for comparison expressions and control-flow statements
-6. `T-077` extend runtime state for branching and loop execution
-7. `T-078` extend LLVM lowering for comparisons and control flow
-8. `T-079` add integration tests for stdout/stderr/exit status of the control-flow increment
+1. `T-073` extend token/source-span modeling for comparison and control-flow syntax
+2. `T-074` extend lexing for `<`, parentheses, and the active control-flow keywords
+3. `T-075` define AST nodes for comparisons, blocks, `if`, and `while`
+4. `T-076` extend the parser for comparison expressions and control-flow statements
+5. `T-077` extend runtime state for branching and loop execution
+6. `T-078` extend LLVM lowering for comparisons and control flow
+7. `T-079` add integration tests for stdout/stderr/exit status of the control-flow increment
 
 ## Backlog
 
@@ -205,7 +198,7 @@ Priority values:
 | T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
 | T-017 | P2 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
-| T-044 | P2 | P1 | Author tests for semantic checks needed by the next MVP increment | T-017 | Semantic tests are committed before the related feature work | todo |
+| T-044 | P2 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
 | T-018 | P2 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
 | T-019 | P2 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
 | T-020 | P2 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
@@ -215,7 +208,7 @@ Priority values:
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
-| T-027 | P2 | P1 | Implement builtins only as required by the active MVP increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-027 | P2 | P1 | Implement builtins only as required by the active capability increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |
@@ -233,7 +226,7 @@ Priority values:
 | T-069 | P2 | P0 | Implement the runtime input loop for record-driven execution | T-068 | Runtime executes actions once per input record | done |
 | T-070 | P2 | P0 | Extend LLVM lowering for `$0` and `$1` reads in bare actions | T-069 | Bare action programs execute through the LLVM-backed path | done |
 | T-071 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the record-loop increment | T-070 | Integration tests run for the record-loop increment in required CI jobs | done |
-| T-072 | P2 | P0 | Author end-to-end tests for comparisons and control flow in `BEGIN` | T-071 | CLI tests exist for the planned `if` and `while` examples before implementation | todo |
+| T-072 | P2 | P0 | Author end-to-end tests for comparisons and control flow in `BEGIN` | T-071 | CLI tests exist for the planned `if` and `while` examples before implementation | done |
 | T-073 | P2 | P0 | Extend token/source-span modeling for comparison and control-flow syntax | T-071 | Token/span code cleanly supports the control-flow increment | todo |
 | T-074 | P2 | P0 | Extend lexing for `<`, parentheses, and the active control-flow keywords | T-073, T-072 | Lexer fixtures pass for the control-flow increment | todo |
 | T-075 | P2 | P0 | Define AST nodes for comparisons, blocks, `if`, and `while` | T-073, T-072 | AST matches the control-flow increment | todo |
@@ -264,7 +257,7 @@ Priority values:
 |---|---|---|
 | AWK semantic corner-case drift | High | Differential tests and explicit divergence classification |
 | LLVM toolchain integration complexity | High | Keep backend abstraction narrow and preserve a simple end-to-end execution path |
-| Over-scoped early milestones | High | Force work into a working MVP path before broad feature coverage |
+| Over-scoped early milestones | High | Force work into a working end-to-end path before broad feature coverage |
 | Scope creep from extensions | Medium | POSIX-first gate and defer extensions until compatibility baseline |
 | Python dependency drift | Medium | Pin dependency ranges and enforce CI |
 
@@ -273,4 +266,4 @@ Priority values:
 - any accepted scope change must update both the roadmap text and the backlog in the same change
 - new tasks must include phase, dependencies, and acceptance criteria
 - completed tasks should reference the implementing commit or PR in follow-up notes
-- phase implementation tasks should not move to `in_progress` until that phase's MVP test-baseline task is `done`
+- phase implementation tasks should not move to `in_progress` until that phase's test-baseline task is `done`

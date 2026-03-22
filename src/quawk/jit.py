@@ -1,4 +1,4 @@
-# MVP lowering and execution backend.
+# Lowering and execution backend for the currently supported subset.
 # This module converts the currently supported AST subset into LLVM IR text and
 # shells out to LLVM tools for assembly emission and execution.
 
@@ -134,23 +134,23 @@ def collect_supported_statements(program: Program) -> tuple[PrintStmt | AssignSt
     """Extract the statements accepted by the current backend.
 
     The parser is intentionally broader than the current lowering path, so the
-    backend validates that it only sees the AST forms the MVP can execute.
+    backend validates that it only sees the AST forms the current subset can execute.
     """
     if len(program.items) != 1:
-        raise RuntimeError("the MVP backend supports exactly one top-level pattern-action")
+        raise RuntimeError("the current backend supports exactly one top-level pattern-action")
 
     item = program.items[0]
     if not isinstance(item, PatternAction):
-        raise RuntimeError("the MVP backend only supports pattern-action items")
+        raise RuntimeError("the current backend only supports pattern-action items")
     if not isinstance(item.pattern, BeginPattern):
-        raise RuntimeError("the MVP backend only supports BEGIN actions")
+        raise RuntimeError("the current backend only supports BEGIN actions")
     if not isinstance(item.action, Action):
-        raise RuntimeError("the MVP backend requires an action block")
+        raise RuntimeError("the current backend requires an action block")
 
     statements: list[PrintStmt | AssignStmt] = []
     for statement in item.action.statements:
         if not isinstance(statement, (PrintStmt, AssignStmt)):
-            raise RuntimeError("the MVP backend only supports print and assignment statements")
+            raise RuntimeError("the current backend only supports print and assignment statements")
         statements.append(statement)
 
     return tuple(statements)
@@ -211,7 +211,7 @@ def lower_statement(statement: PrintStmt | AssignStmt, state: LoweringState) -> 
         return
 
     if len(statement.arguments) != 1:
-        raise RuntimeError("the MVP backend only supports print with one argument")
+        raise RuntimeError("the current backend only supports print with one argument")
     lower_print_expression(statement.arguments[0], state)
 
 
@@ -270,14 +270,14 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
     if isinstance(expression, NameExpr):
         slot_name = state.variable_slots.get(expression.name)
         if slot_name is None:
-            raise RuntimeError(f"undefined variable in MVP backend: {expression.name}")
+            raise RuntimeError(f"undefined variable in current backend: {expression.name}")
         temp = state.next_temp("load")
         state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
         return temp
 
     if isinstance(expression, BinaryExpr):
         if expression.op is not BinaryOp.ADD:
-            raise RuntimeError(f"unsupported binary operator in MVP backend: {expression.op.name}")
+            raise RuntimeError(f"unsupported binary operator in current backend: {expression.op.name}")
         left_operand = lower_numeric_expression(expression.left, state)
         right_operand = lower_numeric_expression(expression.right, state)
         temp = state.next_temp("add")

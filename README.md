@@ -10,19 +10,19 @@ Implemented now:
 - consolidated project documentation
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
-- Python package/bootstrap scaffold with a working MVP `quawk` CLI path
+- Python package/bootstrap scaffold with a working end-to-end `quawk` CLI path
 - end-to-end execution for `BEGIN` programs with string/numeric print and scalar assignment, plus bare-action record processing for `$0` and `$1`
 - example program and CI workflow scaffold
 
 Planned next:
-- incremental language and runtime expansion from that MVP
+- incremental language and runtime expansion from that initial `P1` path
 - compatibility and differential test harness after the executable core exists
 
 ## Goals
 
 - POSIX-first AWK behavior and compatibility
 - an early end-to-end executable path for a tiny AWK subset
-- incremental expansion driven by the working MVP path
+- incremental expansion driven by the working end-to-end path established in `P1`
 
 ## Non-Goals
 
@@ -63,7 +63,7 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 | OS | Linux, macOS | CI matrix expands over time |
 | Architecture | x86_64, aarch64 | As available in CI provider |
 | Python | 3.14.x | Managed by `uv` |
-| LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`) | Used for the current MVP JIT path |
+| LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`) | Used for the current LLVM-backed execution path |
 
 ## FAQ
 

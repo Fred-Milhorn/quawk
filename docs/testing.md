@@ -13,7 +13,7 @@ This document defines how `quawk` validates behavior, tracks incomplete work, an
 
 Implementation should stay test-driven without adding a second metadata system:
 
-1. before implementation starts for the MVP path or the next MVP increment, author the tests first
+1. before implementation starts for the initial `P1` path or the next capability increment, author the tests first
 2. use ordinary failing tests by default
 3. use `pytest.mark.xfail` only when an expected temporary failure is clearer than a hard fail
 4. implement the smallest coherent runtime change that burns those tests down to `pass`
@@ -45,9 +45,9 @@ Decision rule:
 
 ## Test Corpus Structure
 
-Start with small end-to-end fixtures for the current MVP path.
+Start with small end-to-end fixtures for the current supported execution path.
 
-For the MVP phase, CLI-driven end-to-end tests are the primary proof that work is moving in the right direction.
+For the `P1` phase, CLI-driven end-to-end tests are the primary proof that work is moving in the right direction.
 Lexer, parser, and lowering unit tests are supporting tests, not substitutes for CLI-level execution coverage.
 
 Expand into behavior-focused suites only as the supported subset grows, for example:
@@ -82,7 +82,7 @@ Normalize before comparison:
 - trailing whitespace policy
 - locale and timezone-sensitive values via a fixed environment
 
-This oracle model becomes a primary workflow in the compatibility phase, not a blocker for the initial MVP path.
+This oracle model becomes a primary workflow in the compatibility phase, not a blocker for the initial `P1` path.
 
 ## Divergence Classification
 

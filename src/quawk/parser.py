@@ -101,7 +101,7 @@ class Program:
 
 
 def parse(tokens: list[Token]) -> Program:
-    """Parse tokens into the generalized MVP AST."""
+    """Parse tokens into the generalized AST for the current supported subset."""
     return Parser(tokens).parse_program()
 
 
@@ -146,7 +146,7 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
 
 
 class Parser:
-    """Recursive-descent parser for the currently supported MVP grammar."""
+    """Recursive-descent parser for the currently supported grammar subset."""
 
     def __init__(self, tokens: list[Token]) -> None:
         """Create a parser over an already-tokenized input stream."""
@@ -162,7 +162,7 @@ class Parser:
         return Program(items=(item, ), span=item.span)
 
     def parse_pattern_action(self) -> PatternAction:
-        """Parse the single top-level pattern-action the MVP supports."""
+        """Parse the single top-level pattern-action the current subset supports."""
         if self.check(TokenKind.LBRACE):
             action = self.parse_action()
             return PatternAction(pattern=None, action=action, span=action.span)
@@ -193,7 +193,7 @@ class Parser:
         return Action(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
 
     def parse_statement(self) -> Stmt:
-        """Parse a statement in the MVP subset."""
+        """Parse a statement in the current supported subset."""
         if self.check(TokenKind.PRINT):
             return self.parse_print_statement()
         if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.EQUAL:
@@ -219,7 +219,7 @@ class Parser:
         )
 
     def parse_expression(self) -> Expr:
-        """Parse an expression in the MVP subset."""
+        """Parse an expression in the current supported subset."""
         return self.parse_additive_expression()
 
     def parse_additive_expression(self) -> Expr:

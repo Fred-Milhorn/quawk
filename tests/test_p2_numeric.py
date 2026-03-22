@@ -1,5 +1,5 @@
 # P2 numeric-print execution tests.
-# These cases verify the first post-MVP capability increment through the full
+# These cases verify the first post-`P1` capability increment through the full
 # CLI-to-LLVM execution path.
 
 from __future__ import annotations
