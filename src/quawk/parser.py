@@ -49,6 +49,7 @@ class FieldExpr:
 
 class BinaryOp(Enum):
     ADD = auto()
+    LESS = auto()
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,27 @@ class AssignStmt:
     span: SourceSpan
 
 
-Stmt: TypeAlias = PrintStmt | AssignStmt
+@dataclass(frozen=True)
+class BlockStmt:
+    statements: tuple[Stmt, ...]
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class IfStmt:
+    condition: Expr
+    then_branch: Stmt
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class WhileStmt:
+    condition: Expr
+    body: Stmt
+    span: SourceSpan
+
+
+Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | IfStmt | WhileStmt
 
 
 @dataclass(frozen=True)
@@ -115,15 +136,42 @@ def format_program(program: Program) -> str:
         if item.action is not None:
             lines.append(f"    Action span={item.action.span.format_start()}")
             for statement in item.action.statements:
-                match statement:
-                    case PrintStmt():
-                        lines.append(f"      PrintStmt span={statement.span.format_start()}")
-                        for argument in statement.arguments:
-                            lines.extend(format_expression(argument, "        "))
-                    case AssignStmt():
-                        lines.append(f"      AssignStmt span={statement.span.format_start()} name={statement.name!r}")
-                        lines.extend(format_expression(statement.value, "        "))
+                lines.extend(format_statement(statement, "      "))
     return "\n".join(lines) + "\n"
+
+
+def format_statement(statement: Stmt, indent: str) -> list[str]:
+    """Render a statement node for stable `--parse` inspection output."""
+    match statement:
+        case PrintStmt():
+            lines = [f"{indent}PrintStmt span={statement.span.format_start()}"]
+            for argument in statement.arguments:
+                lines.extend(format_expression(argument, indent + "  "))
+            return lines
+        case AssignStmt():
+            lines = [f"{indent}AssignStmt span={statement.span.format_start()} name={statement.name!r}"]
+            lines.extend(format_expression(statement.value, indent + "  "))
+            return lines
+        case BlockStmt():
+            lines = [f"{indent}BlockStmt span={statement.span.format_start()}"]
+            for nested in statement.statements:
+                lines.extend(format_statement(nested, indent + "  "))
+            return lines
+        case IfStmt():
+            lines = [f"{indent}IfStmt span={statement.span.format_start()}"]
+            lines.append(f"{indent}  Condition")
+            lines.extend(format_expression(statement.condition, indent + "    "))
+            lines.append(f"{indent}  Then")
+            lines.extend(format_statement(statement.then_branch, indent + "    "))
+            return lines
+        case WhileStmt():
+            lines = [f"{indent}WhileStmt span={statement.span.format_start()}"]
+            lines.append(f"{indent}  Condition")
+            lines.extend(format_expression(statement.condition, indent + "    "))
+            lines.append(f"{indent}  Body")
+            lines.extend(format_statement(statement.body, indent + "    "))
+            return lines
+    raise AssertionError(f"unhandled statement type: {type(statement)!r}")
 
 
 def format_expression(expression: Expr, indent: str) -> list[str]:
@@ -178,6 +226,11 @@ class Parser:
 
     def parse_action(self) -> Action:
         """Parse a braced action block."""
+        lbrace_token, statements, rbrace_token = self.parse_braced_statements()
+        return Action(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
+
+    def parse_braced_statements(self) -> tuple[Token, list[Stmt], Token]:
+        """Parse a braced statement list shared by actions and block statements."""
         lbrace_token = self.expect(TokenKind.LBRACE)
         self.consume_separators()
 
@@ -190,16 +243,38 @@ class Parser:
                 statements.append(self.parse_statement())
 
         rbrace_token = self.expect(TokenKind.RBRACE)
-        return Action(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
+        return lbrace_token, statements, rbrace_token
 
     def parse_statement(self) -> Stmt:
         """Parse a statement in the current supported subset."""
+        if self.check(TokenKind.LBRACE):
+            return self.parse_block_statement()
+        if self.check(TokenKind.IF):
+            return self.parse_if_statement()
         if self.check(TokenKind.PRINT):
             return self.parse_print_statement()
+        if self.check(TokenKind.WHILE):
+            return self.parse_while_statement()
         if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.EQUAL:
             return self.parse_assignment_statement()
         token = self.current()
         raise ParseError(f"expected statement, got {token.kind.name}", token.span)
+
+    def parse_block_statement(self) -> BlockStmt:
+        """Parse a nested braced block statement."""
+        lbrace_token, statements, rbrace_token = self.parse_braced_statements()
+        return BlockStmt(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
+
+    def parse_if_statement(self) -> IfStmt:
+        """Parse an `if` statement without `else` support."""
+        if_token = self.expect(TokenKind.IF)
+        condition = self.parse_parenthesized_expression()
+        then_branch = self.parse_statement()
+        return IfStmt(
+            condition=condition,
+            then_branch=then_branch,
+            span=combine_spans(if_token.span, then_branch.span),
+        )
 
     def parse_print_statement(self) -> PrintStmt:
         """Parse a `print` statement with the currently supported argument form."""
@@ -218,9 +293,37 @@ class Parser:
             span=combine_spans(name_token.span, value.span),
         )
 
+    def parse_while_statement(self) -> WhileStmt:
+        """Parse a `while` loop statement."""
+        while_token = self.expect(TokenKind.WHILE)
+        condition = self.parse_parenthesized_expression()
+        body = self.parse_statement()
+        return WhileStmt(condition=condition, body=body, span=combine_spans(while_token.span, body.span))
+
     def parse_expression(self) -> Expr:
         """Parse an expression in the current supported subset."""
-        return self.parse_additive_expression()
+        return self.parse_comparison_expression()
+
+    def parse_parenthesized_expression(self) -> Expr:
+        """Parse a parenthesized expression used by control-flow statements."""
+        self.expect(TokenKind.LPAREN)
+        expression = self.parse_expression()
+        self.expect(TokenKind.RPAREN)
+        return expression
+
+    def parse_comparison_expression(self) -> Expr:
+        """Parse comparison expressions over the currently supported arithmetic subset."""
+        expression = self.parse_additive_expression()
+        while self.check(TokenKind.LESS):
+            self.advance()
+            right = self.parse_additive_expression()
+            expression = BinaryExpr(
+                left=expression,
+                op=BinaryOp.LESS,
+                right=right,
+                span=combine_spans(expression.span, right.span),
+            )
+        return expression
 
     def parse_additive_expression(self) -> Expr:
         """Parse the currently supported additive expression subset."""

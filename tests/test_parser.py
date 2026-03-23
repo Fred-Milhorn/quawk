@@ -14,13 +14,16 @@ from quawk.parser import (
     BeginPattern,
     BinaryExpr,
     BinaryOp,
+    BlockStmt,
     FieldExpr,
+    IfStmt,
     NameExpr,
     NumericLiteralExpr,
     PatternAction,
     PrintStmt,
     Program,
     StringLiteralExpr,
+    WhileStmt,
     parse,
 )
 
@@ -98,3 +101,32 @@ def test_parses_bare_action_with_field_expression() -> None:
     assert isinstance(statement, PrintStmt)
     assert isinstance(statement.arguments[0], FieldExpr)
     assert statement.arguments[0].index == 1
+
+
+def test_parses_if_statement_with_comparison() -> None:
+    program = parse(lex("BEGIN { if (1 < 2) print 3 }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert len(action.statements) == 1
+
+    statement = action.statements[0]
+    assert isinstance(statement, IfStmt)
+    assert isinstance(statement.condition, BinaryExpr)
+    assert statement.condition.op is BinaryOp.LESS
+    assert isinstance(statement.then_branch, PrintStmt)
+
+
+def test_parses_while_statement_with_block() -> None:
+    program = parse(lex("BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert len(action.statements) == 2
+
+    loop = action.statements[1]
+    assert isinstance(loop, WhileStmt)
+    assert isinstance(loop.condition, BinaryExpr)
+    assert loop.condition.op is BinaryOp.LESS
+    assert isinstance(loop.body, BlockStmt)
+    assert len(loop.body.statements) == 2

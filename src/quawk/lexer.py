@@ -16,11 +16,14 @@ class TokenKind(Enum):
     BEGIN = auto()
     END = auto()
     FUNCTION = auto()
+    IF = auto()
     PRINT = auto()
     PRINTF = auto()
+    WHILE = auto()
     IDENT = auto()
     STRING = auto()
     NUMBER = auto()
+    LESS = auto()
     PLUS = auto()
     EQUAL = auto()
     DOLLAR = auto()
@@ -38,16 +41,21 @@ KEYWORDS: dict[str, TokenKind] = {
     "BEGIN": TokenKind.BEGIN,
     "END": TokenKind.END,
     "function": TokenKind.FUNCTION,
+    "if": TokenKind.IF,
     "print": TokenKind.PRINT,
     "printf": TokenKind.PRINTF,
+    "while": TokenKind.WHILE,
 }
 
 FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.BEGIN: "BEGIN",
     TokenKind.END: "END",
     TokenKind.FUNCTION: "function",
+    TokenKind.IF: "if",
     TokenKind.PRINT: "print",
     TokenKind.PRINTF: "printf",
+    TokenKind.WHILE: "while",
+    TokenKind.LESS: "<",
     TokenKind.PLUS: "+",
     TokenKind.EQUAL: "=",
     TokenKind.DOLLAR: "$",
@@ -61,6 +69,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 }
 
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
+    "<": TokenKind.LESS,
     "+": TokenKind.PLUS,
     "=": TokenKind.EQUAL,
     "$": TokenKind.DOLLAR,

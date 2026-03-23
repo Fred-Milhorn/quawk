@@ -160,8 +160,12 @@ Currently supported execution path:
 - string literals
 - numeric literals
 - additive numeric expressions
+- `<` comparisons
 - scalar assignments in `BEGIN`
 - scalar variable reads in expressions
+- `if` statements in `BEGIN`
+- `while` loops in `BEGIN`
+- nested braced blocks in `BEGIN`
 - bare action record processing
 - `$0` and `$1` field reads
 - no function definitions required yet
@@ -172,6 +176,8 @@ Acceptance scenarios:
 - inline `BEGIN { print 1 + 2 }` compiles and executes
 - inline `BEGIN { x = 1; print x }` compiles and executes
 - inline `BEGIN { x = 1 + 2; print x }` compiles and executes
+- inline `BEGIN { if (1 < 2) print 3 }` compiles and executes
+- inline `BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }` compiles and executes
 - inline `{ print $0 }` processes stdin records correctly
 - inline `{ print $1 }` processes stdin records correctly
 - `-f hello.awk` with the same program compiles and executes

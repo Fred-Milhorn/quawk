@@ -11,7 +11,8 @@ Implemented now:
 - language, execution, CLI, and testing design
 - phased implementation roadmap and backlog
 - Python package/bootstrap scaffold with a working end-to-end `quawk` CLI path
-- end-to-end execution for `BEGIN` programs with string/numeric print and scalar assignment, plus bare-action record processing for `$0` and `$1`
+- end-to-end execution for `BEGIN` programs with string/numeric print, scalar assignment, and `if`/`while` control flow
+- bare-action record processing for `$0` and `$1`
 - example program and CI workflow scaffold
 
 Planned next:

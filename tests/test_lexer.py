@@ -127,6 +127,53 @@ def test_lexes_bare_action_field_tokens() -> None:
     ]
 
 
+def test_lexes_comparison_and_control_flow_tokens() -> None:
+    tokens = lex("BEGIN { if (1 < 2) print 3; while (x < 3) { x = x + 1 } }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.IF,
+        TokenKind.LPAREN,
+        TokenKind.NUMBER,
+        TokenKind.LESS,
+        TokenKind.NUMBER,
+        TokenKind.RPAREN,
+        TokenKind.PRINT,
+        TokenKind.NUMBER,
+        TokenKind.SEMICOLON,
+        TokenKind.WHILE,
+        TokenKind.LPAREN,
+        TokenKind.IDENT,
+        TokenKind.LESS,
+        TokenKind.NUMBER,
+        TokenKind.RPAREN,
+        TokenKind.LBRACE,
+        TokenKind.IDENT,
+        TokenKind.EQUAL,
+        TokenKind.IDENT,
+        TokenKind.PLUS,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert [token.span.format_start() for token in tokens[:12]] == [
+        "<inline>:1:1",
+        "<inline>:1:7",
+        "<inline>:1:9",
+        "<inline>:1:12",
+        "<inline>:1:13",
+        "<inline>:1:15",
+        "<inline>:1:17",
+        "<inline>:1:18",
+        "<inline>:1:20",
+        "<inline>:1:26",
+        "<inline>:1:27",
+        "<inline>:1:29",
+    ]
+
+
 def test_rejects_unexpected_characters() -> None:
     with pytest.raises(LexError, match="unexpected character") as excinfo:
         lex("BEGIN { @ }")

@@ -17,14 +17,18 @@ from .parser import (
     BeginPattern,
     BinaryExpr,
     BinaryOp,
+    BlockStmt,
     Expr,
     FieldExpr,
+    IfStmt,
     NameExpr,
     NumericLiteralExpr,
     PatternAction,
     PrintStmt,
     Program,
+    Stmt,
     StringLiteralExpr,
+    WhileStmt,
 )
 
 
@@ -36,6 +40,7 @@ class LoweringState:
     allocas: list[str] = field(default_factory=list)
     instructions: list[str] = field(default_factory=list)
     temp_index: int = 0
+    label_index: int = 0
     string_index: int = 0
     variable_slots: dict[str, str] = field(default_factory=dict)
     uses_puts: bool = False
@@ -46,6 +51,12 @@ class LoweringState:
         """Return a fresh SSA temporary name with the given prefix."""
         name = f"%{prefix}.{self.temp_index}"
         self.temp_index += 1
+        return name
+
+    def next_label(self, prefix: str) -> str:
+        """Return a fresh LLVM basic-block label name."""
+        name = f"{prefix}.{self.label_index}"
+        self.label_index += 1
         return name
 
 
@@ -130,7 +141,7 @@ def lower_to_llvm_ir(program: Program) -> str:
     )
 
 
-def collect_supported_statements(program: Program) -> tuple[PrintStmt | AssignStmt, ...]:
+def collect_supported_statements(program: Program) -> tuple[Stmt, ...]:
     """Extract the statements accepted by the current backend.
 
     The parser is intentionally broader than the current lowering path, so the
@@ -147,13 +158,7 @@ def collect_supported_statements(program: Program) -> tuple[PrintStmt | AssignSt
     if not isinstance(item.action, Action):
         raise RuntimeError("the current backend requires an action block")
 
-    statements: list[PrintStmt | AssignStmt] = []
-    for statement in item.action.statements:
-        if not isinstance(statement, (PrintStmt, AssignStmt)):
-            raise RuntimeError("the current backend only supports print and assignment statements")
-        statements.append(statement)
-
-    return tuple(statements)
+    return item.action.statements
 
 
 def is_record_program(program: Program) -> bool:
@@ -204,15 +209,53 @@ def lower_record_program_to_llvm_ir(program: Program) -> str:
     )
 
 
-def lower_statement(statement: PrintStmt | AssignStmt, state: LoweringState) -> None:
+def lower_statement(statement: Stmt, state: LoweringState) -> None:
     """Lower one supported statement into side-effecting IR."""
     if isinstance(statement, AssignStmt):
         lower_assignment_statement(statement, state)
         return
-
+    if isinstance(statement, BlockStmt):
+        for nested in statement.statements:
+            lower_statement(nested, state)
+        return
+    if isinstance(statement, IfStmt):
+        lower_if_statement(statement, state)
+        return
+    if isinstance(statement, WhileStmt):
+        lower_while_statement(statement, state)
+        return
+    if not isinstance(statement, PrintStmt):
+        raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
     if len(statement.arguments) != 1:
         raise RuntimeError("the current backend only supports print with one argument")
     lower_print_expression(statement.arguments[0], state)
+
+
+def lower_if_statement(statement: IfStmt, state: LoweringState) -> None:
+    """Lower an `if` statement with a single then-branch."""
+    then_label = state.next_label("if.then")
+    end_label = state.next_label("if.end")
+    condition = lower_condition_expression(statement.condition, state)
+    state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{end_label}")
+    state.instructions.append(f"{then_label}:")
+    lower_statement(statement.then_branch, state)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{end_label}:")
+
+
+def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
+    """Lower a `while` loop over the current numeric condition subset."""
+    cond_label = state.next_label("while.cond")
+    body_label = state.next_label("while.body")
+    end_label = state.next_label("while.end")
+    state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{cond_label}:")
+    condition = lower_condition_expression(statement.condition, state)
+    state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
+    state.instructions.append(f"{body_label}:")
+    lower_statement(statement.body, state)
+    state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{end_label}:")
 
 
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
@@ -276,19 +319,36 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
         return temp
 
     if isinstance(expression, BinaryExpr):
-        if expression.op is not BinaryOp.ADD:
-            raise RuntimeError(f"unsupported binary operator in current backend: {expression.op.name}")
+        if expression.op is BinaryOp.ADD:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("add")
+            state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
+            return temp
+        raise RuntimeError(f"unsupported binary operator in numeric expression: {expression.op.name}")
+
+    raise RuntimeError(
+        "the current backend only supports numeric literals, variable reads, and addition in numeric expressions"
+    )
+
+
+def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
+    """Lower a supported condition expression to an LLVM `i1` value."""
+    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
         left_operand = lower_numeric_expression(expression.left, state)
         right_operand = lower_numeric_expression(expression.right, state)
-        temp = state.next_temp("add")
-        state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
+        temp = state.next_temp("cmp")
+        state.instructions.append(f"  {temp} = fcmp olt double {left_operand}, {right_operand}")
         return temp
 
-    raise RuntimeError("the numeric-print increment currently supports only numeric literals and addition")
+    numeric_value = lower_numeric_expression(expression, state)
+    temp = state.next_temp("truthy")
+    state.instructions.append(f"  {temp} = fcmp one double {numeric_value}, 0.000000000000000e+00")
+    return temp
 
 
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
-    """Execute record-driven programs over input files or standard input."""
+    """Execute the current program, routing record-driven programs through the host loop."""
     if is_record_program(program):
         execute_record_program(program, input_files, field_separator)
         return 0
@@ -333,7 +393,7 @@ def extract_first_field(line: str, field_separator: str | None) -> str:
     return parts[0] if parts else ""
 
 
-def execute_record_statement(statement: PrintStmt | AssignStmt, field0: str, field1: str) -> None:
+def execute_record_statement(statement: Stmt, field0: str, field1: str) -> None:
     """Execute one supported record-loop statement."""
     if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
         raise RuntimeError("the record-loop increment only supports single-argument print statements")

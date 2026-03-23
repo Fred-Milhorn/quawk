@@ -134,6 +134,27 @@ def test_quawk_parse_flag_prints_bare_action_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_control_flow_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { if (1 < 2) print 3 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      IfStmt span=<inline>:1:9\n"
+        "        Condition\n"
+        "          BinaryExpr span=<inline>:1:13 op=LESS\n"
+        "            NumericLiteralExpr span=<inline>:1:13 value=1.0\n"
+        "            NumericLiteralExpr span=<inline>:1:17 value=2.0\n"
+        "        Then\n"
+        "          PrintStmt span=<inline>:1:20\n"
+        "            NumericLiteralExpr span=<inline>:1:26 value=3.0\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 
@@ -173,6 +194,18 @@ def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
     assert result.returncode == 0, result.stderr
     assert "define i32 @quawk_record(ptr %field0, ptr %field1)" in result.stdout
     assert "call i32 @puts(ptr %field1)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_control_flow_ir_and_stops() -> None:
+    result = run_quawk("--ir", "BEGIN { if (1 < 2) print 3 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fcmp olt double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
+    assert "br i1 %cmp." in result.stdout
+    assert "label %if.then.0, label %if.end.1" in result.stdout
+    assert "if.then.0:" in result.stdout
+    assert "if.end.1:" in result.stdout
     assert result.stderr == ""
 
 
