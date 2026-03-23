@@ -16,7 +16,9 @@ Implemented now:
 - example program and CI workflow scaffold
 
 Planned next:
-- incremental language and runtime expansion from that initial `P1` path
+- mixed `BEGIN` / record / `END` execution and broader field support
+- regex and expression-surface expansion
+- functions, scope, arrays, iteration, and builtins toward nominal functional completion
 - compatibility and differential test harness after the executable core exists
 
 ## Goals

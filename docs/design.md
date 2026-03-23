@@ -73,9 +73,20 @@ Planned implementation increments:
    Examples:
    `BEGIN { if (1 < 2) print 3 }`
    `BEGIN { while (x < 3) x = x + 1 }`
-6. Functions and broader POSIX-oriented coverage
+6. Mixed `BEGIN` / record / `END` execution and general fields
+   Examples:
+   `BEGIN { print "start" } { print $2 } END { print "done" }`
+7. Regexes and broader expression surface
+   Examples:
+   `/foo/ { print $0 }`
+8. Functions and scope
    Examples:
    `function f(x) { return x + 1 } BEGIN { print f(2) }`
+9. Arrays, iteration, builtins, and nominal functional completion
+   Examples:
+   `BEGIN { a["x"] = 1; print a["x"] }`
+   `BEGIN { for (k in a) print k }`
+10. Compatibility convergence and release hardening
 
 Each increment should land only when the full CLI-to-IR-to-execution path works
 for that increment's example programs.
@@ -120,7 +131,11 @@ Milestone order:
 3. implement numeric print in `BEGIN` end to end
 4. implement scalar variables and assignment in `BEGIN`
 5. add record processing, fields, and bare actions
-6. broaden control flow, functions, diagnostics, and conformance coverage as execution support grows
+6. implement mixed `BEGIN` / record / `END` execution and general field access
+7. add regex-driven patterns and broaden the expression surface
+8. implement functions, scope, and legality checks
+9. reach nominal functional completion by covering the major POSIX AWK construct families
+10. converge on compatibility and release quality
 
 ## Syntax and AST Specs
 

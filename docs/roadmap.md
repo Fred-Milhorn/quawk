@@ -19,9 +19,13 @@ This document is the phased implementation roadmap and active backlog for `quawk
 |---|---|---|
 | P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, CI basics |
 | P1 | End-to-End MVP Path | First runnable `quawk` JIT path for the simplest AWK program |
-| P2 | Incremental Language Expansion | Grow supported AWK behavior from the initial `P1` path |
-| P3 | Compatibility and Hardening | Differential compatibility gates and regression control |
-| P4 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
+| P2 | Core Subset Expansion | `BEGIN`, scalar expressions, simple record actions, and control flow |
+| P3 | Mixed Program Execution | `BEGIN` + record actions + `END` in one executable program |
+| P4 | Regex and Expression Surface | Regex-driven pattern selection and core operator surface |
+| P5 | Functions and Scope | User-defined functions, symbol/scoping rules, and legality checks |
+| P6 | Nominal Functional Completion | Major POSIX AWK construct families all have executable support |
+| P7 | Compatibility and Hardening | Differential compatibility gates and regression control |
+| P8 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
 ## Phase Entry and Exit Rules
 
@@ -70,10 +74,10 @@ Exit criteria:
 - the same program executes from `-f`
 - unsupported syntax fails cleanly without pretending broader support exists
 
-### P2: Incremental Language Expansion
+### P2: Core Subset Expansion
 
 Objective:
-- expand the supported AWK subset one runnable capability increment at a time
+- establish the first coherent executable AWK subset beyond the initial `P1` path
 
 In scope:
 - each increment must name the exact AWK behavior it delivers, plus example programs that should execute at phase completion
@@ -82,7 +86,7 @@ In scope:
 - diagnostics and recovery improvements follow the related execution support rather than leading it
 
 Exit criteria:
-- each newly claimed language feature has an executable implementation
+- the core executable subset includes scalar `BEGIN` programs, simple record actions, and `BEGIN` control flow
 - the earlier working `P1` path stays green as coverage expands
 - the supported subset is always explicit in tests and docs
 
@@ -104,11 +108,72 @@ Planned capability increments inside `P2`:
    Target programs:
    - `BEGIN { if (1 < 2) print 3 }`
    - `BEGIN { while (x < 3) x = x + 1 }`
-5. Functions and broader POSIX-oriented coverage
-   Target programs:
-   - `function f(x) { return x + 1 } BEGIN { print f(2) }`
 
-### P3: Compatibility and Hardening
+### P3: Mixed Program Execution
+
+Objective:
+- execute real AWK programs that combine `BEGIN`, record actions, and `END`
+
+In scope:
+- multiple top-level pattern-action items in one program
+- `END` support
+- mixed execution order across `BEGIN`, input records, and `END`
+- general field reads beyond `$0` and `$1`
+- enough runtime state to make the record loop feel like AWK rather than a narrow demo path
+
+Exit criteria:
+- `BEGIN { print "start" } { print $2 } END { print "done" }` executes correctly
+- the same program executes from `-f` and with stdin/file inputs
+- the implementation no longer relies on a bare-action-only record path
+
+### P4: Regex and Expression Surface
+
+Objective:
+- support pattern selection and core expressions broadly enough for ordinary AWK filtering logic
+
+In scope:
+- regex literals and `/` vs regex disambiguation
+- core relational/equality/logical operator surface
+- pattern expressions driven by regexes and comparisons
+- expression conformance fixtures for the supported subset
+
+Exit criteria:
+- `/foo/ { print $0 }` executes correctly
+- representative boolean/comparison/arithmetic programs execute correctly
+- parser/lexer behavior for regex syntax is deterministic and tested
+
+### P5: Functions and Scope
+
+Objective:
+- support reusable user-defined computation with stable symbol and scope rules
+
+In scope:
+- function definitions, calls, and returns
+- symbol tables and scope handling
+- legality checks for assignments, control flow, and function declarations
+- diagnostics for invalid user-defined constructs
+
+Exit criteria:
+- `function f(x) { return x + 1 } BEGIN { print f(2) }` executes correctly
+- scope and legality diagnostics are deterministic for the supported subset
+
+### P6: Nominal Functional Completion
+
+Objective:
+- cross the line from a strong executable subset to a nominally functionally complete AWK implementation
+
+In scope:
+- arrays and associative indexing
+- `for`, `for ... in`, and `delete`
+- builtins required for common POSIX AWK workflows
+- normalization/backend work needed to support the major language families
+
+Exit criteria:
+- every major POSIX AWK construct family has at least one working executable implementation
+- remaining gaps are compatibility/corner-case issues, not missing whole feature families
+- this is the project’s bar for being nominally functionally complete
+
+### P7: Compatibility and Hardening
 
 Objective:
 - maximize POSIX compatibility and reduce behavioral gaps
@@ -124,7 +189,7 @@ Exit criteria:
 - known divergences are documented and tagged
 - hardening pass shows no high-severity regressions
 
-### P4: Pre-Release Readiness
+### P8: Pre-Release Readiness
 
 Objective:
 - ship an initial public release candidate
@@ -143,12 +208,18 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next capability increment: functions and broader POSIX-oriented coverage
+Next deliverable: mixed `BEGIN` / record-action / `END` execution
 
 Target programs:
-- `function f(x) { return x + 1 } BEGIN { print f(2) }`
+- `BEGIN { print "start" } { print $2 } END { print "done" }`
 
-Task breakdown for this increment has not been decomposed yet.
+1. `T-080` author end-to-end tests for mixed `BEGIN` / record / `END` execution
+2. `T-081` extend token/span and AST support for `END` and multiple top-level items
+3. `T-082` extend the parser for multiple pattern-actions and `END`
+4. `T-083` extend runtime sequencing for `BEGIN`, record actions, and `END`
+5. `T-084` extend field handling beyond `$0` and `$1` for the supported subset
+6. `T-085` extend LLVM lowering for mixed program execution
+7. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
 
 ## Backlog
 
@@ -184,24 +255,24 @@ Priority values:
 | T-055 | P2 | P0 | Author end-to-end tests for numeric print in `BEGIN` | T-054 | CLI tests exist for `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` before implementation | done |
 | T-009 | P2 | P0 | Extend token/source-span modeling for numeric literals and `+` | T-054, T-055 | Token/span code cleanly supports numeric literals and additive operators | done |
 | T-010 | P2 | P0 | Extend lexing for numeric literals, `+`, and the print-expression path | T-009, T-054, T-055 | Lexer fixtures pass for the numeric-print increment | done |
-| T-011 | P2 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
+| T-011 | P4 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
 | T-012 | P2 | P0 | Define AST nodes for numeric literals and additive binary expressions | T-009, T-054, T-055 | AST matches the numeric-print increment | done |
 | T-013 | P2 | P0 | Extend the parser for `print` expressions in `BEGIN` | T-012, T-054, T-055 | The parser accepts `BEGIN { print 1 }` and the additive form | done |
 | T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
-| T-015 | P2 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
-| T-016 | P2 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
-| T-017 | P2 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
-| T-044 | P2 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
-| T-018 | P2 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
-| T-019 | P2 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
-| T-020 | P2 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
-| T-021 | P2 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
-| T-022 | P2 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
-| T-023 | P2 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-015 | P7 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
+| T-016 | P7 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
+| T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
+| T-044 | P5 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
+| T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
+| T-019 | P5 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
+| T-020 | P5 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
+| T-021 | P5 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | todo |
+| T-022 | P6 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
+| T-023 | P7 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
-| T-026 | P2 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when record processing becomes active | T-024, T-025 | Record-processing fixtures pass for the supported subset | todo |
-| T-027 | P2 | P1 | Implement builtins only as required by the active capability increment or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when mixed program execution becomes active | T-024, T-025 | Mixed `BEGIN` / record / `END` fixtures pass for the supported subset | todo |
+| T-027 | P6 | P1 | Implement builtins only as required by the active deliverable or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |
@@ -227,15 +298,22 @@ Priority values:
 | T-077 | P2 | P0 | Extend runtime state for branching and loop execution | T-076 | Runtime can execute the supported control-flow constructs | done |
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
-| T-039 | P2 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
-| T-047 | P3 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
-| T-035 | P3 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
-| T-036 | P3 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
-| T-037 | P3 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
-| T-038 | P3 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
-| T-048 | P4 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-038 | Release-readiness baseline committed with expected failures | todo |
-| T-040 | P4 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
-| T-042 | P4 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-039 | P8 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
+| T-047 | P7 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
+| T-035 | P7 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-036 | P7 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
+| T-037 | P7 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-038 | P7 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
+| T-048 | P8 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-038 | Release-readiness baseline committed with expected failures | todo |
+| T-040 | P8 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
+| T-042 | P8 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | todo |
+| T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | todo |
+| T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | todo |
+| T-083 | P3 | P0 | Extend runtime sequencing for `BEGIN`, record actions, and `END` | T-082 | Execution order matches the supported mixed-program model | todo |
+| T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | todo |
+| T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | todo |
+| T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | todo |
 
 ## Cross-Cutting Tracks
 
