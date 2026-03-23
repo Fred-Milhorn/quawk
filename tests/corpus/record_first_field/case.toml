@@ -1,0 +1,9 @@
+id = "record_first_field"
+description = "Bare action printing the first whitespace-separated field."
+program = "program.awk"
+input = "input.txt"
+tags = ["supported", "p2", "records"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

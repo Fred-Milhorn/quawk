@@ -1,0 +1,10 @@
+id = "regex_filter"
+description = "Regex-driven record filtering."
+program = "program.awk"
+input = "input.txt"
+tags = ["known-gap", "regex", "posix-required"]
+xfail_reason = "regex patterns are not implemented yet"
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

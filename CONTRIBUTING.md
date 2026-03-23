@@ -62,12 +62,14 @@ Apply these rules to Python source, tests, scripts, and documentation unless a d
 
 ## Testing Expectations
 
-Implementation follows strict MVP-first TDD:
+Implementation follows strict capability-first TDD:
 
-1. Before implementing the MVP path or the next MVP increment, add the tests first.
+1. Before implementing the initial `P1` path or the next capability increment, add the tests first.
 2. Use ordinary failing tests or `pytest.mark.xfail` when a temporary expected failure is clearer.
 3. Burn those tests down to `pass` during implementation.
 4. Keep roadmap state in the roadmap, not in separate test metadata files.
+
+For behavior and compatibility work, prefer adding or updating AWK cases under `tests/corpus/` in the same change.
 
 Reference behavior:
 - primary: `one-true-awk`
@@ -77,6 +79,7 @@ Current local checks are defined in [docs/testing.md](docs/testing.md). When the
 
 ```sh
 quawk --help
+corpus --list
 pytest
 yapf --diff --recursive src tests scripts
 ruff check .

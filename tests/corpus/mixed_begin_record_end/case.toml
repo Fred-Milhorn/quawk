@@ -1,0 +1,10 @@
+id = "mixed_begin_record_end"
+description = "Mixed BEGIN, record action, and END execution."
+program = "program.awk"
+input = "input.txt"
+tags = ["known-gap", "mixed-program", "p3"]
+xfail_reason = "mixed BEGIN/record/END execution is not implemented yet"
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 quawk = "quawk.cli:main"
+corpus = "quawk.corpus:main"
 
 [dependency-groups]
 dev = [
@@ -32,6 +33,7 @@ files = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "corpus: compatibility corpus coverage",
     "property: reserved for property-based tests",
     "smoke: reserved for smoke coverage",
 ]

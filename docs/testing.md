@@ -68,6 +68,77 @@ Each compatibility test should include:
 - expected exit status
 - tags such as `posix-required`, `unspecified`, `extension`, `known-gap`
 
+The repository keeps these as file-backed cases under `tests/corpus/`.
+Each case lives in its own directory and includes:
+- `case.toml`
+- `program.awk`
+- optional `input.txt`
+- optional `expected.stdout`
+- optional `expected.stderr`
+
+The manifest records:
+- case ID and short description
+- expected exit status
+- tags such as `supported`, `known-gap`, and `posix-required`
+- optional `xfail_reason` for known unsupported behavior
+
+## When To Add A Corpus Case
+
+Use the corpus for user-visible AWK behavior.
+
+Add a corpus case when:
+- the behavior is naturally expressed as a small AWK program
+- you want to verify end-to-end execution or compatibility behavior
+- the case represents a language feature, a compatibility question, or a known unsupported feature worth tracking
+- the failure or expected result is easier to understand from program/input/output artifacts than from Python assertions
+
+Prefer ordinary Python tests when:
+- you are checking lexer tokenization details
+- you are checking parser shape or AST structure directly
+- you are checking diagnostics formatting or source spans
+- you are checking narrow backend or CLI contracts that are easier to assert directly in Python
+
+Use both when:
+- the feature matters end to end and also has tricky internal structure worth pinning with unit tests
+
+Examples of good corpus cases:
+- `BEGIN { print 1 + 2 }`
+- `{ print $1 }` with input
+- `/foo/ { print $0 }`
+- `BEGIN { print "start" } { print $2 } END { print "done" }`
+
+## How To Add A Corpus Case
+
+1. Create a new directory under `tests/corpus/`.
+2. Add `program.awk`.
+3. Add `input.txt` if the case reads records.
+4. Add `expected.stdout` and, if needed, `expected.stderr`.
+5. Add `case.toml` with:
+   - `id`
+   - `description`
+   - `program`
+   - optional `input`
+   - `tags`
+   - optional `xfail_reason`
+   - `[expect]` including `exit` and any expected output files
+6. Run `corpus --list` to confirm the case is discovered.
+7. Run `pytest tests/test_corpus.py`.
+
+Minimal example:
+
+```toml
+id = "begin_print_literal"
+description = "Literal string print from BEGIN."
+program = "program.awk"
+tags = ["supported", "smoke", "p1"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0
+```
+
+Use `xfail_reason` when the case documents a known unsupported feature or an intentional temporary gap. Keep these reasons specific so stale expected failures are easy to notice in review.
+
 ## Oracle Execution Model
 
 For each compatibility case:
@@ -148,6 +219,7 @@ Common local commands once the scaffold exists:
 
 ```sh
 quawk --help
+corpus --list
 pytest
 yapf --diff --recursive src tests scripts
 ruff check .

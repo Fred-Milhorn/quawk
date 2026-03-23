@@ -1,0 +1,8 @@
+id = "begin_assignment"
+description = "Scalar assignment and variable read in BEGIN."
+program = "program.awk"
+tags = ["supported", "p2"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0
