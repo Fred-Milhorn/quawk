@@ -155,6 +155,45 @@ def test_quawk_parse_flag_prints_control_flow_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_mixed_program_ast() -> None:
+    result = run_quawk("--parse", 'BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        StringLiteralExpr span=<inline>:1:15 value='start'\n"
+        "  PatternAction span=<inline>:2:1\n"
+        "    Action span=<inline>:2:1\n"
+        "      PrintStmt span=<inline>:2:3\n"
+        "        FieldExpr span=<inline>:2:9 index=2\n"
+        "  PatternAction span=<inline>:3:1\n"
+        "    EndPattern span=<inline>:3:1\n"
+        "    Action span=<inline>:3:5\n"
+        "      PrintStmt span=<inline>:3:7\n"
+        "        StringLiteralExpr span=<inline>:3:13 value='done'\n"
+    )
+    assert result.stderr == ""
+
+
+def test_quawk_parse_flag_prints_end_only_program_ast() -> None:
+    result = run_quawk("--parse", 'END { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    EndPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:5\n"
+        "      PrintStmt span=<inline>:1:7\n"
+        "        StringLiteralExpr span=<inline>:1:13 value='done'\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 

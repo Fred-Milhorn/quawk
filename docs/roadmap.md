@@ -213,13 +213,9 @@ Next deliverable: mixed `BEGIN` / record-action / `END` execution
 Target programs:
 - `BEGIN { print "start" } { print $2 } END { print "done" }`
 
-1. `T-080` author end-to-end tests for mixed `BEGIN` / record / `END` execution
-2. `T-081` extend token/span and AST support for `END` and multiple top-level items
-3. `T-082` extend the parser for multiple pattern-actions and `END`
-4. `T-083` extend runtime sequencing for `BEGIN`, record actions, and `END`
-5. `T-084` extend field handling beyond `$0` and `$1` for the supported subset
-6. `T-085` extend LLVM lowering for mixed program execution
-7. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
+1. `T-084` extend field handling beyond `$0` and `$1` for the supported subset
+2. `T-085` extend LLVM lowering for mixed program execution
+3. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
 
 ## Backlog
 
@@ -307,10 +303,10 @@ Priority values:
 | T-048 | P8 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-038 | Release-readiness baseline committed with expected failures | todo |
 | T-040 | P8 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
 | T-042 | P8 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
-| T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | todo |
-| T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | todo |
-| T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | todo |
-| T-083 | P3 | P0 | Extend runtime sequencing for `BEGIN`, record actions, and `END` | T-082 | Execution order matches the supported mixed-program model | todo |
+| T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
+| T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
+| T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
+| T-083 | P3 | P0 | Extend runtime sequencing for `BEGIN`, record actions, and `END` | T-082 | Execution order matches the supported mixed-program model | done |
 | T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | todo |
 | T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | todo |
 | T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | todo |

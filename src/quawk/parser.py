@@ -18,7 +18,12 @@ class BeginPattern:
     span: SourceSpan
 
 
-Pattern: TypeAlias = BeginPattern
+@dataclass(frozen=True)
+class EndPattern:
+    span: SourceSpan
+
+
+Pattern: TypeAlias = BeginPattern | EndPattern
 
 
 @dataclass(frozen=True)
@@ -132,7 +137,11 @@ def format_program(program: Program) -> str:
     for item in program.items:
         lines.append(f"  PatternAction span={item.span.format_start()}")
         if item.pattern is not None:
-            lines.append(f"    BeginPattern span={item.pattern.span.format_start()}")
+            match item.pattern:
+                case BeginPattern():
+                    lines.append(f"    BeginPattern span={item.pattern.span.format_start()}")
+                case EndPattern():
+                    lines.append(f"    EndPattern span={item.pattern.span.format_start()}")
         if item.action is not None:
             lines.append(f"    Action span={item.action.span.format_start()}")
             for statement in item.action.statements:
@@ -204,13 +213,21 @@ class Parser:
     def parse_program(self) -> Program:
         """Parse the whole program and require EOF afterward."""
         self.consume_separators()
-        item = self.parse_pattern_action()
-        self.consume_separators()
+        items: list[Item] = []
+        while not self.check(TokenKind.EOF):
+            items.append(self.parse_pattern_action())
+            self.consume_separators()
         self.expect(TokenKind.EOF)
-        return Program(items=(item, ), span=item.span)
+        if not items:
+            token = self.current()
+            raise ParseError(f"expected pattern-action, got {token.kind.name}", token.span)
+        return Program(
+            items=tuple(items),
+            span=combine_spans(items[0].span, items[-1].span),
+        )
 
     def parse_pattern_action(self) -> PatternAction:
-        """Parse the single top-level pattern-action the current subset supports."""
+        """Parse one top-level pattern-action item."""
         if self.check(TokenKind.LBRACE):
             action = self.parse_action()
             return PatternAction(pattern=None, action=action, span=action.span)
@@ -221,8 +238,16 @@ class Parser:
 
     def parse_pattern(self) -> Pattern:
         """Parse the currently supported pattern form."""
-        begin_token = self.expect(TokenKind.BEGIN)
-        return BeginPattern(begin_token.span)
+        token = self.current()
+        match token.kind:
+            case TokenKind.BEGIN:
+                begin_token = self.advance()
+                return BeginPattern(begin_token.span)
+            case TokenKind.END:
+                end_token = self.advance()
+                return EndPattern(end_token.span)
+            case _:
+                raise ParseError(f"expected pattern, got {token.kind.name}", token.span)
 
     def parse_action(self) -> Action:
         """Parse a braced action block."""

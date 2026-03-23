@@ -95,7 +95,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.program_files and args.program is not None:
-        parser.error("cannot mix -f progfile with inline program text")
+        # With `-f`, the remaining positional arguments are input files, not an
+        # inline program. Reclassify the first positional token instead of
+        # forcing users to work around argparse's fixed positional ordering.
+        args.files = [args.program, *args.files]
+        args.program = None
 
     try:
         source = load_program_source(args.program_files, args.program)
@@ -112,13 +116,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(format_program(program))
             return 0
 
-        # Lower once for the stop-after inspection modes so IR and assembly are
-        # derived from the same pipeline the execution path uses.
-        llvm_ir = lower_to_llvm_ir(program)
         if args.ir:
+            # Lower once for the stop-after inspection modes so IR and assembly
+            # are derived from the same pipeline.
+            llvm_ir = lower_to_llvm_ir(program)
             sys.stdout.write(llvm_ir)
             return 0
         if args.asm:
+            llvm_ir = lower_to_llvm_ir(program)
             sys.stdout.write(emit_assembly(llvm_ir))
             return 0
 

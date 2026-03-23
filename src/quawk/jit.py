@@ -18,6 +18,7 @@ from .parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    EndPattern,
     Expr,
     FieldExpr,
     IfStmt,
@@ -58,6 +59,21 @@ class LoweringState:
         name = f"{prefix}.{self.label_index}"
         self.label_index += 1
         return name
+
+
+@dataclass
+class RuntimeState:
+    """Mutable host-runtime state for the currently supported interpreter path."""
+
+    variables: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RecordContext:
+    """Host-side view of the current input record for field resolution."""
+
+    field0: str
+    field1: str
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -349,23 +365,65 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
 
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
-    if is_record_program(program):
-        execute_record_program(program, input_files, field_separator)
+    if requires_host_runtime(program):
+        execute_host_runtime(program, input_files, field_separator)
         return 0
     return execute(program)
 
 
-def execute_record_program(program: Program, input_files: list[str], field_separator: str | None) -> None:
-    """Execute a bare-action record program using the Python host input loop."""
-    item = program.items[0]
-    assert isinstance(item, PatternAction)
-    assert isinstance(item.action, Action)
+def requires_host_runtime(program: Program) -> bool:
+    """Report whether `program` should execute through the Python host runtime."""
+    return is_record_program(program) or has_end_pattern(program) or len(program.items) > 1
 
-    for line in iter_input_records(input_files):
-        field0 = line.rstrip("\n")
-        field1 = extract_first_field(field0, field_separator)
-        for statement in item.action.statements:
-            execute_record_statement(statement, field0, field1)
+
+def has_end_pattern(program: Program) -> bool:
+    """Report whether `program` contains any END action."""
+    return any(isinstance(item, PatternAction) and isinstance(item.pattern, EndPattern) for item in program.items)
+
+
+def execute_host_runtime(program: Program, input_files: list[str], field_separator: str | None) -> None:
+    """Execute the supported subset with explicit BEGIN/record/END sequencing."""
+    begin_actions, record_actions, end_actions = partition_runtime_actions(program)
+    state = RuntimeState()
+
+    for action in begin_actions:
+        execute_action(action, state, record=None)
+
+    if record_actions:
+        for line in iter_input_records(input_files):
+            record_text = line.rstrip("\n")
+            record = RecordContext(
+                field0=record_text,
+                field1=extract_first_field(record_text, field_separator),
+            )
+            for action in record_actions:
+                execute_action(action, state, record=record)
+
+    for action in end_actions:
+        execute_action(action, state, record=None)
+
+
+def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Action], list[Action]]:
+    """Split top-level items into ordered BEGIN, record, and END action lists."""
+    begin_actions: list[Action] = []
+    record_actions: list[Action] = []
+    end_actions: list[Action] = []
+
+    for item in program.items:
+        if not isinstance(item, PatternAction):
+            raise RuntimeError("the current runtime only supports pattern-action items")
+        if not isinstance(item.action, Action):
+            raise RuntimeError("the current runtime requires an action block for each supported item")
+
+        if item.pattern is None:
+            record_actions.append(item.action)
+            continue
+        if isinstance(item.pattern, BeginPattern):
+            begin_actions.append(item.action)
+            continue
+        end_actions.append(item.action)
+
+    return begin_actions, record_actions, end_actions
 
 
 def iter_input_records(input_files: list[str]) -> list[str]:
@@ -393,23 +451,86 @@ def extract_first_field(line: str, field_separator: str | None) -> str:
     return parts[0] if parts else ""
 
 
-def execute_record_statement(statement: Stmt, field0: str, field1: str) -> None:
-    """Execute one supported record-loop statement."""
+def execute_action(action: Action, state: RuntimeState, record: RecordContext | None) -> None:
+    """Execute one action block in the host runtime."""
+    for statement in action.statements:
+        execute_statement(statement, state, record)
+
+
+def execute_statement(statement: Stmt, state: RuntimeState, record: RecordContext | None) -> None:
+    """Execute one statement in the currently supported host-runtime subset."""
+    if isinstance(statement, AssignStmt):
+        state.variables[statement.name] = evaluate_numeric_expression(statement.value, state, record)
+        return
+    if isinstance(statement, BlockStmt):
+        for nested in statement.statements:
+            execute_statement(nested, state, record)
+        return
+    if isinstance(statement, IfStmt):
+        if evaluate_condition(statement.condition, state, record):
+            execute_statement(statement.then_branch, state, record)
+        return
+    if isinstance(statement, WhileStmt):
+        while evaluate_condition(statement.condition, state, record):
+            execute_statement(statement.body, state, record)
+        return
     if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
-        raise RuntimeError("the record-loop increment only supports single-argument print statements")
-
-    argument = statement.arguments[0]
-    if not isinstance(argument, FieldExpr):
-        raise RuntimeError("the record-loop increment only supports $0 and $1 field expressions")
-    print(resolve_field_value(argument.index, field0, field1))
+        raise RuntimeError("the current runtime only supports print with one argument")
+    print_value(evaluate_print_expression(statement.arguments[0], state, record))
 
 
-def resolve_field_value(index: int, field0: str, field1: str) -> str:
+def evaluate_print_expression(expression: Expr, state: RuntimeState, record: RecordContext | None) -> str | float:
+    """Evaluate an expression in the forms the current runtime can print."""
+    if isinstance(expression, StringLiteralExpr):
+        return expression.value
+    if isinstance(expression, FieldExpr):
+        if record is None:
+            raise RuntimeError("field expressions require an active input record")
+        return resolve_field_value(expression.index, record)
+    return evaluate_numeric_expression(expression, state, record)
+
+
+def evaluate_numeric_expression(expression: Expr, state: RuntimeState, record: RecordContext | None) -> float:
+    """Evaluate a numeric expression in the current host-runtime subset."""
+    if isinstance(expression, NumericLiteralExpr):
+        return expression.value
+    if isinstance(expression, NameExpr):
+        value = state.variables.get(expression.name)
+        if value is None:
+            raise RuntimeError(f"undefined variable in current runtime: {expression.name}")
+        return value
+    if isinstance(expression, BinaryExpr):
+        if expression.op is BinaryOp.ADD:
+            return evaluate_numeric_expression(expression.left, state,
+                                               record) + evaluate_numeric_expression(expression.right, state, record)
+        raise RuntimeError(f"unsupported numeric operator in current runtime: {expression.op.name}")
+    raise RuntimeError(
+        "the current runtime only supports numeric literals, variable reads, and addition in numeric expressions"
+    )
+
+
+def evaluate_condition(expression: Expr, state: RuntimeState, record: RecordContext | None) -> bool:
+    """Evaluate a condition expression using the supported truthiness rules."""
+    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
+        return evaluate_numeric_expression(expression.left, state,
+                                           record) < evaluate_numeric_expression(expression.right, state, record)
+    return evaluate_numeric_expression(expression, state, record) != 0.0
+
+
+def print_value(value: str | float) -> None:
+    """Print one runtime value with the same formatting the LLVM path uses today."""
+    if isinstance(value, str):
+        print(value)
+        return
+    print(f"{value:g}")
+
+
+def resolve_field_value(index: int, record: RecordContext) -> str:
     """Resolve the value of a supported field expression."""
     if index == 0:
-        return field0
+        return record.field0
     if index == 1:
-        return field1
+        return record.field1
     return ""
 
 

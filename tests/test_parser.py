@@ -15,6 +15,7 @@ from quawk.parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    EndPattern,
     FieldExpr,
     IfStmt,
     NameExpr,
@@ -24,6 +25,7 @@ from quawk.parser import (
     Program,
     StringLiteralExpr,
     WhileStmt,
+    format_program,
     parse,
 )
 
@@ -130,3 +132,104 @@ def test_parses_while_statement_with_block() -> None:
     assert loop.condition.op is BinaryOp.LESS
     assert isinstance(loop.body, BlockStmt)
     assert len(loop.body.statements) == 2
+
+
+def test_ast_supports_multi_item_programs_with_end_pattern() -> None:
+    begin_program = parse(lex('BEGIN { print "start" }'))
+    record_program = parse(lex("{ print $2 }"))
+    end_tokens = lex('END { print "done" }')
+    end_action_program = parse(lex('{ print "done" }'))
+
+    begin_item = begin_program.items[0]
+    record_item = record_program.items[0]
+    end_pattern = EndPattern(span=end_tokens[0].span)
+    end_action = end_action_program.items[0].action
+    assert end_action is not None
+
+    end_item = PatternAction(
+        pattern=end_pattern,
+        action=end_action,
+        span=end_pattern.span,
+    )
+    program = Program(
+        items=(begin_item, record_item, end_item),
+        span=begin_item.span,
+    )
+
+    assert len(program.items) == 3
+    assert isinstance(program.items[0].pattern, BeginPattern)
+    assert program.items[1].pattern is None
+    assert isinstance(program.items[2].pattern, EndPattern)
+    assert isinstance(program.items[1].action, Action)
+    assert isinstance(program.items[1].action.statements[0], PrintStmt)
+    assert isinstance(program.items[1].action.statements[0].arguments[0], FieldExpr)
+    assert program.items[1].action.statements[0].arguments[0].index == 2
+
+
+def test_format_program_renders_end_pattern_and_multiple_items() -> None:
+    begin_program = parse(lex('BEGIN { print "start" }'))
+    record_program = parse(lex("{ print $2 }"))
+    end_tokens = lex('END { print "done" }')
+    end_action_program = parse(lex('{ print "done" }'))
+
+    begin_item = begin_program.items[0]
+    record_item = record_program.items[0]
+    end_action = end_action_program.items[0].action
+    assert end_action is not None
+
+    program = Program(
+        items=(
+            begin_item,
+            record_item,
+            PatternAction(
+                pattern=EndPattern(span=end_tokens[0].span),
+                action=end_action,
+                span=end_tokens[0].span,
+            ),
+        ),
+        span=begin_item.span,
+    )
+
+    assert format_program(program) == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        StringLiteralExpr span=<inline>:1:15 value='start'\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    Action span=<inline>:1:1\n"
+        "      PrintStmt span=<inline>:1:3\n"
+        "        FieldExpr span=<inline>:1:9 index=2\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    EndPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:1\n"
+        "      PrintStmt span=<inline>:1:3\n"
+        "        StringLiteralExpr span=<inline>:1:9 value='done'\n"
+    )
+
+
+def test_parses_mixed_begin_record_end_program() -> None:
+    program = parse(lex('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }'))
+
+    assert len(program.items) == 3
+    assert isinstance(program.items[0], PatternAction)
+    assert isinstance(program.items[0].pattern, BeginPattern)
+    assert program.items[1].pattern is None
+    assert isinstance(program.items[1].action, Action)
+    assert isinstance(program.items[1].action.statements[0], PrintStmt)
+    assert isinstance(program.items[1].action.statements[0].arguments[0], FieldExpr)
+    assert program.items[1].action.statements[0].arguments[0].index == 2
+    assert isinstance(program.items[2].pattern, EndPattern)
+    assert isinstance(program.items[2].action, Action)
+    assert isinstance(program.items[2].action.statements[0], PrintStmt)
+
+
+def test_parses_end_only_program() -> None:
+    program = parse(lex('END { print "done" }'))
+
+    assert len(program.items) == 1
+    assert isinstance(program.items[0], PatternAction)
+    assert isinstance(program.items[0].pattern, EndPattern)
+    assert isinstance(program.items[0].action, Action)
+    assert isinstance(program.items[0].action.statements[0], PrintStmt)

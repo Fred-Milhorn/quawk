@@ -174,6 +174,51 @@ def test_lexes_comparison_and_control_flow_tokens() -> None:
     ]
 
 
+def test_lexes_mixed_begin_record_end_tokens() -> None:
+    tokens = lex('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.STRING,
+        TokenKind.RBRACE,
+        TokenKind.NEWLINE,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.DOLLAR,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.NEWLINE,
+        TokenKind.END,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.STRING,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert [token.display_text() for token in tokens] == [
+        "BEGIN",
+        "{",
+        "print",
+        '"start"',
+        "}",
+        "\n",
+        "{",
+        "print",
+        "$",
+        "2",
+        "}",
+        "\n",
+        "END",
+        "{",
+        "print",
+        '"done"',
+        "}",
+        None,
+    ]
+
+
 def test_rejects_unexpected_characters() -> None:
     with pytest.raises(LexError, match="unexpected character") as excinfo:
         lex("BEGIN { @ }")
