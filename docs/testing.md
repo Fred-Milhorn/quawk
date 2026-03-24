@@ -1,6 +1,6 @@
 # Testing
 
-This document defines how `quawk` validates behavior, tracks incomplete work, and blocks regressions in CI.
+This document defines how `quawk` validates behavior, tracks incomplete work, and plans future release gates.
 
 ## Objectives
 

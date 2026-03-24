@@ -1,6 +1,8 @@
 # quawk
 
-POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tooling.
+"Quawk" is pronounced kwawk (/kwɔːk/), rhyming with words like "hawk" or "walk". 
+
+A POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tooling.
 
 ## Status
 
@@ -13,7 +15,7 @@ Implemented now:
 - Python package/bootstrap scaffold with a working end-to-end `quawk` CLI path
 - end-to-end execution for `BEGIN` programs with string/numeric print, scalar assignment, and `if`/`while` control flow
 - bare-action record processing for `$0` and `$1`
-- example program and CI workflow scaffold
+- example program scaffold
 
 Planned next:
 - mixed `BEGIN` / record / `END` execution and broader field support
@@ -56,15 +58,15 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 - [docs/design.md](docs/design.md): architecture, execution, and CLI design
 - [docs/grammar.ebnf](docs/grammar.ebnf): concrete syntax grammar
 - [docs/quawk.asdl](docs/quawk.asdl): abstract syntax tree schema
-- [docs/testing.md](docs/testing.md): test strategy, workflow, and CI gates
+- [docs/testing.md](docs/testing.md): test strategy, workflow, and future release gates
 - [docs/roadmap.md](docs/roadmap.md): phased implementation plan and active backlog
 
 ## Compatibility Snapshot
 
 | Component | Supported | Notes |
 |---|---|---|
-| OS | Linux, macOS | CI matrix expands over time |
-| Architecture | x86_64, aarch64 | As available in CI provider |
+| OS | Linux, macOS | Local development targets today |
+| Architecture | x86_64, aarch64 | As LLVM tooling is available locally |
 | Python | 3.14.x | Managed by `uv` |
 | LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`) | Used for the current LLVM-backed execution path |
 

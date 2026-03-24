@@ -17,7 +17,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 
 | Phase | Name | Primary Outcome |
 |---|---|---|
-| P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, CI basics |
+| P0 | Python Bootstrap and Tooling | Package skeleton, env bootstrap, and local tooling basics |
 | P1 | End-to-End MVP Path | First runnable `quawk` JIT path for the simplest AWK program |
 | P2 | Core Subset Expansion | `BEGIN`, scalar expressions, simple record actions, and control flow |
 | P3 | Mixed Program Execution | `BEGIN` + record actions + `END` in one executable program |
@@ -51,11 +51,11 @@ In scope:
 - create `src/`, `tests/`, `examples/`, and `scripts/`
 - add initial package and CLI entrypoint placeholder
 - add `pyproject.toml` and dependency policy
-- add CI-ready baseline checks
+- add baseline local format/lint/type/test checks
 
 Exit criteria:
 - bootstrap flow works from a clean checkout
-- CI required jobs pass on default branch target platforms
+- documented local checks run successfully in the project environment
 
 ### P1: End-to-End MVP Path
 
@@ -246,7 +246,7 @@ Priority values:
 | T-004 | P0 | P1 | Add `uv` bootstrap instructions for Python `3.14.x` and the project `.venv` | none | Clean checkout setup succeeds with documented `uv` commands | done |
 | T-005 | P0 | P1 | Add `uv`-based contributor command shortcuts or workflow notes | T-004 | Common contributor commands run cleanly from the documented `uv` environment | done |
 | T-006 | P0 | P0 | Keep testing workflow centered on pytest rather than custom gate tooling | none | Repo workflow is described without a second metadata/checking system | done |
-| T-007 | P0 | P1 | Add CI workflow for format/lint/type/test checks | T-002 | CI blocks merges on required failures | done |
+| T-007 | P0 | P1 | Document local format/lint/type/test checks | T-002 | Common local quality checks are documented and runnable | done |
 | T-008 | P0 | P1 | Add `CONTRIBUTING.md` workflow and review expectations | none | README links contributing guide and guide is coherent | done |
 | T-043 | P1 | P0 | Author P1 MVP end-to-end tests for the initial executable path | T-002, T-006 | Minimal end-to-end CLI execution tests are committed before implementation | done |
 | T-049 | P1 | P0 | Implement minimal lexer support for `BEGIN`, `print`, braces, and string literals | T-043 | MVP tokenization is stable and supporting lexer tests pass | done |
