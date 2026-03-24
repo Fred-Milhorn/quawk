@@ -10,8 +10,10 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import TextIO
 
+from . import runtime_support
 from .parser import (
     Action,
     AssignStmt,
@@ -121,12 +123,7 @@ def execute_llvm_ir(llvm_ir: str) -> int:
         ir_path = Path(file_obj.name)
 
     try:
-        result = subprocess.run(
-            [lli_path, "--entry-function=quawk_main", str(ir_path)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        result = run_process_with_current_stdin([lli_path, "--entry-function=quawk_main", str(ir_path)])
     finally:
         ir_path.unlink(missing_ok=True)
 
@@ -574,10 +571,192 @@ def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
     if requires_input_aware_execution(program):
-        records = collect_record_contexts(program, input_files, field_separator)
-        llvm_ir = lower_input_aware_program_to_llvm_ir(program, records)
+        llvm_ir = lower_to_llvm_ir(program)
+        llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator)
         return execute_llvm_ir(llvm_ir)
     return execute(program)
+
+
+def link_reusable_execution_module(
+    program_llvm_ir: str,
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+) -> str:
+    """Link the reusable program module, runtime support, and execution driver into one IR module."""
+    with TemporaryDirectory() as temp_dir_name:
+        temp_dir = Path(temp_dir_name)
+        runtime_bitcode = runtime_support.compile_runtime_bitcode(temp_dir)
+        program_bitcode = assemble_llvm_ir(program_llvm_ir, temp_dir / "program.bc")
+        driver_ir = build_execution_driver_llvm_ir(program, program_llvm_ir, input_files, field_separator)
+        driver_bitcode = assemble_llvm_ir(driver_ir, temp_dir / "driver.bc")
+        linked_ir_path = temp_dir / "linked.ll"
+
+        result = subprocess.run(
+            [
+                runtime_support.find_llvm_link(),
+                str(runtime_bitcode),
+                str(program_bitcode),
+                str(driver_bitcode),
+                "-S",
+                "-o",
+                str(linked_ir_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "llvm-link failed to link the reusable execution module")
+        return linked_ir_path.read_text(encoding="utf-8")
+
+
+def assemble_llvm_ir(llvm_ir: str, output_path: Path) -> Path:
+    """Assemble one LLVM IR module to bitcode and return the output path."""
+    source_path = output_path.with_suffix(".ll")
+    source_path.write_text(llvm_ir, encoding="utf-8")
+    result = subprocess.run(
+        [
+            runtime_support.find_llvm_as(),
+            str(source_path),
+            "-o",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "llvm-as failed to assemble generated IR")
+    return output_path
+
+
+def build_execution_driver_llvm_ir(
+    program: Program,
+    program_llvm_ir: str,
+    input_files: list[str],
+    field_separator: str | None,
+) -> str:
+    """Build the reusable execution driver that invokes runtime and program phases."""
+    _, record_items, _ = partition_runtime_items(program)
+    has_record_phase = bool(record_items)
+    state_type = extract_state_type_declaration(program_llvm_ir)
+    uses_state = state_type is not None
+
+    globals_block = render_driver_globals(input_files, field_separator)
+    state_setup = render_driver_state_setup(uses_state)
+    record_loop = render_driver_record_loop(has_record_phase)
+
+    return "\n".join(
+        [
+            "declare ptr @qk_runtime_create(i32, ptr, ptr)",
+            "declare void @qk_runtime_destroy(ptr)",
+            "declare i1 @qk_next_record(ptr)",
+            "declare void @quawk_begin(ptr, ptr)",
+            "declare void @quawk_record(ptr, ptr)",
+            "declare void @quawk_end(ptr, ptr)",
+            "",
+            *([state_type] if state_type is not None else []),
+            *([] if state_type is None else [""]),
+            *globals_block,
+            "",
+            "define i32 @quawk_main() {",
+            "entry:",
+            *state_setup,
+            *render_driver_runtime_create(input_files, field_separator),
+            "  call void @quawk_begin(ptr %rt, ptr %state)",
+            *record_loop,
+            "  call void @quawk_end(ptr %rt, ptr %state)",
+            "  call void @qk_runtime_destroy(ptr %rt)",
+            "  ret i32 0",
+            "}",
+            "",
+        ]
+    )
+
+
+def render_driver_globals(input_files: list[str], field_separator: str | None) -> list[str]:
+    """Render driver globals for input-file operands and field-separator text."""
+    globals_block: list[str] = []
+
+    for index, path in enumerate(input_files):
+        global_name = f"@.driver.input.{index}"
+        data = path.encode("utf-8") + b"\x00"
+        globals_block.append(declare_bytes(global_name, data))
+
+    if input_files:
+        elements = []
+        for index, path in enumerate(input_files):
+            global_name = f"@.driver.input.{index}"
+            byte_length = len(path.encode("utf-8")) + 1
+            elements.append(f"ptr {emit_gep_constant(byte_length, global_name)}")
+        globals_block.append(
+            f"@.driver.inputs = private unnamed_addr constant [{len(input_files)} x ptr] [{', '.join(elements)}]"
+        )
+
+    if field_separator is not None:
+        data = field_separator.encode("utf-8") + b"\x00"
+        globals_block.append(declare_bytes("@.driver.fs", data))
+
+    return globals_block
+
+
+def render_driver_state_setup(uses_state: bool) -> list[str]:
+    """Render driver setup for the reusable program state pointer."""
+    if not uses_state:
+        return ["  %state = getelementptr i8, ptr null, i64 0"]
+    return [
+        "  %state.storage = alloca %quawk.state",
+        "  %state = getelementptr i8, ptr %state.storage, i64 0",
+    ]
+
+
+def render_driver_runtime_create(input_files: list[str], field_separator: str | None) -> list[str]:
+    """Render the runtime-creation call for the execution driver."""
+    if input_files:
+        argv_setup = [
+            f"  %argv = getelementptr inbounds [{len(input_files)} x ptr], ptr @.driver.inputs, i64 0, i64 0",
+        ]
+        argc_operand = str(len(input_files))
+    else:
+        argv_setup = ["  %argv = getelementptr i8, ptr null, i64 0"]
+        argc_operand = "0"
+
+    if field_separator is None:
+        fs_setup = ["  %fs = getelementptr i8, ptr null, i64 0"]
+    else:
+        fs_length = len(field_separator.encode("utf-8")) + 1
+        fs_setup = [f"  %fs = {emit_gep_inline(fs_length, '@.driver.fs')}"]
+
+    return [
+        *argv_setup,
+        *fs_setup,
+        f"  %rt = call ptr @qk_runtime_create(i32 {argc_operand}, ptr %argv, ptr %fs)",
+    ]
+
+
+def render_driver_record_loop(has_record_phase: bool) -> list[str]:
+    """Render the per-record runtime loop in the execution driver."""
+    if not has_record_phase:
+        return []
+    return [
+        "  br label %record.cond",
+        "record.cond:",
+        "  %has.record = call i1 @qk_next_record(ptr %rt)",
+        "  br i1 %has.record, label %record.body, label %record.done",
+        "record.body:",
+        "  call void @quawk_record(ptr %rt, ptr %state)",
+        "  br label %record.cond",
+        "record.done:",
+    ]
+
+
+def extract_state_type_declaration(program_llvm_ir: str) -> str | None:
+    """Extract the reusable state-type declaration from one lowered program module."""
+    for line in program_llvm_ir.splitlines():
+        if line.startswith("%quawk.state = type "):
+            return line
+    return None
 
 
 def requires_input_aware_execution(program: Program) -> bool:
@@ -922,6 +1101,45 @@ def declare_bytes(global_name: str, data: bytes) -> str:
 def emit_gep(target: str, byte_length: int, global_name: str) -> str:
     """Emit a GEP from the start of a global byte array."""
     return f"  {target} = getelementptr inbounds [{byte_length} x i8], ptr {global_name}, i64 0, i64 0"
+
+
+def emit_gep_inline(byte_length: int, global_name: str) -> str:
+    """Render an inline GEP expression from the start of a global byte array."""
+    return f"getelementptr inbounds [{byte_length} x i8], ptr {global_name}, i64 0, i64 0"
+
+
+def emit_gep_constant(byte_length: int, global_name: str) -> str:
+    """Render a constant-expression GEP from the start of a global byte array."""
+    return f"getelementptr inbounds ([{byte_length} x i8], ptr {global_name}, i64 0, i64 0)"
+
+
+def run_process_with_current_stdin(command: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run one subprocess while forwarding the current stdin source when possible."""
+    stdin_handle = current_stdin_handle()
+    if stdin_handle is not None:
+        return subprocess.run(
+            command,
+            stdin=stdin_handle,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    try:
+        stdin_text = sys.stdin.read()
+    except OSError:
+        stdin_text = ""
+
+    return subprocess.run(command, input=stdin_text, capture_output=True, text=True, check=False)
+
+
+def current_stdin_handle() -> TextIO | None:
+    """Return the current stdin handle when it can be forwarded directly to a subprocess."""
+    try:
+        sys.stdin.fileno()
+    except (AttributeError, OSError):
+        return None
+    return sys.stdin
 
 
 def format_double_literal(value: float) -> str:
