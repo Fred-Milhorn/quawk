@@ -8,7 +8,6 @@ from .source import SourceSpan
 
 
 class QuawkError(ValueError):
-
     def __init__(self, message: str, span: SourceSpan):
         super().__init__(message)
         self.message = message
@@ -27,6 +26,4 @@ def format_error(error: QuawkError) -> str:
     """Render a compiler error with source context and a caret indicator."""
     location = error.span.start_location()
     caret_indent = " " * (location.column - 1)
-    return (f"{error.span.format_start()}: error: {error.message}\n"
-            f"{location.line_text}\n"
-            f"{caret_indent}^\n")
+    return f"{error.span.format_start()}: error: {error.message}\n{location.line_text}\n{caret_indent}^\n"

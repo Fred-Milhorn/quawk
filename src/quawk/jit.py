@@ -47,6 +47,7 @@ class LoweringState:
     uses_puts: bool = False
     uses_printf: bool = False
     numeric_format_declared: bool = False
+    current_record: RecordContext | None = None
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -73,7 +74,7 @@ class RecordContext:
     """Host-side view of the current input record for field resolution."""
 
     field0: str
-    field1: str
+    fields: tuple[str, ...]
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -96,14 +97,19 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
-    if is_record_program(program):
-        raise RuntimeError("record-driven programs require input-aware execution")
+    if requires_input_aware_execution(program):
+        raise RuntimeError("input-aware programs require input-aware execution")
 
+    llvm_ir = lower_to_llvm_ir(program)
+    return execute_llvm_ir(llvm_ir)
+
+
+def execute_llvm_ir(llvm_ir: str) -> int:
+    """Run one LLVM IR module with `lli` and return its exit status."""
     lli_path = shutil.which("lli")
     if lli_path is None:
         raise RuntimeError("LLVM JIT tool 'lli' is not available on PATH")
 
-    llvm_ir = lower_to_llvm_ir(program)
     with NamedTemporaryFile(mode="w", suffix=".ll", encoding="utf-8", delete=False) as file_obj:
         file_obj.write(llvm_ir)
         ir_path = Path(file_obj.name)
@@ -225,6 +231,45 @@ def lower_record_program_to_llvm_ir(program: Program) -> str:
     )
 
 
+def lower_input_aware_program_to_llvm_ir(
+    program: Program,
+    records: list[RecordContext],
+) -> str:
+    """Lower one concrete input-aware execution into a single `quawk_main` module."""
+    state = LoweringState()
+    begin_actions, record_actions, end_actions = partition_runtime_actions(program)
+
+    for action in begin_actions:
+        lower_action(action, state, record=None)
+    for record in records:
+        for action in record_actions:
+            lower_action(action, state, record=record)
+    for action in end_actions:
+        lower_action(action, state, record=None)
+
+    declarations: list[str] = []
+    if state.uses_puts:
+        declarations.append("declare i32 @puts(ptr)")
+    if state.uses_printf:
+        declarations.append("declare i32 @printf(ptr, ...)")
+
+    return "\n".join(
+        [
+            *declarations,
+            "",
+            *state.globals,
+            "",
+            "define i32 @quawk_main() {",
+            "entry:",
+            *state.allocas,
+            *state.instructions,
+            "  ret i32 0",
+            "}",
+            "",
+        ]
+    )
+
+
 def lower_statement(statement: Stmt, state: LoweringState) -> None:
     """Lower one supported statement into side-effecting IR."""
     if isinstance(statement, AssignStmt):
@@ -245,6 +290,17 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
     if len(statement.arguments) != 1:
         raise RuntimeError("the current backend only supports print with one argument")
     lower_print_expression(statement.arguments[0], state)
+
+
+def lower_action(action: Action, state: LoweringState, record: RecordContext | None) -> None:
+    """Lower one action block with an optional active input record."""
+    previous_record = state.current_record
+    state.current_record = record
+    try:
+        for statement in action.statements:
+            lower_statement(statement, state)
+    finally:
+        state.current_record = previous_record
 
 
 def lower_if_statement(statement: IfStmt, state: LoweringState) -> None:
@@ -298,6 +354,20 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     if isinstance(expression, StringLiteralExpr):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, expression.value)
+        string_ptr = state.next_temp("strptr")
+        call_temp = state.next_temp("call")
+        state.instructions.extend(
+            [
+                emit_gep(string_ptr, byte_length, global_name),
+                f"  {call_temp} = call i32 @puts(ptr {string_ptr})",
+            ]
+        )
+        return
+    if isinstance(expression, FieldExpr):
+        if state.current_record is None:
+            raise RuntimeError("field expressions require an active input record in the current backend")
+        state.uses_puts = True
+        global_name, byte_length = declare_string(state, resolve_field_value(expression.index, state.current_record))
         string_ptr = state.next_temp("strptr")
         call_temp = state.next_temp("call")
         state.instructions.extend(
@@ -365,14 +435,15 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
 
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
-    if requires_host_runtime(program):
-        execute_host_runtime(program, input_files, field_separator)
-        return 0
+    if requires_input_aware_execution(program):
+        records = collect_record_contexts(program, input_files, field_separator)
+        llvm_ir = lower_input_aware_program_to_llvm_ir(program, records)
+        return execute_llvm_ir(llvm_ir)
     return execute(program)
 
 
-def requires_host_runtime(program: Program) -> bool:
-    """Report whether `program` should execute through the Python host runtime."""
+def requires_input_aware_execution(program: Program) -> bool:
+    """Report whether `program` needs concrete input records during execution."""
     return is_record_program(program) or has_end_pattern(program) or len(program.items) > 1
 
 
@@ -392,15 +463,36 @@ def execute_host_runtime(program: Program, input_files: list[str], field_separat
     if record_actions:
         for line in iter_input_records(input_files):
             record_text = line.rstrip("\n")
+            fields = split_fields(record_text, field_separator)
             record = RecordContext(
                 field0=record_text,
-                field1=extract_first_field(record_text, field_separator),
+                fields=tuple(fields),
             )
             for action in record_actions:
                 execute_action(action, state, record=record)
 
     for action in end_actions:
         execute_action(action, state, record=None)
+
+
+def collect_record_contexts(
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+) -> list[RecordContext]:
+    """Materialize concrete input records for the active program execution."""
+    _, record_actions, _ = partition_runtime_actions(program)
+    if not record_actions:
+        return []
+
+    records: list[RecordContext] = []
+    for line in iter_input_records(input_files):
+        record_text = line.rstrip("\n")
+        records.append(RecordContext(
+            field0=record_text,
+            fields=tuple(split_fields(record_text, field_separator)),
+        ))
+    return records
 
 
 def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Action], list[Action]]:
@@ -442,13 +534,11 @@ def iter_input_records(input_files: list[str]) -> list[str]:
     return records
 
 
-def extract_first_field(line: str, field_separator: str | None) -> str:
-    """Return `$1` for the current record under the supported field rules."""
+def split_fields(line: str, field_separator: str | None) -> list[str]:
+    """Split one input record into AWK fields for the current supported subset."""
     if field_separator is None:
-        parts = line.split()
-    else:
-        parts = line.split(field_separator)
-    return parts[0] if parts else ""
+        return line.split()
+    return line.split(field_separator)
 
 
 def execute_action(action: Action, state: RuntimeState, record: RecordContext | None) -> None:
@@ -529,8 +619,9 @@ def resolve_field_value(index: int, record: RecordContext) -> str:
     """Resolve the value of a supported field expression."""
     if index == 0:
         return record.field0
-    if index == 1:
-        return record.field1
+    field_position = index - 1
+    if 0 <= field_position < len(record.fields):
+        return record.fields[field_position]
     return ""
 
 

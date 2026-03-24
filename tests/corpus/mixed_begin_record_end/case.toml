@@ -2,8 +2,7 @@ id = "mixed_begin_record_end"
 description = "Mixed BEGIN, record action, and END execution."
 program = "program.awk"
 input = "input.txt"
-tags = ["known-gap", "mixed-program", "p3"]
-xfail_reason = "mixed BEGIN/record/END sequencing works, but $2 field reads are not supported yet"
+tags = ["supported", "mixed-program", "p3"]
 
 [expect]
 stdout = "expected.stdout"

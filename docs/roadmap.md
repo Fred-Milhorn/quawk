@@ -213,9 +213,7 @@ Next deliverable: mixed `BEGIN` / record-action / `END` execution
 Target programs:
 - `BEGIN { print "start" } { print $2 } END { print "done" }`
 
-1. `T-084` extend field handling beyond `$0` and `$1` for the supported subset
-2. `T-085` extend LLVM lowering for mixed program execution
-3. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
+1. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
 
 ## Backlog
 
@@ -307,8 +305,8 @@ Priority values:
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
 | T-083 | P3 | P0 | Extend runtime sequencing for `BEGIN`, record actions, and `END` | T-082 | Execution order matches the supported mixed-program model | done |
-| T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | todo |
-| T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | todo |
+| T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | done |
+| T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | done |
 | T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | todo |
 
 ## Cross-Cutting Tracks

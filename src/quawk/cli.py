@@ -4,8 +4,9 @@
 
 from __future__ import annotations
 
-import argparse
 import sys
+import argparse
+
 from importlib import metadata
 from pathlib import Path
 from typing import Sequence
@@ -122,12 +123,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             llvm_ir = lower_to_llvm_ir(program)
             sys.stdout.write(llvm_ir)
             return 0
+
         if args.asm:
             llvm_ir = lower_to_llvm_ir(program)
             sys.stdout.write(emit_assembly(llvm_ir))
             return 0
 
         return execute_with_inputs(program, args.files, args.field_separator)
+
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
         return 2

@@ -1,12 +1,11 @@
-# P3 mixed-program execution baseline tests.
-# These cases define the next deliverable before frontend/runtime support lands.
+# P3 mixed-program execution tests.
+# These cases verify the current `BEGIN` / record / `END` execution subset and
+# keep the remaining mixed-program gaps visible.
 
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -43,10 +42,6 @@ def test_file_based_mixed_begin_record_end_executes_for_supported_fields() -> No
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-084/T-085: mixed execution is sequenced, but $2 field reads are not supported yet",
-)
 def test_inline_mixed_begin_record_end_executes() -> None:
     result = run_quawk(
         'BEGIN { print "start" } { print $2 } END { print "done" }',
@@ -58,10 +53,6 @@ def test_inline_mixed_begin_record_end_executes() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-084/T-085: mixed file execution is sequenced, but $2 field reads are not supported yet",
-)
 def test_file_based_mixed_begin_record_end_executes() -> None:
     program_path = ROOT / "tests" / "corpus" / "mixed_begin_record_end" / "program.awk"
     input_path = ROOT / "tests" / "corpus" / "mixed_begin_record_end" / "input.txt"

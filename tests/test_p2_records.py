@@ -36,6 +36,14 @@ def test_bare_action_prints_first_field_from_stdin() -> None:
     assert result.stderr == ""
 
 
+def test_bare_action_prints_second_field_from_stdin() -> None:
+    result = run_quawk("{ print $2 }", stdin="alpha beta\ngamma delta\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "beta\ndelta\n"
+    assert result.stderr == ""
+
+
 def test_bare_action_prints_first_field_from_file() -> None:
     input_path = ROOT / "tests" / "fixtures" / "p2" / "records.txt"
     result = run_quawk("{ print $1 }", str(input_path))
@@ -51,4 +59,13 @@ def test_bare_action_uses_custom_field_separator() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "alpha\ngamma\n"
+    assert result.stderr == ""
+
+
+def test_bare_action_uses_custom_field_separator_for_second_field() -> None:
+    input_path = ROOT / "tests" / "fixtures" / "p2" / "records_colon.txt"
+    result = run_quawk("-F:", "{ print $2 }", str(input_path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "beta\ndelta\n"
     assert result.stderr == ""
