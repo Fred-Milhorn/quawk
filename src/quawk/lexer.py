@@ -23,8 +23,10 @@ class TokenKind(Enum):
     IDENT = auto()
     STRING = auto()
     NUMBER = auto()
+    REGEX = auto()
     LESS = auto()
     PLUS = auto()
+    SLASH = auto()
     EQUAL = auto()
     DOLLAR = auto()
     LBRACE = auto()
@@ -57,6 +59,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.WHILE: "while",
     TokenKind.LESS: "<",
     TokenKind.PLUS: "+",
+    TokenKind.SLASH: "/",
     TokenKind.EQUAL: "=",
     TokenKind.DOLLAR: "$",
     TokenKind.LBRACE: "{",
@@ -71,8 +74,8 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
     "<": TokenKind.LESS,
     "+": TokenKind.PLUS,
-    "=": TokenKind.EQUAL,
     "$": TokenKind.DOLLAR,
+    "=": TokenKind.EQUAL,
     "{": TokenKind.LBRACE,
     "}": TokenKind.RBRACE,
     "(": TokenKind.LPAREN,
@@ -120,6 +123,9 @@ class Lexer:
         """Create a scanner over `source`."""
         self.source = source
         self.cursor = SourceCursor(source)
+        # `/` is only a regex opener where the grammar is looking for a new
+        # operand; otherwise it is the division operator token.
+        self.expect_operand = True
 
     def scan_tokens(self) -> list[Token]:
         """Scan the full token stream, always terminating with EOF."""
@@ -148,12 +154,15 @@ class Lexer:
         if char == "\n":
             self.cursor.advance()
             end = self.cursor.point()
-            return Token(TokenKind.NEWLINE, self.source.span(start, end))
+            return self.finish_token(Token(TokenKind.NEWLINE, self.source.span(start, end)))
+
+        if char == "/":
+            return self.scan_slash_or_regex(start)
 
         if char in PUNCTUATION_KINDS:
             self.cursor.advance()
             end = self.cursor.point()
-            return Token(PUNCTUATION_KINDS[char], self.source.span(start, end))
+            return self.finish_token(Token(PUNCTUATION_KINDS[char], self.source.span(start, end)))
 
         if char == '"':
             return self.scan_string_literal(start)
@@ -178,7 +187,7 @@ class Lexer:
         end = self.cursor.point()
         kind = KEYWORDS.get(text, TokenKind.IDENT)
         token_text = text if kind is TokenKind.IDENT else None
-        return Token(kind, self.source.span(start, end), token_text)
+        return self.finish_token(Token(kind, self.source.span(start, end), token_text))
 
     def scan_string_literal(self, start: SourcePoint) -> Token:
         """Scan a double-quoted string literal without decoding escapes yet."""
@@ -197,7 +206,9 @@ class Lexer:
                 escaped = True
                 continue
             if char == '"':
-                return Token(TokenKind.STRING, self.source.span(start, self.cursor.point()), "".join(chars))
+                return self.finish_token(
+                    Token(TokenKind.STRING, self.source.span(start, self.cursor.point()), "".join(chars))
+                )
 
         raise LexError("unterminated string literal", self.source.span(start, self.cursor.point()))
 
@@ -216,7 +227,62 @@ class Lexer:
 
         text = self.take_while(should_continue)
         end = self.cursor.point()
-        return Token(TokenKind.NUMBER, self.source.span(start, end), text)
+        return self.finish_token(Token(TokenKind.NUMBER, self.source.span(start, end), text))
+
+    def scan_slash_or_regex(self, start: SourcePoint) -> Token:
+        """Scan either a regex literal or a slash operator token."""
+        if not self.expect_operand:
+            self.cursor.advance()
+            return self.finish_token(Token(TokenKind.SLASH, self.source.span(start, self.cursor.point())))
+        return self.scan_regex_literal(start)
+
+    def scan_regex_literal(self, start: SourcePoint) -> Token:
+        """Scan a raw `/.../` regex literal with basic escape/class awareness."""
+        chars = [self.cursor.advance() or ""]
+        escaped = False
+        in_char_class = False
+
+        while (char := self.cursor.peek()) is not None:
+            if char == "\n" and not escaped:
+                break
+
+            chars.append(self.cursor.advance() or "")
+            if escaped:
+                escaped = False
+                continue
+            if char == "\\":
+                escaped = True
+                continue
+            if char == "[" and not in_char_class:
+                in_char_class = True
+                continue
+            if char == "]" and in_char_class:
+                in_char_class = False
+                continue
+            if char == "/" and not in_char_class:
+                return self.finish_token(
+                    Token(TokenKind.REGEX, self.source.span(start, self.cursor.point()), "".join(chars))
+                )
+
+        raise LexError("unterminated regex literal", self.source.span(start, self.cursor.point()))
+
+    def finish_token(self, token: Token) -> Token:
+        """Update scanner context after producing one non-trivia token."""
+        self.expect_operand = token.kind in {
+            TokenKind.COMMA,
+            TokenKind.DOLLAR,
+            TokenKind.EQUAL,
+            TokenKind.LBRACE,
+            TokenKind.LESS,
+            TokenKind.LPAREN,
+            TokenKind.NEWLINE,
+            TokenKind.PLUS,
+            TokenKind.PRINT,
+            TokenKind.PRINTF,
+            TokenKind.SEMICOLON,
+            TokenKind.SLASH,
+        }
+        return token
 
     def take_while(self, predicate: Callable[[str], bool]) -> str:
         """Consume characters while `predicate` returns true."""

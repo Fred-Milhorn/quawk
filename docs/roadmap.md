@@ -212,9 +212,24 @@ Next deliverable: regex and broader expression surface
 
 Target programs:
 - `/foo/ { print $0 }`
+- `BEGIN { print 1 == 1 }`
+- `BEGIN { print (1 < 2) && (2 < 3) }`
 
-1. `T-011` implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active
-2. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-087` author end-to-end tests for regex-driven record filtering
+2. `T-088` define AST support for regex patterns in the supported subset
+3. `T-089` extend the parser for regex-driven pattern actions
+4. `T-090` implement runtime regex matching for record filtering
+5. `T-091` extend LLVM lowering for regex-driven filtering
+6. `T-092` add integration tests for stdout/stderr/exit status of the regex-filter increment
+7. `T-093` author end-to-end tests for the broader expression increment
+8. `T-094` extend token/source-span modeling for equality and logical operators
+9. `T-095` extend lexing for equality and logical operators in the active increment
+10. `T-096` define AST nodes for equality and logical expressions
+11. `T-097` extend the parser for the broader expression increment
+12. `T-098` extend runtime support for the broader expression increment
+13. `T-099` extend LLVM lowering for the broader expression increment
+14. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
+15. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -250,13 +265,13 @@ Priority values:
 | T-055 | P2 | P0 | Author end-to-end tests for numeric print in `BEGIN` | T-054 | CLI tests exist for `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` before implementation | done |
 | T-009 | P2 | P0 | Extend token/source-span modeling for numeric literals and `+` | T-054, T-055 | Token/span code cleanly supports numeric literals and additive operators | done |
 | T-010 | P2 | P0 | Extend lexing for numeric literals, `+`, and the print-expression path | T-009, T-054, T-055 | Lexer fixtures pass for the numeric-print increment | done |
-| T-011 | P4 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | todo |
+| T-011 | P4 | P1 | Implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active | T-010 | Dedicated ambiguity tests pass when regex literals are in scope | done |
 | T-012 | P2 | P0 | Define AST nodes for numeric literals and additive binary expressions | T-009, T-054, T-055 | AST matches the numeric-print increment | done |
 | T-013 | P2 | P0 | Extend the parser for `print` expressions in `BEGIN` | T-012, T-054, T-055 | The parser accepts `BEGIN { print 1 }` and the additive form | done |
 | T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
 | T-015 | P7 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P7 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
-| T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-013, T-014 | Coverage matrix shows supported grammar areas | todo |
+| T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | todo |
 | T-044 | P5 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
 | T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
 | T-019 | P5 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
@@ -309,6 +324,20 @@ Priority values:
 | T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | done |
 | T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | done |
 | T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | done |
+| T-087 | P4 | P0 | Author end-to-end tests for regex-driven record filtering | T-086 | CLI tests exist for `/foo/ { print $0 }` before implementation | todo |
+| T-088 | P4 | P0 | Define AST support for regex patterns in the supported subset | T-011, T-087 | Frontend structures cleanly represent regex-driven pattern actions | todo |
+| T-089 | P4 | P0 | Extend the parser for regex-driven pattern actions | T-088, T-087 | The parser accepts `/foo/ { print $0 }` | todo |
+| T-090 | P4 | P0 | Implement runtime regex matching for record filtering | T-089 | Regex patterns can select records in the supported subset | todo |
+| T-091 | P4 | P0 | Extend LLVM lowering for regex-driven filtering | T-090 | `/foo/ { print $0 }` executes through the LLVM-backed path | todo |
+| T-092 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the regex-filter increment | T-091 | Integration tests run for the regex-filter increment in required CI jobs | todo |
+| T-093 | P4 | P0 | Author end-to-end tests for the broader expression increment | T-092 | CLI tests exist for representative equality/logical-expression programs before implementation | todo |
+| T-094 | P4 | P0 | Extend token/source-span modeling for equality and logical operators | T-093 | Token/span code cleanly supports the broader expression increment | todo |
+| T-095 | P4 | P0 | Extend lexing for equality and logical operators in the active increment | T-094, T-093 | Lexer fixtures pass for the broader expression increment | todo |
+| T-096 | P4 | P0 | Define AST nodes for equality and logical expressions | T-094, T-093 | AST matches the broader expression increment | todo |
+| T-097 | P4 | P0 | Extend the parser for the broader expression increment | T-096, T-093 | The parser accepts the planned equality/logical-expression programs | todo |
+| T-098 | P4 | P0 | Extend runtime support for the broader expression increment | T-097 | Runtime can execute the planned equality/logical-expression programs | todo |
+| T-099 | P4 | P0 | Extend LLVM lowering for the broader expression increment | T-098 | Representative equality/logical-expression programs execute through the LLVM-backed path | todo |
+| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the broader expression increment | T-099 | Integration tests run for the broader expression increment in required CI jobs | todo |
 
 ## Cross-Cutting Tracks
 

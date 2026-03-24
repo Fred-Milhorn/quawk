@@ -72,6 +72,59 @@ def test_lexes_general_identifiers_and_numbers() -> None:
     assert [token.text for token in tokens] == ["foo", "123", "4.5", None]
 
 
+def test_lexes_regex_literal_in_pattern_position() -> None:
+    tokens = lex("/foo/ { print $0 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.REGEX,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.DOLLAR,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert tokens[0].text == "/foo/"
+    assert tokens[0].span.format_start() == "<inline>:1:1"
+
+
+def test_lexes_regex_literal_after_print_keyword() -> None:
+    tokens = lex("BEGIN { print /foo/ }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.REGEX,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert tokens[3].text == "/foo/"
+
+
+def test_lexes_slash_as_operator_after_operand() -> None:
+    tokens = lex("BEGIN { print 8 / 2 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.NUMBER,
+        TokenKind.SLASH,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert tokens[4].display_text() == "/"
+
+
+def test_lexes_regex_with_escaped_slash_and_character_class() -> None:
+    tokens = lex(r'/fo\/o[\/]bar/ { print $0 }')
+
+    assert tokens[0].kind is TokenKind.REGEX
+    assert tokens[0].text == r'/fo\/o[\/]bar/'
+
+
 def test_lexes_numeric_print_expression_tokens() -> None:
     tokens = lex("BEGIN { print 1 + 2 }")
 
@@ -229,6 +282,12 @@ def test_rejects_unterminated_string_literals() -> None:
     with pytest.raises(LexError, match="unterminated string literal") as excinfo:
         lex('BEGIN { print "hello }')
     assert excinfo.value.span.format_start() == "<inline>:1:15"
+
+
+def test_rejects_unterminated_regex_literals() -> None:
+    with pytest.raises(LexError, match="unterminated regex literal") as excinfo:
+        lex("/foo")
+    assert excinfo.value.span.format_start() == "<inline>:1:1"
 
 
 def test_lex_preserves_file_locations_across_multiple_f_files() -> None:
