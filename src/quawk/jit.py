@@ -51,6 +51,9 @@ class LoweringState:
     uses_printf: bool = False
     numeric_format_declared: bool = False
     current_record: RecordContext | None = None
+    runtime_param: str | None = None
+    state_param: str | None = None
+    variable_indexes: dict[str, int] = field(default_factory=dict)
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -136,8 +139,8 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 
 def lower_to_llvm_ir(program: Program) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
-    if is_record_program(program):
-        return lower_record_program_to_llvm_ir(program)
+    if requires_input_aware_execution(program):
+        return lower_reusable_program_to_llvm_ir(program)
 
     state = LoweringState()
     for statement in collect_supported_statements(program):
@@ -161,6 +164,61 @@ def lower_to_llvm_ir(program: Program) -> str:
             *state.instructions,
             "  ret i32 0",
             "}",
+            "",
+        ]
+    )
+
+
+def lower_reusable_program_to_llvm_ir(program: Program) -> str:
+    """Lower a record-driven program into reusable BEGIN/record/END LLVM IR."""
+    begin_actions, record_items, end_actions = partition_runtime_items(program)
+    variable_indexes = collect_variable_indexes(program)
+    state_type = render_state_type(variable_indexes)
+
+    declarations = [
+        "declare ptr @qk_get_field(ptr, i64)",
+        "declare void @qk_print_string(ptr, ptr)",
+        "declare void @qk_print_number(ptr, double)",
+        "declare i1 @qk_regex_match_current_record(ptr, ptr)",
+    ]
+    if state_type is not None:
+        declarations.append(state_type)
+
+    begin_state = LoweringState(runtime_param="%rt", state_param="%state", variable_indexes=variable_indexes)
+    for action in begin_actions:
+        lower_action(action, begin_state, record=None)
+
+    record_state = LoweringState(
+        runtime_param="%rt",
+        state_param="%state",
+        variable_indexes=variable_indexes,
+        string_index=begin_state.string_index,
+    )
+    for pattern, action in record_items:
+        lower_record_item(pattern, action, record_state)
+
+    end_state = LoweringState(
+        runtime_param="%rt",
+        state_param="%state",
+        variable_indexes=variable_indexes,
+        string_index=record_state.string_index,
+    )
+    for action in end_actions:
+        lower_action(action, end_state, record=None)
+
+    return "\n".join(
+        [
+            *declarations,
+            "",
+            *begin_state.globals,
+            *record_state.globals,
+            *end_state.globals,
+            "",
+            render_reusable_function("quawk_begin", begin_state),
+            "",
+            render_reusable_function("quawk_record", record_state),
+            "",
+            render_reusable_function("quawk_end", end_state),
             "",
         ]
     )
@@ -296,6 +354,22 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
     lower_print_expression(statement.arguments[0], state)
 
 
+def lower_record_item(pattern: ExprPattern | None, action: Action, state: LoweringState) -> None:
+    """Lower one record-phase item in the reusable runtime model."""
+    if pattern is None:
+        lower_action(action, state, record=None)
+        return
+
+    condition = lower_record_pattern(pattern, state)
+    then_label = state.next_label("record.match")
+    end_label = state.next_label("record.next")
+    state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{end_label}")
+    state.instructions.append(f"{then_label}:")
+    lower_action(action, state, record=None)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{end_label}:")
+
+
 def lower_action(action: Action, state: LoweringState, record: RecordContext | None) -> None:
     """Lower one action block with an optional active input record."""
     previous_record = state.current_record
@@ -336,13 +410,23 @@ def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
 
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
     """Lower a scalar numeric assignment."""
-    slot_name = ensure_variable_slot(statement.name, state)
+    slot_name = variable_address(statement.name, state)
     numeric_value = lower_numeric_expression(statement.value, state)
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
 
 
-def ensure_variable_slot(name: str, state: LoweringState) -> str:
-    """Return the stack slot used for a scalar variable, creating it if needed."""
+def variable_address(name: str, state: LoweringState) -> str:
+    """Return the address used for a scalar variable in the active lowering mode."""
+    if state.state_param is not None:
+        variable_index = state.variable_indexes.get(name)
+        if variable_index is None:
+            raise RuntimeError(f"undefined variable slot in reusable backend: {name}")
+        slot_name = state.next_temp(f"varptr.{name}")
+        state.instructions.append(
+            f"  {slot_name} = getelementptr inbounds %quawk.state, ptr {state.state_param}, i32 0, i32 {variable_index}"
+        )
+        return slot_name
+
     existing = state.variable_slots.get(name)
     if existing is not None:
         return existing
@@ -355,6 +439,10 @@ def ensure_variable_slot(name: str, state: LoweringState) -> str:
 
 def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one supported `print` expression into side-effecting IR."""
+    if state.runtime_param is not None:
+        lower_runtime_print_expression(expression, state)
+        return
+
     if isinstance(expression, StringLiteralExpr):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, expression.value)
@@ -395,15 +483,40 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     )
 
 
+def lower_runtime_print_expression(expression: Expr, state: LoweringState) -> None:
+    """Lower one print expression against the reusable runtime ABI."""
+    assert state.runtime_param is not None
+    if isinstance(expression, StringLiteralExpr):
+        global_name, byte_length = declare_string(state, expression.value)
+        string_ptr = state.next_temp("strptr")
+        state.instructions.extend(
+            [
+                emit_gep(string_ptr, byte_length, global_name),
+                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_ptr})",
+            ]
+        )
+        return
+    if isinstance(expression, FieldExpr):
+        field_ptr = state.next_temp("field")
+        state.instructions.extend(
+            [
+                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {expression.index})",
+                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
+            ]
+        )
+        return
+
+    numeric_value = lower_numeric_expression(expression, state)
+    state.instructions.append(f"  call void @qk_print_number(ptr {state.runtime_param}, double {numeric_value})")
+
+
 def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
     """Lower a numeric expression and return the LLVM operand for its value."""
     if isinstance(expression, NumericLiteralExpr):
         return format_double_literal(expression.value)
 
     if isinstance(expression, NameExpr):
-        slot_name = state.variable_slots.get(expression.name)
-        if slot_name is None:
-            raise RuntimeError(f"undefined variable in current backend: {expression.name}")
+        slot_name = variable_address(expression.name, state)
         temp = state.next_temp("load")
         state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
         return temp
@@ -435,6 +548,27 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     temp = state.next_temp("truthy")
     state.instructions.append(f"  {temp} = fcmp one double {numeric_value}, 0.000000000000000e+00")
     return temp
+
+
+def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
+    """Lower one supported record-selection pattern in the reusable runtime model."""
+    if isinstance(pattern.test, RegexLiteralExpr):
+        pattern_text = pattern.test.raw_text[1:-1]
+        global_name, byte_length = declare_string(state, pattern_text)
+        string_ptr = state.next_temp("regexptr")
+        match_result = state.next_temp("match")
+        assert state.runtime_param is not None
+        state.instructions.extend(
+            [
+                emit_gep(string_ptr, byte_length, global_name),
+                (
+                    f"  {match_result} = call i1 @qk_regex_match_current_record("
+                    f"ptr {state.runtime_param}, ptr {string_ptr})"
+                ),
+            ]
+        )
+        return match_result
+    raise RuntimeError("the reusable backend only supports regex expression patterns for record selection")
 
 
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
@@ -688,6 +822,76 @@ def field_parameter_name(index: int) -> str:
     if index == 1:
         return "%field1"
     raise RuntimeError("the record-loop increment only supports $0 and $1")
+
+
+def collect_variable_indexes(program: Program) -> dict[str, int]:
+    """Collect stable reusable-state indexes for scalar variables in `program`."""
+    names: list[str] = []
+    seen: set[str] = set()
+
+    def note_name(name: str) -> None:
+        if name in seen:
+            return
+        seen.add(name)
+        names.append(name)
+
+    def visit_expression(expression: Expr) -> None:
+        if isinstance(expression, NameExpr):
+            note_name(expression.name)
+            return
+        if isinstance(expression, BinaryExpr):
+            visit_expression(expression.left)
+            visit_expression(expression.right)
+
+    def visit_statement(statement: Stmt) -> None:
+        if isinstance(statement, AssignStmt):
+            note_name(statement.name)
+            visit_expression(statement.value)
+            return
+        if isinstance(statement, BlockStmt):
+            for nested in statement.statements:
+                visit_statement(nested)
+            return
+        if isinstance(statement, IfStmt):
+            visit_expression(statement.condition)
+            visit_statement(statement.then_branch)
+            return
+        if isinstance(statement, WhileStmt):
+            visit_expression(statement.condition)
+            visit_statement(statement.body)
+            return
+        if isinstance(statement, PrintStmt):
+            for argument in statement.arguments:
+                visit_expression(argument)
+
+    for item in program.items:
+        if not isinstance(item, PatternAction) or not isinstance(item.action, Action):
+            continue
+        for statement in item.action.statements:
+            visit_statement(statement)
+
+    return {name: index for index, name in enumerate(names)}
+
+
+def render_state_type(variable_indexes: dict[str, int]) -> str | None:
+    """Render the reusable state-struct declaration when variables are present."""
+    if not variable_indexes:
+        return None
+    fields = ", ".join("double" for _ in variable_indexes)
+    return f"%quawk.state = type {{ {fields} }}"
+
+
+def render_reusable_function(name: str, state: LoweringState) -> str:
+    """Render one reusable BEGIN/record/END function body."""
+    return "\n".join(
+        [
+            f"define void @{name}(ptr %rt, ptr %state) {{",
+            "entry:",
+            *state.instructions,
+            "  ret void",
+            "}",
+        ]
+    )
 
 
 def declare_string(state: LoweringState, literal: str) -> tuple[str, int]:

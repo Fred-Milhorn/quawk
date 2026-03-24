@@ -221,19 +221,17 @@ Target programs:
 - `BEGIN { print "start" } { print $2 } END { print "done" }`
 - `/foo/ { print $0 }`
 
-1. `T-103` replace concrete-input lowering with reusable `BEGIN` / record / `END` program lowering
-2. `T-104` route public execution through the reusable program/runtime split
-3. `T-105` make `--ir` / `--asm` use reusable lowering for record-driven programs
-4. `T-106` add regression tests that prove record-driven execution no longer materializes whole input before lowering
-5. `T-093` author end-to-end tests for the broader expression increment
-6. `T-094` extend token/source-span modeling for equality and logical operators
-7. `T-095` extend lexing for equality and logical operators in the active increment
-8. `T-096` define AST nodes for equality and logical expressions
-9. `T-097` extend the parser for the broader expression increment
-10. `T-098` extend runtime support for the broader expression increment
-11. `T-099` extend LLVM lowering for the broader expression increment
-12. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
-13. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-104` route public execution through the reusable program/runtime split
+2. `T-106` add regression tests that prove record-driven execution no longer materializes whole input before lowering
+3. `T-093` author end-to-end tests for the broader expression increment
+4. `T-094` extend token/source-span modeling for equality and logical operators
+5. `T-095` extend lexing for equality and logical operators in the active increment
+6. `T-096` define AST nodes for equality and logical expressions
+7. `T-097` extend the parser for the broader expression increment
+8. `T-098` extend runtime support for the broader expression increment
+9. `T-099` extend LLVM lowering for the broader expression increment
+10. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
+11. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -336,9 +334,9 @@ Priority values:
 | T-092 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the regex-filter increment | T-091 | Integration tests run for the regex-filter increment in required CI jobs | done |
 | T-101 | P4 | P0 | Author backend and CLI tests for reusable IR on record-driven programs | T-092 | Tests specify reusable `--ir` / `--asm` behavior for bare actions, mixed programs, and regex filters before the refactor lands | done |
 | T-102 | P4 | P0 | Introduce a small C runtime support layer for streaming input and field access | T-101 | Runtime support owns record iteration, field splitting, output helpers, and regex matching behind a stable ABI | done |
-| T-103 | P4 | P0 | Replace concrete-input lowering with reusable `BEGIN` / record / `END` program lowering | T-102 | Record-driven lowering emits reusable program IR rather than one module per concrete input stream | todo |
+| T-103 | P4 | P0 | Replace concrete-input lowering with reusable `BEGIN` / record / `END` program lowering | T-102 | Record-driven lowering emits reusable program IR rather than one module per concrete input stream | done |
 | T-104 | P4 | P0 | Route public execution through the reusable program/runtime split | T-103 | Record-driven execution no longer depends on Python-side whole-input materialization or regex filtering | todo |
-| T-105 | P4 | P0 | Make `--ir` and `--asm` use reusable lowering for record-driven programs | T-103 | `--ir` and `--asm` succeed for supported record-driven programs without consuming or specializing to the input stream | todo |
+| T-105 | P4 | P0 | Make `--ir` and `--asm` use reusable lowering for record-driven programs | T-103 | `--ir` and `--asm` succeed for supported record-driven programs without consuming or specializing to the input stream | done |
 | T-106 | P4 | P1 | Add regression tests for bounded-memory record-driven execution shape | T-104, T-105 | Tests prove the public record-driven path no longer relies on whole-input collection before lowering | todo |
 | T-093 | P4 | P0 | Author end-to-end tests for the broader expression increment | T-106 | CLI tests exist for representative equality/logical-expression programs before implementation | todo |
 | T-094 | P4 | P0 | Extend token/source-span modeling for equality and logical operators | T-093 | Token/span code cleanly supports the broader expression increment | todo |

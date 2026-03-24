@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import io
 
-import pytest
-
 from quawk import jit
 from quawk.lexer import lex
 from quawk.parser import Program, parse
@@ -113,7 +111,6 @@ def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) ->
     assert llvm_ir.count("call i32 @puts(") == 2
 
 
-@pytest.mark.xfail(strict=True, reason="mixed_lowering_not_reusable")
 def test_lower_to_llvm_ir_supports_reusable_mixed_program_lowering() -> None:
     program = parse_program('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
 
@@ -124,7 +121,6 @@ def test_lower_to_llvm_ir_supports_reusable_mixed_program_lowering() -> None:
     assert "@qk_get_field" in llvm_ir
 
 
-@pytest.mark.xfail(strict=True, reason="regex_lowering_not_reusable")
 def test_lower_to_llvm_ir_supports_reusable_regex_program_lowering() -> None:
     program = parse_program("/foo/ { print $0 }")
 

@@ -5,8 +5,6 @@
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -250,12 +248,12 @@ def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
     result = run_quawk("--ir", "{ print $1 }")
 
     assert result.returncode == 0, result.stderr
-    assert "define i32 @quawk_record(ptr %field0, ptr %field1)" in result.stdout
-    assert "call i32 @puts(ptr %field1)" in result.stdout
+    assert "define void @quawk_record(ptr %rt, ptr %state)" in result.stdout
+    assert "@qk_get_field" in result.stdout
+    assert "ptr %field1" not in result.stdout
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="record_ir_not_reusable")
 def test_quawk_ir_flag_prints_reusable_record_program_ir() -> None:
     result = run_quawk("--ir", "{ print $1 }")
 
@@ -287,7 +285,6 @@ def test_quawk_asm_flag_prints_assembly_and_stops() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="mixed_asm_not_reusable")
 def test_quawk_asm_flag_prints_mixed_program_assembly() -> None:
     result = run_quawk("--asm", 'BEGIN { print "start" } { print $2 } END { print "done" }')
 
@@ -298,7 +295,6 @@ def test_quawk_asm_flag_prints_mixed_program_assembly() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="mixed_ir_not_reusable")
 def test_quawk_ir_flag_prints_reusable_mixed_program_ir() -> None:
     result = run_quawk("--ir", 'BEGIN { print "start" } { print $2 } END { print "done" }')
 
@@ -310,7 +306,6 @@ def test_quawk_ir_flag_prints_reusable_mixed_program_ir() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="regex_ir_not_reusable")
 def test_quawk_ir_flag_prints_reusable_regex_program_ir() -> None:
     result = run_quawk("--ir", "/foo/ { print $0 }", stdin="foo\nbar\nfood\n")
 
