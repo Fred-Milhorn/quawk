@@ -25,6 +25,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+quawk = ["runtime/*.c", "runtime/*.h"]
+
 [tool.mypy]
 python_version = "3.14"
 strict = true
