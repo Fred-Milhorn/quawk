@@ -5,13 +5,16 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def run_quawk(*args: str) -> subprocess.CompletedProcess[str]:
+def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["quawk", *args],
         cwd=ROOT,
+        input=stdin,
         capture_output=True,
         text=True,
         check=False,
@@ -252,6 +255,17 @@ def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
     assert result.stderr == ""
 
 
+@pytest.mark.xfail(strict=True, reason="record_ir_not_reusable")
+def test_quawk_ir_flag_prints_reusable_record_program_ir() -> None:
+    result = run_quawk("--ir", "{ print $1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert "@qk_get_field" in result.stdout
+    assert "ptr %field1" not in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_control_flow_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { if (1 < 2) print 3 }")
 
@@ -270,6 +284,39 @@ def test_quawk_asm_flag_prints_assembly_and_stops() -> None:
     assert result.returncode == 0, result.stderr
     assert "quawk_main" in result.stdout
     assert "puts" in result.stdout
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="mixed_asm_not_reusable")
+def test_quawk_asm_flag_prints_mixed_program_assembly() -> None:
+    result = run_quawk("--asm", 'BEGIN { print "start" } { print $2 } END { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "quawk_begin" in result.stdout
+    assert "quawk_record" in result.stdout
+    assert "quawk_end" in result.stdout
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="mixed_ir_not_reusable")
+def test_quawk_ir_flag_prints_reusable_mixed_program_ir() -> None:
+    result = run_quawk("--ir", 'BEGIN { print "start" } { print $2 } END { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_begin(" in result.stdout
+    assert "define void @quawk_record(" in result.stdout
+    assert "define void @quawk_end(" in result.stdout
+    assert "@qk_get_field" in result.stdout
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="regex_ir_not_reusable")
+def test_quawk_ir_flag_prints_reusable_regex_program_ir() -> None:
+    result = run_quawk("--ir", "/foo/ { print $0 }", stdin="foo\nbar\nfood\n")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert "@qk_regex_match_current_record" in result.stdout
     assert result.stderr == ""
 
 

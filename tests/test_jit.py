@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import io
 
+import pytest
+
 from quawk import jit
 from quawk.lexer import lex
 from quawk.parser import Program, parse
@@ -109,3 +111,23 @@ def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) ->
     assert 'c"\\66\\6F\\6F\\64\\00"' in llvm_ir
     assert 'c"\\62\\61\\72\\00"' not in llvm_ir
     assert llvm_ir.count("call i32 @puts(") == 2
+
+
+@pytest.mark.xfail(strict=True, reason="mixed_lowering_not_reusable")
+def test_lower_to_llvm_ir_supports_reusable_mixed_program_lowering() -> None:
+    program = parse_program('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "define void @quawk_begin(" in llvm_ir
+    assert "define void @quawk_record(" in llvm_ir
+    assert "define void @quawk_end(" in llvm_ir
+    assert "@qk_get_field" in llvm_ir
+
+
+@pytest.mark.xfail(strict=True, reason="regex_lowering_not_reusable")
+def test_lower_to_llvm_ir_supports_reusable_regex_program_lowering() -> None:
+    program = parse_program("/foo/ { print $0 }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "define void @quawk_record(" in llvm_ir
+    assert "@qk_regex_match_current_record" in llvm_ir
