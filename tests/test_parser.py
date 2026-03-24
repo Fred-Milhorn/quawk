@@ -298,3 +298,18 @@ def test_parses_end_only_program() -> None:
     assert isinstance(program.items[0].pattern, EndPattern)
     assert isinstance(program.items[0].action, Action)
     assert isinstance(program.items[0].action.statements[0], PrintStmt)
+
+
+def test_parses_regex_pattern_action_program() -> None:
+    program = parse(lex("/foo/ { print $0 }"))
+
+    assert len(program.items) == 1
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.pattern, ExprPattern)
+    assert isinstance(item.pattern.test, RegexLiteralExpr)
+    assert item.pattern.test.raw_text == "/foo/"
+    assert isinstance(item.action, Action)
+    assert isinstance(item.action.statements[0], PrintStmt)
+    assert isinstance(item.action.statements[0].arguments[0], FieldExpr)
+    assert item.action.statements[0].arguments[0].index == 0

@@ -215,19 +215,18 @@ Target programs:
 - `BEGIN { print 1 == 1 }`
 - `BEGIN { print (1 < 2) && (2 < 3) }`
 
-1. `T-089` extend the parser for regex-driven pattern actions
-2. `T-090` implement runtime regex matching for record filtering
-3. `T-091` extend LLVM lowering for regex-driven filtering
-4. `T-092` add integration tests for stdout/stderr/exit status of the regex-filter increment
-5. `T-093` author end-to-end tests for the broader expression increment
-6. `T-094` extend token/source-span modeling for equality and logical operators
-7. `T-095` extend lexing for equality and logical operators in the active increment
-8. `T-096` define AST nodes for equality and logical expressions
-9. `T-097` extend the parser for the broader expression increment
-10. `T-098` extend runtime support for the broader expression increment
-11. `T-099` extend LLVM lowering for the broader expression increment
-12. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
-13. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-090` implement runtime regex matching for record filtering
+2. `T-091` extend LLVM lowering for regex-driven filtering
+3. `T-092` add integration tests for stdout/stderr/exit status of the regex-filter increment
+4. `T-093` author end-to-end tests for the broader expression increment
+5. `T-094` extend token/source-span modeling for equality and logical operators
+6. `T-095` extend lexing for equality and logical operators in the active increment
+7. `T-096` define AST nodes for equality and logical expressions
+8. `T-097` extend the parser for the broader expression increment
+9. `T-098` extend runtime support for the broader expression increment
+10. `T-099` extend LLVM lowering for the broader expression increment
+11. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
+12. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -324,7 +323,7 @@ Priority values:
 | T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | done |
 | T-087 | P4 | P0 | Author end-to-end tests for regex-driven record filtering | T-086 | CLI tests exist for `/foo/ { print $0 }` before implementation | done |
 | T-088 | P4 | P0 | Define AST support for regex patterns in the supported subset | T-011, T-087 | Frontend structures cleanly represent regex-driven pattern actions | done |
-| T-089 | P4 | P0 | Extend the parser for regex-driven pattern actions | T-088, T-087 | The parser accepts `/foo/ { print $0 }` | todo |
+| T-089 | P4 | P0 | Extend the parser for regex-driven pattern actions | T-088, T-087 | The parser accepts `/foo/ { print $0 }` | done |
 | T-090 | P4 | P0 | Implement runtime regex matching for record filtering | T-089 | Regex patterns can select records in the supported subset | todo |
 | T-091 | P4 | P0 | Extend LLVM lowering for regex-driven filtering | T-090 | `/foo/ { print $0 }` executes through the LLVM-backed path | todo |
 | T-092 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the regex-filter increment | T-091 | Integration tests run for the regex-filter increment in required CI jobs | todo |

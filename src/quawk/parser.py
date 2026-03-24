@@ -263,6 +263,13 @@ class Parser:
             case TokenKind.END:
                 end_token = self.advance()
                 return EndPattern(end_token.span)
+            case TokenKind.REGEX:
+                regex_token = self.advance()
+                regex_expr = RegexLiteralExpr(
+                    raw_text=regex_token.text or "",
+                    span=regex_token.span,
+                )
+                return ExprPattern(test=regex_expr, span=regex_token.span)
             case _:
                 raise ParseError(f"expected pattern, got {token.kind.name}", token.span)
 

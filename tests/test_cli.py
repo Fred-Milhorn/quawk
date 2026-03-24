@@ -194,6 +194,22 @@ def test_quawk_parse_flag_prints_end_only_program_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_regex_pattern_action_ast() -> None:
+    result = run_quawk("--parse", "/foo/ { print $0 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    ExprPattern span=<inline>:1:1\n"
+        "      RegexLiteralExpr span=<inline>:1:1 raw_text='/foo/'\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        FieldExpr span=<inline>:1:15 index=0\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 
