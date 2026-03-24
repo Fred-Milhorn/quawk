@@ -223,14 +223,14 @@ Target programs:
 
 1. `T-104` route public execution through the reusable program/runtime split
 2. `T-106` add regression tests that prove record-driven execution no longer materializes whole input before lowering
-3. `T-093` author end-to-end tests for the broader expression increment
-4. `T-094` extend token/source-span modeling for equality and logical operators
-5. `T-095` extend lexing for equality and logical operators in the active increment
-6. `T-096` define AST nodes for equality and logical expressions
-7. `T-097` extend the parser for the broader expression increment
-8. `T-098` extend runtime support for the broader expression increment
-9. `T-099` extend LLVM lowering for the broader expression increment
-10. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
+3. `T-093` author end-to-end tests for broader expression support (`==` and `&&`)
+4. `T-094` extend token/source-span modeling for `==`, `&&`, and parenthesized boolean expressions
+5. `T-095` extend lexing for `==`, `&&`, and the current boolean-expression programs
+6. `T-096` define AST nodes for equality and logical-AND expressions
+7. `T-097` extend the parser for `==`, `&&`, and parenthesized boolean expressions
+8. `T-098` extend runtime support for boolean results, equality, and logical AND
+9. `T-099` extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions
+10. `T-100` add integration tests for stdout/stderr/exit status of broader expression support
 11. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
@@ -338,14 +338,14 @@ Priority values:
 | T-104 | P4 | P0 | Route public execution through the reusable program/runtime split | T-103 | Record-driven execution no longer depends on Python-side whole-input materialization or regex filtering | todo |
 | T-105 | P4 | P0 | Make `--ir` and `--asm` use reusable lowering for record-driven programs | T-103 | `--ir` and `--asm` succeed for supported record-driven programs without consuming or specializing to the input stream | done |
 | T-106 | P4 | P1 | Add regression tests for bounded-memory record-driven execution shape | T-104, T-105 | Tests prove the public record-driven path no longer relies on whole-input collection before lowering | todo |
-| T-093 | P4 | P0 | Author end-to-end tests for the broader expression increment | T-106 | CLI tests exist for representative equality/logical-expression programs before implementation | todo |
-| T-094 | P4 | P0 | Extend token/source-span modeling for equality and logical operators | T-093 | Token/span code cleanly supports the broader expression increment | todo |
-| T-095 | P4 | P0 | Extend lexing for equality and logical operators in the active increment | T-094, T-093 | Lexer fixtures pass for the broader expression increment | todo |
-| T-096 | P4 | P0 | Define AST nodes for equality and logical expressions | T-094, T-093 | AST matches the broader expression increment | todo |
-| T-097 | P4 | P0 | Extend the parser for the broader expression increment | T-096, T-093 | The parser accepts the planned equality/logical-expression programs | todo |
-| T-098 | P4 | P0 | Extend runtime support for the broader expression increment | T-097, T-106 | Runtime can execute the planned equality/logical-expression programs on the reusable streaming backend | todo |
-| T-099 | P4 | P0 | Extend LLVM lowering for the broader expression increment | T-098 | Representative equality/logical-expression programs execute through the reusable LLVM-backed path | todo |
-| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the broader expression increment | T-099 | Integration tests run for the broader expression increment on the reusable runtime path | todo |
+| T-093 | P4 | P0 | Author end-to-end tests for broader expression support (`==` and `&&`) | T-106 | CLI tests exist for `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` before implementation | todo |
+| T-094 | P4 | P0 | Extend token/source-span modeling for `==`, `&&`, and parenthesized boolean expressions | T-093 | Token/span code cleanly supports equality, logical AND, and grouped boolean expressions | todo |
+| T-095 | P4 | P0 | Extend lexing for `==`, `&&`, and the current boolean-expression programs | T-094, T-093 | Lexer fixtures pass for `==`, `&&`, and parentheses in the planned expression-support programs | todo |
+| T-096 | P4 | P0 | Define AST nodes for equality and logical-AND expressions | T-094, T-093 | AST matches `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` | todo |
+| T-097 | P4 | P0 | Extend the parser for `==`, `&&`, and parenthesized boolean expressions | T-096, T-093 | The parser accepts the planned equality/logical-expression programs with stable precedence and grouping | todo |
+| T-098 | P4 | P0 | Extend runtime support for boolean results, equality, and logical AND | T-097, T-106 | Runtime executes `==` and `&&` correctly for the planned `BEGIN` programs on the reusable streaming backend | todo |
+| T-099 | P4 | P0 | Extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions | T-098 | `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` execute through the reusable LLVM-backed path | todo |
+| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of broader expression support | T-099 | Integration tests pass for the planned equality/logical-expression programs on the reusable runtime path | todo |
 
 ## Cross-Cutting Tracks
 
