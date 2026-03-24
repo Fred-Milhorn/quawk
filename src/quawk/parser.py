@@ -23,7 +23,13 @@ class EndPattern:
     span: SourceSpan
 
 
-Pattern: TypeAlias = BeginPattern | EndPattern
+@dataclass(frozen=True)
+class ExprPattern:
+    test: Expr
+    span: SourceSpan
+
+
+Pattern: TypeAlias = BeginPattern | EndPattern | ExprPattern
 
 
 @dataclass(frozen=True)
@@ -36,6 +42,12 @@ class StringLiteralExpr:
 @dataclass(frozen=True)
 class NumericLiteralExpr:
     value: float
+    raw_text: str
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class RegexLiteralExpr:
     raw_text: str
     span: SourceSpan
 
@@ -65,7 +77,7 @@ class BinaryExpr:
     span: SourceSpan
 
 
-Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | NameExpr | FieldExpr | BinaryExpr
+Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | RegexLiteralExpr | NameExpr | FieldExpr | BinaryExpr
 
 
 @dataclass(frozen=True)
@@ -142,6 +154,9 @@ def format_program(program: Program) -> str:
                     lines.append(f"    BeginPattern span={item.pattern.span.format_start()}")
                 case EndPattern():
                     lines.append(f"    EndPattern span={item.pattern.span.format_start()}")
+                case ExprPattern():
+                    lines.append(f"    ExprPattern span={item.pattern.span.format_start()}")
+                    lines.extend(format_expression(item.pattern.test, "      "))
         if item.action is not None:
             lines.append(f"    Action span={item.action.span.format_start()}")
             for statement in item.action.statements:
@@ -190,6 +205,8 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
             return [f"{indent}StringLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
         case NumericLiteralExpr():
             return [f"{indent}NumericLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
+        case RegexLiteralExpr():
+            return [f"{indent}RegexLiteralExpr span={expression.span.format_start()} raw_text={expression.raw_text!r}"]
         case NameExpr():
             return [f"{indent}NameExpr span={expression.span.format_start()} name={expression.name!r}"]
         case FieldExpr():

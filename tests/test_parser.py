@@ -16,6 +16,7 @@ from quawk.parser import (
     BinaryOp,
     BlockStmt,
     EndPattern,
+    ExprPattern,
     FieldExpr,
     IfStmt,
     NameExpr,
@@ -23,11 +24,13 @@ from quawk.parser import (
     PatternAction,
     PrintStmt,
     Program,
+    RegexLiteralExpr,
     StringLiteralExpr,
     WhileStmt,
     format_program,
     parse,
 )
+from quawk.source import combine_spans
 
 
 def test_parses_p1_program_into_general_ast_categories() -> None:
@@ -166,6 +169,35 @@ def test_ast_supports_multi_item_programs_with_end_pattern() -> None:
     assert program.items[1].action.statements[0].arguments[0].index == 2
 
 
+def test_ast_supports_regex_expression_pattern() -> None:
+    tokens = lex("/foo/ { print $0 }")
+    regex_token = tokens[0]
+    regex_pattern = ExprPattern(
+        test=RegexLiteralExpr(raw_text=regex_token.text or "", span=regex_token.span),
+        span=regex_token.span,
+    )
+    field_expr = FieldExpr(index=0, span=combine_spans(tokens[3].span, tokens[4].span))
+    print_stmt = PrintStmt(arguments=(field_expr, ), span=combine_spans(tokens[2].span, field_expr.span))
+    action = Action(statements=(print_stmt, ), span=combine_spans(tokens[1].span, tokens[5].span))
+
+    program = Program(
+        items=(
+            PatternAction(
+                pattern=regex_pattern,
+                action=action,
+                span=combine_spans(regex_pattern.span, action.span),
+            ),
+        ),
+        span=combine_spans(regex_pattern.span, action.span),
+    )
+
+    item = program.items[0]
+    assert isinstance(item.pattern, ExprPattern)
+    assert isinstance(item.pattern.test, RegexLiteralExpr)
+    assert item.pattern.test.raw_text == "/foo/"
+    assert isinstance(item.action, Action)
+
+
 def test_format_program_renders_end_pattern_and_multiple_items() -> None:
     begin_program = parse(lex('BEGIN { print "start" }'))
     record_program = parse(lex("{ print $2 }"))
@@ -206,6 +238,39 @@ def test_format_program_renders_end_pattern_and_multiple_items() -> None:
         "    Action span=<inline>:1:1\n"
         "      PrintStmt span=<inline>:1:3\n"
         "        StringLiteralExpr span=<inline>:1:9 value='done'\n"
+    )
+
+
+def test_format_program_renders_regex_expression_pattern() -> None:
+    tokens = lex("/foo/ { print $0 }")
+    regex_token = tokens[0]
+    regex_pattern = ExprPattern(
+        test=RegexLiteralExpr(raw_text=regex_token.text or "", span=regex_token.span),
+        span=regex_token.span,
+    )
+    field_expr = FieldExpr(index=0, span=combine_spans(tokens[3].span, tokens[4].span))
+    print_stmt = PrintStmt(arguments=(field_expr, ), span=combine_spans(tokens[2].span, field_expr.span))
+    action = Action(statements=(print_stmt, ), span=combine_spans(tokens[1].span, tokens[5].span))
+
+    program = Program(
+        items=(
+            PatternAction(
+                pattern=regex_pattern,
+                action=action,
+                span=combine_spans(regex_pattern.span, action.span),
+            ),
+        ),
+        span=combine_spans(regex_pattern.span, action.span),
+    )
+
+    assert format_program(program) == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    ExprPattern span=<inline>:1:1\n"
+        "      RegexLiteralExpr span=<inline>:1:1 raw_text='/foo/'\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        FieldExpr span=<inline>:1:15 index=0\n"
     )
 
 
