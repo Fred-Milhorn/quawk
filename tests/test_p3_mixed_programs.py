@@ -61,3 +61,24 @@ def test_file_based_mixed_begin_record_end_executes() -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == "start\nbeta\ndelta\ndone\n"
     assert result.stderr == ""
+
+
+def test_mixed_begin_record_end_executes_with_empty_input() -> None:
+    result = run_quawk('BEGIN { print "start" } { print $2 } END { print "done" }', stdin="")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "start\ndone\n"
+    assert result.stderr == ""
+
+
+def test_mixed_begin_record_end_honors_custom_field_separator() -> None:
+    input_path = ROOT / "tests" / "fixtures" / "p2" / "records_colon.txt"
+    result = run_quawk(
+        "-F:",
+        'BEGIN { print "start" } { print $2 } END { print "done" }',
+        str(input_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "start\nbeta\ndelta\ndone\n"
+    assert result.stderr == ""

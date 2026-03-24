@@ -208,12 +208,13 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: mixed `BEGIN` / record-action / `END` execution
+Next deliverable: regex and broader expression surface
 
 Target programs:
-- `BEGIN { print "start" } { print $2 } END { print "done" }`
+- `/foo/ { print $0 }`
 
-1. `T-086` add integration tests for stdout/stderr/exit status of the mixed-program deliverable
+1. `T-011` implement `REGEX` vs `/` context-sensitive lexing when regex support becomes active
+2. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -307,7 +308,7 @@ Priority values:
 | T-083 | P3 | P0 | Extend runtime sequencing for `BEGIN`, record actions, and `END` | T-082 | Execution order matches the supported mixed-program model | done |
 | T-084 | P3 | P0 | Extend field handling beyond `$0` and `$1` for the supported subset | T-083 | The mixed-program deliverable can read `$2` and later fields correctly | done |
 | T-085 | P3 | P0 | Extend LLVM lowering for mixed program execution | T-083, T-084 | The mixed-program deliverable executes through the LLVM-backed path | done |
-| T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | todo |
+| T-086 | P3 | P1 | Add integration tests for stdout/stderr/exit status of the mixed-program deliverable | T-085 | Integration tests run for the mixed-program deliverable in required CI jobs | done |
 
 ## Cross-Cutting Tracks
 
