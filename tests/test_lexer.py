@@ -150,6 +150,65 @@ def test_lexes_numeric_print_expression_tokens() -> None:
     ]
 
 
+def test_lexes_equality_expression_tokens() -> None:
+    tokens = lex("BEGIN { print 1 == 1 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.NUMBER,
+        TokenKind.EQUAL_EQUAL,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert [token.display_text() for token in tokens] == [
+        "BEGIN",
+        "{",
+        "print",
+        "1",
+        "==",
+        "1",
+        "}",
+        None,
+    ]
+    assert tokens[4].span.format_start() == "<inline>:1:17"
+
+
+def test_lexes_parenthesized_logical_and_expression_tokens() -> None:
+    tokens = lex("BEGIN { print (1 < 2) && (2 < 3) }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.LPAREN,
+        TokenKind.NUMBER,
+        TokenKind.LESS,
+        TokenKind.NUMBER,
+        TokenKind.RPAREN,
+        TokenKind.AND_AND,
+        TokenKind.LPAREN,
+        TokenKind.NUMBER,
+        TokenKind.LESS,
+        TokenKind.NUMBER,
+        TokenKind.RPAREN,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+    assert tokens[8].display_text() == "&&"
+    assert [token.span.format_start() for token in tokens[3:10]] == [
+        "<inline>:1:15",
+        "<inline>:1:16",
+        "<inline>:1:18",
+        "<inline>:1:20",
+        "<inline>:1:21",
+        "<inline>:1:23",
+        "<inline>:1:26",
+    ]
+
+
 def test_lexes_assignment_tokens() -> None:
     tokens = lex("BEGIN { x = 1; print x }")
 

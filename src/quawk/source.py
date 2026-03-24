@@ -146,14 +146,27 @@ class SourceCursor:
             return self.source.eof_point()
         return SourcePoint(self.file_index, self.offset)
 
-    def peek(self) -> str | None:
-        """Return the current character without consuming it."""
+    def peek(self, offset: int = 0) -> str | None:
+        """Return the current character, or a small lookahead, without consuming it."""
+        if offset < 0:
+            raise ValueError("peek offset must be non-negative")
+
         self._normalize()
-        if self.is_at_end():
-            return None
-        if self.at_boundary_newline:
-            return "\n"
-        return self.source.files[self.file_index].text[self.offset]
+        if offset == 0:
+            if self.is_at_end():
+                return None
+            if self.at_boundary_newline:
+                return "\n"
+            return self.source.files[self.file_index].text[self.offset]
+
+        probe = SourceCursor(self.source)
+        probe.file_index = self.file_index
+        probe.offset = self.offset
+        probe.at_boundary_newline = self.at_boundary_newline
+        for _ in range(offset):
+            if probe.advance() is None:
+                return None
+        return probe.peek()
 
     def advance(self) -> str | None:
         """Consume and return the current character, if any."""

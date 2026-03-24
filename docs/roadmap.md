@@ -214,22 +214,18 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: AOT-oriented streaming runtime core
+Next deliverable: broader expression support
 
 Target programs:
-- `{ print $0 }`
-- `BEGIN { print "start" } { print $2 } END { print "done" }`
-- `/foo/ { print $0 }`
+- `BEGIN { print 1 == 1 }`
+- `BEGIN { print (1 < 2) && (2 < 3) }`
 
-1. `T-093` author end-to-end tests for broader expression support (`==` and `&&`)
-2. `T-094` extend token/source-span modeling for `==`, `&&`, and parenthesized boolean expressions
-3. `T-095` extend lexing for `==`, `&&`, and the current boolean-expression programs
-4. `T-096` define AST nodes for equality and logical-AND expressions
-5. `T-097` extend the parser for `==`, `&&`, and parenthesized boolean expressions
-6. `T-098` extend runtime support for boolean results, equality, and logical AND
-7. `T-099` extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions
-8. `T-100` add integration tests for stdout/stderr/exit status of broader expression support
-9. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-096` define AST nodes for equality and logical-AND expressions
+2. `T-097` extend the parser for `==`, `&&`, and parenthesized boolean expressions
+3. `T-098` extend runtime support for boolean results, equality, and logical AND
+4. `T-099` extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions
+5. `T-100` add integration tests for stdout/stderr/exit status of broader expression support
+6. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -336,9 +332,9 @@ Priority values:
 | T-104 | P4 | P0 | Route public execution through the reusable program/runtime split | T-103 | Record-driven execution no longer depends on Python-side whole-input materialization or regex filtering | done |
 | T-105 | P4 | P0 | Make `--ir` and `--asm` use reusable lowering for record-driven programs | T-103 | `--ir` and `--asm` succeed for supported record-driven programs without consuming or specializing to the input stream | done |
 | T-106 | P4 | P1 | Add regression tests for bounded-memory record-driven execution shape | T-104, T-105 | Tests prove the public record-driven path no longer relies on whole-input collection before lowering | done |
-| T-093 | P4 | P0 | Author end-to-end tests for broader expression support (`==` and `&&`) | T-106 | CLI tests exist for `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` before implementation | todo |
-| T-094 | P4 | P0 | Extend token/source-span modeling for `==`, `&&`, and parenthesized boolean expressions | T-093 | Token/span code cleanly supports equality, logical AND, and grouped boolean expressions | todo |
-| T-095 | P4 | P0 | Extend lexing for `==`, `&&`, and the current boolean-expression programs | T-094, T-093 | Lexer fixtures pass for `==`, `&&`, and parentheses in the planned expression-support programs | todo |
+| T-093 | P4 | P0 | Author end-to-end tests for broader expression support (`==` and `&&`) | T-106 | CLI tests exist for `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` before implementation | done |
+| T-094 | P4 | P0 | Extend token/source-span modeling for `==`, `&&`, and parenthesized boolean expressions | T-093 | Token/span code cleanly supports equality, logical AND, and grouped boolean expressions | done |
+| T-095 | P4 | P0 | Extend lexing for `==`, `&&`, and the current boolean-expression programs | T-094, T-093 | Lexer fixtures pass for `==`, `&&`, and parentheses in the planned expression-support programs | done |
 | T-096 | P4 | P0 | Define AST nodes for equality and logical-AND expressions | T-094, T-093 | AST matches `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` | todo |
 | T-097 | P4 | P0 | Extend the parser for `==`, `&&`, and parenthesized boolean expressions | T-096, T-093 | The parser accepts the planned equality/logical-expression programs with stable precedence and grouping | todo |
 | T-098 | P4 | P0 | Extend runtime support for boolean results, equality, and logical AND | T-097, T-106 | Runtime executes `==` and `&&` correctly for the planned `BEGIN` programs on the reusable streaming backend | todo |

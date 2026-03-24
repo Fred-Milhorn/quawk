@@ -25,6 +25,8 @@ class TokenKind(Enum):
     NUMBER = auto()
     REGEX = auto()
     LESS = auto()
+    EQUAL_EQUAL = auto()
+    AND_AND = auto()
     PLUS = auto()
     SLASH = auto()
     EQUAL = auto()
@@ -58,6 +60,8 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.PRINTF: "printf",
     TokenKind.WHILE: "while",
     TokenKind.LESS: "<",
+    TokenKind.EQUAL_EQUAL: "==",
+    TokenKind.AND_AND: "&&",
     TokenKind.PLUS: "+",
     TokenKind.SLASH: "/",
     TokenKind.EQUAL: "=",
@@ -82,6 +86,11 @@ PUNCTUATION_KINDS: dict[str, TokenKind] = {
     ")": TokenKind.RPAREN,
     ",": TokenKind.COMMA,
     ";": TokenKind.SEMICOLON,
+}
+
+MULTI_CHAR_TOKEN_KINDS: dict[str, TokenKind] = {
+    "==": TokenKind.EQUAL_EQUAL,
+    "&&": TokenKind.AND_AND,
 }
 
 
@@ -159,6 +168,9 @@ class Lexer:
         if char == "/":
             return self.scan_slash_or_regex(start)
 
+        if token := self.scan_multi_char_operator(start):
+            return token
+
         if char in PUNCTUATION_KINDS:
             self.cursor.advance()
             end = self.cursor.point()
@@ -180,6 +192,23 @@ class Lexer:
         """Consume non-newline whitespace."""
         while (char := self.cursor.peek()) is not None and char in " \t\r\f\v":
             self.cursor.advance()
+
+    def scan_multi_char_operator(self, start: SourcePoint) -> Token | None:
+        """Scan a fixed two-character operator when one is present."""
+        first = self.cursor.peek()
+        second = self.cursor.peek(1)
+        if first is None or second is None:
+            return None
+
+        text = first + second
+        kind = MULTI_CHAR_TOKEN_KINDS.get(text)
+        if kind is None:
+            return None
+
+        self.cursor.advance()
+        self.cursor.advance()
+        end = self.cursor.point()
+        return self.finish_token(Token(kind, self.source.span(start, end)))
 
     def scan_identifier_or_keyword(self, start: SourcePoint) -> Token:
         """Scan an identifier and reclassify it if it matches a keyword."""
@@ -269,9 +298,11 @@ class Lexer:
     def finish_token(self, token: Token) -> Token:
         """Update scanner context after producing one non-trivia token."""
         self.expect_operand = token.kind in {
+            TokenKind.AND_AND,
             TokenKind.COMMA,
             TokenKind.DOLLAR,
             TokenKind.EQUAL,
+            TokenKind.EQUAL_EQUAL,
             TokenKind.LBRACE,
             TokenKind.LESS,
             TokenKind.LPAREN,
