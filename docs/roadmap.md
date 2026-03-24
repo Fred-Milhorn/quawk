@@ -8,6 +8,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - implementation language is Python `3.14.x`
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - current LLVM-backed execution uses local LLVM tools (`lli`)
+- the next backend refactor replaces input-specialized lowering with a reusable AOT-oriented program/runtime split
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows from an initial end-to-end JIT path
 - phase delivery uses TDD for the next capability increment
@@ -129,9 +130,12 @@ Exit criteria:
 ### P4: Regex and Expression Surface
 
 Objective:
-- support pattern selection and core expressions broadly enough for ordinary AWK filtering logic
+- support pattern selection and core expressions broadly enough for ordinary AWK filtering logic, on top of a runtime architecture that scales to real AWK-sized inputs
 
 In scope:
+- replace concrete-input lowering with reusable program IR for record-driven execution
+- introduce a small runtime support layer for streaming input, field access, regex matching, and output helpers
+- make `--ir` / `--asm` report reusable program artifacts for record-driven programs
 - regex literals and `/` vs regex disambiguation
 - core relational/equality/logical operator surface
 - pattern expressions driven by regexes and comparisons
@@ -139,6 +143,8 @@ In scope:
 
 Exit criteria:
 - `/foo/ { print $0 }` executes correctly
+- mixed and regex-driven programs no longer require whole-input materialization before lowering
+- `--ir` for record-driven programs succeeds without specializing to the current input stream
 - representative boolean/comparison/arithmetic programs execute correctly
 - parser/lexer behavior for regex syntax is deterministic and tested
 
@@ -208,21 +214,28 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: broader expression surface
+Next deliverable: AOT-oriented streaming runtime core
 
 Target programs:
-- `BEGIN { print 1 == 1 }`
-- `BEGIN { print (1 < 2) && (2 < 3) }`
+- `{ print $0 }`
+- `BEGIN { print "start" } { print $2 } END { print "done" }`
+- `/foo/ { print $0 }`
 
-1. `T-093` author end-to-end tests for the broader expression increment
-2. `T-094` extend token/source-span modeling for equality and logical operators
-3. `T-095` extend lexing for equality and logical operators in the active increment
-4. `T-096` define AST nodes for equality and logical expressions
-5. `T-097` extend the parser for the broader expression increment
-6. `T-098` extend runtime support for the broader expression increment
-7. `T-099` extend LLVM lowering for the broader expression increment
-8. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
-9. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-101` author backend and CLI tests for reusable IR on record-driven programs
+2. `T-102` introduce a small C runtime support layer for streaming input and field access
+3. `T-103` replace concrete-input lowering with reusable `BEGIN` / record / `END` program lowering
+4. `T-104` route public execution through the reusable program/runtime split
+5. `T-105` make `--ir` / `--asm` use reusable lowering for record-driven programs
+6. `T-106` add regression tests that prove record-driven execution no longer materializes whole input before lowering
+7. `T-093` author end-to-end tests for the broader expression increment
+8. `T-094` extend token/source-span modeling for equality and logical operators
+9. `T-095` extend lexing for equality and logical operators in the active increment
+10. `T-096` define AST nodes for equality and logical expressions
+11. `T-097` extend the parser for the broader expression increment
+12. `T-098` extend runtime support for the broader expression increment
+13. `T-099` extend LLVM lowering for the broader expression increment
+14. `T-100` add integration tests for stdout/stderr/exit status of the broader expression increment
+15. `T-017` add parser conformance fixtures mapped to supported grammar sections
 
 ## Backlog
 
@@ -323,14 +336,20 @@ Priority values:
 | T-090 | P4 | P0 | Implement runtime regex matching for record filtering | T-089 | Regex patterns can select records in the supported subset | done |
 | T-091 | P4 | P0 | Extend LLVM lowering for regex-driven filtering | T-090 | `/foo/ { print $0 }` executes through the LLVM-backed path | done |
 | T-092 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the regex-filter increment | T-091 | Integration tests run for the regex-filter increment in required CI jobs | done |
-| T-093 | P4 | P0 | Author end-to-end tests for the broader expression increment | T-092 | CLI tests exist for representative equality/logical-expression programs before implementation | todo |
+| T-101 | P4 | P0 | Author backend and CLI tests for reusable IR on record-driven programs | T-092 | Tests specify reusable `--ir` / `--asm` behavior for bare actions, mixed programs, and regex filters before the refactor lands | todo |
+| T-102 | P4 | P0 | Introduce a small C runtime support layer for streaming input and field access | T-101 | Runtime support owns record iteration, field splitting, output helpers, and regex matching behind a stable ABI | todo |
+| T-103 | P4 | P0 | Replace concrete-input lowering with reusable `BEGIN` / record / `END` program lowering | T-102 | Record-driven lowering emits reusable program IR rather than one module per concrete input stream | todo |
+| T-104 | P4 | P0 | Route public execution through the reusable program/runtime split | T-103 | Record-driven execution no longer depends on Python-side whole-input materialization or regex filtering | todo |
+| T-105 | P4 | P0 | Make `--ir` and `--asm` use reusable lowering for record-driven programs | T-103 | `--ir` and `--asm` succeed for supported record-driven programs without consuming or specializing to the input stream | todo |
+| T-106 | P4 | P1 | Add regression tests for bounded-memory record-driven execution shape | T-104, T-105 | Tests prove the public record-driven path no longer relies on whole-input collection before lowering | todo |
+| T-093 | P4 | P0 | Author end-to-end tests for the broader expression increment | T-106 | CLI tests exist for representative equality/logical-expression programs before implementation | todo |
 | T-094 | P4 | P0 | Extend token/source-span modeling for equality and logical operators | T-093 | Token/span code cleanly supports the broader expression increment | todo |
 | T-095 | P4 | P0 | Extend lexing for equality and logical operators in the active increment | T-094, T-093 | Lexer fixtures pass for the broader expression increment | todo |
 | T-096 | P4 | P0 | Define AST nodes for equality and logical expressions | T-094, T-093 | AST matches the broader expression increment | todo |
 | T-097 | P4 | P0 | Extend the parser for the broader expression increment | T-096, T-093 | The parser accepts the planned equality/logical-expression programs | todo |
-| T-098 | P4 | P0 | Extend runtime support for the broader expression increment | T-097 | Runtime can execute the planned equality/logical-expression programs | todo |
-| T-099 | P4 | P0 | Extend LLVM lowering for the broader expression increment | T-098 | Representative equality/logical-expression programs execute through the LLVM-backed path | todo |
-| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the broader expression increment | T-099 | Integration tests run for the broader expression increment in required CI jobs | todo |
+| T-098 | P4 | P0 | Extend runtime support for the broader expression increment | T-097, T-106 | Runtime can execute the planned equality/logical-expression programs on the reusable streaming backend | todo |
+| T-099 | P4 | P0 | Extend LLVM lowering for the broader expression increment | T-098 | Representative equality/logical-expression programs execute through the reusable LLVM-backed path | todo |
+| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of the broader expression increment | T-099 | Integration tests run for the broader expression increment on the reusable runtime path | todo |
 
 ## Cross-Cutting Tracks
 

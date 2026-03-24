@@ -4,19 +4,20 @@ This document is the technical reference for `quawk`: architecture, frontend str
 
 ## Overview
 
-`quawk` is a POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tooling.
+`quawk` is a POSIX-oriented AWK compiler and runtime written in Python, using LLVM tooling.
 
 High-level pipeline:
 
 1. source normalization and lexing
 2. parsing to AST
 3. semantic validation and normalization
-4. LLVM lowering and JIT materialization
+4. LLVM lowering and program/runtime materialization
 5. execution
 
-Current execution-path note:
-- the current execution path lowers to LLVM IR text and runs it through `lli`
-- an in-process LLVM binding can be revisited later if it becomes worthwhile
+Execution-path direction:
+- the target runtime architecture is AOT-oriented, even when the near-term driver still uses LLVM tools directly
+- the compiler should emit reusable program IR that can later be linked into an executable
+- a small runtime support library should own streaming input, field access, regex matching, and output helpers
 
 Goals:
 - match POSIX AWK behavior closely
@@ -90,6 +91,11 @@ Planned implementation increments:
 
 Each increment should land only when the full CLI-to-IR-to-execution path works
 for that increment's example programs.
+
+Architecture rule for record-driven programs:
+- do not lower one LLVM module per concrete input stream
+- do not materialize all records in Python before lowering
+- compile reusable `BEGIN`, per-record, and `END` code paths once, then stream records through them
 
 ## Frontend Strategy
 
@@ -166,8 +172,28 @@ Runtime state machine for the initial implementation:
 2. `NormalizeSource`
 3. `LexSupportedSubset`
 4. `ParseSupportedSubset`
-5. `LowerToLLVM`
-6. `Execute`
+5. `LowerReusableProgramIR`
+6. `LinkRuntimeSupport`
+7. `Execute`
+
+Target runtime architecture:
+- compiler-generated IR is reusable across input runs for the same AWK program
+- record-driven execution uses three logical phases:
+  - `quawk_begin(rt, state)`
+  - `quawk_record(rt, state)`
+  - `quawk_end(rt, state)`
+- scalar program state lives in compiler-defined program state, not in Python-owned per-run specialization data
+- the runtime support layer is responsible for:
+  - streaming input records
+  - field splitting and `$0` / `$n` access
+  - regex matching against the current record
+  - string and numeric output helpers
+- Python should orchestrate compilation and process invocation, not implement record iteration or regex filtering for the public execution path
+
+AOT-oriented design goals:
+- the same generated program IR should work for `lli`-driven execution now and executable generation later
+- `--ir` and `--asm` should describe the reusable compiled program, not a concrete run specialized to one input stream
+- input size should not cause IR size to scale with record count
 
 Currently supported execution path:
 - one `BEGIN` action
@@ -185,6 +211,11 @@ Currently supported execution path:
 - `$0` and `$1` field reads
 - no function definitions required yet
 
+Current architectural caveat:
+- the live input-aware path still specializes execution to concrete input records in Python
+- that is acceptable for small fixtures but not the target architecture for AWK-scale inputs
+- the next backend refactor should replace it with the reusable program/runtime split above before the language surface expands further
+
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes
 - inline `BEGIN { print 1 }` compiles and executes
@@ -198,6 +229,7 @@ Acceptance scenarios:
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
 - expanding the supported subset does not break the earlier working `P1` path
+- record-driven execution remains bounded in memory with respect to input size
 
 ## Command Line Interface
 
@@ -258,6 +290,7 @@ Repeated `-v` assignments apply in argument order.
 Inspection rules:
 - `--lex`, `--parse`, `--ir`, and `--asm` are mutually exclusive
 - each inspection flag prints the selected stage output to stdout and exits without executing later stages
+- for record-driven programs, `--ir` and `--asm` should show reusable program artifacts, not input-specialized output
 - inspection output is intended to be stable and human-readable for debugging and review
 - `--lex` and `--parse` output includes source-position metadata for the currently supported nodes and tokens
 
