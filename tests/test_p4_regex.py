@@ -1,13 +1,11 @@
-# P4 regex-filter execution baseline tests.
-# These cases define the first regex-driven deliverable before parser/runtime
-# support lands for regex pattern actions.
+# P4 regex-filter execution tests.
+# These cases verify the first regex-driven filtering deliverable through the
+# public CLI execution path.
 
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -23,10 +21,6 @@ def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProce
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-087 baseline: regex-driven record filtering is not implemented yet",
-)
 def test_inline_regex_filter_executes() -> None:
     result = run_quawk("/foo/ { print $0 }", stdin="foo\nbar\nfood\n")
 
@@ -35,10 +29,6 @@ def test_inline_regex_filter_executes() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-087 baseline: file-based regex-driven record filtering is not implemented yet",
-)
 def test_file_based_regex_filter_executes() -> None:
     program_path = ROOT / "tests" / "corpus" / "regex_filter" / "program.awk"
     input_path = ROOT / "tests" / "corpus" / "regex_filter" / "input.txt"

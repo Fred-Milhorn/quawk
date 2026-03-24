@@ -240,13 +240,14 @@ def lower_input_aware_program_to_llvm_ir(
 ) -> str:
     """Lower one concrete input-aware execution into a single `quawk_main` module."""
     state = LoweringState()
-    begin_actions, record_actions, end_actions = partition_runtime_actions(program)
+    begin_actions, record_items, end_actions = partition_runtime_items(program)
 
     for action in begin_actions:
         lower_action(action, state, record=None)
     for record in records:
-        for action in record_actions:
-            lower_action(action, state, record=record)
+        for pattern, action in record_items:
+            if record_matches_pattern(pattern, record):
+                lower_action(action, state, record=record)
     for action in end_actions:
         lower_action(action, state, record=None)
 
@@ -447,7 +448,19 @@ def execute_with_inputs(program: Program, input_files: list[str], field_separato
 
 def requires_input_aware_execution(program: Program) -> bool:
     """Report whether `program` needs concrete input records during execution."""
-    return is_record_program(program) or has_end_pattern(program) or len(program.items) > 1
+    return has_input_aware_patterns(program) or has_end_pattern(program) or len(program.items) > 1
+
+
+def has_input_aware_patterns(program: Program) -> bool:
+    """Report whether `program` contains record-sensitive pattern actions."""
+    for item in program.items:
+        if not isinstance(item, PatternAction):
+            continue
+        if item.pattern is None:
+            return True
+        if isinstance(item.pattern, ExprPattern):
+            return True
+    return False
 
 
 def has_end_pattern(program: Program) -> bool:
@@ -488,8 +501,6 @@ def collect_record_contexts(
     _, record_items, _ = partition_runtime_items(program)
     if not record_items:
         return []
-    if any(pattern is not None for pattern, _ in record_items):
-        raise RuntimeError("regex-driven filtering is not supported in the current LLVM lowering path")
 
     records: list[RecordContext] = []
     for line in iter_input_records(input_files):

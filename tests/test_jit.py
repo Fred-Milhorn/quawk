@@ -89,3 +89,23 @@ def test_execute_host_runtime_sequences_begin_regex_and_end(capsys, monkeypatch)
     captured = capsys.readouterr()
     assert captured.out == "start\nfoo\nfood\ndone\n"
     assert captured.err == ""
+
+
+def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) -> None:
+    program = parse_program("/foo/ { print $0 }")
+    captured_ir: dict[str, str] = {}
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+    monkeypatch.setattr("sys.stdin", io.StringIO("foo\nbar\nfood\n"))
+
+    assert jit.execute_with_inputs(program, [], None) == 0
+    llvm_ir = captured_ir["module"]
+    assert "define i32 @quawk_main()" in llvm_ir
+    assert 'c"\\66\\6F\\6F\\00"' in llvm_ir
+    assert 'c"\\66\\6F\\6F\\64\\00"' in llvm_ir
+    assert 'c"\\62\\61\\72\\00"' not in llvm_ir
+    assert llvm_ir.count("call i32 @puts(") == 2
