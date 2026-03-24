@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from .parser import (
     BlockStmt,
     EndPattern,
     Expr,
+    ExprPattern,
     FieldExpr,
     IfStmt,
     NameExpr,
@@ -27,6 +29,7 @@ from .parser import (
     PatternAction,
     PrintStmt,
     Program,
+    RegexLiteralExpr,
     Stmt,
     StringLiteralExpr,
     WhileStmt,
@@ -454,13 +457,13 @@ def has_end_pattern(program: Program) -> bool:
 
 def execute_host_runtime(program: Program, input_files: list[str], field_separator: str | None) -> None:
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
-    begin_actions, record_actions, end_actions = partition_runtime_actions(program)
+    begin_actions, record_items, end_actions = partition_runtime_items(program)
     state = RuntimeState()
 
     for action in begin_actions:
         execute_action(action, state, record=None)
 
-    if record_actions:
+    if record_items:
         for line in iter_input_records(input_files):
             record_text = line.rstrip("\n")
             fields = split_fields(record_text, field_separator)
@@ -468,8 +471,9 @@ def execute_host_runtime(program: Program, input_files: list[str], field_separat
                 field0=record_text,
                 fields=tuple(fields),
             )
-            for action in record_actions:
-                execute_action(action, state, record=record)
+            for pattern, action in record_items:
+                if record_matches_pattern(pattern, record):
+                    execute_action(action, state, record=record)
 
     for action in end_actions:
         execute_action(action, state, record=None)
@@ -481,9 +485,11 @@ def collect_record_contexts(
     field_separator: str | None,
 ) -> list[RecordContext]:
     """Materialize concrete input records for the active program execution."""
-    _, record_actions, _ = partition_runtime_actions(program)
-    if not record_actions:
+    _, record_items, _ = partition_runtime_items(program)
+    if not record_items:
         return []
+    if any(pattern is not None for pattern, _ in record_items):
+        raise RuntimeError("regex-driven filtering is not supported in the current LLVM lowering path")
 
     records: list[RecordContext] = []
     for line in iter_input_records(input_files):
@@ -495,10 +501,16 @@ def collect_record_contexts(
     return records
 
 
-def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Action], list[Action]]:
-    """Split top-level items into ordered BEGIN, record, and END action lists."""
+def partition_runtime_items(
+    program: Program,
+) -> tuple[
+        list[Action],
+        list[tuple[ExprPattern | None, Action]],
+        list[Action],
+]:
+    """Split items into ordered BEGIN actions, per-record items, and END actions."""
     begin_actions: list[Action] = []
-    record_actions: list[Action] = []
+    record_items: list[tuple[ExprPattern | None, Action]] = []
     end_actions: list[Action] = []
 
     for item in program.items:
@@ -508,13 +520,28 @@ def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Acti
             raise RuntimeError("the current runtime requires an action block for each supported item")
 
         if item.pattern is None:
-            record_actions.append(item.action)
+            record_items.append((None, item.action))
             continue
         if isinstance(item.pattern, BeginPattern):
             begin_actions.append(item.action)
             continue
-        end_actions.append(item.action)
+        if isinstance(item.pattern, EndPattern):
+            end_actions.append(item.action)
+            continue
+        if isinstance(item.pattern, ExprPattern):
+            record_items.append((item.pattern, item.action))
+            continue
+        raise RuntimeError("the current runtime only supports BEGIN, END, and regex expression patterns")
 
+    return begin_actions, record_items, end_actions
+
+
+def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Action], list[Action]]:
+    """Split top-level items into ordered BEGIN, record, and END action lists."""
+    begin_actions, record_items, end_actions = partition_runtime_items(program)
+    record_actions = [action for pattern, action in record_items if pattern is None]
+    if len(record_actions) != len(record_items):
+        raise RuntimeError("regex-driven filtering is not supported in the current LLVM lowering path")
     return begin_actions, record_actions, end_actions
 
 
@@ -539,6 +566,24 @@ def split_fields(line: str, field_separator: str | None) -> list[str]:
     if field_separator is None:
         return line.split()
     return line.split(field_separator)
+
+
+def record_matches_pattern(pattern: ExprPattern | None, record: RecordContext) -> bool:
+    """Report whether the current record matches a supported record-selection pattern."""
+    if pattern is None:
+        return True
+    if isinstance(pattern.test, RegexLiteralExpr):
+        return regex_matches_record(pattern.test, record)
+    raise RuntimeError("the current runtime only supports regex expression patterns for record selection")
+
+
+def regex_matches_record(expression: RegexLiteralExpr, record: RecordContext) -> bool:
+    """Report whether `expression` matches the current record text."""
+    raw_text = expression.raw_text
+    if len(raw_text) < 2 or not raw_text.startswith("/") or not raw_text.endswith("/"):
+        raise RuntimeError("invalid regex literal in current runtime")
+    pattern_text = raw_text[1:-1]
+    return re.search(pattern_text, record.field0) is not None
 
 
 def execute_action(action: Action, state: RuntimeState, record: RecordContext | None) -> None:
