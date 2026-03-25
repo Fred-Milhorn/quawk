@@ -29,6 +29,14 @@ def test_inline_regex_filter_executes() -> None:
     assert result.stderr == ""
 
 
+def test_inline_regex_filter_matches_later_text_in_full_record() -> None:
+    result = run_quawk("/AWK/ { print $0 }", stdin='help="Read AWK program"\nhelp="Read text"\n')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == 'help="Read AWK program"\n'
+    assert result.stderr == ""
+
+
 def test_file_based_regex_filter_executes() -> None:
     program_path = ROOT / "tests" / "corpus" / "regex_filter" / "program.awk"
     input_path = ROOT / "tests" / "corpus" / "regex_filter" / "input.txt"

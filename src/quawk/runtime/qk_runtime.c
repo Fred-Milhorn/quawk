@@ -28,6 +28,7 @@ struct qk_runtime {
     bool had_error;
     char *current_record;
     size_t current_record_capacity;
+    char *field_buffer;
     char **fields;
     size_t field_count;
     size_t field_capacity;
@@ -79,7 +80,7 @@ static bool qk_push_field(qk_runtime *runtime, char *field_text)
 
 static bool qk_split_whitespace_fields(qk_runtime *runtime)
 {
-    char *cursor = runtime->current_record;
+    char *cursor = runtime->field_buffer;
 
     while (*cursor != '\0') {
         while ((*cursor != '\0') && isspace((unsigned char)*cursor)) {
@@ -109,7 +110,7 @@ static bool qk_split_whitespace_fields(qk_runtime *runtime)
 static bool qk_split_literal_separator_fields(qk_runtime *runtime)
 {
     size_t separator_length = strlen(runtime->field_separator);
-    char *field_start = runtime->current_record;
+    char *field_start = runtime->field_buffer;
 
     if (separator_length == 0U) {
         return qk_push_field(runtime, field_start);
@@ -132,6 +133,11 @@ static bool qk_split_literal_separator_fields(qk_runtime *runtime)
 static bool qk_rebuild_fields(qk_runtime *runtime)
 {
     runtime->field_count = 0U;
+    free(runtime->field_buffer);
+    runtime->field_buffer = qk_strdup_or_null(runtime->current_record);
+    if ((runtime->current_record != NULL) && (runtime->field_buffer == NULL)) {
+        return false;
+    }
 
     if ((runtime->field_separator == NULL) || (*runtime->field_separator == '\0')) {
         return qk_split_whitespace_fields(runtime);
@@ -201,6 +207,7 @@ void qk_runtime_destroy(qk_runtime *runtime)
 
     qk_close_current_handle(runtime);
     free(runtime->current_record);
+    free(runtime->field_buffer);
     free(runtime->fields);
     free(runtime->field_separator);
     free(runtime);

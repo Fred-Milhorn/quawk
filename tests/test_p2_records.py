@@ -28,6 +28,14 @@ def test_bare_action_prints_record_from_stdin() -> None:
     assert result.stderr == ""
 
 
+def test_bare_action_preserves_full_record_text_with_spaces() -> None:
+    result = run_quawk("{ print $0 }", stdin="alpha beta gamma\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "alpha beta gamma\n"
+    assert result.stderr == ""
+
+
 def test_bare_action_prints_first_field_from_stdin() -> None:
     result = run_quawk("{ print $1 }", stdin="alpha beta\ngamma delta\n")
 
