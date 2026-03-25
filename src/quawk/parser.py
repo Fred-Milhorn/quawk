@@ -160,6 +160,7 @@ class PatternAction:
 class FunctionDef:
     name: str
     params: tuple[str, ...]
+    param_spans: tuple[SourceSpan, ...]
     body: Action
     span: SourceSpan
 
@@ -311,29 +312,33 @@ class Parser:
         function_token = self.expect(TokenKind.FUNCTION)
         name_token = self.expect(TokenKind.IDENT)
         self.expect(TokenKind.LPAREN)
-        params = self.parse_parameter_list()
+        params, param_spans = self.parse_parameter_list()
         self.expect(TokenKind.RPAREN)
         body = self.parse_action()
         return FunctionDef(
             name=name_token.text or "",
             params=tuple(params),
+            param_spans=tuple(param_spans),
             body=body,
             span=combine_spans(function_token.span, body.span),
         )
 
-    def parse_parameter_list(self) -> list[str]:
+    def parse_parameter_list(self) -> tuple[list[str], list[SourceSpan]]:
         """Parse the optional identifier list in one function signature."""
         params: list[str] = []
+        param_spans: list[SourceSpan] = []
         if self.check(TokenKind.RPAREN):
-            return params
+            return params, param_spans
 
         first_param = self.expect(TokenKind.IDENT)
         params.append(first_param.text or "")
+        param_spans.append(first_param.span)
         while self.check(TokenKind.COMMA):
             self.advance()
             param_token = self.expect(TokenKind.IDENT)
             params.append(param_token.text or "")
-        return params
+            param_spans.append(param_token.span)
+        return params, param_spans
 
     def parse_pattern_action(self) -> PatternAction:
         """Parse one top-level pattern-action item."""

@@ -57,6 +57,7 @@ def analyze(program: Program) -> ProgramAnalysis:
         existing = functions.get(item.name)
         if existing is not None:
             raise SemanticError(f"duplicate function definition: {item.name}", item.span)
+        validate_function_definition(item)
         functions[item.name] = item
         function_scopes[item.name] = FunctionScope(params=item.params)
 
@@ -83,6 +84,17 @@ def validate_action(
     """Validate every statement in one action block."""
     for statement in action.statements:
         validate_statement(statement, functions, scope=scope, inside_function=inside_function, loop_depth=loop_depth)
+
+
+def validate_function_definition(function: FunctionDef) -> None:
+    """Validate one function signature for duplicate or conflicting names."""
+    seen_params: set[str] = set()
+    for param_name, param_span in zip(function.params, function.param_spans, strict=True):
+        if param_name == function.name:
+            raise SemanticError(f"function parameter conflicts with function name: {param_name}", param_span)
+        if param_name in seen_params:
+            raise SemanticError(f"duplicate parameter name in function {function.name}: {param_name}", param_span)
+        seen_params.add(param_name)
 
 
 def validate_statement(
@@ -150,6 +162,9 @@ def validate_expression(expression: Expr, functions: dict[str, FunctionDef]) -> 
         validate_expression(expression.right, functions)
         return
     if isinstance(expression, CallExpr):
+        function_def = functions.get(expression.function)
+        if function_def is None:
+            raise SemanticError(f"call to undefined function: {expression.function}", expression.span)
         for argument in expression.args:
             validate_expression(argument, functions)
         return

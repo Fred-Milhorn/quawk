@@ -40,6 +40,39 @@ def test_duplicate_function_definitions_report_semantic_error() -> None:
     )
 
 
+def test_duplicate_function_parameter_names_report_semantic_error() -> None:
+    result = run_quawk("function f(x, x) { return x }\nBEGIN { print 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:15: error: duplicate parameter name in function f: x\n"
+        "function f(x, x) { return x }\n"
+        "              ^\n"
+    )
+
+
+def test_function_parameter_name_conflicting_with_function_name_reports_semantic_error() -> None:
+    result = run_quawk("function f(f) { return f }\nBEGIN { print 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:12: error: function parameter conflicts with function name: f\n"
+        "function f(f) { return f }\n"
+        "           ^\n"
+    )
+
+
+def test_call_to_undefined_function_reports_semantic_error() -> None:
+    result = run_quawk("BEGIN { print missing(1) }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:15: error: call to undefined function: missing\n"
+        "BEGIN { print missing(1) }\n"
+        "              ^\n"
+    )
+
+
 def test_return_outside_function_reports_semantic_error() -> None:
     result = run_quawk("BEGIN { return 1 }")
 

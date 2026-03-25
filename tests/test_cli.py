@@ -508,7 +508,7 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
 
 
 def test_quawk_reports_runtime_failures_with_exit_code_four() -> None:
-    result = run_quawk("function f(x) { return x }\nBEGIN { print missing(1) }")
+    result = run_quawk("--ir", "function f(x) { return x }\nBEGIN { print f(1) }")
 
     assert result.returncode == 4
-    assert result.stderr == "quawk: undefined function in current runtime: missing\n"
+    assert result.stderr == "quawk: user-defined functions are not supported by the LLVM-backed backend\n"
