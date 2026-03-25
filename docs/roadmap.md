@@ -174,11 +174,11 @@ In scope:
 - builtins required for common POSIX AWK workflows
 - normalization/backend work needed to support the major language families
 
-Remaining implementation work after `T-022`:
-- associative arrays: indexed assignment, indexed reads, and default element behavior on the executable path
-- array mutation and traversal: `delete`, classic `for`, and `for ... in`
-- the first builtin tranche needed for common POSIX-style text-processing workflows
-- reusable runtime/backend support needed to lower and execute arrays, iteration, and builtins coherently
+Implemented in this phase:
+- associative arrays on the executable path, including indexed assignment, indexed reads, and default element behavior
+- array mutation and traversal through `delete`, classic `for`, and `for ... in`
+- the first builtin tranche needed for the active P6 deliverable
+- normalization/backend support needed to execute the active major language families coherently
 
 Exit criteria:
 - every major POSIX AWK construct family has at least one working executable implementation
