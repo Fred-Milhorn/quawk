@@ -156,6 +156,44 @@ def test_quawk_parse_flag_prints_control_flow_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_equality_expression_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { print 1 == 1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        BinaryExpr span=<inline>:1:15 op=EQUAL\n"
+        "          NumericLiteralExpr span=<inline>:1:15 value=1.0\n"
+        "          NumericLiteralExpr span=<inline>:1:20 value=1.0\n"
+    )
+    assert result.stderr == ""
+
+
+def test_quawk_parse_flag_prints_parenthesized_logical_and_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { print (1 < 2) && (2 < 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      PrintStmt span=<inline>:1:9\n"
+        "        BinaryExpr span=<inline>:1:16 op=LOGICAL_AND\n"
+        "          BinaryExpr span=<inline>:1:16 op=LESS\n"
+        "            NumericLiteralExpr span=<inline>:1:16 value=1.0\n"
+        "            NumericLiteralExpr span=<inline>:1:20 value=2.0\n"
+        "          BinaryExpr span=<inline>:1:27 op=LESS\n"
+        "            NumericLiteralExpr span=<inline>:1:27 value=2.0\n"
+        "            NumericLiteralExpr span=<inline>:1:31 value=3.0\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_parse_flag_prints_mixed_program_ast() -> None:
     result = run_quawk("--parse", 'BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
 

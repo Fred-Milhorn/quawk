@@ -37,6 +37,33 @@ def test_execute_with_inputs_runs_begin_and_end_without_input(capsys) -> None:
     assert captured.err == ""
 
 
+def test_execute_host_runtime_prints_equality_result(capsys) -> None:
+    program = parse_program("BEGIN { print 1 == 1 }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "1\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_prints_parenthesized_logical_and_result(capsys) -> None:
+    program = parse_program("BEGIN { print (1 < 2) && (2 < 3) }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "1\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_short_circuits_logical_and(capsys) -> None:
+    program = parse_program("BEGIN { print (1 == 2) && missing }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "0\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 

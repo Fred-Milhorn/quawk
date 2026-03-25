@@ -962,9 +962,19 @@ def evaluate_numeric_expression(expression: Expr, state: RuntimeState, record: R
         if expression.op is BinaryOp.ADD:
             return evaluate_numeric_expression(expression.left, state,
                                                record) + evaluate_numeric_expression(expression.right, state, record)
+        if expression.op is BinaryOp.LESS:
+            return 1.0 if evaluate_condition(expression, state, record) else 0.0
+        if expression.op is BinaryOp.EQUAL:
+            left_value = evaluate_numeric_expression(expression.left, state, record)
+            right_value = evaluate_numeric_expression(expression.right, state, record)
+            return 1.0 if left_value == right_value else 0.0
+        if expression.op is BinaryOp.LOGICAL_AND:
+            if not evaluate_condition(expression.left, state, record):
+                return 0.0
+            return 1.0 if evaluate_condition(expression.right, state, record) else 0.0
         raise RuntimeError(f"unsupported numeric operator in current runtime: {expression.op.name}")
     raise RuntimeError(
-        "the current runtime only supports numeric literals, variable reads, and addition in numeric expressions"
+        "the current runtime only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
 
 
@@ -973,6 +983,15 @@ def evaluate_condition(expression: Expr, state: RuntimeState, record: RecordCont
     if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
         return evaluate_numeric_expression(expression.left, state,
                                            record) < evaluate_numeric_expression(expression.right, state, record)
+    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.EQUAL:
+        return evaluate_numeric_expression(expression.left, state,
+                                           record) == evaluate_numeric_expression(expression.right, state, record)
+    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LOGICAL_AND:
+        return evaluate_condition(expression.left, state, record) and evaluate_condition(
+            expression.right,
+            state,
+            record,
+        )
     return evaluate_numeric_expression(expression, state, record) != 0.0
 
 

@@ -67,6 +67,8 @@ class FieldExpr:
 class BinaryOp(Enum):
     ADD = auto()
     LESS = auto()
+    EQUAL = auto()
+    LOGICAL_AND = auto()
 
 
 @dataclass(frozen=True)
@@ -351,13 +353,41 @@ class Parser:
 
     def parse_expression(self) -> Expr:
         """Parse an expression in the current supported subset."""
-        return self.parse_comparison_expression()
+        return self.parse_logical_and_expression()
 
     def parse_parenthesized_expression(self) -> Expr:
         """Parse a parenthesized expression used by control-flow statements."""
         self.expect(TokenKind.LPAREN)
         expression = self.parse_expression()
         self.expect(TokenKind.RPAREN)
+        return expression
+
+    def parse_logical_and_expression(self) -> Expr:
+        """Parse logical-AND expressions over the supported comparison subset."""
+        expression = self.parse_equality_expression()
+        while self.check(TokenKind.AND_AND):
+            self.advance()
+            right = self.parse_equality_expression()
+            expression = BinaryExpr(
+                left=expression,
+                op=BinaryOp.LOGICAL_AND,
+                right=right,
+                span=combine_spans(expression.span, right.span),
+            )
+        return expression
+
+    def parse_equality_expression(self) -> Expr:
+        """Parse equality expressions over the supported comparison subset."""
+        expression = self.parse_comparison_expression()
+        while self.check(TokenKind.EQUAL_EQUAL):
+            self.advance()
+            right = self.parse_comparison_expression()
+            expression = BinaryExpr(
+                left=expression,
+                op=BinaryOp.EQUAL,
+                right=right,
+                span=combine_spans(expression.span, right.span),
+            )
         return expression
 
     def parse_comparison_expression(self) -> Expr:
@@ -417,6 +447,8 @@ class Parser:
                 if "." in raw_text:
                     raise ParseError("field index must be an integer literal", number_token.span)
                 return FieldExpr(index=int(raw_text), span=combine_spans(dollar_token.span, number_token.span))
+            case TokenKind.LPAREN:
+                return self.parse_parenthesized_expression()
             case _:
                 raise ParseError(f"expected expression, got {token.kind.name}", token.span)
 

@@ -122,6 +122,34 @@ def test_parses_if_statement_with_comparison() -> None:
     assert isinstance(statement.then_branch, PrintStmt)
 
 
+def test_parses_equality_expression_into_binary_expression() -> None:
+    program = parse(lex("BEGIN { print 1 == 1 }"))
+
+    statement = program.items[0].action.statements[0]
+    assert isinstance(statement, PrintStmt)
+
+    argument = statement.arguments[0]
+    assert isinstance(argument, BinaryExpr)
+    assert argument.op is BinaryOp.EQUAL
+    assert isinstance(argument.left, NumericLiteralExpr)
+    assert isinstance(argument.right, NumericLiteralExpr)
+
+
+def test_parses_parenthesized_logical_and_expression() -> None:
+    program = parse(lex("BEGIN { print (1 < 2) && (2 < 3) }"))
+
+    statement = program.items[0].action.statements[0]
+    assert isinstance(statement, PrintStmt)
+
+    argument = statement.arguments[0]
+    assert isinstance(argument, BinaryExpr)
+    assert argument.op is BinaryOp.LOGICAL_AND
+    assert isinstance(argument.left, BinaryExpr)
+    assert argument.left.op is BinaryOp.LESS
+    assert isinstance(argument.right, BinaryExpr)
+    assert argument.right.op is BinaryOp.LESS
+
+
 def test_parses_while_statement_with_block() -> None:
     program = parse(lex("BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }"))
 
