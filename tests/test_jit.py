@@ -100,6 +100,33 @@ def test_execute_host_runtime_supports_array_assignment_and_indexed_read(capsys)
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_array_delete(capsys) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "0\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_classic_for_loops(capsys) -> None:
+    program = parse_program("BEGIN { for (i = 0; i < 3; i = i + 1) print i }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "0\n1\n2\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_for_in_loops(capsys) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; for (k in a) print k }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "x\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 
@@ -122,6 +149,20 @@ def test_execute_routes_array_programs_through_host_runtime(monkeypatch, capsys)
     assert jit.execute(program) == 0
     captured = capsys.readouterr()
     assert captured.out == "1\n"
+    assert captured.err == ""
+
+
+def test_execute_routes_for_loop_programs_through_host_runtime(monkeypatch, capsys) -> None:
+    program = parse_program("BEGIN { for (i = 0; i < 2; i = i + 1) print i }")
+
+    def fail_lower_to_llvm_ir(*args: object, **kwargs: object) -> str:
+        raise AssertionError("for-loop programs should not lower through the LLVM backend yet")
+
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fail_lower_to_llvm_ir)
+
+    assert jit.execute(program) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "0\n1\n"
     assert captured.err == ""
 
 

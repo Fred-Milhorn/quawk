@@ -14,8 +14,11 @@ from .parser import (
     BreakStmt,
     CallExpr,
     ContinueStmt,
+    DeleteStmt,
     Expr,
     ExprPattern,
+    ForInStmt,
+    ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
@@ -107,11 +110,7 @@ def validate_statement(
 ) -> None:
     """Validate one statement in the current semantic context."""
     if isinstance(statement, AssignStmt):
-        if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
-            raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
-        if statement.index is not None:
-            validate_expression(statement.index, functions)
-        validate_expression(statement.value, functions)
+        validate_assignment_statement(statement, functions, scope=scope)
         return
     if isinstance(statement, BlockStmt):
         for nested in statement.statements:
@@ -125,6 +124,9 @@ def validate_statement(
         if loop_depth == 0:
             raise SemanticError("continue is only valid inside a loop", statement.span)
         return
+    if isinstance(statement, DeleteStmt):
+        validate_expression(statement.index, functions)
+        return
     if isinstance(statement, IfStmt):
         validate_expression(statement.condition, functions)
         validate_statement(
@@ -137,6 +139,32 @@ def validate_statement(
         return
     if isinstance(statement, WhileStmt):
         validate_expression(statement.condition, functions)
+        validate_statement(
+            statement.body,
+            functions,
+            scope=scope,
+            inside_function=inside_function,
+            loop_depth=loop_depth + 1,
+        )
+        return
+    if isinstance(statement, ForStmt):
+        if statement.init is not None:
+            validate_assignment_statement(statement.init, functions, scope=scope)
+        if statement.condition is not None:
+            validate_expression(statement.condition, functions)
+        if statement.update is not None:
+            validate_assignment_statement(statement.update, functions, scope=scope)
+        validate_statement(
+            statement.body,
+            functions,
+            scope=scope,
+            inside_function=inside_function,
+            loop_depth=loop_depth + 1,
+        )
+        return
+    if isinstance(statement, ForInStmt):
+        if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
+            raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
         validate_statement(
             statement.body,
             functions,
@@ -177,3 +205,16 @@ def validate_expression(expression: Expr, functions: dict[str, FunctionDef]) -> 
     if isinstance(expression, NameExpr):
         return
     return
+
+
+def validate_assignment_statement(
+    statement: AssignStmt,
+    functions: dict[str, FunctionDef],
+    scope: FunctionScope | None,
+) -> None:
+    """Validate one assignment target and its expressions."""
+    if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
+        raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
+    if statement.index is not None:
+        validate_expression(statement.index, functions)
+    validate_expression(statement.value, functions)

@@ -11,9 +11,12 @@ from .parser import (
     BeginPattern,
     BinaryExpr,
     BlockStmt,
+    DeleteStmt,
     EndPattern,
     Expr,
     ExprPattern,
+    ForInStmt,
+    ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
@@ -129,12 +132,29 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
             for nested in statement.statements:
                 visit_statement(nested)
             return
+        if isinstance(statement, DeleteStmt):
+            visit_expression(statement.index)
+            return
         if isinstance(statement, IfStmt):
             visit_expression(statement.condition)
             visit_statement(statement.then_branch)
             return
         if isinstance(statement, WhileStmt):
             visit_expression(statement.condition)
+            visit_statement(statement.body)
+            return
+        if isinstance(statement, ForStmt):
+            if statement.init is not None:
+                visit_statement(statement.init)
+            if statement.condition is not None:
+                visit_expression(statement.condition)
+            if statement.update is not None:
+                visit_statement(statement.update)
+            visit_statement(statement.body)
+            return
+        if isinstance(statement, ForInStmt):
+            note_name(statement.name)
+            note_name(statement.array_name)
             visit_statement(statement.body)
             return
         if isinstance(statement, PrintStmt):

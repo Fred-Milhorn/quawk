@@ -249,6 +249,14 @@ def test_lexes_array_assignment_tokens() -> None:
     ]
 
 
+def test_lexes_delete_and_for_tokens() -> None:
+    tokens = lex('BEGIN { delete a["x"]; for (i = 0; i < 3; i = i + 1) print i; for (k in a) print k }')
+
+    assert TokenKind.DELETE in [token.kind for token in tokens]
+    assert TokenKind.FOR in [token.kind for token in tokens]
+    assert TokenKind.IN in [token.kind for token in tokens]
+
+
 def test_lexes_bare_action_field_tokens() -> None:
     tokens = lex("{ print $1 }")
 

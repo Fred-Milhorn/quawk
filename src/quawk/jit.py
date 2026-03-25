@@ -26,10 +26,13 @@ from .parser import (
     BreakStmt,
     CallExpr,
     ContinueStmt,
+    DeleteStmt,
     EndPattern,
     Expr,
     ExprPattern,
     FieldExpr,
+    ForInStmt,
+    ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
@@ -81,7 +84,7 @@ class LoweringState:
 class RuntimeState:
     """Mutable host-runtime state for the currently supported interpreter path."""
 
-    variables: dict[str, float] = field(default_factory=dict)
+    variables: dict[str, float | str] = field(default_factory=dict)
     arrays: dict[str, dict[str, float]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
 
@@ -102,7 +105,17 @@ class ReturnSignal(Exception):
         self.value = value
 
 
+class BreakSignal(Exception):
+    """Internal control-flow signal used to unwind one loop break."""
+
+
+class ContinueSignal(Exception):
+    """Internal control-flow signal used to skip to the next loop iteration."""
+
+
 InitialVariables = list[tuple[str, float]]
+ScalarValue = float | str
+LocalScope = dict[str, ScalarValue]
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -161,8 +174,8 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_function_definitions(program):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
-    if has_array_operations(program):
-        raise RuntimeError("array operations are not supported by the LLVM-backed backend")
+    if has_host_runtime_only_operations(program):
+        raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
     if requires_input_aware_execution(program):
         return lower_reusable_program_to_llvm_ir(normalized_program)
@@ -356,12 +369,18 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
         raise RuntimeError("break statements are not supported by the current backend")
     if isinstance(statement, ContinueStmt):
         raise RuntimeError("continue statements are not supported by the current backend")
+    if isinstance(statement, DeleteStmt):
+        raise RuntimeError("delete statements are not supported by the LLVM-backed backend")
     if isinstance(statement, IfStmt):
         lower_if_statement(statement, state)
         return
     if isinstance(statement, WhileStmt):
         lower_while_statement(statement, state)
         return
+    if isinstance(statement, ForStmt):
+        raise RuntimeError("for statements are not supported by the LLVM-backed backend")
+    if isinstance(statement, ForInStmt):
+        raise RuntimeError("for-in statements are not supported by the LLVM-backed backend")
     if isinstance(statement, ReturnStmt):
         raise RuntimeError("return statements are not supported by the LLVM-backed backend")
     if not isinstance(statement, PrintStmt):
@@ -1032,7 +1051,7 @@ def execute_action(
     action: Action,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> None:
     """Execute one action block in the host runtime."""
     for statement in action.statements:
@@ -1043,7 +1062,7 @@ def execute_statement(
     statement: Stmt,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> None:
     """Execute one statement in the currently supported host-runtime subset."""
     if isinstance(statement, AssignStmt):
@@ -1063,16 +1082,54 @@ def execute_statement(
             execute_statement(nested, state, record, locals_scope)
         return
     if isinstance(statement, BreakStmt):
-        raise RuntimeError("break statements are not supported by the current runtime")
+        raise BreakSignal()
     if isinstance(statement, ContinueStmt):
-        raise RuntimeError("continue statements are not supported by the current runtime")
+        raise ContinueSignal()
+    if isinstance(statement, DeleteStmt):
+        key = evaluate_array_index(statement.index, state, record, locals_scope)
+        target_array: dict[str, float] | None = state.arrays.get(statement.array_name)
+        if target_array is not None:
+            target_array.pop(key, None)
+        return
     if isinstance(statement, IfStmt):
         if evaluate_condition(statement.condition, state, record, locals_scope):
             execute_statement(statement.then_branch, state, record, locals_scope)
         return
     if isinstance(statement, WhileStmt):
         while evaluate_condition(statement.condition, state, record, locals_scope):
-            execute_statement(statement.body, state, record, locals_scope)
+            try:
+                execute_statement(statement.body, state, record, locals_scope)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
+        return
+    if isinstance(statement, ForStmt):
+        if statement.init is not None:
+            execute_statement(statement.init, state, record, locals_scope)
+        while statement.condition is None or evaluate_condition(statement.condition, state, record, locals_scope):
+            should_continue = False
+            try:
+                execute_statement(statement.body, state, record, locals_scope)
+            except ContinueSignal:
+                should_continue = True
+            except BreakSignal:
+                break
+            if statement.update is not None:
+                execute_statement(statement.update, state, record, locals_scope)
+            if should_continue:
+                continue
+        return
+    if isinstance(statement, ForInStmt):
+        keys = tuple(state.arrays.get(statement.array_name, {}).keys())
+        for key in keys:
+            assign_scalar_value(statement.name, key, state, locals_scope)
+            try:
+                execute_statement(statement.body, state, record, locals_scope)
+            except ContinueSignal:
+                continue
+            except BreakSignal:
+                break
         return
     if isinstance(statement, ReturnStmt):
         if locals_scope is None:
@@ -1089,7 +1146,7 @@ def evaluate_print_expression(
     expression: Expr,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> str | float:
     """Evaluate an expression in the forms the current runtime can print."""
     if isinstance(expression, StringLiteralExpr):
@@ -1100,6 +1157,9 @@ def evaluate_print_expression(
         return resolve_field_value(expression.index, record)
     if isinstance(expression, ArrayIndexExpr):
         return evaluate_numeric_expression(expression, state, record, locals_scope)
+    if isinstance(expression, NameExpr):
+        value = read_scalar_value(expression.name, state, locals_scope)
+        return 0.0 if value is None else value
     return evaluate_numeric_expression(expression, state, record, locals_scope)
 
 
@@ -1107,7 +1167,7 @@ def evaluate_numeric_expression(
     expression: Expr,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> float:
     """Evaluate a numeric expression in the current host-runtime subset."""
     if isinstance(expression, NumericLiteralExpr):
@@ -1119,12 +1179,8 @@ def evaluate_numeric_expression(
             return 0.0
         return array.get(key, 0.0)
     if isinstance(expression, NameExpr):
-        value = None
-        if locals_scope is not None:
-            value = locals_scope.get(expression.name)
-        if value is None:
-            value = state.variables.get(expression.name)
-        return 0.0 if value is None else value
+        value = read_scalar_value(expression.name, state, locals_scope)
+        return coerce_scalar_to_number(value)
     if isinstance(expression, CallExpr):
         return call_function(expression, state, record, locals_scope)
     if isinstance(expression, BinaryExpr):
@@ -1155,7 +1211,7 @@ def evaluate_condition(
     expression: Expr,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> bool:
     """Evaluate a condition expression using the supported truthiness rules."""
     if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
@@ -1186,7 +1242,7 @@ def call_function(
     expression: CallExpr,
     state: RuntimeState,
     record: RecordContext | None,
-    caller_locals: dict[str, float] | None,
+    caller_locals: LocalScope | None,
 ) -> float:
     """Execute one user-defined function call in the current host runtime."""
     function_def = state.functions.get(expression.function)
@@ -1197,7 +1253,7 @@ def call_function(
             f"function {expression.function} expects {len(function_def.params)} arguments, got {len(expression.args)}"
         )
 
-    locals_scope = {
+    locals_scope: LocalScope = {
         param: evaluate_numeric_expression(argument, state, record, caller_locals)
         for param, argument in zip(function_def.params, expression.args, strict=True)
     }
@@ -1213,12 +1269,60 @@ def evaluate_array_index(
     expression: Expr,
     state: RuntimeState,
     record: RecordContext | None,
-    locals_scope: dict[str, float] | None,
+    locals_scope: LocalScope | None,
 ) -> str:
     """Evaluate one associative-array index using the current subset's coercions."""
     if isinstance(expression, StringLiteralExpr):
         return expression.value
+    if isinstance(expression, FieldExpr):
+        if record is None:
+            raise RuntimeError("field expressions require an active input record")
+        return resolve_field_value(expression.index, record)
+    if isinstance(expression, NameExpr):
+        value = read_scalar_value(expression.name, state, locals_scope)
+        if isinstance(value, str):
+            return value
+        return format_numeric_value(0.0 if value is None else value)
     return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
+
+
+def read_scalar_value(
+    name: str,
+    state: RuntimeState,
+    locals_scope: LocalScope | None,
+) -> ScalarValue | None:
+    """Read one scalar from the active local scope first, then globals."""
+    value = None
+    if locals_scope is not None:
+        value = locals_scope.get(name)
+    if value is None:
+        value = state.variables.get(name)
+    return value
+
+
+def assign_scalar_value(
+    name: str,
+    value: ScalarValue,
+    state: RuntimeState,
+    locals_scope: LocalScope | None,
+) -> None:
+    """Assign one scalar value to the local scope when present, otherwise globals."""
+    if locals_scope is not None and name in locals_scope:
+        locals_scope[name] = value
+        return
+    state.variables[name] = value
+
+
+def coerce_scalar_to_number(value: ScalarValue | None) -> float:
+    """Coerce the current scalar subset into its numeric value."""
+    if value is None:
+        return 0.0
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
+    return value
 
 
 def print_value(value: str | float) -> None:
@@ -1251,48 +1355,63 @@ def has_function_definitions(program: Program) -> bool:
 
 def requires_host_runtime_execution(program: Program) -> bool:
     """Report whether execution must use the host runtime instead of LLVM lowering."""
-    return has_function_definitions(program) or has_array_operations(program)
+    return has_function_definitions(program) or has_host_runtime_only_operations(program)
 
 
-def has_array_operations(program: Program) -> bool:
-    """Report whether `program` contains associative-array indexed reads or writes."""
+def has_host_runtime_only_operations(program: Program) -> bool:
+    """Report whether `program` contains features not yet supported by LLVM lowering."""
 
-    def expression_has_array_ops(expression: Expr) -> bool:
+    def expression_has_host_runtime_only_ops(expression: Expr) -> bool:
         if isinstance(expression, ArrayIndexExpr):
             return True
         if isinstance(expression, BinaryExpr):
-            return expression_has_array_ops(expression.left) or expression_has_array_ops(expression.right)
+            return (
+                expression_has_host_runtime_only_ops(expression.left)
+                or expression_has_host_runtime_only_ops(expression.right)
+            )
         if isinstance(expression, CallExpr):
-            return any(expression_has_array_ops(argument) for argument in expression.args)
+            return any(expression_has_host_runtime_only_ops(argument) for argument in expression.args)
         return False
 
-    def statement_has_array_ops(statement: Stmt) -> bool:
+    def statement_has_host_runtime_only_ops(statement: Stmt) -> bool:
         if isinstance(statement, AssignStmt):
             if statement.index is not None:
                 return True
-            return expression_has_array_ops(statement.value)
+            return expression_has_host_runtime_only_ops(statement.value)
         if isinstance(statement, BlockStmt):
-            return any(statement_has_array_ops(nested) for nested in statement.statements)
+            return any(statement_has_host_runtime_only_ops(nested) for nested in statement.statements)
+        if isinstance(statement, DeleteStmt):
+            return True
         if isinstance(statement, IfStmt):
-            return expression_has_array_ops(statement.condition) or statement_has_array_ops(statement.then_branch)
+            return (
+                expression_has_host_runtime_only_ops(statement.condition)
+                or statement_has_host_runtime_only_ops(statement.then_branch)
+            )
         if isinstance(statement, WhileStmt):
-            return expression_has_array_ops(statement.condition) or statement_has_array_ops(statement.body)
+            return (
+                expression_has_host_runtime_only_ops(statement.condition)
+                or statement_has_host_runtime_only_ops(statement.body)
+            )
+        if isinstance(statement, ForStmt):
+            return True
+        if isinstance(statement, ForInStmt):
+            return True
         if isinstance(statement, PrintStmt):
-            return any(expression_has_array_ops(argument) for argument in statement.arguments)
+            return any(expression_has_host_runtime_only_ops(argument) for argument in statement.arguments)
         if isinstance(statement, ReturnStmt) and statement.value is not None:
-            return expression_has_array_ops(statement.value)
+            return expression_has_host_runtime_only_ops(statement.value)
         return False
 
     for item in program.items:
         if isinstance(item, FunctionDef):
-            if any(statement_has_array_ops(statement) for statement in item.body.statements):
+            if any(statement_has_host_runtime_only_ops(statement) for statement in item.body.statements):
                 return True
             continue
         if isinstance(item, PatternAction):
-            if isinstance(item.pattern, ExprPattern) and expression_has_array_ops(item.pattern.test):
+            if isinstance(item.pattern, ExprPattern) and expression_has_host_runtime_only_ops(item.pattern.test):
                 return True
             if item.action is not None and any(
-                statement_has_array_ops(statement) for statement in item.action.statements
+                statement_has_host_runtime_only_ops(statement) for statement in item.action.statements
             ):
                 return True
     return False

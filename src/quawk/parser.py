@@ -136,6 +136,13 @@ class ContinueStmt:
 
 
 @dataclass(frozen=True)
+class DeleteStmt:
+    array_name: str
+    index: Expr
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class IfStmt:
     condition: Expr
     then_branch: Stmt
@@ -150,12 +157,41 @@ class WhileStmt:
 
 
 @dataclass(frozen=True)
+class ForStmt:
+    init: AssignStmt | None
+    condition: Expr | None
+    update: AssignStmt | None
+    body: Stmt
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class ForInStmt:
+    name: str
+    array_name: str
+    body: Stmt
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class ReturnStmt:
     value: Expr | None
     span: SourceSpan
 
 
-Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | BreakStmt | ContinueStmt | IfStmt | WhileStmt | ReturnStmt
+Stmt: TypeAlias = (
+    PrintStmt
+    | AssignStmt
+    | BlockStmt
+    | BreakStmt
+    | ContinueStmt
+    | DeleteStmt
+    | IfStmt
+    | WhileStmt
+    | ForStmt
+    | ForInStmt
+    | ReturnStmt
+)
 
 
 @dataclass(frozen=True)
@@ -247,6 +283,10 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             return [f"{indent}BreakStmt span={statement.span.format_start()}"]
         case ContinueStmt():
             return [f"{indent}ContinueStmt span={statement.span.format_start()}"]
+        case DeleteStmt():
+            lines = [f"{indent}DeleteStmt span={statement.span.format_start()} array_name={statement.array_name!r}"]
+            lines.extend(format_expression(statement.index, indent + "  "))
+            return lines
         case IfStmt():
             lines = [f"{indent}IfStmt span={statement.span.format_start()}"]
             lines.append(f"{indent}  Condition")
@@ -258,6 +298,30 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             lines = [f"{indent}WhileStmt span={statement.span.format_start()}"]
             lines.append(f"{indent}  Condition")
             lines.extend(format_expression(statement.condition, indent + "    "))
+            lines.append(f"{indent}  Body")
+            lines.extend(format_statement(statement.body, indent + "    "))
+            return lines
+        case ForStmt():
+            lines = [f"{indent}ForStmt span={statement.span.format_start()}"]
+            if statement.init is not None:
+                lines.append(f"{indent}  Init")
+                lines.extend(format_statement(statement.init, indent + "    "))
+            if statement.condition is not None:
+                lines.append(f"{indent}  Condition")
+                lines.extend(format_expression(statement.condition, indent + "    "))
+            if statement.update is not None:
+                lines.append(f"{indent}  Update")
+                lines.extend(format_statement(statement.update, indent + "    "))
+            lines.append(f"{indent}  Body")
+            lines.extend(format_statement(statement.body, indent + "    "))
+            return lines
+        case ForInStmt():
+            lines = [
+                (
+                    f"{indent}ForInStmt span={statement.span.format_start()} "
+                    f"name={statement.name!r} array_name={statement.array_name!r}"
+                )
+            ]
             lines.append(f"{indent}  Body")
             lines.extend(format_statement(statement.body, indent + "    "))
             return lines
@@ -426,6 +490,10 @@ class Parser:
             return self.parse_break_statement()
         if self.check(TokenKind.CONTINUE):
             return self.parse_continue_statement()
+        if self.check(TokenKind.DELETE):
+            return self.parse_delete_statement()
+        if self.check(TokenKind.FOR):
+            return self.parse_for_statement()
         if self.check(TokenKind.IF):
             return self.parse_if_statement()
         if self.check(TokenKind.PRINT):
@@ -453,6 +521,61 @@ class Parser:
         """Parse a `continue` statement."""
         continue_token = self.expect(TokenKind.CONTINUE)
         return ContinueStmt(span=continue_token.span)
+
+    def parse_delete_statement(self) -> DeleteStmt:
+        """Parse a `delete a[index]` statement."""
+        delete_token = self.expect(TokenKind.DELETE)
+        name_token = self.expect(TokenKind.IDENT)
+        self.expect(TokenKind.LBRACKET)
+        index = self.parse_expression()
+        rbracket_token = self.expect(TokenKind.RBRACKET)
+        return DeleteStmt(
+            array_name=name_token.text or "",
+            index=index,
+            span=combine_spans(delete_token.span, rbracket_token.span),
+        )
+
+    def parse_for_statement(self) -> ForStmt | ForInStmt:
+        """Parse either a classic `for` loop or a `for (name in array)` loop."""
+        for_token = self.expect(TokenKind.FOR)
+        self.expect(TokenKind.LPAREN)
+        if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.IN:
+            name_token = self.expect(TokenKind.IDENT)
+            self.expect(TokenKind.IN)
+            array_token = self.expect(TokenKind.IDENT)
+            self.expect(TokenKind.RPAREN)
+            body = self.parse_statement()
+            return ForInStmt(
+                name=name_token.text or "",
+                array_name=array_token.text or "",
+                body=body,
+                span=combine_spans(for_token.span, body.span),
+            )
+
+        init: AssignStmt | None = None
+        condition: Expr | None = None
+        update: AssignStmt | None = None
+
+        if not self.check(TokenKind.SEMICOLON):
+            init = self.parse_assignment_statement()
+        self.expect(TokenKind.SEMICOLON)
+
+        if not self.check(TokenKind.SEMICOLON):
+            condition = self.parse_expression()
+        self.expect(TokenKind.SEMICOLON)
+
+        if not self.check(TokenKind.RPAREN):
+            update = self.parse_assignment_statement()
+        self.expect(TokenKind.RPAREN)
+
+        body = self.parse_statement()
+        return ForStmt(
+            init=init,
+            condition=condition,
+            update=update,
+            body=body,
+            span=combine_spans(for_token.span, body.span),
+        )
 
     def parse_if_statement(self) -> IfStmt:
         """Parse an `if` statement without `else` support."""

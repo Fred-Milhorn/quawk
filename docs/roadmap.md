@@ -220,13 +220,12 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: array deletion and iteration
+Next deliverable: builtin tranche for the active P6 subset
 
 Target outcome:
-- representative `delete`, classic `for`, and `for ... in` programs execute through the supported public path
+- the first builtin subset required by the active array-and-iteration path executes through the public CLI
 
-1. `T-110` implement `delete`, `for`, and `for ... in` for the array model
-2. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
+1. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
 
 ## Backlog
 
@@ -283,7 +282,7 @@ Priority values:
 | T-107 | P6 | P0 | Author end-to-end tests for associative arrays and indexed access | T-100 | CLI tests exist for the first array read/write programs before implementation | done |
 | T-108 | P6 | P0 | Implement associative arrays and indexed assignment/read | T-107, T-022 | `BEGIN { a["x"] = 1; print a["x"] }` executes correctly | done |
 | T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | done |
-| T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | todo |
+| T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | done |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |

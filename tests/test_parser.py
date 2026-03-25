@@ -19,9 +19,12 @@ from quawk.parser import (
     BreakStmt,
     CallExpr,
     ContinueStmt,
+    DeleteStmt,
     EndPattern,
     ExprPattern,
     FieldExpr,
+    ForInStmt,
+    ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
@@ -123,6 +126,45 @@ def test_parses_array_assignment_and_indexed_read() -> None:
     assert array_read.array_name == "a"
     assert isinstance(array_read.index, StringLiteralExpr)
     assert array_read.index.value == "x"
+
+
+def test_parses_delete_statement() -> None:
+    program = parse(lex('BEGIN { delete a["x"] }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    statement = action.statements[0]
+    assert isinstance(statement, DeleteStmt)
+    assert statement.array_name == "a"
+    assert isinstance(statement.index, StringLiteralExpr)
+    assert statement.index.value == "x"
+
+
+def test_parses_classic_for_statement() -> None:
+    program = parse(lex("BEGIN { for (i = 0; i < 3; i = i + 1) print i }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForStmt)
+    assert isinstance(loop.init, AssignStmt)
+    assert loop.init.name == "i"
+    assert isinstance(loop.condition, BinaryExpr)
+    assert loop.condition.op is BinaryOp.LESS
+    assert isinstance(loop.update, AssignStmt)
+    assert isinstance(loop.body, PrintStmt)
+
+
+def test_parses_for_in_statement() -> None:
+    program = parse(lex('BEGIN { for (k in a) print k }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForInStmt)
+    assert loop.name == "k"
+    assert loop.array_name == "a"
+    assert isinstance(loop.body, PrintStmt)
 
 
 def test_parses_bare_action_with_field_expression() -> None:

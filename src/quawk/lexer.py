@@ -16,9 +16,12 @@ class TokenKind(Enum):
     BEGIN = auto()
     BREAK = auto()
     CONTINUE = auto()
+    DELETE = auto()
     END = auto()
+    FOR = auto()
     FUNCTION = auto()
     IF = auto()
+    IN = auto()
     PRINT = auto()
     PRINTF = auto()
     RETURN = auto()
@@ -50,9 +53,12 @@ KEYWORDS: dict[str, TokenKind] = {
     "BEGIN": TokenKind.BEGIN,
     "break": TokenKind.BREAK,
     "continue": TokenKind.CONTINUE,
+    "delete": TokenKind.DELETE,
     "END": TokenKind.END,
+    "for": TokenKind.FOR,
     "function": TokenKind.FUNCTION,
     "if": TokenKind.IF,
+    "in": TokenKind.IN,
     "print": TokenKind.PRINT,
     "printf": TokenKind.PRINTF,
     "return": TokenKind.RETURN,
@@ -63,9 +69,12 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.BEGIN: "BEGIN",
     TokenKind.BREAK: "break",
     TokenKind.CONTINUE: "continue",
+    TokenKind.DELETE: "delete",
     TokenKind.END: "END",
+    TokenKind.FOR: "for",
     TokenKind.FUNCTION: "function",
     TokenKind.IF: "if",
+    TokenKind.IN: "in",
     TokenKind.PRINT: "print",
     TokenKind.PRINTF: "printf",
     TokenKind.RETURN: "return",
