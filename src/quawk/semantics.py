@@ -90,6 +90,8 @@ def validate_statement(
 ) -> None:
     """Validate one statement in the current semantic context."""
     if isinstance(statement, AssignStmt):
+        if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
+            raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
         validate_expression(statement.value, functions)
         return
     if isinstance(statement, BlockStmt):

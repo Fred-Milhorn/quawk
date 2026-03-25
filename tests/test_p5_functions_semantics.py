@@ -49,3 +49,25 @@ def test_return_outside_function_reports_semantic_error() -> None:
         "BEGIN { return 1 }\n"
         "        ^\n"
     )
+
+
+def test_assignment_to_function_name_reports_semantic_error() -> None:
+    result = run_quawk("function f(x) { return x }\nBEGIN { f = 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:2:9: error: cannot assign to function name: f\n"
+        "BEGIN { f = 1 }\n"
+        "        ^\n"
+    )
+
+
+def test_assignment_to_function_name_inside_function_reports_semantic_error() -> None:
+    result = run_quawk("function f(x) { f = 1; return x }\nBEGIN { print f(2) }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:17: error: cannot assign to function name: f\n"
+        "function f(x) { f = 1; return x }\n"
+        "                ^\n"
+    )
