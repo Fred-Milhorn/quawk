@@ -219,11 +219,10 @@ Next deliverable: functions and scope
 Target programs:
 - `function f(x) { return x + 1 } BEGIN { print f(2) }`
 
-1. `T-044` author tests for semantic checks needed by the next capability increment
-2. `T-018` build symbol-table and scoping support for variables and functions
-3. `T-019` implement semantic checks for lvalues and assignment legality
-4. `T-020` implement control-flow legality checks when loops/functions land
-5. `T-021` implement function declaration/definition checks when functions land
+1. `T-018` build symbol-table and scoping support for variables and functions
+2. `T-019` implement semantic checks for lvalues and assignment legality
+3. `T-020` implement control-flow legality checks when loops/functions land
+4. `T-021` implement function declaration/definition checks when functions land
 
 ## Backlog
 
@@ -266,7 +265,7 @@ Priority values:
 | T-015 | P7 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P7 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
 | T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | done |
-| T-044 | P5 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
+| T-044 | P5 | P1 | Author semantic tests for the first user-defined function behavior | T-017 | Tests exist for the initial function-call path and its first legality checks before implementation | done |
 | T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
 | T-019 | P5 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
 | T-020 | P5 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | todo |
