@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .builtins import is_builtin_function_name
 from .diagnostics import SemanticError
 from .parser import (
     Action,
@@ -197,8 +198,10 @@ def validate_expression(expression: Expr, functions: dict[str, FunctionDef]) -> 
         return
     if isinstance(expression, CallExpr):
         function_def = functions.get(expression.function)
-        if function_def is None:
+        if function_def is None and not is_builtin_function_name(expression.function):
             raise SemanticError(f"call to undefined function: {expression.function}", expression.span)
+        if function_def is None and expression.function == "length" and len(expression.args) > 1:
+            raise SemanticError("builtin length expects zero or one argument", expression.span)
         for argument in expression.args:
             validate_expression(argument, functions)
         return

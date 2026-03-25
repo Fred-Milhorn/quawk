@@ -67,3 +67,11 @@ def test_inline_begin_for_in_loop_iterates_array_keys() -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == "x\n"
     assert result.stderr == ""
+
+
+def test_inline_begin_length_builtin_reports_string_and_array_lengths() -> None:
+    result = run_quawk('BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "5\n2\n"
+    assert result.stderr == ""

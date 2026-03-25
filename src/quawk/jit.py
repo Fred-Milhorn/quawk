@@ -14,6 +14,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TextIO
 
 from . import runtime_support
+from .builtins import is_builtin_function_name
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
@@ -1246,6 +1247,8 @@ def call_function(
 ) -> float:
     """Execute one user-defined function call in the current host runtime."""
     function_def = state.functions.get(expression.function)
+    if function_def is None and is_builtin_function_name(expression.function):
+        return call_builtin_function(expression, state, record, caller_locals)
     if function_def is None:
         raise RuntimeError(f"undefined function in current runtime: {expression.function}")
     if len(expression.args) != len(function_def.params):
@@ -1263,6 +1266,38 @@ def call_function(
     except ReturnSignal as signal:
         return signal.value
     return 0.0
+
+
+def call_builtin_function(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> float:
+    """Execute one supported builtin function call in the current host runtime."""
+    if expression.function == "length":
+        return call_length_builtin(expression, state, record, locals_scope)
+    raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
+
+
+def call_length_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> float:
+    """Execute the current subset's `length` builtin."""
+    if len(expression.args) > 1:
+        raise RuntimeError("builtin length expects zero or one argument")
+    if not expression.args:
+        return float(len(record.field0)) if record is not None else 0.0
+
+    argument = expression.args[0]
+    if isinstance(argument, NameExpr):
+        scalar_value = read_scalar_value(argument.name, state, locals_scope)
+        if scalar_value is None and argument.name in state.arrays:
+            return float(len(state.arrays[argument.name]))
+    return float(len(evaluate_string_expression(argument, state, record, locals_scope)))
 
 
 def evaluate_array_index(
@@ -1283,6 +1318,31 @@ def evaluate_array_index(
         if isinstance(value, str):
             return value
         return format_numeric_value(0.0 if value is None else value)
+    return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
+
+
+def evaluate_string_expression(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> str:
+    """Evaluate an expression into the string view needed by string-oriented builtins."""
+    if isinstance(expression, StringLiteralExpr):
+        return expression.value
+    if isinstance(expression, FieldExpr):
+        if record is None:
+            raise RuntimeError("field expressions require an active input record")
+        return resolve_field_value(expression.index, record)
+    if isinstance(expression, NameExpr):
+        value = read_scalar_value(expression.name, state, locals_scope)
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        return format_numeric_value(value)
+    if isinstance(expression, ArrayIndexExpr):
+        return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
     return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
 
 
@@ -1370,6 +1430,8 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 or expression_has_host_runtime_only_ops(expression.right)
             )
         if isinstance(expression, CallExpr):
+            if is_builtin_function_name(expression.function):
+                return True
             return any(expression_has_host_runtime_only_ops(argument) for argument in expression.args)
         return False
 

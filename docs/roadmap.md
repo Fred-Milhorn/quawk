@@ -220,12 +220,13 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: builtin tranche for the active P6 subset
+Next deliverable: semantic error code catalog
 
 Target outcome:
-- the first builtin subset required by the active array-and-iteration path executes through the public CLI
+- semantic diagnostics gain a stable public error-code scheme without changing source locations or messages
 
-1. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
+1. `T-023` define semantic error code catalog after core execution behavior stabilizes
+2. `T-047` author compatibility tests as `xfail` baseline for the supported subset
 
 ## Backlog
 
@@ -278,7 +279,7 @@ Priority values:
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when mixed program execution becomes active | T-024, T-025 | Mixed `BEGIN` / record / `END` fixtures pass for the supported subset | todo |
-| T-027 | P6 | P1 | Implement builtins only as required by the active deliverable or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-027 | P6 | P1 | Implement builtins only as required by the active deliverable or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | done |
 | T-107 | P6 | P0 | Author end-to-end tests for associative arrays and indexed access | T-100 | CLI tests exist for the first array read/write programs before implementation | done |
 | T-108 | P6 | P0 | Implement associative arrays and indexed assignment/read | T-107, T-022 | `BEGIN { a["x"] = 1; print a["x"] }` executes correctly | done |
 | T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | done |

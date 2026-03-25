@@ -207,14 +207,17 @@ Currently supported execution path:
 - `if` statements in `BEGIN`
 - `while` loops in `BEGIN`
 - nested braced blocks in `BEGIN`
+- user-defined functions and returns on the host-runtime path
+- associative arrays with indexed reads and writes
+- `delete`, classic `for`, and `for ... in` on the host-runtime path
+- the `length` builtin for strings, current records, and arrays on the host-runtime path
 - bare action record processing
 - `$0` and `$1` field reads
-- no function definitions required yet
 
 Current architectural caveat:
-- the live input-aware path still specializes execution to concrete input records in Python
-- that is acceptable for small fixtures but not the target architecture for AWK-scale inputs
-- the next backend refactor should replace it with the reusable program/runtime split above before the language surface expands further
+- mixed and regex-driven record execution now lower through the reusable program/runtime split above
+- the host runtime remains the fallback for the language families not yet lowered through LLVM, including functions, arrays, iteration, and builtins
+- further backend work should shrink that host-runtime-only surface over time
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes
@@ -224,6 +227,10 @@ Acceptance scenarios:
 - inline `BEGIN { x = 1 + 2; print x }` compiles and executes
 - inline `BEGIN { if (1 < 2) print 3 }` compiles and executes
 - inline `BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }` compiles and executes
+- inline `function f(x) { return x + 1 } BEGIN { print f(2) }` executes correctly
+- inline `BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }` executes correctly
+- inline `BEGIN { a["x"] = 1; for (k in a) print k }` executes correctly
+- inline `BEGIN { print length("hello") }` executes correctly
 - inline `{ print $0 }` processes stdin records correctly
 - inline `{ print $1 }` processes stdin records correctly
 - `-f hello.awk` with the same program compiles and executes
