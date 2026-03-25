@@ -1,0 +1,15 @@
+id = "begin_while_loop"
+description = "While loop over the supported scalar subset."
+program = "begin_while_loop.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt.assignment",
+  "stmt.while",
+  "expr.number",
+  "expr.name",
+  "expr.add",
+  "expr.less",
+]

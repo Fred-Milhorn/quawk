@@ -1,0 +1,15 @@
+id = "begin_boolean_expr"
+description = "Equality, logical AND, and grouped expressions in BEGIN."
+program = "begin_boolean_expr.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt.print",
+  "expr.number",
+  "expr.less",
+  "expr.equal",
+  "expr.logical_and",
+  "expr.grouped",
+]

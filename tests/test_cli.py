@@ -314,6 +314,27 @@ def test_quawk_ir_flag_prints_control_flow_ir_and_stops() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_equality_expression_ir() -> None:
+    result = run_quawk("--ir", "BEGIN { print 1 == 1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fcmp oeq double 1.000000000000000e+00, 1.000000000000000e+00" in result.stdout
+    assert "uitofp i1 %eq." in result.stdout
+    assert "call i32 (ptr, ...) @printf(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_logical_and_expression_ir() -> None:
+    result = run_quawk("--ir", "BEGIN { print (1 < 2) && (2 < 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fcmp olt double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
+    assert "fcmp olt double 2.000000000000000e+00, 3.000000000000000e+00" in result.stdout
+    assert "phi i1 [ false, %and.false." in result.stdout
+    assert "uitofp i1 %and." in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_asm_flag_prints_assembly_and_stops() -> None:
     result = run_quawk("--asm", 'BEGIN { print "hello" }')
 

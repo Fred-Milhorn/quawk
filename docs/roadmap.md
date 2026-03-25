@@ -214,15 +214,16 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: broader expression support
+Next deliverable: functions and scope
 
 Target programs:
-- `BEGIN { print 1 == 1 }`
-- `BEGIN { print (1 < 2) && (2 < 3) }`
+- `function f(x) { return x + 1 } BEGIN { print f(2) }`
 
-1. `T-099` extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions
-2. `T-100` add integration tests for stdout/stderr/exit status of broader expression support
-3. `T-017` add parser conformance fixtures mapped to supported grammar sections
+1. `T-044` author tests for semantic checks needed by the next capability increment
+2. `T-018` build symbol-table and scoping support for variables and functions
+3. `T-019` implement semantic checks for lvalues and assignment legality
+4. `T-020` implement control-flow legality checks when loops/functions land
+5. `T-021` implement function declaration/definition checks when functions land
 
 ## Backlog
 
@@ -264,7 +265,7 @@ Priority values:
 | T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
 | T-015 | P7 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
 | T-016 | P7 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
-| T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | todo |
+| T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | done |
 | T-044 | P5 | P1 | Author tests for semantic checks needed by the next capability increment | T-017 | Semantic tests are committed before the related feature work | todo |
 | T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | todo |
 | T-019 | P5 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | todo |
@@ -335,8 +336,8 @@ Priority values:
 | T-096 | P4 | P0 | Define AST nodes for equality and logical-AND expressions | T-094, T-093 | AST matches `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` | done |
 | T-097 | P4 | P0 | Extend the parser for `==`, `&&`, and parenthesized boolean expressions | T-096, T-093 | The parser accepts the planned equality/logical-expression programs with stable precedence and grouping | done |
 | T-098 | P4 | P0 | Extend runtime support for boolean results, equality, and logical AND | T-097, T-106 | Runtime executes `==` and `&&` correctly for the planned `BEGIN` programs on the reusable streaming backend | done |
-| T-099 | P4 | P0 | Extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions | T-098 | `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` execute through the reusable LLVM-backed path | todo |
-| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of broader expression support | T-099 | Integration tests pass for the planned equality/logical-expression programs on the reusable runtime path | todo |
+| T-099 | P4 | P0 | Extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions | T-098 | `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` execute through the reusable LLVM-backed path | done |
+| T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of broader expression support | T-099 | Integration tests pass for the planned equality/logical-expression programs on the reusable runtime path | done |
 
 ## Cross-Cutting Tracks
 

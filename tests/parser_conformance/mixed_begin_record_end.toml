@@ -1,0 +1,13 @@
+id = "mixed_begin_record_end"
+description = "Mixed BEGIN, record action, and END program."
+program = "mixed_begin_record_end.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "pattern.END",
+  "action",
+  "stmt.print",
+  "expr.string",
+  "expr.field",
+]

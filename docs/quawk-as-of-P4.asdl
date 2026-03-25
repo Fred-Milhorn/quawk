@@ -1,0 +1,53 @@
+-- quawk implemented AST subset as of P4
+--
+-- This file documents the AST shape that is actually implemented in
+-- `src/quawk/parser.py` today. It is intentionally narrower than
+-- `docs/quawk.asdl`, which remains the long-term AST design target.
+--
+-- Important current-shape differences from the long-term spec:
+-- - assignment is a statement, not an expression
+-- - field references use an integer field index, not a general expression
+-- - `if` has no `else` branch yet
+-- - only the currently implemented binary operators are present
+
+module QuawkCurrent {
+    loc = Loc(
+        string source,
+        int start_line,
+        int start_column,
+        int end_line,
+        int end_column
+    )
+
+    program = Program(item* items) attributes (loc? loc)
+
+    item = PatternAction(pattern? pattern, action? action)
+         attributes (loc? loc)
+
+    pattern = Begin
+            | End
+            | ExprPattern(expr test)
+            attributes (loc? loc)
+
+    action = Action(stmt* statements) attributes (loc? loc)
+
+    stmt = Print(expr* args)
+         | AssignStmt(identifier name, expr value)
+         | Block(stmt* statements)
+         | If(expr test, stmt then_branch)
+         | While(expr test, stmt body)
+         attributes (loc? loc)
+
+    expr = StringLiteral(string value, string raw_text)
+         | NumberLiteral(string raw_text)
+         | RegexLiteral(string raw_text)
+         | Name(identifier id)
+         | FieldRef(int index)
+         | Binary(expr left, binary_op op, expr right)
+         attributes (loc? loc)
+
+    binary_op = Add
+              | Lt
+              | Eq
+              | And
+}

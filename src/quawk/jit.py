@@ -525,21 +525,51 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
             temp = state.next_temp("add")
             state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
             return temp
+        if expression.op in {BinaryOp.LESS, BinaryOp.EQUAL, BinaryOp.LOGICAL_AND}:
+            condition_value = lower_condition_expression(expression, state)
+            temp = state.next_temp("boolnum")
+            state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
+            return temp
         raise RuntimeError(f"unsupported binary operator in numeric expression: {expression.op.name}")
 
     raise RuntimeError(
-        "the current backend only supports numeric literals, variable reads, and addition in numeric expressions"
+        "the current backend only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
 
 
 def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     """Lower a supported condition expression to an LLVM `i1` value."""
-    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
-        left_operand = lower_numeric_expression(expression.left, state)
-        right_operand = lower_numeric_expression(expression.right, state)
-        temp = state.next_temp("cmp")
-        state.instructions.append(f"  {temp} = fcmp olt double {left_operand}, {right_operand}")
-        return temp
+    if isinstance(expression, BinaryExpr):
+        if expression.op is BinaryOp.LESS:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("cmp")
+            state.instructions.append(f"  {temp} = fcmp olt double {left_operand}, {right_operand}")
+            return temp
+        if expression.op is BinaryOp.EQUAL:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("eq")
+            state.instructions.append(f"  {temp} = fcmp oeq double {left_operand}, {right_operand}")
+            return temp
+        if expression.op is BinaryOp.LOGICAL_AND:
+            left_condition = lower_condition_expression(expression.left, state)
+            rhs_label = state.next_label("and.rhs")
+            false_label = state.next_label("and.false")
+            end_label = state.next_label("and.end")
+            phi_temp = state.next_temp("and")
+
+            state.instructions.append(f"  br i1 {left_condition}, label %{rhs_label}, label %{false_label}")
+            state.instructions.append(f"{rhs_label}:")
+            right_condition = lower_condition_expression(expression.right, state)
+            state.instructions.append(f"  br label %{end_label}")
+            state.instructions.append(f"{false_label}:")
+            state.instructions.append(f"  br label %{end_label}")
+            state.instructions.append(f"{end_label}:")
+            state.instructions.append(
+                f"  {phi_temp} = phi i1 [ false, %{false_label} ], [ {right_condition}, %{rhs_label} ]"
+            )
+            return phi_temp
 
     numeric_value = lower_numeric_expression(expression, state)
     temp = state.next_temp("truthy")

@@ -1,0 +1,11 @@
+id = "begin_print_literal"
+description = "BEGIN pattern with string literal print."
+program = "begin_print_literal.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt.print",
+  "expr.string",
+]

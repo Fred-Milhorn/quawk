@@ -1,0 +1,14 @@
+id = "begin_assignment"
+description = "Assignment, name reads, and additive expressions in BEGIN."
+program = "begin_assignment.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt.assignment",
+  "stmt.print",
+  "expr.number",
+  "expr.name",
+  "expr.add",
+]
