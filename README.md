@@ -6,15 +6,17 @@ A POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tool
 
 ## Status
 
-This repository is in active design/prototyping.
+This repository is in active implementation.
 
 Implemented now:
 - consolidated project documentation
-- language, execution, CLI, and testing design
+- lexer, parser, semantic checks, and LLVM-backed execution for the current subset
 - phased implementation roadmap and backlog
 - Python package/bootstrap scaffold with a working end-to-end `quawk` CLI path
-- end-to-end execution for `BEGIN` programs with string/numeric print, scalar assignment, and `if`/`while` control flow
-- bare-action record processing for `$0` and `$1`
+- end-to-end execution for `BEGIN` programs with string/numeric print, scalar assignment, `if`/`while`, and AWK-style default-zero scalar reads
+- mixed `BEGIN` / record / `END` execution, regex-filter record selection, and general `$n` field reads
+- initial user-defined function execution and legality checks
+- numeric `-v name=value` preassignment before execution
 - example program scaffold
 
 Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadmap.md), which is the source of truth for current and next phases.

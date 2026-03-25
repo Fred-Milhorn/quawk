@@ -99,6 +99,9 @@ class ReturnSignal(Exception):
         self.value = value
 
 
+InitialVariables = list[tuple[str, float]]
+
+
 def emit_assembly(llvm_ir: str) -> str:
     """Run `llc` on LLVM IR and return the emitted assembly text."""
     llc_path = shutil.which("llc")
@@ -117,15 +120,15 @@ def emit_assembly(llvm_ir: str) -> str:
     return result.stdout
 
 
-def execute(program: Program) -> int:
+def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
     if has_function_definitions(program):
-        execute_host_runtime(program, [], None)
+        execute_host_runtime(program, [], None, initial_variables)
         return 0
     if requires_input_aware_execution(program):
         raise RuntimeError("input-aware programs require input-aware execution")
 
-    llvm_ir = lower_to_llvm_ir(program)
+    llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
     return execute_llvm_ir(llvm_ir)
 
 
@@ -151,7 +154,7 @@ def execute_llvm_ir(llvm_ir: str) -> int:
     return result.returncode
 
 
-def lower_to_llvm_ir(program: Program) -> str:
+def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_function_definitions(program):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
@@ -159,6 +162,7 @@ def lower_to_llvm_ir(program: Program) -> str:
         return lower_reusable_program_to_llvm_ir(program)
 
     state = LoweringState()
+    lower_initial_variables(initial_variables or [], state)
     for statement in collect_supported_statements(program):
         lower_statement(statement, state)
 
@@ -437,6 +441,13 @@ def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> N
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
 
 
+def lower_initial_variables(initial_variables: InitialVariables, state: LoweringState) -> None:
+    """Seed ordered numeric preassignments before user statements execute."""
+    for name, value in initial_variables:
+        slot_name = variable_address(name, state)
+        state.instructions.append(f"  store double {format_double_literal(value)}, ptr {slot_name}")
+
+
 def variable_address(name: str, state: LoweringState) -> str:
     """Return the address used for a scalar variable in the active lowering mode."""
     if state.state_param is not None:
@@ -455,6 +466,7 @@ def variable_address(name: str, state: LoweringState) -> str:
 
     slot_name = state.next_temp(f"var.{name}")
     state.allocas.append(f"  {slot_name} = alloca double")
+    state.instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
     state.variable_slots[name] = slot_name
     return slot_name
 
@@ -623,16 +635,21 @@ def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
     raise RuntimeError("the reusable backend only supports regex expression patterns for record selection")
 
 
-def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
+def execute_with_inputs(
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
+) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
     if has_function_definitions(program):
-        execute_host_runtime(program, input_files, field_separator)
+        execute_host_runtime(program, input_files, field_separator, initial_variables)
         return 0
     if requires_input_aware_execution(program):
         llvm_ir = lower_to_llvm_ir(program)
-        llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator)
+        llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
         return execute_llvm_ir(llvm_ir)
-    return execute(program)
+    return execute(program, initial_variables)
 
 
 def link_reusable_execution_module(
@@ -640,13 +657,20 @@ def link_reusable_execution_module(
     program: Program,
     input_files: list[str],
     field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
 ) -> str:
     """Link the reusable program module, runtime support, and execution driver into one IR module."""
     with TemporaryDirectory() as temp_dir_name:
         temp_dir = Path(temp_dir_name)
         runtime_bitcode = runtime_support.compile_runtime_bitcode(temp_dir)
         program_bitcode = assemble_llvm_ir(program_llvm_ir, temp_dir / "program.bc")
-        driver_ir = build_execution_driver_llvm_ir(program, program_llvm_ir, input_files, field_separator)
+        driver_ir = build_execution_driver_llvm_ir(
+            program,
+            program_llvm_ir,
+            input_files,
+            field_separator,
+            initial_variables,
+        )
         driver_bitcode = assemble_llvm_ir(driver_ir, temp_dir / "driver.bc")
         linked_ir_path = temp_dir / "linked.ll"
 
@@ -694,15 +718,16 @@ def build_execution_driver_llvm_ir(
     program_llvm_ir: str,
     input_files: list[str],
     field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
 ) -> str:
     """Build the reusable execution driver that invokes runtime and program phases."""
     _, record_items, _ = partition_runtime_items(program)
     has_record_phase = bool(record_items)
     state_type = extract_state_type_declaration(program_llvm_ir)
-    uses_state = state_type is not None
+    variable_indexes = collect_variable_indexes(program)
 
     globals_block = render_driver_globals(input_files, field_separator)
-    state_setup = render_driver_state_setup(uses_state)
+    state_setup = render_driver_state_setup(variable_indexes, initial_variables or [])
     record_loop = render_driver_record_loop(has_record_phase)
 
     return "\n".join(
@@ -759,14 +784,42 @@ def render_driver_globals(input_files: list[str], field_separator: str | None) -
     return globals_block
 
 
-def render_driver_state_setup(uses_state: bool) -> list[str]:
+def render_driver_state_setup(
+    variable_indexes: dict[str, int],
+    initial_variables: InitialVariables,
+) -> list[str]:
     """Render driver setup for the reusable program state pointer."""
-    if not uses_state:
+    if not variable_indexes:
         return ["  %state = getelementptr i8, ptr null, i64 0"]
-    return [
+
+    setup = [
         "  %state.storage = alloca %quawk.state",
         "  %state = getelementptr i8, ptr %state.storage, i64 0",
     ]
+    for name, index in sorted(variable_indexes.items(), key=lambda item: item[1]):
+        slot_name = f"%state.init.{name}"
+        setup.extend(
+            [
+                f"  {slot_name} = getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 {index}",
+                f"  store double 0.000000000000000e+00, ptr {slot_name}",
+            ]
+        )
+
+    for name, value in initial_variables:
+        variable_index = variable_indexes.get(name)
+        if variable_index is None:
+            continue
+        slot_name = f"%state.preassign.{name}"
+        setup.extend(
+            [
+                (
+                    f"  {slot_name} = getelementptr inbounds %quawk.state, ptr %state, "
+                    f"i32 0, i32 {variable_index}"
+                ),
+                f"  store double {format_double_literal(value)}, ptr {slot_name}",
+            ]
+        )
+    return setup
 
 
 def render_driver_runtime_create(input_files: list[str], field_separator: str | None) -> list[str]:
@@ -840,10 +893,18 @@ def has_end_pattern(program: Program) -> bool:
     return any(isinstance(item, PatternAction) and isinstance(item.pattern, EndPattern) for item in program.items)
 
 
-def execute_host_runtime(program: Program, input_files: list[str], field_separator: str | None) -> None:
+def execute_host_runtime(
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
+) -> None:
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
     begin_actions, record_items, end_actions = partition_runtime_items(program)
-    state = RuntimeState(functions=collect_function_definitions(program))
+    state = RuntimeState(
+        variables=dict(initial_variables or []),
+        functions=collect_function_definitions(program),
+    )
 
     for action in begin_actions:
         execute_action(action, state, record=None, locals_scope=None)
@@ -1054,9 +1115,7 @@ def evaluate_numeric_expression(
             value = locals_scope.get(expression.name)
         if value is None:
             value = state.variables.get(expression.name)
-        if value is None:
-            raise RuntimeError(f"undefined variable in current runtime: {expression.name}")
-        return value
+        return 0.0 if value is None else value
     if isinstance(expression, CallExpr):
         return call_function(expression, state, record, locals_scope)
     if isinstance(expression, BinaryExpr):

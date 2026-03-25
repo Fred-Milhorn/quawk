@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide covers local setup and the first commands contributors should expect to use while `quawk` moves from design into implementation.
+This guide covers local setup and the first commands contributors should expect to use while `quawk` continues active implementation.
 
 ## Toolchain Baseline
 
@@ -44,7 +44,7 @@ After dependency bootstrap:
 ```sh
 quawk --help
 pytest
-yapf --diff --recursive src tests scripts
+yapf --diff --recursive src tests
 ruff check .
 mypy src
 ```
@@ -63,10 +63,10 @@ These local outputs should be ignored by Git as needed:
 ## Repository Shape
 
 Current state:
-- docs-first repository with design, testing, and roadmap material
-- initial `src/quawk` package scaffold and CLI contract stub are committed
-- `examples/` and `scripts/` are present for scaffold work
-- frontend, runtime, and compatibility implementation are still pending
+- committed `src/quawk` package with a working CLI, parser, semantic checks, and execution backends
+- documentation, conformance fixtures, and corpus tests alongside the implementation
+- `examples/` is present for manual inspection and smoke programs
+- compatibility coverage is still growing; the roadmap remains the source of truth for next increments
 
 Target implementation layout:
 
@@ -80,7 +80,6 @@ Target implementation layout:
 │   └── quawk/
 ├── tests/
 ├── examples/
-├── scripts/
 └── third_party/    # only when source vendoring is required
 ```
 

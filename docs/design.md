@@ -255,7 +255,7 @@ Inspection and stop-after options:
 POSIX-style options:
   -F fs                 Set input field separator FS.
   -f progfile           Read AWK program source from file (repeatable, in order).
-  -v var=value          Assign variable before program execution (repeatable).
+  -v var=value          Assign a numeric scalar before program execution (repeatable).
 
 Program selection:
   - If one or more -f options are given, program text comes only from those files.
@@ -270,8 +270,7 @@ Input files:
 Exit status:
   0  Success
   2  Usage, parse, semantic, or configuration error
-  3  Runtime execution error
-  4  Internal compiler/runtime failure
+  4  Runtime, compiler, or internal failure
 ```
 
 Goals:
@@ -285,7 +284,12 @@ Program source rules:
 - remaining arguments are input files or stdin if none are provided
 - mixing `-f` with inline program text is an error
 
-Repeated `-v` assignments apply in argument order.
+Repeated `-v` assignments apply in argument order. In the current executable subset,
+`-v` supports numeric scalar values only.
+
+Unset scalar reads use AWK-style defaults in the current runtime subset:
+- numeric contexts read as `0`
+- printing an unset scalar produces `0`
 
 Inspection rules:
 - `--lex`, `--parse`, `--ir`, and `--asm` are mutually exclusive
@@ -315,6 +319,6 @@ Target baseline:
 - standard expression and operator behavior, including implicit concatenation
 
 Current limitations:
-- the initial `P1` execution path supports only `BEGIN { print "literal" }`
+- scalar string variables and string-valued `-v` assignments are not supported yet
 - assembly inspection output is backend- and platform-dependent
 - compatibility corpus is still in bootstrap phase

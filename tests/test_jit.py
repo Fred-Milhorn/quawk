@@ -82,6 +82,15 @@ def test_execute_host_runtime_keeps_function_parameters_local(capsys) -> None:
     assert captured.err == ""
 
 
+def test_execute_host_runtime_defaults_unset_globals_to_zero(capsys) -> None:
+    program = parse_program("function f(x) { return x }\nBEGIN { print y }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "0\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 
@@ -198,11 +207,13 @@ def test_execute_with_inputs_routes_mixed_programs_through_reusable_lowering(mon
         linked_program: Program,
         input_files: list[str],
         field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
     ) -> str:
         assert llvm_ir == "; reusable mixed module"
         assert linked_program is program
         assert input_files == []
         assert field_separator is None
+        assert initial_variables is None
         return "; linked mixed module"
 
     def fake_execute_llvm_ir(llvm_ir: str) -> int:
@@ -238,11 +249,13 @@ def test_execute_with_inputs_routes_regex_programs_through_reusable_lowering(mon
         linked_program: Program,
         input_files: list[str],
         field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
     ) -> str:
         assert llvm_ir == "; reusable regex module"
         assert linked_program is program
         assert input_files == []
         assert field_separator is None
+        assert initial_variables is None
         return "; linked regex module"
 
     def fake_execute_llvm_ir(llvm_ir: str) -> int:

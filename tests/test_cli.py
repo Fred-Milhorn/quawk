@@ -55,6 +55,79 @@ def test_quawk_rejects_multiple_stop_stage_flags() -> None:
     assert "not allowed with argument" in result.stderr
 
 
+def test_quawk_applies_numeric_v_assignment_before_execution() -> None:
+    result = run_quawk("-v", "x=7", "BEGIN { print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "7\n"
+    assert result.stderr == ""
+
+
+def test_quawk_applies_repeated_v_assignments_in_argument_order() -> None:
+    result = run_quawk("-v", "x=1", "-v", "x=3", "BEGIN { print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n"
+    assert result.stderr == ""
+
+
+def test_quawk_applies_v_assignments_with_file_based_programs(tmp_path) -> None:
+    program_path = tmp_path / "print_x.awk"
+    program_path.write_text("BEGIN { print x }", encoding="utf-8")
+
+    result = run_quawk("-v", "x=9", "-f", str(program_path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "9\n"
+    assert result.stderr == ""
+
+
+def test_quawk_reports_invalid_v_assignment_format() -> None:
+    result = run_quawk("-v", "x", "BEGIN { print 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == "quawk: invalid -v assignment 'x': expected name=value\n"
+
+
+def test_quawk_reports_invalid_v_assignment_name() -> None:
+    result = run_quawk("-v", "1x=2", "BEGIN { print 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == "quawk: invalid -v variable name '1x'\n"
+
+
+def test_quawk_reports_unsupported_non_numeric_v_value() -> None:
+    result = run_quawk("-v", "x=hello", "BEGIN { print 1 }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "quawk: unsupported -v value for 'x': expected a numeric literal in the current subset\n"
+    )
+
+
+def test_quawk_rejects_v_assignment_to_function_name() -> None:
+    result = run_quawk("-v", "f=1", "function f(x) { return x }\nBEGIN { print f(2) }")
+
+    assert result.returncode == 2
+    assert result.stderr == "quawk: cannot assign to function name via -v: f\n"
+
+
+def test_quawk_defaults_unset_begin_scalar_reads_to_zero() -> None:
+    result = run_quawk("BEGIN { print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n"
+    assert result.stderr == ""
+
+
+def test_quawk_defaults_unset_mixed_program_scalar_reads_to_zero() -> None:
+    result = run_quawk('BEGIN { print x } END { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\ndone\n"
+    assert result.stderr == ""
+
+
 def test_quawk_lex_flag_prints_tokens_and_stops() -> None:
     result = run_quawk("--lex", 'BEGIN { print "hello" }')
 
@@ -432,3 +505,10 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
 
     assert result.returncode == 2
     assert result.stderr == f"quawk: {missing_path}: No such file or directory\n"
+
+
+def test_quawk_reports_runtime_failures_with_exit_code_four() -> None:
+    result = run_quawk("function f(x) { return x }\nBEGIN { print missing(1) }")
+
+    assert result.returncode == 4
+    assert result.stderr == "quawk: undefined function in current runtime: missing\n"

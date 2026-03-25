@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from importlib import metadata
 from pathlib import Path
@@ -15,8 +16,10 @@ from .diagnostics import LexError, ParseError, SemanticError, format_error
 from .jit import emit_assembly, execute_with_inputs, lower_to_llvm_ir
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
-from .semantics import analyze
+from .semantics import ProgramAnalysis, analyze
 from .source import ProgramSource
+
+IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -103,6 +106,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.program = None
 
     try:
+        initial_variables = parse_assignments(args.assignments)
         source = load_program_source(args.program_files, args.program)
         if source is None:
             parser.error("missing AWK program text or -f progfile")
@@ -117,7 +121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(format_program(program))
             return 0
 
-        analyze(program)
+        analysis = analyze(program)
 
         if args.ir:
             # Lower once for the stop-after inspection modes so IR and assembly
@@ -131,13 +135,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(emit_assembly(llvm_ir))
             return 0
 
-        return execute_with_inputs(program, args.files, args.field_separator)
+        validate_assignment_targets(initial_variables, analysis)
+        return execute_with_inputs(program, args.files, args.field_separator, initial_variables)
 
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
         return 2
     except (LexError, ParseError, SemanticError) as exc:
         sys.stderr.write(format_error(exc))
+        return 2
+    except ValueError as exc:
+        sys.stderr.write(f"quawk: {exc}\n")
         return 2
     except RuntimeError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
@@ -185,3 +193,32 @@ def load_program_source(
         return None
 
     return ProgramSource.from_inline(inline_program)
+
+
+def parse_assignments(assignments: list[str]) -> list[tuple[str, float]]:
+    """Parse ordered numeric `-v name=value` assignments for execution."""
+    parsed: list[tuple[str, float]] = []
+    for assignment in assignments:
+        if "=" not in assignment:
+            raise ValueError(f"invalid -v assignment {assignment!r}: expected name=value")
+
+        name, raw_value = assignment.split("=", 1)
+        if not IDENTIFIER_PATTERN.fullmatch(name):
+            raise ValueError(f"invalid -v variable name {name!r}")
+        if raw_value == "":
+            raise ValueError(f"invalid -v assignment for {name!r}: missing numeric value")
+        try:
+            value = float(raw_value)
+        except ValueError as exc:
+            raise ValueError(
+                f"unsupported -v value for {name!r}: expected a numeric literal in the current subset"
+            ) from exc
+        parsed.append((name, value))
+    return parsed
+
+
+def validate_assignment_targets(assignments: list[tuple[str, float]], analysis: ProgramAnalysis) -> None:
+    """Reject `-v` assignments that collide with top-level function names."""
+    for name, _ in assignments:
+        if name in analysis.functions:
+            raise ValueError(f"cannot assign to function name via -v: {name}")

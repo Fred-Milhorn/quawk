@@ -192,7 +192,7 @@ Release gate recommendation:
 Required jobs:
 
 1. `format-lint`
-   - `yapf --diff --recursive src tests scripts`
+   - `yapf --diff --recursive src tests`
    - `ruff check .`
 2. `type-check`
    - `mypy src`
@@ -221,7 +221,7 @@ Common local commands once the scaffold exists:
 quawk --help
 corpus --list
 pytest
-yapf --diff --recursive src tests scripts
+yapf --diff --recursive src tests
 ruff check .
 mypy src
 ```

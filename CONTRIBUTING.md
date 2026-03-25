@@ -1,6 +1,6 @@
 # Contributing to quawk
 
-`quawk` is still in design/prototyping, so contributions currently include both documentation/spec changes and early implementation bootstrap work. This guide explains how to propose changes, make them coherently, and validate them before review.
+`quawk` is in active implementation, so contributions currently include both documentation/spec changes and incremental runtime/compiler work. This guide explains how to propose changes, make them coherently, and validate them before review.
 
 ## Before You Start
 
@@ -35,7 +35,7 @@ Use the local environment described in [docs/getting-started.md](docs/getting-st
 
 ## Coding and Documentation Standards
 
-Apply these rules to Python source, tests, scripts, and documentation unless a documented exception is approved.
+Apply these rules to Python source, tests, and documentation unless a documented exception is approved.
 
 - Prefer explicit, typed data flow over implicit side effects.
 - Keep parser, semantic analysis, backend, and runtime boundaries explicit.
@@ -81,7 +81,7 @@ Current local checks are defined in [docs/testing.md](docs/testing.md). When the
 quawk --help
 corpus --list
 pytest
-yapf --diff --recursive src tests scripts
+yapf --diff --recursive src tests
 ruff check .
 mypy src
 ```
