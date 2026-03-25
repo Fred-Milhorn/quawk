@@ -10,7 +10,9 @@ from .parser import (
     AssignStmt,
     BinaryExpr,
     BlockStmt,
+    BreakStmt,
     CallExpr,
+    ContinueStmt,
     Expr,
     ExprPattern,
     FunctionDef,
@@ -76,10 +78,11 @@ def validate_action(
     functions: dict[str, FunctionDef],
     scope: FunctionScope | None,
     inside_function: bool,
+    loop_depth: int = 0,
 ) -> None:
     """Validate every statement in one action block."""
     for statement in action.statements:
-        validate_statement(statement, functions, scope=scope, inside_function=inside_function)
+        validate_statement(statement, functions, scope=scope, inside_function=inside_function, loop_depth=loop_depth)
 
 
 def validate_statement(
@@ -87,6 +90,7 @@ def validate_statement(
     functions: dict[str, FunctionDef],
     scope: FunctionScope | None,
     inside_function: bool,
+    loop_depth: int,
 ) -> None:
     """Validate one statement in the current semantic context."""
     if isinstance(statement, AssignStmt):
@@ -96,15 +100,35 @@ def validate_statement(
         return
     if isinstance(statement, BlockStmt):
         for nested in statement.statements:
-            validate_statement(nested, functions, scope=scope, inside_function=inside_function)
+            validate_statement(nested, functions, scope=scope, inside_function=inside_function, loop_depth=loop_depth)
+        return
+    if isinstance(statement, BreakStmt):
+        if loop_depth == 0:
+            raise SemanticError("break is only valid inside a loop", statement.span)
+        return
+    if isinstance(statement, ContinueStmt):
+        if loop_depth == 0:
+            raise SemanticError("continue is only valid inside a loop", statement.span)
         return
     if isinstance(statement, IfStmt):
         validate_expression(statement.condition, functions)
-        validate_statement(statement.then_branch, functions, scope=scope, inside_function=inside_function)
+        validate_statement(
+            statement.then_branch,
+            functions,
+            scope=scope,
+            inside_function=inside_function,
+            loop_depth=loop_depth,
+        )
         return
     if isinstance(statement, WhileStmt):
         validate_expression(statement.condition, functions)
-        validate_statement(statement.body, functions, scope=scope, inside_function=inside_function)
+        validate_statement(
+            statement.body,
+            functions,
+            scope=scope,
+            inside_function=inside_function,
+            loop_depth=loop_depth + 1,
+        )
         return
     if isinstance(statement, PrintStmt):
         for argument in statement.arguments:

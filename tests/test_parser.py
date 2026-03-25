@@ -15,7 +15,9 @@ from quawk.parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    BreakStmt,
     CallExpr,
+    ContinueStmt,
     EndPattern,
     ExprPattern,
     FieldExpr,
@@ -189,6 +191,18 @@ def test_parses_function_definition_and_call() -> None:
     assert isinstance(print_stmt.arguments[0], CallExpr)
     assert print_stmt.arguments[0].function == "f"
     assert len(print_stmt.arguments[0].args) == 1
+
+
+def test_parses_break_and_continue_inside_while_block() -> None:
+    program = parse(lex("BEGIN { while (1) { break; continue } }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, WhileStmt)
+    assert isinstance(loop.body, BlockStmt)
+    assert isinstance(loop.body.statements[0], BreakStmt)
+    assert isinstance(loop.body.statements[1], ContinueStmt)
 
 
 def test_ast_supports_multi_item_programs_with_end_pattern() -> None:

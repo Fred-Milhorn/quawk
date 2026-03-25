@@ -156,6 +156,26 @@ def test_quawk_parse_flag_prints_control_flow_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_break_and_continue_ast() -> None:
+    result = run_quawk("--parse", "BEGIN { while (1) { break; continue } }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      WhileStmt span=<inline>:1:9\n"
+        "        Condition\n"
+        "          NumericLiteralExpr span=<inline>:1:16 value=1.0\n"
+        "        Body\n"
+        "          BlockStmt span=<inline>:1:19\n"
+        "            BreakStmt span=<inline>:1:21\n"
+        "            ContinueStmt span=<inline>:1:28\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_parse_flag_prints_equality_expression_ast() -> None:
     result = run_quawk("--parse", "BEGIN { print 1 == 1 }")
 

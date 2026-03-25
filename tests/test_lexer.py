@@ -305,6 +305,26 @@ def test_lexes_function_definition_and_return_tokens() -> None:
     ]
 
 
+def test_lexes_break_and_continue_tokens() -> None:
+    tokens = lex("BEGIN { while (1) { break; continue } }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.WHILE,
+        TokenKind.LPAREN,
+        TokenKind.NUMBER,
+        TokenKind.RPAREN,
+        TokenKind.LBRACE,
+        TokenKind.BREAK,
+        TokenKind.SEMICOLON,
+        TokenKind.CONTINUE,
+        TokenKind.RBRACE,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+
+
 def test_lexes_mixed_begin_record_end_tokens() -> None:
     tokens = lex('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
 

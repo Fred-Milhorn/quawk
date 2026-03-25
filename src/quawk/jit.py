@@ -21,7 +21,9 @@ from .parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    BreakStmt,
     CallExpr,
+    ContinueStmt,
     EndPattern,
     Expr,
     ExprPattern,
@@ -355,6 +357,10 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
         for nested in statement.statements:
             lower_statement(nested, state)
         return
+    if isinstance(statement, BreakStmt):
+        raise RuntimeError("break statements are not supported by the current backend")
+    if isinstance(statement, ContinueStmt):
+        raise RuntimeError("continue statements are not supported by the current backend")
     if isinstance(statement, IfStmt):
         lower_if_statement(statement, state)
         return
@@ -994,6 +1000,10 @@ def execute_statement(
         for nested in statement.statements:
             execute_statement(nested, state, record, locals_scope)
         return
+    if isinstance(statement, BreakStmt):
+        raise RuntimeError("break statements are not supported by the current runtime")
+    if isinstance(statement, ContinueStmt):
+        raise RuntimeError("continue statements are not supported by the current runtime")
     if isinstance(statement, IfStmt):
         if evaluate_condition(statement.condition, state, record, locals_scope):
             execute_statement(statement.then_branch, state, record, locals_scope)

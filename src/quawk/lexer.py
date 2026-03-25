@@ -14,6 +14,8 @@ from .source import ProgramSource, SourceCursor, SourcePoint, SourceSpan
 
 class TokenKind(Enum):
     BEGIN = auto()
+    BREAK = auto()
+    CONTINUE = auto()
     END = auto()
     FUNCTION = auto()
     IF = auto()
@@ -44,6 +46,8 @@ class TokenKind(Enum):
 
 KEYWORDS: dict[str, TokenKind] = {
     "BEGIN": TokenKind.BEGIN,
+    "break": TokenKind.BREAK,
+    "continue": TokenKind.CONTINUE,
     "END": TokenKind.END,
     "function": TokenKind.FUNCTION,
     "if": TokenKind.IF,
@@ -55,6 +59,8 @@ KEYWORDS: dict[str, TokenKind] = {
 
 FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.BEGIN: "BEGIN",
+    TokenKind.BREAK: "break",
+    TokenKind.CONTINUE: "continue",
     TokenKind.END: "END",
     TokenKind.FUNCTION: "function",
     TokenKind.IF: "if",

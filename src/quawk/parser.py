@@ -111,6 +111,16 @@ class BlockStmt:
 
 
 @dataclass(frozen=True)
+class BreakStmt:
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class ContinueStmt:
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class IfStmt:
     condition: Expr
     then_branch: Stmt
@@ -130,7 +140,7 @@ class ReturnStmt:
     span: SourceSpan
 
 
-Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | IfStmt | WhileStmt | ReturnStmt
+Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | BreakStmt | ContinueStmt | IfStmt | WhileStmt | ReturnStmt
 
 
 @dataclass(frozen=True)
@@ -214,6 +224,10 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             for nested in statement.statements:
                 lines.extend(format_statement(nested, indent + "  "))
             return lines
+        case BreakStmt():
+            return [f"{indent}BreakStmt span={statement.span.format_start()}"]
+        case ContinueStmt():
+            return [f"{indent}ContinueStmt span={statement.span.format_start()}"]
         case IfStmt():
             lines = [f"{indent}IfStmt span={statement.span.format_start()}"]
             lines.append(f"{indent}  Condition")
@@ -376,6 +390,10 @@ class Parser:
         """Parse a statement in the current supported subset."""
         if self.check(TokenKind.LBRACE):
             return self.parse_block_statement()
+        if self.check(TokenKind.BREAK):
+            return self.parse_break_statement()
+        if self.check(TokenKind.CONTINUE):
+            return self.parse_continue_statement()
         if self.check(TokenKind.IF):
             return self.parse_if_statement()
         if self.check(TokenKind.PRINT):
@@ -393,6 +411,16 @@ class Parser:
         """Parse a nested braced block statement."""
         lbrace_token, statements, rbrace_token = self.parse_braced_statements()
         return BlockStmt(tuple(statements), combine_spans(lbrace_token.span, rbrace_token.span))
+
+    def parse_break_statement(self) -> BreakStmt:
+        """Parse a `break` statement."""
+        break_token = self.expect(TokenKind.BREAK)
+        return BreakStmt(span=break_token.span)
+
+    def parse_continue_statement(self) -> ContinueStmt:
+        """Parse a `continue` statement."""
+        continue_token = self.expect(TokenKind.CONTINUE)
+        return ContinueStmt(span=continue_token.span)
 
     def parse_if_statement(self) -> IfStmt:
         """Parse an `if` statement without `else` support."""

@@ -71,3 +71,34 @@ def test_assignment_to_function_name_inside_function_reports_semantic_error() ->
         "function f(x) { f = 1; return x }\n"
         "                ^\n"
     )
+
+
+def test_break_outside_loop_reports_semantic_error() -> None:
+    result = run_quawk("BEGIN { break }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:9: error: break is only valid inside a loop\n"
+        "BEGIN { break }\n"
+        "        ^\n"
+    )
+
+
+def test_continue_outside_loop_reports_semantic_error() -> None:
+    result = run_quawk("BEGIN { continue }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:9: error: continue is only valid inside a loop\n"
+        "BEGIN { continue }\n"
+        "        ^\n"
+    )
+
+
+def test_break_and_continue_inside_loop_pass_semantic_checks() -> None:
+    result = run_quawk("--parse", "BEGIN { while (1) { break; continue } }")
+
+    assert result.returncode == 0, result.stderr
+    assert "BreakStmt" in result.stdout
+    assert "ContinueStmt" in result.stdout
+    assert result.stderr == ""
