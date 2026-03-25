@@ -64,6 +64,24 @@ def test_execute_host_runtime_short_circuits_logical_and(capsys) -> None:
     assert captured.err == ""
 
 
+def test_execute_host_runtime_calls_user_defined_function(capsys) -> None:
+    program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "3\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_keeps_function_parameters_local(capsys) -> None:
+    program = parse_program("function f(x) { x = x + 1; return x }\nBEGIN { x = 10; print f(2); print x }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "3\n10\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 

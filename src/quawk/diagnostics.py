@@ -22,6 +22,10 @@ class ParseError(QuawkError):
     pass
 
 
+class SemanticError(QuawkError):
+    pass
+
+
 def format_error(error: QuawkError) -> str:
     """Render a compiler error with source context and a caret indicator."""
     location = error.span.start_location()

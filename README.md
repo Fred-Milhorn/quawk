@@ -17,11 +17,7 @@ Implemented now:
 - bare-action record processing for `$0` and `$1`
 - example program scaffold
 
-Planned next:
-- mixed `BEGIN` / record / `END` execution and broader field support
-- regex and expression-surface expansion
-- functions, scope, arrays, iteration, and builtins toward nominal functional completion
-- compatibility and differential test harness after the executable core exists
+Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadmap.md), which is the source of truth for current and next phases.
 
 ## Goals
 
@@ -40,6 +36,10 @@ Planned next:
 Toolchain baseline:
 - `uv`
 - Python `3.14.x`
+- LLVM command-line tools on `PATH`:
+  - `lli` for executing generated LLVM IR
+  - `clang`, `llvm-as`, and `llvm-link` for the current record/input execution path
+  - `llc` for `quawk --asm`
 
 Bootstrap:
 
@@ -50,6 +50,8 @@ source .venv/bin/activate
 ```
 
 Full setup and local command guidance live in [docs/getting-started.md](docs/getting-started.md).
+
+The current runtime shells out to system LLVM binaries rather than bundling an LLVM distribution. On macOS, package-manager LLVM installs are often not on `PATH` by default, so make sure the directory containing these tools is exported before running `quawk`.
 
 ## Docs Map
 
@@ -68,7 +70,7 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 | OS | Linux, macOS | Local development targets today |
 | Architecture | x86_64, aarch64 | As LLVM tooling is available locally |
 | Python | 3.14.x | Managed by `uv` |
-| LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`) | Used for the current LLVM-backed execution path |
+| LLVM tooling | system LLVM tools (`lli`, `clang`, `llvm-as`, `llvm-link`) plus `llc` for `--asm` | Required for the current LLVM-backed execution path |
 
 ## FAQ
 

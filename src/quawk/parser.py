@@ -64,6 +64,13 @@ class FieldExpr:
     span: SourceSpan
 
 
+@dataclass(frozen=True)
+class CallExpr:
+    function: str
+    args: tuple[Expr, ...]
+    span: SourceSpan
+
+
 class BinaryOp(Enum):
     ADD = auto()
     LESS = auto()
@@ -79,7 +86,9 @@ class BinaryExpr:
     span: SourceSpan
 
 
-Expr: TypeAlias = StringLiteralExpr | NumericLiteralExpr | RegexLiteralExpr | NameExpr | FieldExpr | BinaryExpr
+Expr: TypeAlias = (
+    StringLiteralExpr | NumericLiteralExpr | RegexLiteralExpr | NameExpr | FieldExpr | CallExpr | BinaryExpr
+)
 
 
 @dataclass(frozen=True)
@@ -115,7 +124,13 @@ class WhileStmt:
     span: SourceSpan
 
 
-Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | IfStmt | WhileStmt
+@dataclass(frozen=True)
+class ReturnStmt:
+    value: Expr | None
+    span: SourceSpan
+
+
+Stmt: TypeAlias = PrintStmt | AssignStmt | BlockStmt | IfStmt | WhileStmt | ReturnStmt
 
 
 @dataclass(frozen=True)
@@ -131,7 +146,15 @@ class PatternAction:
     span: SourceSpan
 
 
-Item: TypeAlias = PatternAction
+@dataclass(frozen=True)
+class FunctionDef:
+    name: str
+    params: tuple[str, ...]
+    body: Action
+    span: SourceSpan
+
+
+Item: TypeAlias = FunctionDef | PatternAction
 
 
 @dataclass(frozen=True)
@@ -149,6 +172,14 @@ def format_program(program: Program) -> str:
     """Render the AST in a stable text form for `quawk --parse`."""
     lines = [f"Program span={program.span.format_start()}"]
     for item in program.items:
+        if isinstance(item, FunctionDef):
+            lines.append(f"  FunctionDef span={item.span.format_start()} name={item.name!r}")
+            if item.params:
+                lines.append(f"    Params {', '.join(repr(param) for param in item.params)}")
+            lines.append(f"    Action span={item.body.span.format_start()}")
+            for statement in item.body.statements:
+                lines.extend(format_statement(statement, "      "))
+            continue
         lines.append(f"  PatternAction span={item.span.format_start()}")
         if item.pattern is not None:
             match item.pattern:
@@ -197,6 +228,11 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             lines.append(f"{indent}  Body")
             lines.extend(format_statement(statement.body, indent + "    "))
             return lines
+        case ReturnStmt():
+            lines = [f"{indent}ReturnStmt span={statement.span.format_start()}"]
+            if statement.value is not None:
+                lines.extend(format_expression(statement.value, indent + "  "))
+            return lines
     raise AssertionError(f"unhandled statement type: {type(statement)!r}")
 
 
@@ -213,6 +249,11 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
             return [f"{indent}NameExpr span={expression.span.format_start()} name={expression.name!r}"]
         case FieldExpr():
             return [f"{indent}FieldExpr span={expression.span.format_start()} index={expression.index}"]
+        case CallExpr():
+            lines = [f"{indent}CallExpr span={expression.span.format_start()} function={expression.function!r}"]
+            for argument in expression.args:
+                lines.extend(format_expression(argument, indent + "  "))
+            return lines
         case BinaryExpr():
             lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
             lines.extend(format_expression(expression.left, indent + "  "))
@@ -234,7 +275,7 @@ class Parser:
         self.consume_separators()
         items: list[Item] = []
         while not self.check(TokenKind.EOF):
-            items.append(self.parse_pattern_action())
+            items.append(self.parse_item())
             self.consume_separators()
         self.expect(TokenKind.EOF)
         if not items:
@@ -244,6 +285,41 @@ class Parser:
             items=tuple(items),
             span=combine_spans(items[0].span, items[-1].span),
         )
+
+    def parse_item(self) -> Item:
+        """Parse one top-level item."""
+        if self.check(TokenKind.FUNCTION):
+            return self.parse_function_definition()
+        return self.parse_pattern_action()
+
+    def parse_function_definition(self) -> FunctionDef:
+        """Parse one top-level function definition."""
+        function_token = self.expect(TokenKind.FUNCTION)
+        name_token = self.expect(TokenKind.IDENT)
+        self.expect(TokenKind.LPAREN)
+        params = self.parse_parameter_list()
+        self.expect(TokenKind.RPAREN)
+        body = self.parse_action()
+        return FunctionDef(
+            name=name_token.text or "",
+            params=tuple(params),
+            body=body,
+            span=combine_spans(function_token.span, body.span),
+        )
+
+    def parse_parameter_list(self) -> list[str]:
+        """Parse the optional identifier list in one function signature."""
+        params: list[str] = []
+        if self.check(TokenKind.RPAREN):
+            return params
+
+        first_param = self.expect(TokenKind.IDENT)
+        params.append(first_param.text or "")
+        while self.check(TokenKind.COMMA):
+            self.advance()
+            param_token = self.expect(TokenKind.IDENT)
+            params.append(param_token.text or "")
+        return params
 
     def parse_pattern_action(self) -> PatternAction:
         """Parse one top-level pattern-action item."""
@@ -304,6 +380,8 @@ class Parser:
             return self.parse_if_statement()
         if self.check(TokenKind.PRINT):
             return self.parse_print_statement()
+        if self.check(TokenKind.RETURN):
+            return self.parse_return_statement()
         if self.check(TokenKind.WHILE):
             return self.parse_while_statement()
         if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.EQUAL:
@@ -350,6 +428,15 @@ class Parser:
         condition = self.parse_parenthesized_expression()
         body = self.parse_statement()
         return WhileStmt(condition=condition, body=body, span=combine_spans(while_token.span, body.span))
+
+    def parse_return_statement(self) -> ReturnStmt:
+        """Parse a `return` statement with an optional value expression."""
+        return_token = self.expect(TokenKind.RETURN)
+        if self.check(TokenKind.RBRACE) or self.check(TokenKind.NEWLINE) or self.check(TokenKind.SEMICOLON):
+            return ReturnStmt(value=None, span=return_token.span)
+
+        value = self.parse_expression()
+        return ReturnStmt(value=value, span=combine_spans(return_token.span, value.span))
 
     def parse_expression(self) -> Expr:
         """Parse an expression in the current supported subset."""
@@ -438,6 +525,8 @@ class Parser:
                     span=literal_token.span,
                 )
             case TokenKind.IDENT:
+                if self.peek_kind() is TokenKind.LPAREN:
+                    return self.parse_call_expression()
                 name_token = self.advance()
                 return NameExpr(name=name_token.text or "", span=name_token.span)
             case TokenKind.DOLLAR:
@@ -451,6 +540,23 @@ class Parser:
                 return self.parse_parenthesized_expression()
             case _:
                 raise ParseError(f"expected expression, got {token.kind.name}", token.span)
+
+    def parse_call_expression(self) -> CallExpr:
+        """Parse one function call expression."""
+        name_token = self.expect(TokenKind.IDENT)
+        self.expect(TokenKind.LPAREN)
+        args: list[Expr] = []
+        if not self.check(TokenKind.RPAREN):
+            args.append(self.parse_expression())
+            while self.check(TokenKind.COMMA):
+                self.advance()
+                args.append(self.parse_expression())
+        rparen_token = self.expect(TokenKind.RPAREN)
+        return CallExpr(
+            function=name_token.text or "",
+            args=tuple(args),
+            span=combine_spans(name_token.span, rparen_token.span),
+        )
 
     def current(self) -> Token:
         """Return the current token without consuming it."""

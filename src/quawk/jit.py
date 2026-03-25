@@ -21,10 +21,12 @@ from .parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    CallExpr,
     EndPattern,
     Expr,
     ExprPattern,
     FieldExpr,
+    FunctionDef,
     IfStmt,
     NameExpr,
     NumericLiteralExpr,
@@ -32,6 +34,7 @@ from .parser import (
     PrintStmt,
     Program,
     RegexLiteralExpr,
+    ReturnStmt,
     Stmt,
     StringLiteralExpr,
     WhileStmt,
@@ -75,6 +78,7 @@ class RuntimeState:
     """Mutable host-runtime state for the currently supported interpreter path."""
 
     variables: dict[str, float] = field(default_factory=dict)
+    functions: dict[str, FunctionDef] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,14 @@ class RecordContext:
 
     field0: str
     fields: tuple[str, ...]
+
+
+class ReturnSignal(Exception):
+    """Internal control-flow signal used to unwind one function return."""
+
+    def __init__(self, value: float):
+        super().__init__()
+        self.value = value
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -105,6 +117,9 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
+    if has_function_definitions(program):
+        execute_host_runtime(program, [], None)
+        return 0
     if requires_input_aware_execution(program):
         raise RuntimeError("input-aware programs require input-aware execution")
 
@@ -136,6 +151,8 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 
 def lower_to_llvm_ir(program: Program) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
+    if has_function_definitions(program):
+        raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
     if requires_input_aware_execution(program):
         return lower_reusable_program_to_llvm_ir(program)
 
@@ -344,6 +361,8 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
     if isinstance(statement, WhileStmt):
         lower_while_statement(statement, state)
         return
+    if isinstance(statement, ReturnStmt):
+        raise RuntimeError("return statements are not supported by the LLVM-backed backend")
     if not isinstance(statement, PrintStmt):
         raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
     if len(statement.arguments) != 1:
@@ -600,6 +619,9 @@ def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
 
 def execute_with_inputs(program: Program, input_files: list[str], field_separator: str | None) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
+    if has_function_definitions(program):
+        execute_host_runtime(program, input_files, field_separator)
+        return 0
     if requires_input_aware_execution(program):
         llvm_ir = lower_to_llvm_ir(program)
         llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator)
@@ -791,7 +813,8 @@ def extract_state_type_declaration(program_llvm_ir: str) -> str | None:
 
 def requires_input_aware_execution(program: Program) -> bool:
     """Report whether `program` needs concrete input records during execution."""
-    return has_input_aware_patterns(program) or has_end_pattern(program) or len(program.items) > 1
+    pattern_action_count = sum(1 for item in program.items if isinstance(item, PatternAction))
+    return has_input_aware_patterns(program) or has_end_pattern(program) or pattern_action_count > 1
 
 
 def has_input_aware_patterns(program: Program) -> bool:
@@ -814,10 +837,10 @@ def has_end_pattern(program: Program) -> bool:
 def execute_host_runtime(program: Program, input_files: list[str], field_separator: str | None) -> None:
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
     begin_actions, record_items, end_actions = partition_runtime_items(program)
-    state = RuntimeState()
+    state = RuntimeState(functions=collect_function_definitions(program))
 
     for action in begin_actions:
-        execute_action(action, state, record=None)
+        execute_action(action, state, record=None, locals_scope=None)
 
     if record_items:
         for line in iter_input_records(input_files):
@@ -829,10 +852,10 @@ def execute_host_runtime(program: Program, input_files: list[str], field_separat
             )
             for pattern, action in record_items:
                 if record_matches_pattern(pattern, record):
-                    execute_action(action, state, record=record)
+                    execute_action(action, state, record=record, locals_scope=None)
 
     for action in end_actions:
-        execute_action(action, state, record=None)
+        execute_action(action, state, record=None, locals_scope=None)
 
 
 def collect_record_contexts(
@@ -868,6 +891,8 @@ def partition_runtime_items(
     end_actions: list[Action] = []
 
     for item in program.items:
+        if isinstance(item, FunctionDef):
+            continue
         if not isinstance(item, PatternAction):
             raise RuntimeError("the current runtime only supports pattern-action items")
         if not isinstance(item.action, Action):
@@ -940,35 +965,60 @@ def regex_matches_record(expression: RegexLiteralExpr, record: RecordContext) ->
     return re.search(pattern_text, record.field0) is not None
 
 
-def execute_action(action: Action, state: RuntimeState, record: RecordContext | None) -> None:
+def execute_action(
+    action: Action,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> None:
     """Execute one action block in the host runtime."""
     for statement in action.statements:
-        execute_statement(statement, state, record)
+        execute_statement(statement, state, record, locals_scope)
 
 
-def execute_statement(statement: Stmt, state: RuntimeState, record: RecordContext | None) -> None:
+def execute_statement(
+    statement: Stmt,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> None:
     """Execute one statement in the currently supported host-runtime subset."""
     if isinstance(statement, AssignStmt):
-        state.variables[statement.name] = evaluate_numeric_expression(statement.value, state, record)
+        value = evaluate_numeric_expression(statement.value, state, record, locals_scope)
+        if locals_scope is not None and statement.name in locals_scope:
+            locals_scope[statement.name] = value
+        else:
+            state.variables[statement.name] = value
         return
     if isinstance(statement, BlockStmt):
         for nested in statement.statements:
-            execute_statement(nested, state, record)
+            execute_statement(nested, state, record, locals_scope)
         return
     if isinstance(statement, IfStmt):
-        if evaluate_condition(statement.condition, state, record):
-            execute_statement(statement.then_branch, state, record)
+        if evaluate_condition(statement.condition, state, record, locals_scope):
+            execute_statement(statement.then_branch, state, record, locals_scope)
         return
     if isinstance(statement, WhileStmt):
-        while evaluate_condition(statement.condition, state, record):
-            execute_statement(statement.body, state, record)
+        while evaluate_condition(statement.condition, state, record, locals_scope):
+            execute_statement(statement.body, state, record, locals_scope)
         return
+    if isinstance(statement, ReturnStmt):
+        if locals_scope is None:
+            raise RuntimeError("return is only valid inside a function")
+        if statement.value is None:
+            raise ReturnSignal(0.0)
+        raise ReturnSignal(evaluate_numeric_expression(statement.value, state, record, locals_scope))
     if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
         raise RuntimeError("the current runtime only supports print with one argument")
-    print_value(evaluate_print_expression(statement.arguments[0], state, record))
+    print_value(evaluate_print_expression(statement.arguments[0], state, record, locals_scope))
 
 
-def evaluate_print_expression(expression: Expr, state: RuntimeState, record: RecordContext | None) -> str | float:
+def evaluate_print_expression(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> str | float:
     """Evaluate an expression in the forms the current runtime can print."""
     if isinstance(expression, StringLiteralExpr):
         return expression.value
@@ -976,53 +1026,109 @@ def evaluate_print_expression(expression: Expr, state: RuntimeState, record: Rec
         if record is None:
             raise RuntimeError("field expressions require an active input record")
         return resolve_field_value(expression.index, record)
-    return evaluate_numeric_expression(expression, state, record)
+    return evaluate_numeric_expression(expression, state, record, locals_scope)
 
 
-def evaluate_numeric_expression(expression: Expr, state: RuntimeState, record: RecordContext | None) -> float:
+def evaluate_numeric_expression(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> float:
     """Evaluate a numeric expression in the current host-runtime subset."""
     if isinstance(expression, NumericLiteralExpr):
         return expression.value
     if isinstance(expression, NameExpr):
-        value = state.variables.get(expression.name)
+        value = None
+        if locals_scope is not None:
+            value = locals_scope.get(expression.name)
+        if value is None:
+            value = state.variables.get(expression.name)
         if value is None:
             raise RuntimeError(f"undefined variable in current runtime: {expression.name}")
         return value
+    if isinstance(expression, CallExpr):
+        return call_function(expression, state, record, locals_scope)
     if isinstance(expression, BinaryExpr):
         if expression.op is BinaryOp.ADD:
-            return evaluate_numeric_expression(expression.left, state,
-                                               record) + evaluate_numeric_expression(expression.right, state, record)
+            return evaluate_numeric_expression(
+                expression.left,
+                state,
+                record,
+                locals_scope,
+            ) + evaluate_numeric_expression(expression.right, state, record, locals_scope)
         if expression.op is BinaryOp.LESS:
-            return 1.0 if evaluate_condition(expression, state, record) else 0.0
+            return 1.0 if evaluate_condition(expression, state, record, locals_scope) else 0.0
         if expression.op is BinaryOp.EQUAL:
-            left_value = evaluate_numeric_expression(expression.left, state, record)
-            right_value = evaluate_numeric_expression(expression.right, state, record)
+            left_value = evaluate_numeric_expression(expression.left, state, record, locals_scope)
+            right_value = evaluate_numeric_expression(expression.right, state, record, locals_scope)
             return 1.0 if left_value == right_value else 0.0
         if expression.op is BinaryOp.LOGICAL_AND:
-            if not evaluate_condition(expression.left, state, record):
+            if not evaluate_condition(expression.left, state, record, locals_scope):
                 return 0.0
-            return 1.0 if evaluate_condition(expression.right, state, record) else 0.0
+            return 1.0 if evaluate_condition(expression.right, state, record, locals_scope) else 0.0
         raise RuntimeError(f"unsupported numeric operator in current runtime: {expression.op.name}")
     raise RuntimeError(
         "the current runtime only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
 
 
-def evaluate_condition(expression: Expr, state: RuntimeState, record: RecordContext | None) -> bool:
+def evaluate_condition(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> bool:
     """Evaluate a condition expression using the supported truthiness rules."""
     if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
-        return evaluate_numeric_expression(expression.left, state,
-                                           record) < evaluate_numeric_expression(expression.right, state, record)
+        return evaluate_numeric_expression(
+            expression.left,
+            state,
+            record,
+            locals_scope,
+        ) < evaluate_numeric_expression(expression.right, state, record, locals_scope)
     if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.EQUAL:
-        return evaluate_numeric_expression(expression.left, state,
-                                           record) == evaluate_numeric_expression(expression.right, state, record)
+        return evaluate_numeric_expression(
+            expression.left,
+            state,
+            record,
+            locals_scope,
+        ) == evaluate_numeric_expression(expression.right, state, record, locals_scope)
     if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LOGICAL_AND:
-        return evaluate_condition(expression.left, state, record) and evaluate_condition(
+        return evaluate_condition(expression.left, state, record, locals_scope) and evaluate_condition(
             expression.right,
             state,
             record,
+            locals_scope,
         )
-    return evaluate_numeric_expression(expression, state, record) != 0.0
+    return evaluate_numeric_expression(expression, state, record, locals_scope) != 0.0
+
+
+def call_function(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    caller_locals: dict[str, float] | None,
+) -> float:
+    """Execute one user-defined function call in the current host runtime."""
+    function_def = state.functions.get(expression.function)
+    if function_def is None:
+        raise RuntimeError(f"undefined function in current runtime: {expression.function}")
+    if len(expression.args) != len(function_def.params):
+        raise RuntimeError(
+            f"function {expression.function} expects {len(function_def.params)} arguments, got {len(expression.args)}"
+        )
+
+    locals_scope = {
+        param: evaluate_numeric_expression(argument, state, record, caller_locals)
+        for param, argument in zip(function_def.params, expression.args, strict=True)
+    }
+    try:
+        for statement in function_def.body.statements:
+            execute_statement(statement, state, record, locals_scope)
+    except ReturnSignal as signal:
+        return signal.value
+    return 0.0
 
 
 def print_value(value: str | float) -> None:
@@ -1041,6 +1147,20 @@ def resolve_field_value(index: int, record: RecordContext) -> str:
     if 0 <= field_position < len(record.fields):
         return record.fields[field_position]
     return ""
+
+
+def has_function_definitions(program: Program) -> bool:
+    """Report whether `program` contains any top-level user-defined functions."""
+    return any(isinstance(item, FunctionDef) for item in program.items)
+
+
+def collect_function_definitions(program: Program) -> dict[str, FunctionDef]:
+    """Collect function definitions in source order for host-runtime execution."""
+    functions: dict[str, FunctionDef] = {}
+    for item in program.items:
+        if isinstance(item, FunctionDef):
+            functions[item.name] = item
+    return functions
 
 
 def field_parameter_name(index: int) -> str:

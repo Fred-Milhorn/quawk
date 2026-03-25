@@ -7,6 +7,10 @@ This guide covers local setup and the first commands contributors should expect 
 Required:
 - `uv`
 - Python `3.14.x`
+- LLVM command-line tools on `PATH`:
+  - `lli` for executing generated LLVM IR
+  - `clang`, `llvm-as`, and `llvm-link` for the current record/input execution path
+  - `llc` for `quawk --asm`
 
 `quawk` uses a Python-native build model:
 
@@ -14,6 +18,8 @@ Required:
 2. source/dependency layer: `pyproject.toml` with pinned development and test dependencies
 
 Toolchains are not vendored in this repo.
+
+`quawk` shells out to system LLVM binaries. If your LLVM install is not on `PATH` by default, export the directory containing these tools before running the CLI or test suite.
 
 ## Bootstrap
 

@@ -270,19 +270,38 @@ def test_lexes_comparison_and_control_flow_tokens() -> None:
         TokenKind.RBRACE,
         TokenKind.EOF,
     ]
+
+
+def test_lexes_function_definition_and_return_tokens() -> None:
+    tokens = lex("function f(x) { return x + 1 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.FUNCTION,
+        TokenKind.IDENT,
+        TokenKind.LPAREN,
+        TokenKind.IDENT,
+        TokenKind.RPAREN,
+        TokenKind.LBRACE,
+        TokenKind.RETURN,
+        TokenKind.IDENT,
+        TokenKind.PLUS,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
     assert [token.span.format_start() for token in tokens[:12]] == [
         "<inline>:1:1",
-        "<inline>:1:7",
-        "<inline>:1:9",
+        "<inline>:1:10",
+        "<inline>:1:11",
         "<inline>:1:12",
         "<inline>:1:13",
         "<inline>:1:15",
         "<inline>:1:17",
-        "<inline>:1:18",
-        "<inline>:1:20",
+        "<inline>:1:24",
         "<inline>:1:26",
-        "<inline>:1:27",
-        "<inline>:1:29",
+        "<inline>:1:28",
+        "<inline>:1:30",
+        "<inline>:1:31",
     ]
 
 

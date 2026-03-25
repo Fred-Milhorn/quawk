@@ -7,8 +7,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -23,7 +21,6 @@ def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProce
     )
 
 
-@pytest.mark.xfail(strict=True, reason="user-defined functions are not implemented yet")
 def test_function_definition_and_call_execute() -> None:
     result = run_quawk("function f(x) { return x + 1 } BEGIN { print f(2) }")
 
@@ -32,7 +29,6 @@ def test_function_definition_and_call_execute() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="function semantic diagnostics are not implemented yet")
 def test_duplicate_function_definitions_report_semantic_error() -> None:
     result = run_quawk("function f(x) { return x }\nfunction f(y) { return y }\nBEGIN { print f(1) }")
 
@@ -44,7 +40,6 @@ def test_duplicate_function_definitions_report_semantic_error() -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="function semantic diagnostics are not implemented yet")
 def test_return_outside_function_reports_semantic_error() -> None:
     result = run_quawk("BEGIN { return 1 }")
 

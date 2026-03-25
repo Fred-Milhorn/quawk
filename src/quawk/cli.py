@@ -4,18 +4,18 @@
 
 from __future__ import annotations
 
-import sys
 import argparse
-
+import sys
 from importlib import metadata
 from pathlib import Path
 from typing import Sequence
 
 from . import __version__
-from .diagnostics import LexError, ParseError, format_error
+from .diagnostics import LexError, ParseError, SemanticError, format_error
 from .jit import emit_assembly, execute_with_inputs, lower_to_llvm_ir
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
+from .semantics import analyze
 from .source import ProgramSource
 
 
@@ -117,6 +117,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             sys.stdout.write(format_program(program))
             return 0
 
+        analyze(program)
+
         if args.ir:
             # Lower once for the stop-after inspection modes so IR and assembly
             # are derived from the same pipeline.
@@ -134,7 +136,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")
         return 2
-    except (LexError, ParseError) as exc:
+    except (LexError, ParseError, SemanticError) as exc:
         sys.stderr.write(format_error(exc))
         return 2
     except RuntimeError as exc:

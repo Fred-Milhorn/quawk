@@ -19,6 +19,7 @@ class TokenKind(Enum):
     IF = auto()
     PRINT = auto()
     PRINTF = auto()
+    RETURN = auto()
     WHILE = auto()
     IDENT = auto()
     STRING = auto()
@@ -48,6 +49,7 @@ KEYWORDS: dict[str, TokenKind] = {
     "if": TokenKind.IF,
     "print": TokenKind.PRINT,
     "printf": TokenKind.PRINTF,
+    "return": TokenKind.RETURN,
     "while": TokenKind.WHILE,
 }
 
@@ -58,6 +60,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.IF: "if",
     TokenKind.PRINT: "print",
     TokenKind.PRINTF: "printf",
+    TokenKind.RETURN: "return",
     TokenKind.WHILE: "while",
     TokenKind.LESS: "<",
     TokenKind.EQUAL_EQUAL: "==",

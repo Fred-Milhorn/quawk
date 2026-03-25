@@ -15,9 +15,11 @@ from quawk.parser import (
     BinaryExpr,
     BinaryOp,
     BlockStmt,
+    CallExpr,
     EndPattern,
     ExprPattern,
     FieldExpr,
+    FunctionDef,
     IfStmt,
     NameExpr,
     NumericLiteralExpr,
@@ -25,6 +27,7 @@ from quawk.parser import (
     PrintStmt,
     Program,
     RegexLiteralExpr,
+    ReturnStmt,
     StringLiteralExpr,
     WhileStmt,
     format_program,
@@ -163,6 +166,29 @@ def test_parses_while_statement_with_block() -> None:
     assert loop.condition.op is BinaryOp.LESS
     assert isinstance(loop.body, BlockStmt)
     assert len(loop.body.statements) == 2
+
+
+def test_parses_function_definition_and_call() -> None:
+    program = parse(lex("function f(x) { return x + 1 }\nBEGIN { print f(2) }"))
+
+    function_item = program.items[0]
+    assert isinstance(function_item, FunctionDef)
+    assert function_item.name == "f"
+    assert function_item.params == ("x", )
+
+    return_stmt = function_item.body.statements[0]
+    assert isinstance(return_stmt, ReturnStmt)
+    assert isinstance(return_stmt.value, BinaryExpr)
+    assert isinstance(return_stmt.value.left, NameExpr)
+
+    begin_item = program.items[1]
+    assert isinstance(begin_item, PatternAction)
+    assert isinstance(begin_item.pattern, BeginPattern)
+    print_stmt = begin_item.action.statements[0]
+    assert isinstance(print_stmt, PrintStmt)
+    assert isinstance(print_stmt.arguments[0], CallExpr)
+    assert print_stmt.arguments[0].function == "f"
+    assert len(print_stmt.arguments[0].args) == 1
 
 
 def test_ast_supports_multi_item_programs_with_end_pattern() -> None:
