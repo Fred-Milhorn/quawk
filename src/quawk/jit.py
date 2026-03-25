@@ -14,6 +14,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TextIO
 
 from . import runtime_support
+from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
     AssignStmt,
@@ -158,12 +159,16 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_function_definitions(program):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
+    normalized_program = normalize_program_for_lowering(program)
     if requires_input_aware_execution(program):
-        return lower_reusable_program_to_llvm_ir(program)
+        return lower_reusable_program_to_llvm_ir(normalized_program)
 
     state = LoweringState()
     lower_initial_variables(initial_variables or [], state)
-    for statement in collect_supported_statements(program):
+    statements = normalized_program.direct_begin_statements
+    if statements is None:
+        raise RuntimeError("the current backend only supports exactly one top-level BEGIN action")
+    for statement in statements:
         lower_statement(statement, state)
 
     declarations: list[str] = []
@@ -189,10 +194,12 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     )
 
 
-def lower_reusable_program_to_llvm_ir(program: Program) -> str:
+def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProgram) -> str:
     """Lower a record-driven program into reusable BEGIN/record/END LLVM IR."""
-    begin_actions, record_items, end_actions = partition_runtime_items(program)
-    variable_indexes = collect_variable_indexes(program)
+    begin_actions = normalized_program.begin_actions
+    record_items = normalized_program.record_items
+    end_actions = normalized_program.end_actions
+    variable_indexes = normalized_program.variable_indexes
     state_type = render_state_type(variable_indexes)
 
     declarations = [
@@ -214,8 +221,8 @@ def lower_reusable_program_to_llvm_ir(program: Program) -> str:
         variable_indexes=variable_indexes,
         string_index=begin_state.string_index,
     )
-    for pattern, action in record_items:
-        lower_record_item(pattern, action, record_state)
+    for record_item in record_items:
+        lower_record_item(record_item.pattern, record_item.action, record_state)
 
     end_state = LoweringState(
         runtime_param="%rt",
@@ -242,26 +249,6 @@ def lower_reusable_program_to_llvm_ir(program: Program) -> str:
             "",
         ]
     )
-
-
-def collect_supported_statements(program: Program) -> tuple[Stmt, ...]:
-    """Extract the statements accepted by the current backend.
-
-    The parser is intentionally broader than the current lowering path, so the
-    backend validates that it only sees the AST forms the current subset can execute.
-    """
-    if len(program.items) != 1:
-        raise RuntimeError("the current backend supports exactly one top-level pattern-action")
-
-    item = program.items[0]
-    if not isinstance(item, PatternAction):
-        raise RuntimeError("the current backend only supports pattern-action items")
-    if not isinstance(item.pattern, BeginPattern):
-        raise RuntimeError("the current backend only supports BEGIN actions")
-    if not isinstance(item.action, Action):
-        raise RuntimeError("the current backend requires an action block")
-
-    return item.action.statements
 
 
 def is_record_program(program: Program) -> bool:
@@ -721,10 +708,10 @@ def build_execution_driver_llvm_ir(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Build the reusable execution driver that invokes runtime and program phases."""
-    _, record_items, _ = partition_runtime_items(program)
-    has_record_phase = bool(record_items)
+    normalized_program = normalize_program_for_lowering(program)
+    has_record_phase = bool(normalized_program.record_items)
     state_type = extract_state_type_declaration(program_llvm_ir)
-    variable_indexes = collect_variable_indexes(program)
+    variable_indexes = normalized_program.variable_indexes
 
     globals_block = render_driver_globals(input_files, field_separator)
     state_setup = render_driver_state_setup(variable_indexes, initial_variables or [])
@@ -1239,55 +1226,6 @@ def field_parameter_name(index: int) -> str:
     if index == 1:
         return "%field1"
     raise RuntimeError("the record-loop increment only supports $0 and $1")
-
-
-def collect_variable_indexes(program: Program) -> dict[str, int]:
-    """Collect stable reusable-state indexes for scalar variables in `program`."""
-    names: list[str] = []
-    seen: set[str] = set()
-
-    def note_name(name: str) -> None:
-        if name in seen:
-            return
-        seen.add(name)
-        names.append(name)
-
-    def visit_expression(expression: Expr) -> None:
-        if isinstance(expression, NameExpr):
-            note_name(expression.name)
-            return
-        if isinstance(expression, BinaryExpr):
-            visit_expression(expression.left)
-            visit_expression(expression.right)
-
-    def visit_statement(statement: Stmt) -> None:
-        if isinstance(statement, AssignStmt):
-            note_name(statement.name)
-            visit_expression(statement.value)
-            return
-        if isinstance(statement, BlockStmt):
-            for nested in statement.statements:
-                visit_statement(nested)
-            return
-        if isinstance(statement, IfStmt):
-            visit_expression(statement.condition)
-            visit_statement(statement.then_branch)
-            return
-        if isinstance(statement, WhileStmt):
-            visit_expression(statement.condition)
-            visit_statement(statement.body)
-            return
-        if isinstance(statement, PrintStmt):
-            for argument in statement.arguments:
-                visit_expression(argument)
-
-    for item in program.items:
-        if not isinstance(item, PatternAction) or not isinstance(item.action, Action):
-            continue
-        for statement in item.action.statements:
-            visit_statement(statement)
-
-    return {name: index for index, name in enumerate(names)}
 
 
 def render_state_type(variable_indexes: dict[str, int]) -> str | None:

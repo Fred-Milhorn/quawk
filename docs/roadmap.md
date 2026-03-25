@@ -214,12 +214,12 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: functions and scope
+Next deliverable: semantic error code catalog
 
-Target programs:
-- `function f(x) { return x + 1 } BEGIN { print f(2) }`
+Target outcome:
+- errors for the supported semantic checks carry a stable code catalog
 
-1. `T-021` implement function declaration/definition checks when functions land
+1. `T-023` define the semantic error code catalog after core execution behavior stabilizes
 
 ## Backlog
 
@@ -267,7 +267,7 @@ Priority values:
 | T-019 | P5 | P1 | Implement semantic checks for lvalues and assignment legality as needed | T-018 | Invalid assignment tests fail with expected diagnostics | done |
 | T-020 | P5 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | done |
 | T-021 | P5 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | done |
-| T-022 | P6 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | todo |
+| T-022 | P6 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | done |
 | T-023 | P7 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
