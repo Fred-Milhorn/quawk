@@ -174,6 +174,12 @@ In scope:
 - builtins required for common POSIX AWK workflows
 - normalization/backend work needed to support the major language families
 
+Remaining implementation work after `T-022`:
+- associative arrays: indexed assignment, indexed reads, and default element behavior on the executable path
+- array mutation and traversal: `delete`, classic `for`, and `for ... in`
+- the first builtin tranche needed for common POSIX-style text-processing workflows
+- reusable runtime/backend support needed to lower and execute arrays, iteration, and builtins coherently
+
 Exit criteria:
 - every major POSIX AWK construct family has at least one working executable implementation
 - remaining gaps are compatibility/corner-case issues, not missing whole feature families
@@ -214,12 +220,15 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: semantic error code catalog
+Next deliverable: associative arrays and indexed access
 
 Target outcome:
-- errors for the supported semantic checks carry a stable code catalog
+- the first array read/write programs execute through the supported public path
 
-1. `T-023` define the semantic error code catalog after core execution behavior stabilizes
+1. `T-108` implement associative arrays and indexed assignment/read
+2. `T-109` author end-to-end tests for `delete`, `for`, and `for ... in`
+3. `T-110` implement `delete`, `for`, and `for ... in` for the array model
+4. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
 
 ## Backlog
 
@@ -273,6 +282,10 @@ Priority values:
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when mixed program execution becomes active | T-024, T-025 | Mixed `BEGIN` / record / `END` fixtures pass for the supported subset | todo |
 | T-027 | P6 | P1 | Implement builtins only as required by the active deliverable or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
+| T-107 | P6 | P0 | Author end-to-end tests for associative arrays and indexed access | T-100 | CLI tests exist for the first array read/write programs before implementation | done |
+| T-108 | P6 | P0 | Implement associative arrays and indexed assignment/read | T-107, T-022 | `BEGIN { a["x"] = 1; print a["x"] }` executes correctly | todo |
+| T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | todo |
+| T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |
