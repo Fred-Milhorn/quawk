@@ -7,6 +7,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -42,4 +44,31 @@ def test_inline_begin_array_missing_index_defaults_to_zero() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "0\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="T-110 not implemented: delete support for arrays")
+def test_inline_begin_array_delete_removes_indexed_value() -> None:
+    result = run_quawk('BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="T-110 not implemented: classic for-loop support")
+def test_inline_begin_classic_for_loop_executes() -> None:
+    result = run_quawk("BEGIN { for (i = 0; i < 3; i = i + 1) print i }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n1\n2\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(strict=True, reason="T-110 not implemented: for-in iteration support")
+def test_inline_begin_for_in_loop_iterates_array_keys() -> None:
+    result = run_quawk('BEGIN { a["x"] = 1; for (k in a) print k }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "x\n"
     assert result.stderr == ""

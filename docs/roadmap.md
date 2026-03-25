@@ -220,14 +220,13 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: associative arrays and indexed access
+Next deliverable: array deletion and iteration
 
 Target outcome:
-- the first array read/write programs execute through the supported public path
+- representative `delete`, classic `for`, and `for ... in` programs execute through the supported public path
 
-1. `T-109` author end-to-end tests for `delete`, `for`, and `for ... in`
-2. `T-110` implement `delete`, `for`, and `for ... in` for the array model
-3. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
+1. `T-110` implement `delete`, `for`, and `for ... in` for the array model
+2. `T-027` implement builtins required by the active P6 deliverable as array/iteration support lands
 
 ## Backlog
 
@@ -283,7 +282,7 @@ Priority values:
 | T-027 | P6 | P1 | Implement builtins only as required by the active deliverable or compatibility goals | T-024, T-026 | Builtin fixture tests pass for the selected subset | todo |
 | T-107 | P6 | P0 | Author end-to-end tests for associative arrays and indexed access | T-100 | CLI tests exist for the first array read/write programs before implementation | done |
 | T-108 | P6 | P0 | Implement associative arrays and indexed assignment/read | T-107, T-022 | `BEGIN { a["x"] = 1; print a["x"] }` executes correctly | done |
-| T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | todo |
+| T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | done |
 | T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
