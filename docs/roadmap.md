@@ -196,10 +196,20 @@ In scope:
 - parser/runtime/regex/io compatibility corpus expansion
 - regression triage and targeted fixes
 
+Success in this phase looks like:
+- supported parser, semantic, and runtime fixtures run through stable compatibility infrastructure instead of only ad hoc local checks
+- parser diagnostics can report more than one error where recovery is expected, and the reviewed AST snapshot surfaces are pinned by deterministic golden coverage
+- semantic diagnostics have stable public error codes in addition to source spans and human-readable messages
+- differential runs against `quawk`, `one-true-awk`, and `gawk --posix` produce normalized comparable results for the supported corpus
+- every observed compatibility gap in the P7 corpus is either fixed or explicitly classified in a checked-in divergence manifest
+
 Exit criteria:
-- no failing `posix-required` tests in the release test set
-- known divergences are documented and tagged
-- hardening pass shows no high-severity regressions
+- parser multi-error fixtures and selected AST golden fixtures are stable and reviewed
+- semantic errors emit stable public codes without losing source-span precision
+- differential runner executes the supported compatibility corpus across `quawk`, `one-true-awk`, and `gawk --posix`
+- no failing required compatibility tests remain in the active hardening test set
+- known divergences are documented, tagged, and classified in the checked-in manifest
+- hardening pass closes or explicitly triages all high-severity regressions discovered during the phase
 
 ### P8: Pre-Release Readiness
 
@@ -220,13 +230,18 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: semantic error code catalog
+Next deliverable: P7 compatibility and hardening
 
 Target outcome:
-- semantic diagnostics gain a stable public error-code scheme without changing source locations or messages
+- parser diagnostics, semantic diagnostics, and compatibility tooling all move onto explicit, reviewable P7 infrastructure with a clear release-style success bar
 
 1. `T-023` define semantic error code catalog after core execution behavior stabilizes
-2. `T-047` author compatibility tests as `xfail` baseline for the supported subset
+2. `T-015` add parser error recovery at statement boundaries
+3. `T-016` add parser golden tests for AST snapshots where they improve reviewability
+4. `T-047` author compatibility tests as `xfail` baseline for the supported subset
+5. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
+6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+7. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -314,8 +329,7 @@ Priority values:
 | T-035 | P7 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
 | T-036 | P7 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
 | T-037 | P7 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
-| T-038 | P7 | P1 | Establish CI release gate for `posix-required` tests | T-036, T-037 | CI fails on disallowed status transitions | todo |
-| T-048 | P8 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-038 | Release-readiness baseline committed with expected failures | todo |
+| T-048 | P8 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
 | T-040 | P8 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
 | T-042 | P8 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
