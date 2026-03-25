@@ -71,6 +71,13 @@ class CallExpr:
     span: SourceSpan
 
 
+@dataclass(frozen=True)
+class ArrayIndexExpr:
+    array_name: str
+    index: Expr
+    span: SourceSpan
+
+
 class BinaryOp(Enum):
     ADD = auto()
     LESS = auto()
@@ -87,7 +94,14 @@ class BinaryExpr:
 
 
 Expr: TypeAlias = (
-    StringLiteralExpr | NumericLiteralExpr | RegexLiteralExpr | NameExpr | FieldExpr | CallExpr | BinaryExpr
+    StringLiteralExpr
+    | NumericLiteralExpr
+    | RegexLiteralExpr
+    | NameExpr
+    | FieldExpr
+    | CallExpr
+    | ArrayIndexExpr
+    | BinaryExpr
 )
 
 
@@ -100,6 +114,7 @@ class PrintStmt:
 @dataclass(frozen=True)
 class AssignStmt:
     name: str
+    index: Expr | None
     value: Expr
     span: SourceSpan
 
@@ -218,6 +233,9 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             return lines
         case AssignStmt():
             lines = [f"{indent}AssignStmt span={statement.span.format_start()} name={statement.name!r}"]
+            if statement.index is not None:
+                lines.append(f"{indent}  Index")
+                lines.extend(format_expression(statement.index, indent + "    "))
             lines.extend(format_expression(statement.value, indent + "  "))
             return lines
         case BlockStmt():
@@ -268,6 +286,15 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
             lines = [f"{indent}CallExpr span={expression.span.format_start()} function={expression.function!r}"]
             for argument in expression.args:
                 lines.extend(format_expression(argument, indent + "  "))
+            return lines
+        case ArrayIndexExpr():
+            lines = [
+                (
+                    f"{indent}ArrayIndexExpr span={expression.span.format_start()} "
+                    f"array_name={expression.array_name!r}"
+                )
+            ]
+            lines.extend(format_expression(expression.index, indent + "  "))
             return lines
         case BinaryExpr():
             lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
@@ -407,7 +434,7 @@ class Parser:
             return self.parse_return_statement()
         if self.check(TokenKind.WHILE):
             return self.parse_while_statement()
-        if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.EQUAL:
+        if self.check(TokenKind.IDENT) and self.is_assignment_statement():
             return self.parse_assignment_statement()
         token = self.current()
         raise ParseError(f"expected statement, got {token.kind.name}", token.span)
@@ -445,12 +472,18 @@ class Parser:
         return PrintStmt(arguments=(argument, ), span=combine_spans(print_token.span, argument.span))
 
     def parse_assignment_statement(self) -> AssignStmt:
-        """Parse a scalar assignment statement in the current subset."""
+        """Parse a scalar or associative-array assignment statement in the current subset."""
         name_token = self.expect(TokenKind.IDENT)
+        index: Expr | None = None
+        if self.check(TokenKind.LBRACKET):
+            self.advance()
+            index = self.parse_expression()
+            self.expect(TokenKind.RBRACKET)
         self.expect(TokenKind.EQUAL)
         value = self.parse_expression()
         return AssignStmt(
             name=name_token.text or "",
+            index=index,
             value=value,
             span=combine_spans(name_token.span, value.span),
         )
@@ -560,6 +593,8 @@ class Parser:
             case TokenKind.IDENT:
                 if self.peek_kind() is TokenKind.LPAREN:
                     return self.parse_call_expression()
+                if self.peek_kind() is TokenKind.LBRACKET:
+                    return self.parse_array_index_expression()
                 name_token = self.advance()
                 return NameExpr(name=name_token.text or "", span=name_token.span)
             case TokenKind.DOLLAR:
@@ -591,6 +626,18 @@ class Parser:
             span=combine_spans(name_token.span, rparen_token.span),
         )
 
+    def parse_array_index_expression(self) -> ArrayIndexExpr:
+        """Parse one associative-array indexed-read expression."""
+        name_token = self.expect(TokenKind.IDENT)
+        self.expect(TokenKind.LBRACKET)
+        index = self.parse_expression()
+        rbracket_token = self.expect(TokenKind.RBRACKET)
+        return ArrayIndexExpr(
+            array_name=name_token.text or "",
+            index=index,
+            span=combine_spans(name_token.span, rbracket_token.span),
+        )
+
     def current(self) -> Token:
         """Return the current token without consuming it."""
         return self.tokens[self.index]
@@ -610,6 +657,30 @@ class Parser:
         """Return the kind of the next token without consuming it."""
         next_index = min(self.index + 1, len(self.tokens) - 1)
         return self.tokens[next_index].kind
+
+    def is_assignment_statement(self) -> bool:
+        """Report whether the current token sequence starts an assignment statement."""
+        if not self.check(TokenKind.IDENT):
+            return False
+        next_kind = self.peek_kind()
+        if next_kind is TokenKind.EQUAL:
+            return True
+        if next_kind is not TokenKind.LBRACKET:
+            return False
+
+        depth = 0
+        probe_index = self.index + 1
+        while probe_index < len(self.tokens):
+            kind = self.tokens[probe_index].kind
+            if kind is TokenKind.LBRACKET:
+                depth += 1
+            elif kind is TokenKind.RBRACKET:
+                depth -= 1
+                if depth == 0:
+                    next_index = min(probe_index + 1, len(self.tokens) - 1)
+                    return self.tokens[next_index].kind is TokenKind.EQUAL
+            probe_index += 1
+        return False
 
     def expect(self, kind: TokenKind) -> Token:
         """Consume a token of `kind` or raise a parse error at the current span."""

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .parser import (
     Action,
+    ArrayIndexExpr,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -109,13 +110,19 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
         if isinstance(expression, NameExpr):
             note_name(expression.name)
             return
+        if isinstance(expression, ArrayIndexExpr):
+            visit_expression(expression.index)
+            return
         if isinstance(expression, BinaryExpr):
             visit_expression(expression.left)
             visit_expression(expression.right)
 
     def visit_statement(statement: Stmt) -> None:
         if isinstance(statement, AssignStmt):
-            note_name(statement.name)
+            if statement.index is None:
+                note_name(statement.name)
+            else:
+                visit_expression(statement.index)
             visit_expression(statement.value)
             return
         if isinstance(statement, BlockStmt):

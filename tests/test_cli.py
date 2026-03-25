@@ -194,6 +194,26 @@ def test_quawk_parse_flag_prints_assignment_ast() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_parse_flag_prints_array_assignment_ast() -> None:
+    result = run_quawk("--parse", 'BEGIN { a["x"] = 1; print a["x"] }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      AssignStmt span=<inline>:1:9 name='a'\n"
+        "        Index\n"
+        "          StringLiteralExpr span=<inline>:1:11 value='x'\n"
+        "        NumericLiteralExpr span=<inline>:1:18 value=1.0\n"
+        "      PrintStmt span=<inline>:1:21\n"
+        "        ArrayIndexExpr span=<inline>:1:27 array_name='a'\n"
+        "          StringLiteralExpr span=<inline>:1:29 value='x'\n"
+    )
+    assert result.stderr == ""
+
+
 def test_quawk_parse_flag_prints_bare_action_ast() -> None:
     result = run_quawk("--parse", "{ print $1 }")
 

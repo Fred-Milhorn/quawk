@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .diagnostics import SemanticError
 from .parser import (
     Action,
+    ArrayIndexExpr,
     AssignStmt,
     BinaryExpr,
     BlockStmt,
@@ -108,6 +109,8 @@ def validate_statement(
     if isinstance(statement, AssignStmt):
         if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
             raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
+        if statement.index is not None:
+            validate_expression(statement.index, functions)
         validate_expression(statement.value, functions)
         return
     if isinstance(statement, BlockStmt):
@@ -160,6 +163,9 @@ def validate_expression(expression: Expr, functions: dict[str, FunctionDef]) -> 
     if isinstance(expression, BinaryExpr):
         validate_expression(expression.left, functions)
         validate_expression(expression.right, functions)
+        return
+    if isinstance(expression, ArrayIndexExpr):
+        validate_expression(expression.index, functions)
         return
     if isinstance(expression, CallExpr):
         function_def = functions.get(expression.function)

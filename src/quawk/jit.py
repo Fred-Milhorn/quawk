@@ -17,6 +17,7 @@ from . import runtime_support
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
+    ArrayIndexExpr,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -81,6 +82,7 @@ class RuntimeState:
     """Mutable host-runtime state for the currently supported interpreter path."""
 
     variables: dict[str, float] = field(default_factory=dict)
+    arrays: dict[str, dict[str, float]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
 
 
@@ -123,7 +125,7 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
-    if has_function_definitions(program):
+    if requires_host_runtime_execution(program):
         execute_host_runtime(program, [], None, initial_variables)
         return 0
     if requires_input_aware_execution(program):
@@ -159,6 +161,8 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_function_definitions(program):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
+    if has_array_operations(program):
+        raise RuntimeError("array operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
     if requires_input_aware_execution(program):
         return lower_reusable_program_to_llvm_ir(normalized_program)
@@ -423,6 +427,8 @@ def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
 
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
     """Lower a scalar numeric assignment."""
+    if statement.index is not None:
+        raise RuntimeError("array assignments are not supported by the LLVM-backed backend")
     slot_name = variable_address(statement.name, state)
     numeric_value = lower_numeric_expression(statement.value, state)
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
@@ -536,6 +542,9 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
     if isinstance(expression, NumericLiteralExpr):
         return format_double_literal(expression.value)
 
+    if isinstance(expression, ArrayIndexExpr):
+        raise RuntimeError("array reads are not supported by the LLVM-backed backend")
+
     if isinstance(expression, NameExpr):
         slot_name = variable_address(expression.name, state)
         temp = state.next_temp("load")
@@ -629,7 +638,7 @@ def execute_with_inputs(
     initial_variables: InitialVariables | None = None,
 ) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
-    if has_function_definitions(program):
+    if requires_host_runtime_execution(program):
         execute_host_runtime(program, input_files, field_separator, initial_variables)
         return 0
     if requires_input_aware_execution(program):
@@ -1039,6 +1048,11 @@ def execute_statement(
     """Execute one statement in the currently supported host-runtime subset."""
     if isinstance(statement, AssignStmt):
         value = evaluate_numeric_expression(statement.value, state, record, locals_scope)
+        if statement.index is not None:
+            key = evaluate_array_index(statement.index, state, record, locals_scope)
+            array = state.arrays.setdefault(statement.name, {})
+            array[key] = value
+            return
         if locals_scope is not None and statement.name in locals_scope:
             locals_scope[statement.name] = value
         else:
@@ -1084,6 +1098,8 @@ def evaluate_print_expression(
         if record is None:
             raise RuntimeError("field expressions require an active input record")
         return resolve_field_value(expression.index, record)
+    if isinstance(expression, ArrayIndexExpr):
+        return evaluate_numeric_expression(expression, state, record, locals_scope)
     return evaluate_numeric_expression(expression, state, record, locals_scope)
 
 
@@ -1096,6 +1112,12 @@ def evaluate_numeric_expression(
     """Evaluate a numeric expression in the current host-runtime subset."""
     if isinstance(expression, NumericLiteralExpr):
         return expression.value
+    if isinstance(expression, ArrayIndexExpr):
+        key = evaluate_array_index(expression.index, state, record, locals_scope)
+        array = state.arrays.get(expression.array_name)
+        if array is None:
+            return 0.0
+        return array.get(key, 0.0)
     if isinstance(expression, NameExpr):
         value = None
         if locals_scope is not None:
@@ -1187,12 +1209,29 @@ def call_function(
     return 0.0
 
 
+def evaluate_array_index(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: dict[str, float] | None,
+) -> str:
+    """Evaluate one associative-array index using the current subset's coercions."""
+    if isinstance(expression, StringLiteralExpr):
+        return expression.value
+    return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
+
+
 def print_value(value: str | float) -> None:
     """Print one runtime value with the same formatting the LLVM path uses today."""
     if isinstance(value, str):
         print(value)
         return
-    print(f"{value:g}")
+    print(format_numeric_value(value))
+
+
+def format_numeric_value(value: float) -> str:
+    """Render one numeric value using the current `%g`-style output shape."""
+    return f"{value:g}"
 
 
 def resolve_field_value(index: int, record: RecordContext) -> str:
@@ -1208,6 +1247,55 @@ def resolve_field_value(index: int, record: RecordContext) -> str:
 def has_function_definitions(program: Program) -> bool:
     """Report whether `program` contains any top-level user-defined functions."""
     return any(isinstance(item, FunctionDef) for item in program.items)
+
+
+def requires_host_runtime_execution(program: Program) -> bool:
+    """Report whether execution must use the host runtime instead of LLVM lowering."""
+    return has_function_definitions(program) or has_array_operations(program)
+
+
+def has_array_operations(program: Program) -> bool:
+    """Report whether `program` contains associative-array indexed reads or writes."""
+
+    def expression_has_array_ops(expression: Expr) -> bool:
+        if isinstance(expression, ArrayIndexExpr):
+            return True
+        if isinstance(expression, BinaryExpr):
+            return expression_has_array_ops(expression.left) or expression_has_array_ops(expression.right)
+        if isinstance(expression, CallExpr):
+            return any(expression_has_array_ops(argument) for argument in expression.args)
+        return False
+
+    def statement_has_array_ops(statement: Stmt) -> bool:
+        if isinstance(statement, AssignStmt):
+            if statement.index is not None:
+                return True
+            return expression_has_array_ops(statement.value)
+        if isinstance(statement, BlockStmt):
+            return any(statement_has_array_ops(nested) for nested in statement.statements)
+        if isinstance(statement, IfStmt):
+            return expression_has_array_ops(statement.condition) or statement_has_array_ops(statement.then_branch)
+        if isinstance(statement, WhileStmt):
+            return expression_has_array_ops(statement.condition) or statement_has_array_ops(statement.body)
+        if isinstance(statement, PrintStmt):
+            return any(expression_has_array_ops(argument) for argument in statement.arguments)
+        if isinstance(statement, ReturnStmt) and statement.value is not None:
+            return expression_has_array_ops(statement.value)
+        return False
+
+    for item in program.items:
+        if isinstance(item, FunctionDef):
+            if any(statement_has_array_ops(statement) for statement in item.body.statements):
+                return True
+            continue
+        if isinstance(item, PatternAction):
+            if isinstance(item.pattern, ExprPattern) and expression_has_array_ops(item.pattern.test):
+                return True
+            if item.action is not None and any(
+                statement_has_array_ops(statement) for statement in item.action.statements
+            ):
+                return True
+    return False
 
 
 def collect_function_definitions(program: Program) -> dict[str, FunctionDef]:

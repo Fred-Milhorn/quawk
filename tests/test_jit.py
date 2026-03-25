@@ -91,6 +91,15 @@ def test_execute_host_runtime_defaults_unset_globals_to_zero(capsys) -> None:
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_array_assignment_and_indexed_read(capsys) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; print a["x"]; print a["missing"] }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "1\n0\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 
@@ -99,6 +108,20 @@ def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     assert jit.execute_with_inputs(program, [], None) == 0
     captured = capsys.readouterr()
     assert captured.out == "gamma\nzeta\n"
+    assert captured.err == ""
+
+
+def test_execute_routes_array_programs_through_host_runtime(monkeypatch, capsys) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; print a["x"] }')
+
+    def fail_lower_to_llvm_ir(*args: object, **kwargs: object) -> str:
+        raise AssertionError("array programs should not lower through the LLVM backend yet")
+
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fail_lower_to_llvm_ir)
+
+    assert jit.execute(program) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "1\n"
     assert captured.err == ""
 
 

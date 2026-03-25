@@ -226,6 +226,29 @@ def test_lexes_assignment_tokens() -> None:
     ]
 
 
+def test_lexes_array_assignment_tokens() -> None:
+    tokens = lex('BEGIN { a["x"] = 1; print a["x"] }')
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.IDENT,
+        TokenKind.LBRACKET,
+        TokenKind.STRING,
+        TokenKind.RBRACKET,
+        TokenKind.EQUAL,
+        TokenKind.NUMBER,
+        TokenKind.SEMICOLON,
+        TokenKind.PRINT,
+        TokenKind.IDENT,
+        TokenKind.LBRACKET,
+        TokenKind.STRING,
+        TokenKind.RBRACKET,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+
+
 def test_lexes_bare_action_field_tokens() -> None:
     tokens = lex("{ print $1 }")
 

@@ -38,6 +38,8 @@ class TokenKind(Enum):
     RBRACE = auto()
     LPAREN = auto()
     RPAREN = auto()
+    LBRACKET = auto()
+    RBRACKET = auto()
     COMMA = auto()
     SEMICOLON = auto()
     NEWLINE = auto()
@@ -79,6 +81,8 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.RBRACE: "}",
     TokenKind.LPAREN: "(",
     TokenKind.RPAREN: ")",
+    TokenKind.LBRACKET: "[",
+    TokenKind.RBRACKET: "]",
     TokenKind.COMMA: ",",
     TokenKind.SEMICOLON: ";",
     TokenKind.NEWLINE: "\n",
@@ -93,6 +97,8 @@ PUNCTUATION_KINDS: dict[str, TokenKind] = {
     "}": TokenKind.RBRACE,
     "(": TokenKind.LPAREN,
     ")": TokenKind.RPAREN,
+    "[": TokenKind.LBRACKET,
+    "]": TokenKind.RBRACKET,
     ",": TokenKind.COMMA,
     ";": TokenKind.SEMICOLON,
 }

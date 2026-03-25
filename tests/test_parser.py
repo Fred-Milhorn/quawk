@@ -10,6 +10,7 @@ from quawk.diagnostics import ParseError
 from quawk.lexer import lex
 from quawk.parser import (
     Action,
+    ArrayIndexExpr,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -92,12 +93,36 @@ def test_parses_assignment_and_variable_read() -> None:
     assign = action.statements[0]
     assert isinstance(assign, AssignStmt)
     assert assign.name == "x"
+    assert assign.index is None
     assert isinstance(assign.value, BinaryExpr)
 
     print_stmt = action.statements[1]
     assert isinstance(print_stmt, PrintStmt)
     assert isinstance(print_stmt.arguments[0], NameExpr)
     assert print_stmt.arguments[0].name == "x"
+
+
+def test_parses_array_assignment_and_indexed_read() -> None:
+    program = parse(lex('BEGIN { a["x"] = 1; print a["x"] }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert len(action.statements) == 2
+
+    assign = action.statements[0]
+    assert isinstance(assign, AssignStmt)
+    assert assign.name == "a"
+    assert isinstance(assign.index, StringLiteralExpr)
+    assert assign.index.value == "x"
+    assert isinstance(assign.value, NumericLiteralExpr)
+
+    print_stmt = action.statements[1]
+    assert isinstance(print_stmt, PrintStmt)
+    array_read = print_stmt.arguments[0]
+    assert isinstance(array_read, ArrayIndexExpr)
+    assert array_read.array_name == "a"
+    assert isinstance(array_read.index, StringLiteralExpr)
+    assert array_read.index.value == "x"
 
 
 def test_parses_bare_action_with_field_expression() -> None:
