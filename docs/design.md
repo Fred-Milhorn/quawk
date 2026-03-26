@@ -283,8 +283,9 @@ POSIX-style options:
 
 Program selection:
   - If one or more -f options are given, program text comes only from those files.
+  - Once -f is present, positional operands are input files rather than inline program text.
   - Otherwise, the first non-option argument is the AWK program text.
-  - Mixing -f with inline program text is an error.
+  - Use -- to stop option parsing before a program operand or file operand that begins with -.
 
 Input files:
   - Remaining operands are input files processed in order.

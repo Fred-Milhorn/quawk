@@ -25,6 +25,16 @@ def test_quawk_help_exits_zero() -> None:
     assert result.returncode == 0, result.stderr
     assert "usage: quawk" in result.stdout
     assert "--version" in result.stdout
+    assert "Operand '-' means standard input at that position." in result.stdout
+
+
+def test_quawk_short_help_exits_zero() -> None:
+    result = run_quawk("-h")
+
+    assert result.returncode == 0, result.stderr
+    assert "usage: quawk" in result.stdout
+    assert "quawk [options] -f progfile" in result.stdout
+    assert result.stderr == ""
 
 
 def test_quawk_version_exits_zero() -> None:
@@ -79,6 +89,41 @@ def test_quawk_applies_v_assignments_with_file_based_programs(tmp_path) -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "9\n"
+    assert result.stderr == ""
+
+
+def test_quawk_treats_first_positional_after_f_as_input_file(tmp_path) -> None:
+    program_path = tmp_path / "print_records.awk"
+    input_path = tmp_path / "records.txt"
+    program_path.write_text('{ print FILENAME ":" $1 }', encoding="utf-8")
+    input_path.write_text("alpha beta\ngamma delta\n", encoding="utf-8")
+
+    result = run_quawk("-f", str(program_path), str(input_path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"{input_path}:alpha\n{input_path}:gamma\n"
+    assert result.stderr == ""
+
+
+def test_quawk_dash_dash_stops_option_parsing_for_input_files(tmp_path) -> None:
+    input_path = tmp_path / "--records.txt"
+    input_path.write_text("alpha beta\n", encoding="utf-8")
+
+    result = run_quawk('{ print FILENAME ":" $1 }', "--", str(input_path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"{input_path}:alpha\n"
+    assert result.stderr == ""
+
+
+def test_quawk_stdin_operand_dash_is_processed_in_file_order(tmp_path) -> None:
+    file_path = tmp_path / "records.txt"
+    file_path.write_text("from-file\n", encoding="utf-8")
+
+    result = run_quawk('{ print FILENAME ":" $0 }', "-", str(file_path), stdin="from-stdin\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"-:from-stdin\n{file_path}:from-file\n"
     assert result.stderr == ""
 
 

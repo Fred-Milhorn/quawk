@@ -20,6 +20,14 @@ from .semantics import ProgramAnalysis, analyze
 from .source import ProgramSource
 
 IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+CLI_USAGE = """quawk [options] -f progfile ... [--] [file ...]
+       quawk [options] program [--] [file ...]
+       quawk -h | --help
+       quawk --version"""
+CLI_EPILOG = """Run-path rules:
+  - With one or more -f flags, positional operands are input files.
+  - Use -- before a program or file operand that begins with '-'.
+  - Operand '-' means standard input at that position."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="quawk",
         description="POSIX-oriented AWK compiler and JIT runtime.",
+        usage=CLI_USAGE,
+        epilog=CLI_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "-F",
