@@ -315,16 +315,14 @@ Next deliverable: P10 grammar contract and doc alignment
 Target outcome:
 - `grammar.ebnf` is fully implemented and the design/AST docs describe the real implementation
 
-1. `T-122` author grammar-alignment baselines and coverage checklist
-   See [grammar-alignment.md](grammar-alignment.md).
-2. `T-123` implement the remaining `grammar.ebnf` parser gaps
-3. `T-124` remove semantic/runtime/backend narrowing for grammar-admitted forms
-4. `T-125` rewrite current-state sections in `design.md` and clarify `grammar.ebnf` conformance intent
-5. `T-126` split current-vs-future AST docs and align `quawk.asdl`
-6. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+1. `T-123` implement the remaining `grammar.ebnf` parser gaps
+2. `T-124` remove semantic/runtime/backend narrowing for grammar-admitted forms
+3. `T-125` rewrite current-state sections in `design.md` and clarify `grammar.ebnf` conformance intent
+4. `T-126` split current-vs-future AST docs and align `quawk.asdl`
+5. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
    See [compatibility.md](compatibility.md).
-7. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-8. `T-037` add divergence manifest and classification workflow
+6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+7. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -417,7 +415,7 @@ Priority values:
 | T-077 | P2 | P0 | Extend runtime state for branching and loop execution | T-076 | Runtime can execute the supported control-flow constructs | done |
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
-| T-122 | P10 | P0 | Author grammar-alignment baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `grammar.ebnf`/design/AST drift explicit before implementation | todo |
+| T-122 | P10 | P0 | Author grammar-alignment baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `grammar.ebnf`/design/AST drift explicit before implementation | done |
 | T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | todo |
 | T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | todo |
 | T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `grammar.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | todo |

@@ -2,6 +2,10 @@
 
 This document captures the follow-on plan from the current code-vs-doc review.
 
+Tracked checklist:
+
+- [grammar-conformance-checklist.md](grammar-conformance-checklist.md)
+
 ## Decision
 
 Adopt these rules:
