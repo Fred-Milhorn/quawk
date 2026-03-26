@@ -131,8 +131,7 @@ Error handling and diagnostics:
 - keep token spans on all AST nodes
 - track source file, line, and column on every emitted token
 - render lexer/parser errors as `file:line:column: error: ...` plus the source line and caret
-- recover at statement boundaries (`;`, newline, `}`) to continue reporting errors
-- prefer deterministic error messages over aggressive recovery heuristics
+- prefer deterministic parser error messages over recovery heuristics
 
 Milestone order:
 1. Initial end-to-end path for `BEGIN { print "literal" }`

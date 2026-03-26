@@ -1,0 +1,24 @@
+Program span=fields_arrays.awk:1:1
+  PatternAction span=fields_arrays.awk:1:1
+    BeginPattern span=fields_arrays.awk:1:1
+    Action span=fields_arrays.awk:1:7
+      AssignStmt span=fields_arrays.awk:1:9 op=PlainAssign
+        NameLValue span=fields_arrays.awk:1:9 name='i'
+        Value
+          NumericLiteralExpr span=fields_arrays.awk:1:13 value=1.0
+      PrintStmt span=fields_arrays.awk:1:16
+        FieldExpr span=fields_arrays.awk:1:22
+          NameExpr span=fields_arrays.awk:1:23 name='i'
+      AssignStmt span=fields_arrays.awk:1:26 op=PlainAssign
+        FieldLValue span=fields_arrays.awk:1:26
+          NameExpr span=fields_arrays.awk:1:27 name='i'
+        Value
+          NumericLiteralExpr span=fields_arrays.awk:1:31 value=2.0
+      AssignStmt span=fields_arrays.awk:1:34 op=PlainAssign
+        ArrayLValue span=fields_arrays.awk:1:34 name='a'
+          NumericLiteralExpr span=fields_arrays.awk:1:36 value=1.0
+          NumericLiteralExpr span=fields_arrays.awk:1:39 value=2.0
+        Value
+          NumericLiteralExpr span=fields_arrays.awk:1:44 value=3.0
+      DeleteStmt span=fields_arrays.awk:1:47
+        NameLValue span=fields_arrays.awk:1:54 name='a'

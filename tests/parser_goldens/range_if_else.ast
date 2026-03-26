@@ -1,0 +1,21 @@
+Program span=range_if_else.awk:1:1
+  PatternAction span=range_if_else.awk:1:1
+    RangePattern span=range_if_else.awk:1:1
+      Left
+        ExprPattern span=range_if_else.awk:1:1
+          RegexLiteralExpr span=range_if_else.awk:1:1 raw_text='/start/'
+      Right
+        ExprPattern span=range_if_else.awk:1:9
+          RegexLiteralExpr span=range_if_else.awk:1:9 raw_text='/stop/'
+    Action span=range_if_else.awk:1:16
+      IfStmt span=range_if_else.awk:1:18
+        Condition
+          BinaryExpr span=range_if_else.awk:1:22 op=LESS
+            NumericLiteralExpr span=range_if_else.awk:1:22 value=1.0
+            NumericLiteralExpr span=range_if_else.awk:1:26 value=2.0
+        Then
+          PrintStmt span=range_if_else.awk:1:29
+            NumericLiteralExpr span=range_if_else.awk:1:35 value=1.0
+        Else
+          PrintStmt span=range_if_else.awk:1:43
+            NumericLiteralExpr span=range_if_else.awk:1:49 value=2.0

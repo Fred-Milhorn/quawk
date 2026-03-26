@@ -1,0 +1,29 @@
+Program span=do_while_next_exit.awk:1:1
+  PatternAction span=do_while_next_exit.awk:1:1
+    Action span=do_while_next_exit.awk:1:1
+      NextStmt span=do_while_next_exit.awk:1:3
+  PatternAction span=do_while_next_exit.awk:2:1
+    Action span=do_while_next_exit.awk:2:1
+      NextFileStmt span=do_while_next_exit.awk:2:3
+  PatternAction span=do_while_next_exit.awk:3:1
+    BeginPattern span=do_while_next_exit.awk:3:1
+    Action span=do_while_next_exit.awk:3:7
+      AssignStmt span=do_while_next_exit.awk:3:9 op=PlainAssign
+        NameLValue span=do_while_next_exit.awk:3:9 name='x'
+        Value
+          NumericLiteralExpr span=do_while_next_exit.awk:3:13 value=0.0
+      DoWhileStmt span=do_while_next_exit.awk:3:16
+        Body
+          BlockStmt span=do_while_next_exit.awk:3:19
+            AssignStmt span=do_while_next_exit.awk:3:21 op=PlainAssign
+              NameLValue span=do_while_next_exit.awk:3:21 name='x'
+              Value
+                BinaryExpr span=do_while_next_exit.awk:3:25 op=ADD
+                  NameExpr span=do_while_next_exit.awk:3:25 name='x'
+                  NumericLiteralExpr span=do_while_next_exit.awk:3:29 value=1.0
+        Condition
+          BinaryExpr span=do_while_next_exit.awk:3:40 op=LESS
+            NameExpr span=do_while_next_exit.awk:3:40 name='x'
+            NumericLiteralExpr span=do_while_next_exit.awk:3:44 value=3.0
+      ExitStmt span=do_while_next_exit.awk:3:48
+        NumericLiteralExpr span=do_while_next_exit.awk:3:53 value=1.0

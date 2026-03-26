@@ -1,0 +1,17 @@
+Program span=printf_assign_forms.awk:1:1
+  PatternAction span=printf_assign_forms.awk:1:1
+    BeginPattern span=printf_assign_forms.awk:1:1
+    Action span=printf_assign_forms.awk:1:7
+      PrintfStmt span=printf_assign_forms.awk:1:9
+        StringLiteralExpr span=printf_assign_forms.awk:1:16 value='%s %g\n'
+        StringLiteralExpr span=printf_assign_forms.awk:1:27 value='x'
+        NumericLiteralExpr span=printf_assign_forms.awk:1:32 value=1.0
+      PrintStmt span=printf_assign_forms.awk:1:35
+        AssignExpr span=printf_assign_forms.awk:1:42 op=PlainAssign
+          NameLValue span=printf_assign_forms.awk:1:42 name='x'
+          Value
+            NumericLiteralExpr span=printf_assign_forms.awk:1:46 value=1.0
+      AssignStmt span=printf_assign_forms.awk:1:50 op=AddAssign
+        NameLValue span=printf_assign_forms.awk:1:50 name='x'
+        Value
+          NumericLiteralExpr span=printf_assign_forms.awk:1:55 value=2.0

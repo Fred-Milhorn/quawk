@@ -87,7 +87,7 @@ In scope:
 - each increment must name the exact AWK behavior it delivers, plus example programs that should execute at phase completion
 - each increment should have lex, parse, lowering/runtime, and integration-test work scoped to that behavior
 - semantic checks land only when the increment requires them
-- diagnostics and recovery improvements follow the related execution support rather than leading it
+- diagnostics improvements follow the related execution support rather than leading it
 
 Exit criteria:
 - the core executable subset includes scalar `BEGIN` programs, simple record actions, and `BEGIN` control flow
@@ -251,13 +251,13 @@ In scope:
 
 Success in this phase looks like:
 - supported parser, semantic, and runtime fixtures run through stable compatibility infrastructure instead of only ad hoc local checks
-- parser diagnostics can report more than one error where recovery is expected, and the reviewed AST snapshot surfaces are pinned by deterministic golden coverage
+- reviewed AST snapshot surfaces are pinned by deterministic golden coverage where they improve coverage and reviewability
 - semantic diagnostics have stable public error codes in addition to source spans and human-readable messages
 - differential runs against `quawk`, `one-true-awk`, and `gawk --posix` produce normalized comparable results for the supported corpus
 - every observed compatibility gap in the compatibility corpus is either fixed or explicitly classified in a checked-in divergence manifest
 
 Exit criteria:
-- parser multi-error fixtures and selected AST golden fixtures are stable and reviewed
+- selected AST golden fixtures are stable and reviewed
 - semantic errors emit stable public codes without losing source-span precision
 - differential runner executes the supported compatibility corpus across `quawk`, `one-true-awk`, and `gawk --posix`
 - no failing required compatibility tests remain in the active hardening test set
@@ -288,12 +288,10 @@ Next deliverable: P10 compatibility and hardening
 Target outcome:
 - compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
 
-1. `T-015` add parser error recovery at statement boundaries
-2. `T-016` add parser golden tests for AST snapshots where they improve reviewability
-3. `T-047` author compatibility tests as `xfail` baseline for the supported subset
-4. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
-5. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-6. `T-037` add divergence manifest and classification workflow
+1. `T-047` author compatibility tests as `xfail` baseline for the supported subset
+2. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+3. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+4. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -333,8 +331,7 @@ Priority values:
 | T-012 | P2 | P0 | Define AST nodes for numeric literals and additive binary expressions | T-009, T-054, T-055 | AST matches the numeric-print increment | done |
 | T-013 | P2 | P0 | Extend the parser for `print` expressions in `BEGIN` | T-012, T-054, T-055 | The parser accepts `BEGIN { print 1 }` and the additive form | done |
 | T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
-| T-015 | P10 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
-| T-016 | P10 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
+| T-016 | P10 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | done |
 | T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | done |
 | T-044 | P5 | P1 | Author semantic tests for the first user-defined function behavior | T-017 | Tests exist for the initial function-call path and its first legality checks before implementation | done |
 | T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | done |
@@ -389,7 +386,7 @@ Priority values:
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
 | T-039 | P11 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
 | T-047 | P10 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
-| T-035 | P10 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-035 | P10 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
 | T-036 | P10 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
 | T-037 | P10 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
 | T-048 | P11 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |

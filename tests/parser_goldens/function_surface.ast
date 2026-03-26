@@ -1,0 +1,19 @@
+Program span=function_surface.awk:1:1
+  FunctionDef span=function_surface.awk:1:1 name='f'
+    Params 'x', 'y'
+    Action span=function_surface.awk:1:18
+      ReturnStmt span=function_surface.awk:1:20
+        ConditionalExpr span=function_surface.awk:1:27
+          Test
+            NameExpr span=function_surface.awk:1:27 name='x'
+          IfTrue
+            NameExpr span=function_surface.awk:1:31 name='y'
+          IfFalse
+            NameExpr span=function_surface.awk:1:35 name='x'
+  PatternAction span=function_surface.awk:2:1
+    BeginPattern span=function_surface.awk:2:1
+    Action span=function_surface.awk:2:7
+      PrintStmt span=function_surface.awk:2:9
+        CallExpr span=function_surface.awk:2:15 function='f'
+          NumericLiteralExpr span=function_surface.awk:2:17 value=1.0
+          NumericLiteralExpr span=function_surface.awk:2:20 value=2.0
