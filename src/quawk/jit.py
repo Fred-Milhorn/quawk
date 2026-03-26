@@ -21,6 +21,7 @@ from .parser import (
     Action,
     ArrayIndexExpr,
     AssignExpr,
+    AssignOp,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -38,11 +39,13 @@ from .parser import (
     ExprPattern,
     ExprStmt,
     FieldExpr,
+    FieldLValue,
     ForInStmt,
     ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
+    NameLValue,
     NextFileStmt,
     NextStmt,
     NumericLiteralExpr,
@@ -80,6 +83,7 @@ class LoweringState:
     runtime_param: str | None = None
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
+    action_exit_label: str | None = None
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -203,10 +207,7 @@ def execute(program: Program, initial_variables: InitialVariables | None = None)
     """Lower `program` to IR, run it with `lli`, and return the process status."""
     if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
         return execute_host_runtime(program, [], None, initial_variables)
-    if requires_input_aware_execution(program):
-        raise RuntimeError("input-aware programs require input-aware execution")
-
-    llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
+    llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables)
     return execute_llvm_ir(llvm_ir)
 
 
@@ -236,9 +237,11 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_function_definitions(program):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
-    if has_host_runtime_only_operations(program):
+    if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
         raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
+    if supports_runtime_backend_subset(program):
+        return lower_reusable_program_to_llvm_ir(normalized_program)
     if requires_input_aware_execution(program):
         return lower_reusable_program_to_llvm_ir(normalized_program)
 
@@ -273,6 +276,27 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     )
 
 
+def build_public_execution_llvm_ir(
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
+) -> str:
+    """Build the IR module used by public execution and inspection paths."""
+    if initial_variables is None:
+        llvm_ir = lower_to_llvm_ir(program)
+    else:
+        llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
+    if program_requires_linked_execution_module(program):
+        return link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
+    return llvm_ir
+
+
+def program_requires_linked_execution_module(program: Program) -> bool:
+    """Report whether public execution/inspection needs the reusable driver module."""
+    return supports_runtime_backend_subset(program) or requires_input_aware_execution(program)
+
+
 def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProgram) -> str:
     """Lower a record-driven program into reusable BEGIN/record/END LLVM IR."""
     begin_actions = normalized_program.begin_actions
@@ -283,9 +307,19 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
 
     declarations = [
         "declare ptr @qk_get_field(ptr, i64)",
+        "declare void @qk_set_field_number(ptr, i64, double)",
         "declare void @qk_print_string(ptr, ptr)",
         "declare void @qk_print_number(ptr, double)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
+        "declare double @qk_get_nr(ptr)",
+        "declare double @qk_get_fnr(ptr)",
+        "declare double @qk_get_nf(ptr)",
+        "declare ptr @qk_get_filename(ptr)",
+        "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
+        "declare ptr @qk_array_get(ptr, ptr, ptr)",
+        "declare ptr @qk_substr2(ptr, ptr, i64)",
+        "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
+        "declare i32 @printf(ptr, ...)",
     ]
     if state_type is not None:
         declarations.append(state_type)
@@ -301,7 +335,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         string_index=begin_state.string_index,
     )
     for record_item in record_items:
-        lower_record_item(record_item.pattern, record_item.action, record_state)
+        lower_runtime_record_item(record_item.pattern, record_item.action, record_state, record_item.range_state_name)
 
     end_state = LoweringState(
         runtime_param="%rt",
@@ -422,7 +456,10 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
     """Lower one supported statement into side-effecting IR."""
     match statement:
         case AssignStmt():
-            lower_assignment_statement(statement, state)
+            if state.runtime_param is not None:
+                lower_runtime_assignment_statement(statement, state)
+            else:
+                lower_assignment_statement(statement, state)
         case BlockStmt(statements=statements):
             for nested in statements:
                 lower_statement(nested, state)
@@ -446,6 +483,18 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
             if len(arguments) != 1:
                 raise RuntimeError("the current backend only supports print with one argument")
             lower_print_expression(arguments[0], state)
+        case PrintfStmt():
+            if state.runtime_param is None:
+                raise RuntimeError("printf statements are not supported by the direct LLVM-backed backend")
+            lower_runtime_printf_statement(statement, state)
+        case ExprStmt(value=value):
+            if state.runtime_param is None:
+                raise RuntimeError("expression statements are not supported by the direct LLVM-backed backend")
+            lower_runtime_side_effect_expression(value, state)
+        case NextStmt():
+            if state.runtime_param is None or state.action_exit_label is None:
+                raise RuntimeError("next is not supported by the direct LLVM-backed backend")
+            state.instructions.append(f"  br label %{state.action_exit_label}")
         case _:
             raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
 
@@ -466,15 +515,125 @@ def lower_record_item(pattern: ExprPattern | None, action: Action, state: Loweri
     state.instructions.append(f"{end_label}:")
 
 
+def lower_runtime_record_item(
+    pattern: ExprPattern | RangePattern | None,
+    action: Action | None,
+    state: LoweringState,
+    range_state_name: str | None = None,
+) -> None:
+    """Lower one record-phase item in the backend-parity runtime subset."""
+    if pattern is None:
+        lower_runtime_action_or_default(action, state)
+        return
+    if isinstance(pattern, ExprPattern):
+        condition = lower_record_pattern(pattern, state)
+        then_label = state.next_label("record.match")
+        end_label = state.next_label("record.next")
+        state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{end_label}")
+        state.instructions.append(f"{then_label}:")
+        lower_runtime_action_or_default(action, state)
+        state.instructions.append(f"  br label %{end_label}")
+        state.instructions.append(f"{end_label}:")
+        return
+    if isinstance(pattern, RangePattern):
+        if range_state_name is None:
+            raise RuntimeError("range patterns require a stable backend state slot")
+        lower_runtime_range_record_item(pattern, action, state, range_state_name)
+        return
+    raise RuntimeError("unsupported record item in runtime-backed backend")
+
+
+def lower_runtime_action_or_default(action: Action | None, state: LoweringState) -> None:
+    """Lower one runtime-backed action or AWK's default print action."""
+    if action is None:
+        assert state.runtime_param is not None
+        field_ptr = state.next_temp("field")
+        state.instructions.extend(
+            [
+                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
+            ]
+        )
+        return
+    lower_action(action, state, record=None)
+
+
+def lower_runtime_range_record_item(
+    pattern: RangePattern,
+    action: Action | None,
+    state: LoweringState,
+    range_state_name: str,
+) -> None:
+    """Lower one range-pattern record item using a synthetic state slot."""
+    if not isinstance(pattern.left, ExprPattern) or not isinstance(pattern.right, ExprPattern):
+        raise RuntimeError("the runtime-backed backend only supports expression endpoints in range patterns")
+    slot_name = variable_address(range_state_name, state)
+    active_value = state.next_temp("range.active")
+    active_flag = state.next_temp("range.flag")
+    active_label = state.next_label("range.active")
+    inactive_label = state.next_label("range.inactive")
+    end_label = state.next_label("range.end")
+    state.instructions.extend(
+        [
+            f"  {active_value} = load double, ptr {slot_name}",
+            f"  {active_flag} = fcmp one double {active_value}, 0.000000000000000e+00",
+            f"  br i1 {active_flag}, label %{active_label}, label %{inactive_label}",
+            f"{active_label}:",
+        ]
+    )
+    lower_runtime_action_or_default(action, state)
+    right_matches = lower_record_pattern(pattern.right, state)
+    keep_active = state.next_temp("range.keep")
+    keep_active_num = state.next_temp("range.keepnum")
+    state.instructions.extend(
+        [
+            f"  {keep_active} = xor i1 {right_matches}, true",
+            f"  {keep_active_num} = uitofp i1 {keep_active} to double",
+            f"  store double {keep_active_num}, ptr {slot_name}",
+            f"  br label %{end_label}",
+            f"{inactive_label}:",
+        ]
+    )
+    left_matches = lower_record_pattern(pattern.left, state)
+    matched_label = state.next_label("range.matched")
+    state.instructions.append(f"  br i1 {left_matches}, label %{matched_label}, label %{end_label}")
+    state.instructions.append(f"{matched_label}:")
+    lower_runtime_action_or_default(action, state)
+    right_after_start = lower_record_pattern(pattern.right, state)
+    start_keep_active = state.next_temp("range.start.keep")
+    start_keep_active_num = state.next_temp("range.start.keepnum")
+    state.instructions.extend(
+        [
+            f"  {start_keep_active} = xor i1 {right_after_start}, true",
+            f"  {start_keep_active_num} = uitofp i1 {start_keep_active} to double",
+            f"  store double {start_keep_active_num}, ptr {slot_name}",
+            f"  br label %{end_label}",
+            f"{end_label}:",
+        ]
+    )
+
+
 def lower_action(action: Action, state: LoweringState, record: RecordContext | None) -> None:
     """Lower one action block with an optional active input record."""
     previous_record = state.current_record
+    previous_exit_label = state.action_exit_label
     state.current_record = record
+    if state.runtime_param is not None:
+        state.action_exit_label = state.next_label("action.exit")
     try:
+        terminated = False
         for statement in action.statements:
             lower_statement(statement, state)
+            if state.runtime_param is not None and isinstance(statement, NextStmt):
+                terminated = True
+                break
+        if state.runtime_param is not None and state.action_exit_label is not None:
+            if not terminated:
+                state.instructions.append(f"  br label %{state.action_exit_label}")
+            state.instructions.append(f"{state.action_exit_label}:")
     finally:
         state.current_record = previous_record
+        state.action_exit_label = previous_exit_label
 
 
 def lower_if_statement(statement: IfStmt, state: LoweringState) -> None:
@@ -514,6 +673,32 @@ def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> N
         raise RuntimeError("array assignments are not supported by the LLVM-backed backend")
     slot_name = variable_address(statement.name, state)
     numeric_value = lower_numeric_expression(statement.value, state)
+    state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+
+
+def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
+    """Lower one runtime-backed assignment in the reusable backend subset."""
+    if statement.op is not statement.op.PLAIN:
+        raise RuntimeError("compound assignments are not supported by the runtime-backed backend")
+    assert state.runtime_param is not None
+
+    field_index = statement.field_index
+    if field_index is not None:
+        index_value = lower_runtime_field_index(field_index, state)
+        numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        state.instructions.append(
+            f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
+        )
+        return
+
+    if statement.name is None:
+        raise RuntimeError("non-scalar assignments are not supported by the runtime-backed backend")
+    if statement.extra_indexes:
+        raise RuntimeError("multi-subscript assignments are not supported by the runtime-backed backend")
+    if statement.index is not None:
+        raise RuntimeError("array assignments are not supported by the runtime-backed backend")
+    slot_name = variable_address(statement.name, state)
+    numeric_value = lower_runtime_numeric_expression(statement.value, state)
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
 
 
@@ -600,27 +785,63 @@ def lower_runtime_print_expression(expression: Expr, state: LoweringState) -> No
     """Lower one print expression against the reusable runtime ABI."""
     assert state.runtime_param is not None
     if isinstance(expression, StringLiteralExpr):
-        global_name, byte_length = declare_string(state, expression.value)
-        string_ptr = state.next_temp("strptr")
-        state.instructions.extend(
-            [
-                emit_gep(string_ptr, byte_length, global_name),
-                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_ptr})",
-            ]
-        )
+        string_value = lower_runtime_string_expression(expression, state)
+        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
         return
-    if isinstance(expression, FieldExpr):
-        field_ptr = state.next_temp("field")
-        state.instructions.extend(
-            [
-                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {expression.index})",
-                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
-            ]
-        )
+    if runtime_expression_has_string_result(expression):
+        string_value = lower_runtime_string_expression(expression, state)
+        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
         return
 
-    numeric_value = lower_numeric_expression(expression, state)
+    numeric_value = lower_runtime_numeric_expression(expression, state)
     state.instructions.append(f"  call void @qk_print_number(ptr {state.runtime_param}, double {numeric_value})")
+
+
+def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) -> None:
+    """Lower one runtime-backed `printf` statement."""
+    arguments = statement.arguments
+    if not arguments:
+        raise RuntimeError("printf requires at least a format string")
+    format_expression = arguments[0]
+    if not isinstance(format_expression, StringLiteralExpr):
+        raise RuntimeError("the runtime-backed backend currently requires a literal printf format string")
+
+    format_name, format_length = declare_string(state, format_expression.value)
+    format_ptr = state.next_temp("fmtptr")
+    specifiers = [
+        match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_expression.value) if match.group(1) != "%"
+    ]
+    if len(specifiers) != len(arguments) - 1:
+        raise RuntimeError("printf argument count does not match the format string in the runtime-backed backend")
+
+    operands: list[str] = []
+    for specifier, argument in zip(specifiers, arguments[1:], strict=True):
+        if specifier == "s":
+            operands.append(f"ptr {lower_runtime_string_expression(argument, state)}")
+            continue
+        if specifier in {"d", "i", "o", "u", "x", "X"}:
+            integer_value = state.next_temp("printf.int")
+            numeric_value = lower_runtime_numeric_expression(argument, state)
+            state.instructions.append(f"  {integer_value} = fptosi double {numeric_value} to i32")
+            operands.append(f"i32 {integer_value}")
+            continue
+        operands.append(f"double {lower_runtime_numeric_expression(argument, state)}")
+
+    call_args = ", ".join([f"ptr {format_ptr}", *operands])
+    state.instructions.extend(
+        [
+            emit_gep(format_ptr, format_length, format_name),
+            f"  call i32 (ptr, ...) @printf({call_args})",
+        ]
+    )
+
+
+def lower_runtime_side_effect_expression(expression: Expr, state: LoweringState) -> None:
+    """Lower one expression statement for the runtime-backed backend subset."""
+    if isinstance(expression, CallExpr) and expression.function == "split":
+        _ = lower_runtime_numeric_expression(expression, state)
+        return
+    raise RuntimeError("expression statements are not supported by the runtime-backed backend")
 
 
 def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
@@ -654,6 +875,181 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
     raise RuntimeError(
         "the current backend only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
+
+
+def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> str:
+    """Lower one numeric expression in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    match expression:
+        case NumericLiteralExpr(value=value):
+            return format_double_literal(value)
+        case NameExpr(name="NR"):
+            temp = state.next_temp("nr")
+            state.instructions.append(f"  {temp} = call double @qk_get_nr(ptr {state.runtime_param})")
+            return temp
+        case NameExpr(name="FNR"):
+            temp = state.next_temp("fnr")
+            state.instructions.append(f"  {temp} = call double @qk_get_fnr(ptr {state.runtime_param})")
+            return temp
+        case NameExpr(name="NF"):
+            temp = state.next_temp("nf")
+            state.instructions.append(f"  {temp} = call double @qk_get_nf(ptr {state.runtime_param})")
+            return temp
+        case NameExpr(name=name):
+            slot_name = variable_address(name, state)
+            temp = state.next_temp("load")
+            state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
+            return temp
+        case CallExpr(function="split"):
+            return lower_runtime_split_builtin(expression, state)
+        case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            temp = state.next_temp("add")
+            state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
+            return temp
+        case BinaryExpr(op=BinaryOp.LESS | BinaryOp.EQUAL | BinaryOp.LOGICAL_AND):
+            condition_value = lower_condition_expression(expression, state)
+            temp = state.next_temp("boolnum")
+            state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
+            return temp
+        case _:
+            raise RuntimeError("unsupported numeric expression in runtime-backed backend")
+
+
+def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> str:
+    """Lower one string-valued expression in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    match expression:
+        case StringLiteralExpr(value=value):
+            global_name, byte_length = declare_string(state, value)
+            string_ptr = state.next_temp("strptr")
+            state.instructions.append(emit_gep(string_ptr, byte_length, global_name))
+            return string_ptr
+        case NameExpr(name="FILENAME"):
+            temp = state.next_temp("filename")
+            state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
+            return temp
+        case FieldExpr(index=index):
+            field_index = lower_runtime_field_index(index, state)
+            temp = state.next_temp("field")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {field_index})"
+            )
+            return temp
+        case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
+            if extra_indexes:
+                raise RuntimeError("multi-subscript array reads are not supported by the runtime-backed backend")
+            array_name_ptr = lower_runtime_constant_string(array_name, state)
+            key_ptr = lower_runtime_array_key(index, state)
+            temp = state.next_temp("array.get")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+            )
+            return temp
+        case CallExpr(function="substr"):
+            return lower_runtime_substr_builtin(expression, state)
+        case _:
+            raise RuntimeError("unsupported string expression in runtime-backed backend")
+
+
+def lower_runtime_split_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `split` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) not in {2, 3}:
+        raise RuntimeError("builtin split expects two or three arguments")
+    target = expression.args[1]
+    if not isinstance(target, NameExpr):
+        raise RuntimeError("builtin split requires a named array target in the runtime-backed backend")
+
+    text_ptr = lower_runtime_string_expression(expression.args[0], state)
+    array_name_ptr = lower_runtime_constant_string(target.name, state)
+    if len(expression.args) == 3:
+        separator_ptr = lower_runtime_string_expression(expression.args[2], state)
+    else:
+        separator_ptr = "null"
+    temp = state.next_temp("split")
+    state.instructions.append(
+        (
+            f"  {temp} = call double @qk_split_into_array("
+            f"ptr {state.runtime_param}, ptr {text_ptr}, ptr {array_name_ptr}, ptr {separator_ptr})"
+        )
+    )
+    return temp
+
+
+def lower_runtime_substr_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `substr` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) not in {2, 3}:
+        raise RuntimeError("builtin substr expects two or three arguments")
+
+    text_ptr = lower_runtime_string_expression(expression.args[0], state)
+    start_numeric = lower_runtime_numeric_expression(expression.args[1], state)
+    start_value = state.next_temp("substr.start")
+    state.instructions.append(f"  {start_value} = fptosi double {start_numeric} to i64")
+    if len(expression.args) == 2:
+        result = state.next_temp("substr")
+        state.instructions.append(
+            f"  {result} = call ptr @qk_substr2(ptr {state.runtime_param}, ptr {text_ptr}, i64 {start_value})"
+        )
+        return result
+
+    length_numeric = lower_runtime_numeric_expression(expression.args[2], state)
+    length_value = state.next_temp("substr.length")
+    result = state.next_temp("substr")
+    state.instructions.extend(
+        [
+            f"  {length_value} = fptosi double {length_numeric} to i64",
+            (
+                f"  {result} = call ptr @qk_substr3("
+                f"ptr {state.runtime_param}, ptr {text_ptr}, i64 {start_value}, i64 {length_value})"
+            ),
+        ]
+    )
+    return result
+
+
+def lower_runtime_constant_string(value: str, state: LoweringState) -> str:
+    """Lower one compile-time string constant to a runtime pointer."""
+    global_name, byte_length = declare_string(state, value)
+    string_ptr = state.next_temp("strptr")
+    state.instructions.append(emit_gep(string_ptr, byte_length, global_name))
+    return string_ptr
+
+
+def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
+    """Lower one array key expression to a string pointer."""
+    match expression:
+        case NumericLiteralExpr(value=value):
+            return lower_runtime_constant_string(format_numeric_value(value), state)
+        case StringLiteralExpr(value=value):
+            return lower_runtime_constant_string(value, state)
+        case _:
+            raise RuntimeError("unsupported array index in runtime-backed backend")
+
+
+def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
+    """Lower one field index to an `i64` operand."""
+    if isinstance(index, int):
+        return str(index)
+    numeric_value = lower_runtime_numeric_expression(index, state)
+    integer_value = state.next_temp("field.index")
+    state.instructions.append(f"  {integer_value} = fptosi double {numeric_value} to i64")
+    return integer_value
+
+
+def runtime_expression_has_string_result(expression: Expr) -> bool:
+    """Report whether one runtime-backed expression lowers as a string result."""
+    match expression:
+        case StringLiteralExpr() | FieldExpr() | ArrayIndexExpr():
+            return True
+        case NameExpr(name="FILENAME"):
+            return True
+        case CallExpr(function="substr"):
+            return True
+        case _:
+            return False
 
 
 def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
@@ -726,11 +1122,8 @@ def execute_with_inputs(
     """Execute the current program, routing record-driven programs through the host loop."""
     if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
         return execute_host_runtime(program, input_files, field_separator, initial_variables)
-    if requires_input_aware_execution(program):
-        llvm_ir = lower_to_llvm_ir(program)
-        llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
-        return execute_llvm_ir(llvm_ir)
-    return execute(program, initial_variables)
+    llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)
+    return execute_llvm_ir(llvm_ir)
 
 
 def link_reusable_execution_module(
@@ -1929,11 +2322,15 @@ def has_function_definitions(program: Program) -> bool:
 
 def requires_host_runtime_execution(program: Program) -> bool:
     """Report whether execution must use the host runtime instead of LLVM lowering."""
-    return has_function_definitions(program) or has_host_runtime_only_operations(program)
+    return has_function_definitions(program) or (
+        has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program)
+    )
 
 
 def requires_host_runtime_value_execution(program: Program) -> bool:
     """Report whether public execution needs the host runtime's richer value semantics."""
+    if supports_runtime_backend_subset(program):
+        return False
 
     def expression_needs_value_runtime(expression: Expr, *, allow_string_literal: bool) -> bool:
         match expression:
@@ -2007,6 +2404,137 @@ def requires_host_runtime_value_execution(program: Program) -> bool:
         if isinstance(item, PatternAction) and item.action is None:
             return True
     return False
+
+
+def supports_runtime_backend_subset(program: Program) -> bool:
+    """Report whether `program` fits the reusable backend's current runtime-backed subset."""
+
+    def supports_string_expression(expression: Expr) -> bool:
+        match expression:
+            case StringLiteralExpr():
+                return True
+            case NameExpr(name="FILENAME"):
+                return True
+            case FieldExpr():
+                return True
+            case ArrayIndexExpr(extra_indexes=()):
+                return supports_array_key(expression.index)
+            case CallExpr(function="substr", args=args):
+                return len(args) in {2, 3} and supports_string_expression(args[0]) and all(
+                    supports_numeric_expression(argument) for argument in args[1:]
+                )
+            case _:
+                return False
+
+    def supports_array_key(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr() | StringLiteralExpr():
+                return True
+            case _:
+                return False
+
+    def supports_numeric_expression(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr():
+                return True
+            case NameExpr(name="NR" | "FNR" | "NF"):
+                return True
+            case NameExpr():
+                return True
+            case BinaryExpr(
+                op=BinaryOp.ADD | BinaryOp.LESS | BinaryOp.EQUAL | BinaryOp.LOGICAL_AND,
+                left=left,
+                right=right,
+            ):
+                return supports_numeric_expression(left) and supports_numeric_expression(right)
+            case CallExpr(function="split", args=args):
+                if len(args) not in {2, 3}:
+                    return False
+                if not supports_string_expression(args[0]):
+                    return False
+                if not isinstance(args[1], NameExpr):
+                    return False
+                return len(args) == 2 or supports_string_expression(args[2])
+            case _:
+                return False
+
+    def supports_pattern(pattern: ExprPattern | RangePattern | BeginPattern | EndPattern | None) -> bool:
+        if pattern is None or isinstance(pattern, BeginPattern | EndPattern):
+            return True
+        if isinstance(pattern, ExprPattern):
+            return isinstance(pattern.test, RegexLiteralExpr)
+        if isinstance(pattern, RangePattern):
+            return supports_pattern(pattern.left) and supports_pattern(pattern.right)
+        return False
+
+    def supports_statement(statement: Stmt) -> bool:
+        match statement:
+            case AssignStmt(op=op, target=target, value=value):
+                if op is not AssignOp.PLAIN:
+                    return False
+                match target:
+                    case NameLValue():
+                        return supports_numeric_expression(value)
+                    case FieldLValue(index=index):
+                        return supports_numeric_expression(index) and supports_numeric_expression(value)
+                    case _:
+                        return False
+            case BlockStmt(statements=statements):
+                return all(supports_statement(nested) for nested in statements)
+            case PrintStmt(arguments=arguments):
+                if len(arguments) != 1:
+                    return False
+                argument = arguments[0]
+                return runtime_expression_has_string_result(argument) or supports_numeric_expression(argument)
+            case PrintfStmt(arguments=arguments):
+                if not arguments or not isinstance(arguments[0], StringLiteralExpr):
+                    return False
+                specifiers = [
+                    match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(arguments[0].value)
+                    if match.group(1) != "%"
+                ]
+                if len(specifiers) != len(arguments) - 1:
+                    return False
+                for specifier, argument in zip(specifiers, arguments[1:], strict=True):
+                    if specifier == "s":
+                        if not supports_string_expression(argument):
+                            return False
+                        continue
+                    if not supports_numeric_expression(argument):
+                        return False
+                return True
+            case ExprStmt(value=value):
+                return isinstance(value, CallExpr) and value.function == "split" and supports_numeric_expression(value)
+            case NextStmt():
+                return True
+            case _:
+                return False
+
+    found_supported_runtime_feature = False
+    for item in program.items:
+        if isinstance(item, FunctionDef):
+            return False
+        if not isinstance(item, PatternAction):
+            return False
+        if not supports_pattern(item.pattern):
+            return False
+        if item.action is None:
+            if item.pattern is None:
+                return False
+            found_supported_runtime_feature = True
+            continue
+        if not all(supports_statement(statement) for statement in item.action.statements):
+            return False
+        if isinstance(item.pattern, RangePattern):
+            found_supported_runtime_feature = True
+        for statement in item.action.statements:
+            if isinstance(statement, PrintfStmt):
+                found_supported_runtime_feature = True
+            if isinstance(statement, AssignStmt) and statement.field_index is not None:
+                found_supported_runtime_feature = True
+            if isinstance(statement, AssignStmt) and isinstance(statement.value, CallExpr):
+                found_supported_runtime_feature = True
+    return found_supported_runtime_feature
 
 
 def has_host_runtime_only_operations(program: Program) -> bool:

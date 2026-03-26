@@ -286,10 +286,9 @@ Start here unless priorities change:
 Next deliverable: P9 backend parity and inspection
 
 Target outcome:
-- representative backend-execution and inspection baselines define the remaining lowering and runtime-ABI work for the completed POSIX-core subset
+- representative completed POSIX-core programs execute through the backend path and inspect cleanly via `--ir` and `--asm`
 
-1. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
-2. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
+1. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
 
 ## Backlog
 
@@ -356,7 +355,7 @@ Priority values:
 | T-117 | P8 | P0 | Implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields | T-116 | Public execution supports the remaining POSIX-core control-flow, pattern, record, and field behaviors | done |
 | T-118 | P8 | P0 | Implement the remaining POSIX-core builtins and builtin variables | T-116, T-117 | Public execution covers the chosen POSIX-core builtin set and builtin-variable semantics | done |
 | T-119 | P9 | P0 | Author backend-parity and inspection baselines for the completed POSIX-core subset | T-118 | Tests specify backend execution and `--ir` / `--asm` behavior for representative programs across the completed surface before implementation | done |
-| T-120 | P9 | P0 | Extend lowering and runtime ABI coverage to the completed POSIX-core subset | T-119 | Representative programs across the completed POSIX-core subset execute through the backend path and lower to reusable artifacts | todo |
+| T-120 | P9 | P0 | Extend lowering and runtime ABI coverage to the completed POSIX-core subset | T-119 | Representative programs across the completed POSIX-core subset execute through the backend path and lower to reusable artifacts | done |
 | T-121 | P9 | P1 | Remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps | T-120 | No supported POSIX-core feature remains host-runtime-only when P9 closes | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |

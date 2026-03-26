@@ -33,6 +33,7 @@ from .parser import (
     PrintfStmt,
     PrintStmt,
     Program,
+    RangePattern,
     Stmt,
     UnaryExpr,
     WhileStmt,
@@ -43,8 +44,9 @@ from .parser import (
 class NormalizedRecordItem:
     """One normalized record-phase item used by reusable lowering."""
 
-    pattern: ExprPattern | None
-    action: Action
+    pattern: ExprPattern | RangePattern | None
+    action: Action | None
+    range_state_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,35 +65,47 @@ def normalize_program_for_lowering(program: Program) -> NormalizedLoweringProgra
     begin_actions: list[Action] = []
     record_items: list[NormalizedRecordItem] = []
     end_actions: list[Action] = []
+    range_state_names: list[str] = []
 
     for item in program.items:
         if isinstance(item, FunctionDef):
             continue
         if not isinstance(item, PatternAction):
             raise RuntimeError("the current lowering path only supports pattern-action items")
-        if not isinstance(item.action, Action):
-            raise RuntimeError("the current lowering path requires an action block for each supported item")
 
         if item.pattern is None:
+            if not isinstance(item.action, Action):
+                raise RuntimeError("the current lowering path requires an action block for bare record rules")
             record_items.append(NormalizedRecordItem(pattern=None, action=item.action))
             continue
         if isinstance(item.pattern, BeginPattern):
+            if not isinstance(item.action, Action):
+                raise RuntimeError("the current lowering path requires an action block for BEGIN rules")
             begin_actions.append(item.action)
             continue
         if isinstance(item.pattern, EndPattern):
+            if not isinstance(item.action, Action):
+                raise RuntimeError("the current lowering path requires an action block for END rules")
             end_actions.append(item.action)
             continue
         if isinstance(item.pattern, ExprPattern):
             record_items.append(NormalizedRecordItem(pattern=item.pattern, action=item.action))
             continue
-        raise RuntimeError("the current lowering path only supports BEGIN, END, and regex expression patterns")
+        if isinstance(item.pattern, RangePattern):
+            range_state_name = f"__range.{len(range_state_names)}"
+            range_state_names.append(range_state_name)
+            record_items.append(
+                NormalizedRecordItem(pattern=item.pattern, action=item.action, range_state_name=range_state_name)
+            )
+            continue
+        raise RuntimeError("the current lowering path only supports BEGIN, END, expression, and range patterns")
 
     return NormalizedLoweringProgram(
         direct_begin_statements=collect_direct_begin_statements(program),
         begin_actions=tuple(begin_actions),
         record_items=tuple(record_items),
         end_actions=tuple(end_actions),
-        variable_indexes=collect_variable_indexes(program),
+        variable_indexes=collect_variable_indexes(program, extra_names=tuple(range_state_names)),
     )
 
 
@@ -109,7 +123,7 @@ def collect_direct_begin_statements(program: Program) -> tuple[Stmt, ...] | None
     return item.action.statements
 
 
-def collect_variable_indexes(program: Program) -> dict[str, int]:
+def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()) -> dict[str, int]:
     """Collect stable lowering-state indexes for scalar variables in `program`."""
     names: list[str] = []
     seen: set[str] = set()
@@ -199,10 +213,29 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
             case _:
                 return
 
+    def visit_pattern(pattern: ExprPattern | RangePattern) -> None:
+        match pattern:
+            case ExprPattern(test=test):
+                visit_expression(test)
+            case RangePattern(left=left, right=right):
+                if not isinstance(left, ExprPattern | RangePattern) or not isinstance(
+                    right, ExprPattern | RangePattern
+                ):
+                    raise RuntimeError("the current lowering path only supports expression endpoints in range patterns")
+                visit_pattern(left)
+                visit_pattern(right)
+
     for item in program.items:
         if not isinstance(item, PatternAction) or not isinstance(item.action, Action):
             continue
+        if isinstance(item.pattern, ExprPattern):
+            visit_expression(item.pattern.test)
+        if isinstance(item.pattern, RangePattern):
+            visit_pattern(item.pattern)
         for statement in item.action.statements:
             visit_statement(statement)
+
+    for extra_name in extra_names:
+        note_name(extra_name)
 
     return {name: index for index, name in enumerate(names)}

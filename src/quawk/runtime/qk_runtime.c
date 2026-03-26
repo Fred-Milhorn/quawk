@@ -33,6 +33,24 @@ struct qk_runtime {
     size_t field_count;
     size_t field_capacity;
     char *field_separator;
+    double nr;
+    double fnr;
+    char *current_filename;
+    char *scratch_buffer;
+    size_t scratch_capacity;
+    struct qk_array *arrays;
+};
+
+struct qk_array_entry {
+    char *key;
+    char *value;
+    struct qk_array_entry *next;
+};
+
+struct qk_array {
+    char *name;
+    struct qk_array_entry *entries;
+    struct qk_array *next;
 };
 
 static const char QK_EMPTY_FIELD[] = "";
@@ -52,6 +70,12 @@ static char *qk_strdup_or_null(const char *text)
     return copy;
 }
 
+static void qk_set_current_filename(qk_runtime *runtime, const char *path)
+{
+    free(runtime->current_filename);
+    runtime->current_filename = qk_strdup_or_null(path);
+}
+
 static void qk_close_current_handle(qk_runtime *runtime)
 {
     if ((runtime->current_handle != NULL) && !runtime->current_handle_is_stdin) {
@@ -59,6 +83,136 @@ static void qk_close_current_handle(qk_runtime *runtime)
     }
     runtime->current_handle = NULL;
     runtime->current_handle_is_stdin = false;
+}
+
+static void qk_free_array_entries(struct qk_array_entry *entry)
+{
+    while (entry != NULL) {
+        struct qk_array_entry *next = entry->next;
+        free(entry->key);
+        free(entry->value);
+        free(entry);
+        entry = next;
+    }
+}
+
+static void qk_free_arrays(struct qk_array *array)
+{
+    while (array != NULL) {
+        struct qk_array *next = array->next;
+        free(array->name);
+        qk_free_array_entries(array->entries);
+        free(array);
+        array = next;
+    }
+}
+
+static struct qk_array *qk_find_array(qk_runtime *runtime, const char *name, bool create)
+{
+    struct qk_array *array = runtime->arrays;
+    while (array != NULL) {
+        if ((array->name != NULL) && (name != NULL) && (strcmp(array->name, name) == 0)) {
+            return array;
+        }
+        array = array->next;
+    }
+
+    if (!create || (name == NULL)) {
+        return NULL;
+    }
+
+    array = calloc(1U, sizeof(*array));
+    if (array == NULL) {
+        return NULL;
+    }
+    array->name = qk_strdup_or_null(name);
+    if (array->name == NULL) {
+        free(array);
+        return NULL;
+    }
+    array->next = runtime->arrays;
+    runtime->arrays = array;
+    return array;
+}
+
+static void qk_clear_array(struct qk_array *array)
+{
+    if (array == NULL) {
+        return;
+    }
+    qk_free_array_entries(array->entries);
+    array->entries = NULL;
+}
+
+static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, const char *key, const char *value)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, true);
+    if (array == NULL) {
+        return false;
+    }
+
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        if ((strcmp(entry->key, key) == 0)) {
+            char *copy = qk_strdup_or_null(value);
+            if (copy == NULL) {
+                return false;
+            }
+            free(entry->value);
+            entry->value = copy;
+            return true;
+        }
+        entry = entry->next;
+    }
+
+    entry = calloc(1U, sizeof(*entry));
+    if (entry == NULL) {
+        return false;
+    }
+    entry->key = qk_strdup_or_null(key);
+    entry->value = qk_strdup_or_null(value);
+    if ((entry->key == NULL) || (entry->value == NULL)) {
+        free(entry->key);
+        free(entry->value);
+        free(entry);
+        return false;
+    }
+    entry->next = array->entries;
+    array->entries = entry;
+    return true;
+}
+
+static const char *qk_array_get_value(struct qk_runtime *runtime, const char *array_name, const char *key)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if (array == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            return entry->value;
+        }
+        entry = entry->next;
+    }
+    return QK_EMPTY_FIELD;
+}
+
+static bool qk_store_scratch(qk_runtime *runtime, const char *text, size_t length)
+{
+    size_t required = length + 1U;
+    if (required > runtime->scratch_capacity) {
+        char *next = realloc(runtime->scratch_buffer, required);
+        if (next == NULL) {
+            return false;
+        }
+        runtime->scratch_buffer = next;
+        runtime->scratch_capacity = required;
+    }
+    memcpy(runtime->scratch_buffer, text, length);
+    runtime->scratch_buffer[length] = '\0';
+    return true;
 }
 
 static bool qk_push_field(qk_runtime *runtime, char *field_text)
@@ -154,6 +308,8 @@ static bool qk_open_next_input(qk_runtime *runtime)
         runtime->current_handle = stdin;
         runtime->current_handle_is_stdin = true;
         runtime->stdin_consumed = true;
+        runtime->fnr = 0.0;
+        qk_set_current_filename(runtime, "-");
         return true;
     }
 
@@ -164,12 +320,16 @@ static bool qk_open_next_input(qk_runtime *runtime)
         if (strcmp(path, "-") == 0) {
             runtime->current_handle = stdin;
             runtime->current_handle_is_stdin = true;
+            runtime->fnr = 0.0;
+            qk_set_current_filename(runtime, "-");
             return true;
         }
 
         runtime->current_handle = fopen(path, "r");
         if (runtime->current_handle != NULL) {
             runtime->current_handle_is_stdin = false;
+            runtime->fnr = 0.0;
+            qk_set_current_filename(runtime, path);
             return true;
         }
 
@@ -210,6 +370,9 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->field_buffer);
     free(runtime->fields);
     free(runtime->field_separator);
+    free(runtime->current_filename);
+    free(runtime->scratch_buffer);
+    qk_free_arrays(runtime->arrays);
     free(runtime);
 }
 
@@ -240,6 +403,8 @@ bool qk_next_record(qk_runtime *runtime)
                 runtime->current_record[line_length - 1] = '\0';
                 line_length -= 1;
             }
+            runtime->nr += 1.0;
+            runtime->fnr += 1.0;
             return qk_rebuild_fields(runtime);
         }
 
@@ -265,6 +430,84 @@ const char *qk_get_field(qk_runtime *runtime, int64_t index)
         return QK_EMPTY_FIELD;
     }
     return runtime->fields[field_index];
+}
+
+static bool qk_rebuild_record_from_parts(qk_runtime *runtime, int64_t index, const char *value)
+{
+    if (index < 0) {
+        return false;
+    }
+    if (index == 0) {
+        free(runtime->current_record);
+        runtime->current_record = qk_strdup_or_null(value);
+        if ((value != NULL) && (runtime->current_record == NULL)) {
+            return false;
+        }
+        return qk_rebuild_fields(runtime);
+    }
+
+    size_t target_fields = (size_t)index;
+    if (target_fields < runtime->field_count) {
+        target_fields = runtime->field_count;
+    }
+
+    size_t value_length = strlen(value == NULL ? "" : value);
+    size_t total_length = 0U;
+    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
+        const char *field_value = "";
+        if ((int64_t)(field_index + 1U) == index) {
+            field_value = value == NULL ? "" : value;
+        } else if (field_index < runtime->field_count) {
+            field_value = runtime->fields[field_index];
+        }
+        total_length += strlen(field_value);
+        if (field_index + 1U < target_fields) {
+            total_length += 1U;
+        }
+    }
+
+    char *next_record = malloc(total_length + 1U);
+    if (next_record == NULL) {
+        return false;
+    }
+
+    char *cursor = next_record;
+    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
+        const char *field_value = "";
+        size_t field_length = 0U;
+        if ((int64_t)(field_index + 1U) == index) {
+            field_value = value == NULL ? "" : value;
+            field_length = value_length;
+        } else if (field_index < runtime->field_count) {
+            field_value = runtime->fields[field_index];
+            field_length = strlen(field_value);
+        }
+        memcpy(cursor, field_value, field_length);
+        cursor += field_length;
+        if (field_index + 1U < target_fields) {
+            *cursor = ' ';
+            cursor += 1U;
+        }
+    }
+    *cursor = '\0';
+
+    free(runtime->current_record);
+    runtime->current_record = next_record;
+    return qk_rebuild_fields(runtime);
+}
+
+void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value)
+{
+    if ((runtime == NULL) || !qk_rebuild_record_from_parts(runtime, index, value)) {
+        return;
+    }
+}
+
+void qk_set_field_number(qk_runtime *runtime, int64_t index, double value)
+{
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%g", value);
+    qk_set_field_string(runtime, index, buffer);
 }
 
 void qk_print_string(qk_runtime *runtime, const char *value)
@@ -293,4 +536,147 @@ bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern)
     int result = regexec(&regex, runtime->current_record, 0, NULL, 0);
     regfree(&regex);
     return result == 0;
+}
+
+double qk_get_nr(qk_runtime *runtime)
+{
+    return runtime == NULL ? 0.0 : runtime->nr;
+}
+
+double qk_get_fnr(qk_runtime *runtime)
+{
+    return runtime == NULL ? 0.0 : runtime->fnr;
+}
+
+double qk_get_nf(qk_runtime *runtime)
+{
+    return runtime == NULL ? 0.0 : (double)runtime->field_count;
+}
+
+const char *qk_get_filename(qk_runtime *runtime)
+{
+    if ((runtime == NULL) || (runtime->current_filename == NULL)) {
+        return "-";
+    }
+    return runtime->current_filename;
+}
+
+double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator)
+{
+    if ((runtime == NULL) || (array_name == NULL) || (text == NULL)) {
+        return 0.0;
+    }
+
+    struct qk_array *array = qk_find_array(runtime, array_name, true);
+    if (array == NULL) {
+        return 0.0;
+    }
+    qk_clear_array(array);
+
+    char *buffer = qk_strdup_or_null(text);
+    if (buffer == NULL) {
+        return 0.0;
+    }
+
+    size_t count = 0U;
+    if ((separator == NULL) || (*separator == '\0')) {
+        char *cursor = buffer;
+        while (*cursor != '\0') {
+            while ((*cursor != '\0') && isspace((unsigned char)*cursor)) {
+                cursor += 1;
+            }
+            if (*cursor == '\0') {
+                break;
+            }
+            char *field_start = cursor;
+            while ((*cursor != '\0') && !isspace((unsigned char)*cursor)) {
+                cursor += 1;
+            }
+            if (*cursor != '\0') {
+                *cursor = '\0';
+                cursor += 1;
+            }
+            count += 1U;
+            char key[32];
+            snprintf(key, sizeof(key), "%zu", count);
+            if (!qk_array_set(runtime, array_name, key, field_start)) {
+                free(buffer);
+                return 0.0;
+            }
+        }
+    } else {
+        size_t separator_length = strlen(separator);
+        char *field_start = buffer;
+        if (separator_length == 0U) {
+            (void)qk_array_set(runtime, array_name, "1", field_start);
+            free(buffer);
+            return 1.0;
+        }
+        for (;;) {
+            char *match = strstr(field_start, separator);
+            count += 1U;
+            char key[32];
+            snprintf(key, sizeof(key), "%zu", count);
+            if (match == NULL) {
+                if (!qk_array_set(runtime, array_name, key, field_start)) {
+                    free(buffer);
+                    return 0.0;
+                }
+                break;
+            }
+            *match = '\0';
+            if (!qk_array_set(runtime, array_name, key, field_start)) {
+                free(buffer);
+                return 0.0;
+            }
+            field_start = match + separator_length;
+        }
+    }
+
+    free(buffer);
+    return (double)count;
+}
+
+const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key)
+{
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    return qk_array_get_value(runtime, array_name, key);
+}
+
+const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start)
+{
+    if ((runtime == NULL) || (text == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    size_t length = strlen(text);
+    size_t start_index = start <= 1 ? 0U : (size_t)(start - 1);
+    if (start_index > length) {
+        start_index = length;
+    }
+    if (!qk_store_scratch(runtime, text + start_index, length - start_index)) {
+        return QK_EMPTY_FIELD;
+    }
+    return runtime->scratch_buffer;
+}
+
+const char *qk_substr3(qk_runtime *runtime, const char *text, int64_t start, int64_t length)
+{
+    if ((runtime == NULL) || (text == NULL) || (length <= 0)) {
+        return QK_EMPTY_FIELD;
+    }
+    size_t text_length = strlen(text);
+    size_t start_index = start <= 1 ? 0U : (size_t)(start - 1);
+    if (start_index > text_length) {
+        start_index = text_length;
+    }
+    size_t slice_length = (size_t)length;
+    if (slice_length > text_length - start_index) {
+        slice_length = text_length - start_index;
+    }
+    if (!qk_store_scratch(runtime, text + start_index, slice_length)) {
+        return QK_EMPTY_FIELD;
+    }
+    return runtime->scratch_buffer;
 }

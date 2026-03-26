@@ -35,6 +35,8 @@ bool qk_next_record(qk_runtime *runtime);
 
 /* Return `$0` for index 0 or `$n` for positive 1-based field indexes. */
 const char *qk_get_field(qk_runtime *runtime, int64_t index);
+void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value);
+void qk_set_field_number(qk_runtime *runtime, int64_t index, double value);
 
 /* Print a string or number using the same newline-terminated formatting as AWK print. */
 void qk_print_string(qk_runtime *runtime, const char *value);
@@ -42,5 +44,15 @@ void qk_print_number(qk_runtime *runtime, double value);
 
 /* Match one regular expression pattern against the current record text. */
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern);
+
+/* Builtin-variable and builtin-function support for backend parity. */
+double qk_get_nr(qk_runtime *runtime);
+double qk_get_fnr(qk_runtime *runtime);
+double qk_get_nf(qk_runtime *runtime);
+const char *qk_get_filename(qk_runtime *runtime);
+double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator);
+const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key);
+const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start);
+const char *qk_substr3(qk_runtime *runtime, const char *text, int64_t start, int64_t length);
 
 #endif
