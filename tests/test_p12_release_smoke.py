@@ -56,7 +56,6 @@ def test_uv_run_example_program_smoke() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.xfail(strict=True, reason="T-040: SPEC.md feature matrix is not committed yet")
 def test_release_smoke_requires_spec_feature_matrix() -> None:
     spec_path = ROOT / "SPEC.md"
 

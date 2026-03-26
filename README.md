@@ -58,6 +58,7 @@ The current runtime shells out to system LLVM binaries rather than bundling an L
 ## Docs Map
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor workflow, standards, and PR expectations
+- [SPEC.md](SPEC.md): implemented/planned/out-of-scope feature matrix
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [docs/design.md](docs/design.md): architecture, execution, and CLI design
 - [docs/grammar.ebnf](docs/grammar.ebnf): concrete syntax grammar
