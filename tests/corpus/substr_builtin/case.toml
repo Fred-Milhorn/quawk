@@ -1,0 +1,9 @@
+id = "substr_builtin"
+description = "The substr builtin returns the requested slice."
+program = "program.awk"
+tags = ["builtin", "substr", "p8"]
+xfail_reason = "T-115/T-118 not implemented: string builtins beyond length"
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

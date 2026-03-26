@@ -1,0 +1,10 @@
+id = "nr_nf_builtin_vars"
+description = "NR, FNR, and NF update as records are read."
+program = "program.awk"
+input = "input.txt"
+tags = ["builtin-vars", "runtime", "p8"]
+xfail_reason = "T-115/T-118 not implemented: builtin variable runtime semantics"
+
+[expect]
+stdout = "expected.stdout"
+exit = 0
