@@ -7,8 +7,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -140,7 +138,6 @@ def test_remaining_arithmetic_unary_and_postfix_operators_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-114 not implemented: next legality outside record actions")
 def test_next_outside_record_action_reports_semantic_error() -> None:
     result = run_quawk("BEGIN { next }")
 
@@ -152,7 +149,6 @@ def test_next_outside_record_action_reports_semantic_error() -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="T-114 not implemented: nextfile legality outside record actions")
 def test_nextfile_outside_record_action_reports_semantic_error() -> None:
     result = run_quawk("END { nextfile }")
 
@@ -161,4 +157,15 @@ def test_nextfile_outside_record_action_reports_semantic_error() -> None:
         "<inline>:1:7: error: nextfile is only valid in record actions\n"
         "END { nextfile }\n"
         "      ^\n"
+    )
+
+
+def test_increment_on_non_lvalue_reports_semantic_error() -> None:
+    result = run_quawk("BEGIN { ++(1 + 2) }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:9: error: increment and decrement require an assignable expression\n"
+        "BEGIN { ++(1 + 2) }\n"
+        "        ^\n"
     )
