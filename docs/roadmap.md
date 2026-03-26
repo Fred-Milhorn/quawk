@@ -315,11 +315,10 @@ Next deliverable: P10 grammar contract and doc alignment
 Target outcome:
 - `grammar.ebnf` is fully implemented and the design/AST docs describe the real implementation
 
-1. `T-126` split current-vs-future AST docs and align `quawk.asdl`
-2. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+1. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
    See [compatibility.md](compatibility.md).
-3. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-4. `T-037` add divergence manifest and classification workflow
+2. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+3. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -416,7 +415,7 @@ Priority values:
 | T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | done |
 | T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | done |
 | T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `grammar.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | done |
-| T-126 | P10 | P1 | Split current-vs-future AST docs and align `quawk.asdl` with the chosen contract | T-124 | AST docs clearly distinguish the implemented parser AST from the future normalized AST, or one aligned AST spec replaces both roles | todo |
+| T-126 | P10 | P1 | Split current-vs-future AST docs and align `quawk.asdl` with the chosen contract | T-124 | AST docs clearly distinguish the implemented parser AST from the future normalized AST, or one aligned AST spec replaces both roles | done |
 | T-039 | P12 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
 | T-047 | P11 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
 | T-035 | P11 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |

@@ -1,12 +1,17 @@
--- quawk abstract syntax definition
+-- quawk future normalized AST
 --
--- This file describes quawk's abstract syntax tree, not its concrete syntax.
--- The EBNF in docs/grammar.ebnf remains the source of truth for parsing,
--- precedence, separators, and context-sensitive lexical rules.
+-- This file documents the longer-term normalized AST design target, not the
+-- parser AST emitted by `src/quawk/parser.py` today.
 --
--- The intent of this file is to define the long-term AST shape now, while the
--- implementation grows into it incrementally. Many constructors described here
--- are not implemented yet.
+-- The concrete syntax contract still lives in `docs/grammar.ebnf`.
+-- The implemented parser tree now lives in `docs/current-ast.asdl`.
+--
+-- This future AST intentionally smooths over parser-oriented representation
+-- details where later normalization wants a cleaner shape, for example:
+-- - `FieldRef(expr index)` rather than the parser's literal-int-or-expr split
+-- - `ArrayRef(..., expr* subscripts)` rather than the parser's first-plus-rest
+--   storage layout
+-- - a normalized backend-facing view of the current language surface
 
 module Quawk {
     loc = Loc(

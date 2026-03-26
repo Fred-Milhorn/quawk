@@ -122,23 +122,17 @@ Specific edits:
 
 ### 6. Reconcile `quawk.asdl` with reality
 
-Choose one of these approaches explicitly.
-
-Option A, recommended:
+Chosen approach:
 
 - split the AST docs into:
   - `docs/current-ast.asdl`
   - `docs/quawk.asdl` as the future normalized AST
 - update [design.md](/Users/fred/dev/quawk/docs/design.md) to explain the distinction
 
-Option B:
+Rationale:
 
-- rewrite [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl) to match the current implemented AST exactly
-
-Recommendation:
-
-- prefer Option A because the implementation already has a concrete parser AST and a backend normalization layer
-- keeping a single ASDL file for both current and future shapes will keep causing drift
+- the implementation already has a concrete parser AST and a backend normalization layer
+- keeping a single ASDL file for both current and future shapes would keep causing drift
 
 ### 7. Add an explicit conformance note to `grammar.ebnf`
 

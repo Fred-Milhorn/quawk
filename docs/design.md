@@ -125,7 +125,7 @@ Front-end pipeline:
 2. lexing: emit tokens with source spans and minimal semantic payloads
 3. parsing: build AST from tokens using the concrete grammar in `docs/grammar.ebnf`
 4. AST validation: enforce grammar-adjacent constraints and improve diagnostics
-5. lowering prep: normalize AST shapes described in `docs/quawk.asdl` for semantic and codegen phases
+5. lowering prep: normalize from the parser AST in `docs/current-ast.asdl` toward the backend-oriented shapes described in `docs/quawk.asdl`
 
 Error handling and diagnostics:
 - keep token spans on all AST nodes
@@ -152,12 +152,15 @@ Milestone order:
 
 Concrete syntax lives in [grammar.ebnf](/Users/fred/dev/quawk/docs/grammar.ebnf).
 
-Abstract syntax lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
+Current parser AST lives in [current-ast.asdl](/Users/fred/dev/quawk/docs/current-ast.asdl).
+
+Future normalized AST lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
 
 These files have distinct roles:
 - `docs/grammar.ebnf` is the source of truth for tokens, precedence, separators, and concrete parsing rules
-- `docs/quawk.asdl` is the source of truth for the long-term AST shape the parser lowers into
-- this design document explains the implementation strategy that connects the two
+- `docs/current-ast.asdl` is the source of truth for the implemented parser AST shape
+- `docs/quawk.asdl` is the source of truth for the longer-term normalized AST target
+- this design document explains how the concrete grammar, current parser AST, and future normalized AST relate
 
 ## Execution Model
 

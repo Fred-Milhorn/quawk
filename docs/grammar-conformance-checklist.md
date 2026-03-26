@@ -5,9 +5,7 @@ tracked by `P10` and `T-122` through `T-126`.
 
 ## Remaining Gaps
 
-| Area | Doc Source | Current Drift | Baseline | Next Task |
-|---|---|---|---|---|
-| Current parser AST vs future normalized AST are clearly distinguished | [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl) | The documented AST role is still broader and differently shaped than the implemented parser tree | [grammar-alignment.md](/Users/fred/dev/quawk/docs/grammar-alignment.md) | `T-126` |
+No remaining `T-122` through `T-126` gaps are tracked here.
 
 ## Existing Coverage That Already Helps
 
@@ -19,7 +17,7 @@ tracked by `P10` and `T-122` through `T-126`.
 
 ## Exit Signal For This Checklist
 
-This checklist can be retired or collapsed into broader docs when:
+This checklist is now effectively retired:
 
 - the `T-122` xfail baselines are burned down
-- the AST docs clearly separate current and future shapes
+- the AST docs now separate current and future shapes

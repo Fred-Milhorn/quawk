@@ -61,7 +61,8 @@ The current runtime shells out to system LLVM binaries rather than bundling an L
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [docs/design.md](docs/design.md): architecture, execution, and CLI design
 - [docs/grammar.ebnf](docs/grammar.ebnf): concrete syntax grammar
-- [docs/quawk.asdl](docs/quawk.asdl): abstract syntax tree schema
+- [docs/current-ast.asdl](docs/current-ast.asdl): implemented parser AST schema
+- [docs/quawk.asdl](docs/quawk.asdl): future normalized AST schema
 - [docs/testing.md](docs/testing.md): test strategy, workflow, and future release gates
 - [docs/roadmap.md](docs/roadmap.md): phased implementation plan and active backlog
 
