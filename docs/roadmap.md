@@ -24,9 +24,12 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P3 | Mixed Program Execution | `BEGIN` + record actions + `END` in one executable program |
 | P4 | Regex and Expression Surface | Regex-driven pattern selection and core operator surface |
 | P5 | Functions and Scope | User-defined functions, symbol/scoping rules, and legality checks |
-| P6 | Nominal Functional Completion | Major POSIX AWK construct families all have executable support |
-| P7 | Compatibility and Hardening | Differential compatibility gates and regression control |
-| P8 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
+| P6 | Initial Nominal Functional Completion | Major POSIX AWK construct families all have at least one executable implementation |
+| P7 | POSIX Core Syntax and AST Completion | Frontend covers the remaining POSIX-core concrete syntax and AST surface |
+| P8 | POSIX Core Runtime and Builtins Completion | Public execution covers POSIX-core semantics, builtins, and builtin variables |
+| P9 | Backend Parity and Inspection Completion | LLVM/reusable backend and inspection modes cover the same POSIX-core surface |
+| P10 | Compatibility and Hardening | Differential compatibility gates and regression control |
+| P11 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
 ## Phase Entry and Exit Rules
 
@@ -163,10 +166,10 @@ Exit criteria:
 - `function f(x) { return x + 1 } BEGIN { print f(2) }` executes correctly
 - scope and legality diagnostics are deterministic for the supported subset
 
-### P6: Nominal Functional Completion
+### P6: Initial Nominal Functional Completion
 
 Objective:
-- cross the line from a strong executable subset to a nominally functionally complete AWK implementation
+- cross the line from a strong executable subset to an implementation that has working examples for the major POSIX AWK construct families
 
 In scope:
 - arrays and associative indexing
@@ -182,13 +185,63 @@ Implemented in this phase:
 
 Exit criteria:
 - every major POSIX AWK construct family has at least one working executable implementation
-- remaining gaps are compatibility/corner-case issues, not missing whole feature families
-- this is the project’s bar for being nominally functionally complete
+- remaining gaps may still include whole POSIX-core families, backend-only limitations, and narrowed semantics
+- compatibility work does not start from this milestone; it starts only after `P7`, `P8`, and `P9` close
 
-### P7: Compatibility and Hardening
+### P7: POSIX Core Syntax and AST Completion
 
 Objective:
-- maximize POSIX compatibility and reduce behavioral gaps
+- close the remaining frontend gap between the current executable subset and the POSIX-core concrete language surface
+
+In scope:
+- remaining POSIX-core tokens, keywords, operators, and separators
+- parser coverage for remaining statement and expression families
+- AST/lvalue shape needed for the POSIX-core target
+- semantic validation for the completed syntax surface
+- doc alignment between the chosen pre-compatibility target and the grammar/ASDL references
+
+Exit criteria:
+- parser and semantic layers cover the remaining POSIX-core statement and expression families
+- no whole POSIX-core grammar family is still missing purely because the frontend cannot represent it
+- grammar/ASDL/docs mismatch is reduced to explicitly deferred non-POSIX or post-compatibility behavior only
+
+### P8: POSIX Core Runtime and Builtins Completion
+
+Objective:
+- make public `quawk` execution cover POSIX-core runtime semantics, builtins, and builtin variables
+
+In scope:
+- AWK-style scalar value/coercion model
+- remaining POSIX-core statement/runtime semantics
+- field, record, and pattern sequencing semantics
+- POSIX-core builtins
+- POSIX-core builtin variables and mutable runtime state
+
+Exit criteria:
+- public `quawk` execution covers the chosen POSIX-core surface end to end
+- remaining known gaps are backend/instrumentation issues or explicitly deferred non-POSIX extensions
+- builtin and builtin-variable behavior is specified by real CLI or corpus tests
+
+### P9: Backend Parity and Inspection Completion
+
+Objective:
+- make the LLVM/reusable backend and inspection modes support the same POSIX-core surface as public execution
+
+In scope:
+- lowering and runtime ABI expansion for the completed POSIX-core AST
+- removal of host-runtime-only status for supported core-language families
+- `--ir` and `--asm` parity for representative programs across the completed surface
+- backend-vs-reference parity checks before compatibility work starts
+
+Exit criteria:
+- representative programs for every supported POSIX-core family execute through the backend path
+- `--ir` and `--asm` work for representative programs across the completed supported surface
+- no supported POSIX-core feature remains host-runtime-only
+
+### P10: Compatibility and Hardening
+
+Objective:
+- maximize POSIX compatibility and reduce behavioral gaps after feature completion is already in place
 
 In scope:
 - differential runner against `one-true-awk` and `gawk --posix`
@@ -201,7 +254,7 @@ Success in this phase looks like:
 - parser diagnostics can report more than one error where recovery is expected, and the reviewed AST snapshot surfaces are pinned by deterministic golden coverage
 - semantic diagnostics have stable public error codes in addition to source spans and human-readable messages
 - differential runs against `quawk`, `one-true-awk`, and `gawk --posix` produce normalized comparable results for the supported corpus
-- every observed compatibility gap in the P7 corpus is either fixed or explicitly classified in a checked-in divergence manifest
+- every observed compatibility gap in the compatibility corpus is either fixed or explicitly classified in a checked-in divergence manifest
 
 Exit criteria:
 - parser multi-error fixtures and selected AST golden fixtures are stable and reviewed
@@ -211,7 +264,7 @@ Exit criteria:
 - known divergences are documented, tagged, and classified in the checked-in manifest
 - hardening pass closes or explicitly triages all high-severity regressions discovered during the phase
 
-### P8: Pre-Release Readiness
+### P11: Pre-Release Readiness
 
 Objective:
 - ship an initial public release candidate
@@ -230,18 +283,22 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P7 compatibility and hardening
+Next deliverable: P7 POSIX core syntax and AST completion
 
 Target outcome:
-- parser diagnostics, semantic diagnostics, and compatibility tooling all move onto explicit, reviewable P7 infrastructure with a clear release-style success bar
+- parser, AST, and semantics cover the remaining POSIX-core language surface so runtime completion can proceed against a stable frontend
 
-1. `T-023` define semantic error code catalog after core execution behavior stabilizes
-2. `T-015` add parser error recovery at statement boundaries
-3. `T-016` add parser golden tests for AST snapshots where they improve reviewability
-4. `T-047` author compatibility tests as `xfail` baseline for the supported subset
-5. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
-6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-7. `T-037` add divergence manifest and classification workflow
+1. `T-111` author parser/semantic baselines for the remaining POSIX-core syntax surface
+2. `T-112` extend token and lexer support for the remaining POSIX-core operators and keywords
+3. `T-113` complete parser and AST support for the remaining POSIX-core statement, expression, and lvalue forms
+4. `T-114` complete semantic validation for the remaining POSIX-core syntax surface
+5. `T-115` author runtime and builtin baselines for the remaining POSIX-core execution surface
+6. `T-116` replace the scalar runtime model with AWK-style value cells and coercions
+7. `T-117` implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields
+8. `T-118` implement the remaining POSIX-core builtins and builtin variables
+9. `T-119` author backend-parity and inspection baselines for the completed POSIX-core subset
+10. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
+11. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
 
 ## Backlog
 
@@ -281,8 +338,8 @@ Priority values:
 | T-012 | P2 | P0 | Define AST nodes for numeric literals and additive binary expressions | T-009, T-054, T-055 | AST matches the numeric-print increment | done |
 | T-013 | P2 | P0 | Extend the parser for `print` expressions in `BEGIN` | T-012, T-054, T-055 | The parser accepts `BEGIN { print 1 }` and the additive form | done |
 | T-014 | P2 | P1 | Implement additive precedence for the numeric-print increment | T-013 | `1 + 2 + 3` parses and executes with stable precedence behavior | done |
-| T-015 | P7 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
-| T-016 | P7 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
+| T-015 | P10 | P2 | Add parser error recovery at statement boundaries | T-013 | Multi-error fixture tests produce stable error counts | todo |
+| T-016 | P10 | P2 | Add parser golden tests for AST snapshots where they improve reviewability | T-012, T-014 | Golden outputs are deterministic and useful | todo |
 | T-017 | P4 | P1 | Add parser conformance fixtures mapped to supported grammar sections | T-092, T-100 | Coverage matrix shows supported grammar areas | done |
 | T-044 | P5 | P1 | Author semantic tests for the first user-defined function behavior | T-017 | Tests exist for the initial function-call path and its first legality checks before implementation | done |
 | T-018 | P5 | P1 | Build symbol table/scoping support when variables or functions require it | T-012, T-044 | Scope tests pass for supported constructs | done |
@@ -290,7 +347,7 @@ Priority values:
 | T-020 | P5 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | done |
 | T-021 | P5 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | done |
 | T-022 | P6 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | done |
-| T-023 | P7 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-023 | P10 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when mixed program execution becomes active | T-024, T-025 | Mixed `BEGIN` / record / `END` fixtures pass for the supported subset | todo |
@@ -299,6 +356,17 @@ Priority values:
 | T-108 | P6 | P0 | Implement associative arrays and indexed assignment/read | T-107, T-022 | `BEGIN { a["x"] = 1; print a["x"] }` executes correctly | done |
 | T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | done |
 | T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | done |
+| T-111 | P7 | P0 | Author parser and semantic baselines for the remaining POSIX-core syntax surface | T-017 | Tests exist for the remaining POSIX-core statements, operators, and lvalue forms before implementation | todo |
+| T-112 | P7 | P0 | Extend token and lexer support for the remaining POSIX-core operators and keywords | T-111 | Lexer fixtures pass for the remaining POSIX-core token surface | todo |
+| T-113 | P7 | P0 | Complete parser and AST support for the remaining POSIX-core statement, expression, and lvalue forms | T-112 | The parser accepts the remaining POSIX-core statement and expression families with stable AST shapes | todo |
+| T-114 | P7 | P1 | Complete semantic validation for the remaining POSIX-core syntax surface | T-113 | Semantics enforce legality for the completed POSIX-core frontend surface with deterministic diagnostics | todo |
+| T-115 | P8 | P0 | Author runtime and builtin baselines for the remaining POSIX-core execution surface | T-114 | CLI and corpus tests exist for the remaining POSIX-core runtime, builtin, and builtin-variable behaviors before implementation | todo |
+| T-116 | P8 | P0 | Replace the scalar runtime model with AWK-style value cells and coercions | T-115 | Runtime values support AWK-style numeric/string duality, truthiness, and conversion rules across the supported surface | todo |
+| T-117 | P8 | P0 | Implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields | T-116 | Public execution supports the remaining POSIX-core control-flow, pattern, record, and field behaviors | todo |
+| T-118 | P8 | P0 | Implement the remaining POSIX-core builtins and builtin variables | T-116, T-117 | Public execution covers the chosen POSIX-core builtin set and builtin-variable semantics | todo |
+| T-119 | P9 | P0 | Author backend-parity and inspection baselines for the completed POSIX-core subset | T-118 | Tests specify backend execution and `--ir` / `--asm` behavior for representative programs across the completed surface before implementation | todo |
+| T-120 | P9 | P0 | Extend lowering and runtime ABI coverage to the completed POSIX-core subset | T-119 | Representative programs across the completed POSIX-core subset execute through the backend path and lower to reusable artifacts | todo |
+| T-121 | P9 | P1 | Remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps | T-120 | No supported POSIX-core feature remains host-runtime-only when P9 closes | todo |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |
@@ -324,14 +392,14 @@ Priority values:
 | T-077 | P2 | P0 | Extend runtime state for branching and loop execution | T-076 | Runtime can execute the supported control-flow constructs | done |
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
-| T-039 | P8 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
-| T-047 | P7 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
-| T-035 | P7 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
-| T-036 | P7 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
-| T-037 | P7 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
-| T-048 | P8 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
-| T-040 | P8 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
-| T-042 | P8 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-039 | P11 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
+| T-047 | P10 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
+| T-035 | P10 | P0 | Implement differential test runner (`ota`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-036 | P10 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
+| T-037 | P10 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-048 | P11 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
+| T-040 | P11 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
+| T-042 | P11 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

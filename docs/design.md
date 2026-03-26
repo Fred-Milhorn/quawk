@@ -83,11 +83,14 @@ Planned implementation increments:
 8. Functions and scope
    Examples:
    `function f(x) { return x + 1 } BEGIN { print f(2) }`
-9. Arrays, iteration, builtins, and nominal functional completion
+9. Arrays, iteration, builtins, and initial nominal functional completion
    Examples:
    `BEGIN { a["x"] = 1; print a["x"] }`
    `BEGIN { for (k in a) print k }`
-10. Compatibility convergence and release hardening
+10. POSIX-core syntax and AST completion
+11. POSIX-core runtime semantics, builtins, and builtin variables
+12. Backend parity and inspection completion for the supported POSIX-core surface
+13. Compatibility convergence and release hardening
 
 Each increment should land only when the full CLI-to-IR-to-execution path works
 for that increment's example programs.
@@ -140,8 +143,11 @@ Milestone order:
 6. implement mixed `BEGIN` / record / `END` execution and general field access
 7. add regex-driven patterns and broaden the expression surface
 8. implement functions, scope, and legality checks
-9. reach nominal functional completion by covering the major POSIX AWK construct families
-10. converge on compatibility and release quality
+9. reach initial nominal functional completion by covering the major POSIX AWK construct families
+10. complete the remaining POSIX-core syntax and AST surface
+11. complete POSIX-core runtime semantics, builtins, and builtin variables
+12. reach backend parity and inspection coverage for the supported POSIX-core surface
+13. converge on compatibility and release quality
 
 ## Syntax and AST Specs
 
