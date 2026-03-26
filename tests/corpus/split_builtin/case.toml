@@ -1,0 +1,8 @@
+id = "split_builtin"
+description = "The split builtin populates arrays and returns the field count."
+program = "program.awk"
+tags = ["supported", "builtin", "arrays", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

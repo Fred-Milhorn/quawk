@@ -1,0 +1,9 @@
+id = "nextfile_two_files"
+description = "Nextfile skips the remainder of the current file and continues with the next one."
+program = "program.awk"
+inputs = ["first.txt", "second.txt"]
+tags = ["supported", "runtime", "next", "io", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

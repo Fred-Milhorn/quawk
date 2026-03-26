@@ -1,0 +1,8 @@
+id = "for_in_parenthesized_array"
+description = "For-in loops accept a parenthesized array iterable."
+program = "program.awk"
+tags = ["supported", "loops", "p10"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

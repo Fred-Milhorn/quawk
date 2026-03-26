@@ -1,0 +1,8 @@
+id = "length_string_and_array"
+description = "The length builtin reports both string length and array cardinality."
+program = "program.awk"
+tags = ["supported", "builtin", "arrays", "p6"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

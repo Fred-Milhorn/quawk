@@ -1,0 +1,9 @@
+id = "dynamic_field_assignment"
+description = "Assigning through a dynamic field index updates the selected field."
+program = "program.awk"
+input = "input.txt"
+tags = ["supported", "runtime", "fields", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

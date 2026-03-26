@@ -1,0 +1,8 @@
+id = "for_expr_list_loop"
+description = "Classic for loops accept expression lists in init and update positions."
+program = "program.awk"
+tags = ["supported", "loops", "p10"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

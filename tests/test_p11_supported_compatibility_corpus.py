@@ -1,21 +1,21 @@
-"""P10 compatibility baselines executed through the real differential runner."""
+"""Supported compatibility corpus executed through the differential runner."""
 
 from __future__ import annotations
 
 import pytest
 
 from quawk.corpus import (
-    compatibility_baseline_cases,
     differential_validation_errors,
     load_divergence_manifest,
     missing_engines,
     run_case_differential,
+    supported_corpus_cases,
 )
 
 
 @pytest.mark.compat
-@pytest.mark.parametrize("case", compatibility_baseline_cases(), ids=lambda case: case.id)
-def test_compatibility_baseline(case) -> None:
+@pytest.mark.parametrize("case", supported_corpus_cases(), ids=lambda case: case.id)
+def test_supported_compatibility_corpus(case) -> None:
     missing = missing_engines()
     if missing:
         pytest.skip(f"missing differential engines: {', '.join(missing)}")

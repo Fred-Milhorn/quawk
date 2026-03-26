@@ -72,14 +72,18 @@ The repository keeps these as file-backed cases under `tests/corpus/`.
 Each case lives in its own directory and includes:
 - `case.toml`
 - `program.awk`
-- optional `input.txt`
+- optional stdin fixture such as `input.txt`
+- optional file-argv fixtures listed under `inputs`
 - optional `expected.stdout`
 - optional `expected.stderr`
+- optional shared `divergences.toml` entry when references disagree persistently
 
 The manifest records:
 - case ID and short description
 - expected exit status
 - tags such as `supported`, `known-gap`, `compat-baseline`, and `posix-required`
+- optional `args` for AWK CLI options such as `-F:`
+- optional `inputs` for record files passed on the command line after `-f`
 - optional `xfail_reason` for known unsupported behavior
 
 ## When To Add A Corpus Case
@@ -111,18 +115,22 @@ Examples of good corpus cases:
 
 1. Create a new directory under `tests/corpus/`.
 2. Add `program.awk`.
-3. Add `input.txt` if the case reads records.
-4. Add `expected.stdout` and, if needed, `expected.stderr`.
-5. Add `case.toml` with:
+3. Add `input.txt` if the case should feed stdin text to the program.
+4. Add file fixtures and list them under `inputs` if the case needs real AWK input files.
+5. Add `expected.stdout` and, if needed, `expected.stderr`.
+6. Add `case.toml` with:
    - `id`
    - `description`
    - `program`
    - optional `input`
+   - optional `inputs`
+   - optional `args`
    - `tags`
    - optional `xfail_reason`
    - `[expect]` including `exit` and any expected output files
-6. Run `corpus --list` to confirm the case is discovered.
-7. Run `pytest tests/test_corpus.py`.
+7. If the reference AWKs disagree, add or update the entry in `tests/corpus/divergences.toml`.
+8. Run `uv run corpus --list` to confirm the case is discovered.
+9. Run `uv run pytest tests/test_corpus.py`.
 
 Minimal example:
 
@@ -162,7 +170,19 @@ When references disagree, classify once and record it:
 - `unspecified/undefined`
 - `extension`
 
+Record these in `tests/corpus/divergences.toml`:
+
+```toml
+[[divergence]]
+case_id = "example_case"
+classification = "implementation-defined"
+summary = "one-true-awk and gawk --posix disagree on this corner case"
+```
+
 Never silently pick one behavior. Every persistent divergence needs an explicit classification.
+The differential corpus workflow should fail on:
+- unclassified reference disagreements
+- stale divergence entries whose case no longer disagrees
 
 ## Expected Failures
 
@@ -181,9 +201,15 @@ Test statuses:
 - `xfail`: expected failure with reason metadata
 - `fail`: regression or unresolved incompatibility
 
+Differential corpus policy:
+- `PASS`: `quawk` matches the agreeing references and has no stale divergence entry
+- `REF-DISAGREE`: allowed only when the case is classified in `tests/corpus/divergences.toml`
+- `FAIL`: `quawk` differs from agreeing references, the references disagree without a classification, or a divergence entry has gone stale
+
 Release gate recommendation:
 - no failing `posix-required` tests
 - no stale `xfail` tests whose reason no longer matches reality
+- no unclassified or stale divergence-manifest entries
 - compatibility gaps are documented in tests, roadmap notes, or issue tracking
 
 ## CI Gate Specification

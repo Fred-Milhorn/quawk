@@ -1,0 +1,8 @@
+id = "array_delete_index"
+description = "Deleting an associative-array element removes its value."
+program = "program.awk"
+tags = ["supported", "arrays", "p6"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

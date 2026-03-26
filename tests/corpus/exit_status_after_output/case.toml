@@ -1,0 +1,8 @@
+id = "exit_status_after_output"
+description = "Exit returns the requested status after writing earlier output."
+program = "program.awk"
+tags = ["supported", "runtime", "control-flow", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 7

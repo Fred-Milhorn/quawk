@@ -1,0 +1,8 @@
+id = "string_coercion_concat"
+description = "String coercion and concatenation follow AWK conversion rules."
+program = "program.awk"
+tags = ["supported", "runtime", "expressions", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

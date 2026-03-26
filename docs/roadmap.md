@@ -315,8 +315,8 @@ Next deliverable: P10 grammar contract and doc alignment
 Target outcome:
 - `grammar.ebnf` is fully implemented and the design/AST docs describe the real implementation
 
-1. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-2. `T-037` add divergence manifest and classification workflow
+1. `T-048` author release-readiness smoke tests as `xfail` baseline
+2. `T-040` add `SPEC.md` feature matrix
 
 ## Backlog
 
@@ -417,8 +417,8 @@ Priority values:
 | T-039 | P12 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
 | T-047 | P11 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
 | T-035 | P11 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | done |
-| T-036 | P11 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
-| T-037 | P11 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-036 | P11 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | done |
+| T-037 | P11 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | done |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |

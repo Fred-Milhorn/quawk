@@ -1,0 +1,8 @@
+id = "array_missing_read"
+description = "Reading a missing associative-array element yields the empty string."
+program = "program.awk"
+tags = ["supported", "arrays", "p6"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

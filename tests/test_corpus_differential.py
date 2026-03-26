@@ -15,6 +15,8 @@ def make_case() -> corpus.CorpusCase:
         case_dir=case_dir,
         program_path=case_dir / "program.awk",
         input_path=None,
+        input_paths=(),
+        cli_args=(),
         expected_stdout_path=None,
         expected_stderr_path=None,
         expected_exit=0,
@@ -41,10 +43,18 @@ def make_result(
 
 def test_build_engine_command_uses_expected_process_prefixes() -> None:
     program_path = Path("/tmp/program.awk")
+    input_path = Path("/tmp/input.txt")
 
     assert corpus.build_engine_command("quawk", program_path) == ["quawk", "-f", str(program_path)]
     assert corpus.build_engine_command("one-true-awk", program_path) == ["awk", "-f", str(program_path)]
     assert corpus.build_engine_command("gawk-posix", program_path) == ["gawk", "--posix", "-f", str(program_path)]
+    assert corpus.build_engine_command("quawk", program_path, cli_args=("-F:",), input_paths=(input_path, )) == [
+        "quawk",
+        "-F:",
+        "-f",
+        str(program_path),
+        str(input_path),
+    ]
 
 
 def test_is_engine_available_uses_resolved_executable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,6 +87,107 @@ def test_normalize_result_only_normalizes_line_endings() -> None:
     assert normalized.returncode == 1
     assert normalized.stdout == "a\nb\n"
     assert normalized.stderr == "x\ny\n"
+
+
+def test_load_case_reads_optional_args_and_input_files(tmp_path: Path) -> None:
+    case_dir = tmp_path / "with-args"
+    case_dir.mkdir()
+    (case_dir / "program.awk").write_text("{ print $2 }\n", encoding="utf-8")
+    (case_dir / "stdin.txt").write_text("unused\n", encoding="utf-8")
+    (case_dir / "one.txt").write_text("a:b\n", encoding="utf-8")
+    (case_dir / "two.txt").write_text("c:d\n", encoding="utf-8")
+    (case_dir / "expected.stdout").write_text("b\nd\n", encoding="utf-8")
+    (case_dir / "case.toml").write_text(
+        '\n'.join(
+            [
+                'id = "with_args"',
+                'description = "demo"',
+                'program = "program.awk"',
+                'input = "stdin.txt"',
+                'inputs = ["one.txt", "two.txt"]',
+                'args = ["-F:"]',
+                'tags = ["supported"]',
+                "",
+                "[expect]",
+                'stdout = "expected.stdout"',
+                "exit = 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    case = corpus.load_case(case_dir / "case.toml")
+
+    assert case.cli_args == ("-F:",)
+    assert case.input_paths == (case_dir / "one.txt", case_dir / "two.txt")
+    assert case.input_text() == "unused\n"
+
+
+def test_load_divergence_manifest_accepts_empty_manifest(tmp_path: Path) -> None:
+    corpus_root = tmp_path / "corpus"
+    case_dir = corpus_root / "demo"
+    case_dir.mkdir(parents=True)
+    (case_dir / "program.awk").write_text('BEGIN { print "ok" }\n', encoding="utf-8")
+    (case_dir / "expected.stdout").write_text("ok\n", encoding="utf-8")
+    (case_dir / "case.toml").write_text(
+        '\n'.join(
+            [
+                'id = "demo"',
+                'description = "demo"',
+                'program = "program.awk"',
+                'tags = ["supported"]',
+                "",
+                "[expect]",
+                'stdout = "expected.stdout"',
+                "exit = 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (corpus_root / "divergences.toml").write_text("# no classified divergences yet\n", encoding="utf-8")
+
+    assert corpus.load_divergence_manifest(root=corpus_root) == {}
+
+
+def test_load_divergence_manifest_rejects_unknown_case_ids(tmp_path: Path) -> None:
+    corpus_root = tmp_path / "corpus"
+    case_dir = corpus_root / "demo"
+    case_dir.mkdir(parents=True)
+    (case_dir / "program.awk").write_text('BEGIN { print "ok" }\n', encoding="utf-8")
+    (case_dir / "expected.stdout").write_text("ok\n", encoding="utf-8")
+    (case_dir / "case.toml").write_text(
+        '\n'.join(
+            [
+                'id = "demo"',
+                'description = "demo"',
+                'program = "program.awk"',
+                'tags = ["supported"]',
+                "",
+                "[expect]",
+                'stdout = "expected.stdout"',
+                "exit = 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (corpus_root / "divergences.toml").write_text(
+        '\n'.join(
+            [
+                "[[divergence]]",
+                'case_id = "missing"',
+                'classification = "implementation-defined"',
+                'summary = "demo"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown corpus case"):
+        corpus.load_divergence_manifest(root=corpus_root)
 
 
 def test_differential_result_reports_pass_when_references_and_quawk_match() -> None:
@@ -128,6 +239,45 @@ def test_differential_result_reports_reference_disagreement() -> None:
     assert result.status() == "REF-DISAGREE"
 
 
+def test_differential_validation_errors_require_classified_reference_disagreements() -> None:
+    case = make_case()
+    result = corpus.DifferentialCaseResult(
+        case=case,
+        results_by_engine={
+            "quawk": make_result("quawk", stdout="ok\n"),
+            "one-true-awk": make_result("one-true-awk", stdout="left\n"),
+            "gawk-posix": make_result("gawk-posix", stdout="right\n"),
+        },
+    )
+
+    errors = corpus.differential_validation_errors(result, {})
+
+    assert errors[0] == "unclassified reference disagreement"
+
+
+def test_differential_validation_errors_reject_stale_divergence_entries() -> None:
+    case = make_case()
+    result = corpus.DifferentialCaseResult(
+        case=case,
+        results_by_engine={
+            "quawk": make_result("quawk", stdout="ok\n"),
+            "one-true-awk": make_result("one-true-awk", stdout="ok\n"),
+            "gawk-posix": make_result("gawk-posix", stdout="ok\n"),
+        },
+    )
+    divergences = {
+        "demo": corpus.DivergenceEntry(
+            case_id="demo",
+            classification="implementation-defined",
+            summary="stale",
+        )
+    }
+
+    assert corpus.differential_validation_errors(result, divergences) == [
+        "stale divergence manifest entry: implementation-defined - stale"
+    ]
+
+
 def test_run_case_differential_reports_missing_engines_without_running(monkeypatch: pytest.MonkeyPatch) -> None:
     case = make_case()
 
@@ -175,6 +325,7 @@ def test_main_differential_returns_nonzero_and_reports_missing_engines(
     monkeypatch.setattr(corpus, "select_cases", lambda case_ids: [case])
     monkeypatch.setattr(corpus, "run_case_differential", lambda case: corpus.DifferentialCaseResult(case, {}, ("awk",)))
     monkeypatch.setattr(corpus, "missing_engines", lambda engines=corpus.DEFAULT_DIFFERENTIAL_ENGINES: ("awk",))
+    monkeypatch.setattr(corpus, "load_divergence_manifest", lambda root=None, path=None: {})
 
     exit_code = corpus.main(["--differential"])
     captured = capsys.readouterr()
@@ -184,13 +335,24 @@ def test_main_differential_returns_nonzero_and_reports_missing_engines(
     assert captured.err == "corpus: missing differential engines: awk\n"
 
 
-def test_main_differential_passes_ref_disagreements_without_failure(
+def test_main_differential_allows_classified_ref_disagreements_without_failure(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     case = make_case()
     monkeypatch.setattr(corpus, "select_cases", lambda case_ids: [case])
     monkeypatch.setattr(corpus, "missing_engines", lambda engines=corpus.DEFAULT_DIFFERENTIAL_ENGINES: ())
+    monkeypatch.setattr(
+        corpus,
+        "load_divergence_manifest",
+        lambda root=None, path=None: {
+            "demo": corpus.DivergenceEntry(
+                case_id="demo",
+                classification="implementation-defined",
+                summary="demo divergence",
+            )
+        },
+    )
     monkeypatch.setattr(
         corpus,
         "run_case_differential",
@@ -208,5 +370,34 @@ def test_main_differential_passes_ref_disagreements_without_failure(
     captured = capsys.readouterr()
 
     assert exit_code == 0
+    assert captured.out == "REF-DISAGREE demo [implementation-defined]\n"
+    assert captured.err == ""
+
+
+def test_main_differential_fails_unclassified_ref_disagreements(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    case = make_case()
+    monkeypatch.setattr(corpus, "select_cases", lambda case_ids: [case])
+    monkeypatch.setattr(corpus, "missing_engines", lambda engines=corpus.DEFAULT_DIFFERENTIAL_ENGINES: ())
+    monkeypatch.setattr(corpus, "load_divergence_manifest", lambda root=None, path=None: {})
+    monkeypatch.setattr(
+        corpus,
+        "run_case_differential",
+        lambda case: corpus.DifferentialCaseResult(
+            case=case,
+            results_by_engine={
+                "quawk": make_result("quawk", stdout="q\n"),
+                "one-true-awk": make_result("one-true-awk", stdout="a\n"),
+                "gawk-posix": make_result("gawk-posix", stdout="b\n"),
+            },
+        ),
+    )
+
+    exit_code = corpus.main(["--differential"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
     assert captured.out == "REF-DISAGREE demo\n"
     assert captured.err == ""

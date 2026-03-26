@@ -1,0 +1,8 @@
+id = "do_while_print"
+description = "Do-while executes its body before testing the loop condition."
+program = "program.awk"
+tags = ["supported", "runtime", "control-flow", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

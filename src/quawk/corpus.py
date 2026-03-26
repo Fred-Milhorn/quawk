@@ -15,9 +15,17 @@ from typing import Final, Literal
 
 EngineName = Literal["quawk", "gawk-posix", "one-true-awk"]
 DifferentialStatus = Literal["PASS", "FAIL", "SKIP", "REF-DISAGREE"]
+DivergenceClassification = Literal["POSIX-specified", "implementation-defined", "unspecified/undefined", "extension"]
 
 DEFAULT_CORPUS_ROOT: Final[Path] = Path(__file__).resolve().parents[2] / "tests" / "corpus"
 DEFAULT_DIFFERENTIAL_ENGINES: Final[tuple[EngineName, ...]] = ("quawk", "one-true-awk", "gawk-posix")
+DEFAULT_DIVERGENCE_MANIFEST: Final[str] = "divergences.toml"
+DIVERGENCE_CLASSIFICATIONS: Final[tuple[DivergenceClassification, ...]] = (
+    "POSIX-specified",
+    "implementation-defined",
+    "unspecified/undefined",
+    "extension",
+)
 
 
 @dataclass(frozen=True)
@@ -29,6 +37,8 @@ class CorpusCase:
     case_dir: Path
     program_path: Path
     input_path: Path | None
+    input_paths: tuple[Path, ...]
+    cli_args: tuple[str, ...]
     expected_stdout_path: Path | None
     expected_stderr_path: Path | None
     expected_exit: int
@@ -131,6 +141,15 @@ class DifferentialCaseResult:
         return lines
 
 
+@dataclass(frozen=True)
+class DivergenceEntry:
+    """Checked-in classification for one persistent reference disagreement."""
+
+    case_id: str
+    classification: DivergenceClassification
+    summary: str
+
+
 def corpus_root() -> Path:
     """Return the repository-local compatibility corpus root."""
     return DEFAULT_CORPUS_ROOT
@@ -150,9 +169,25 @@ def load_cases(root: Path | None = None) -> list[CorpusCase]:
     return cases
 
 
+def cases_with_tag(tag: str, root: Path | None = None) -> list[CorpusCase]:
+    """Return all corpus cases carrying `tag`."""
+    return [case for case in load_cases(root) if tag in case.tags]
+
+
 def compatibility_baseline_cases(root: Path | None = None) -> list[CorpusCase]:
     """Return the corpus cases that seed the P10 compatibility baseline."""
-    return [case for case in load_cases(root) if "compat-baseline" in case.tags]
+    return cases_with_tag("compat-baseline", root=root)
+
+
+def supported_corpus_cases(root: Path | None = None) -> list[CorpusCase]:
+    """Return the supported compatibility corpus cases."""
+    return cases_with_tag("supported", root=root)
+
+
+def divergence_manifest_path(root: Path | None = None) -> Path:
+    """Return the checked-in divergence manifest path."""
+    base = corpus_root() if root is None else root
+    return base / DEFAULT_DIVERGENCE_MANIFEST
 
 
 def load_case(manifest_path: Path) -> CorpusCase:
@@ -164,10 +199,12 @@ def load_case(manifest_path: Path) -> CorpusCase:
     description = require_string(manifest, "description", manifest_path)
     tags = tuple(read_string_list(manifest.get("tags", []), "tags", manifest_path))
     xfail_reason = read_optional_string(manifest.get("xfail_reason"), "xfail_reason", manifest_path)
+    cli_args = tuple(read_optional_string_list(manifest.get("args"), "args", manifest_path))
 
     program_rel = require_string(manifest, "program", manifest_path)
     program_path = case_dir / program_rel
     input_path = resolve_optional_path(case_dir, manifest.get("input"), "input", manifest_path)
+    input_paths = tuple(resolve_optional_paths(case_dir, manifest.get("inputs"), "inputs", manifest_path))
 
     expect_table = manifest.get("expect")
     if not isinstance(expect_table, dict):
@@ -180,6 +217,8 @@ def load_case(manifest_path: Path) -> CorpusCase:
     ensure_file_exists(program_path, manifest_path, "program")
     if input_path is not None:
         ensure_file_exists(input_path, manifest_path, "input")
+    for file_index, extra_input_path in enumerate(input_paths, start=1):
+        ensure_file_exists(extra_input_path, manifest_path, f"inputs[{file_index}]")
     if expected_stdout_path is not None:
         ensure_file_exists(expected_stdout_path, manifest_path, "expect.stdout")
     if expected_stderr_path is not None:
@@ -191,6 +230,8 @@ def load_case(manifest_path: Path) -> CorpusCase:
         case_dir=case_dir,
         program_path=program_path,
         input_path=input_path,
+        input_paths=input_paths,
+        cli_args=cli_args,
         expected_stdout_path=expected_stdout_path,
         expected_stderr_path=expected_stderr_path,
         expected_exit=expected_exit,
@@ -231,6 +272,13 @@ def read_string_list(value: object, field_name: str, manifest_path: Path) -> lis
     return list(value)
 
 
+def read_optional_string_list(value: object, field_name: str, manifest_path: Path) -> list[str]:
+    """Return an optional list of manifest strings."""
+    if value is None:
+        return []
+    return read_string_list(value, field_name, manifest_path)
+
+
 def resolve_optional_path(case_dir: Path, value: object, field_name: str, manifest_path: Path) -> Path | None:
     """Resolve an optional relative path from a case manifest."""
     if value is None:
@@ -238,6 +286,12 @@ def resolve_optional_path(case_dir: Path, value: object, field_name: str, manife
     if not isinstance(value, str):
         raise ValueError(f"{manifest_path}: invalid path field {field_name!r}")
     return case_dir / value
+
+
+def resolve_optional_paths(case_dir: Path, value: object, field_name: str, manifest_path: Path) -> list[Path]:
+    """Resolve an optional list of relative paths from a case manifest."""
+    path_values = read_optional_string_list(value, field_name, manifest_path)
+    return [case_dir / path_value for path_value in path_values]
 
 
 def ensure_file_exists(path: Path, manifest_path: Path, field_name: str) -> None:
@@ -260,9 +314,75 @@ def select_cases(case_ids: list[str], root: Path | None = None) -> list[CorpusCa
     return selected
 
 
+def load_divergence_manifest(
+    root: Path | None = None,
+    path: Path | None = None,
+) -> dict[str, DivergenceEntry]:
+    """Load the checked-in divergence manifest keyed by case ID."""
+    manifest_path = divergence_manifest_path(root) if path is None else path
+    if not manifest_path.exists():
+        return {}
+
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    raw_entries = manifest.get("divergence", [])
+    if not isinstance(raw_entries, list):
+        raise ValueError(f"{manifest_path}: invalid divergence manifest")
+
+    entries: dict[str, DivergenceEntry] = {}
+    for raw_entry in raw_entries:
+        if not isinstance(raw_entry, dict):
+            raise ValueError(f"{manifest_path}: invalid divergence entry")
+        case_id = require_string(raw_entry, "case_id", manifest_path)
+        if case_id in entries:
+            raise ValueError(f"{manifest_path}: duplicate divergence entry for {case_id!r}")
+        entries[case_id] = DivergenceEntry(
+            case_id=case_id,
+            classification=read_divergence_classification(raw_entry.get("classification"), manifest_path),
+            summary=require_string(raw_entry, "summary", manifest_path),
+        )
+
+    known_case_ids = {case.id for case in load_cases(root)}
+    unknown_case_ids = sorted(case_id for case_id in entries if case_id not in known_case_ids)
+    if unknown_case_ids:
+        raise ValueError(
+            f"{manifest_path}: divergence entries reference unknown corpus case(s): {', '.join(unknown_case_ids)}"
+        )
+    return entries
+
+
+def read_divergence_classification(value: object, manifest_path: Path) -> DivergenceClassification:
+    """Return one valid divergence classification string."""
+    if value not in DIVERGENCE_CLASSIFICATIONS:
+        allowed = ", ".join(DIVERGENCE_CLASSIFICATIONS)
+        raise ValueError(f"{manifest_path}: invalid divergence classification {value!r}; expected one of: {allowed}")
+    return value
+
+
+def differential_validation_errors(
+    result: DifferentialCaseResult,
+    divergences: dict[str, DivergenceEntry],
+) -> list[str]:
+    """Return validation issues for one differential result and divergence manifest."""
+    status = result.status()
+    divergence_entry = divergences.get(result.case.id)
+    if status == "SKIP":
+        return []
+    if status == "PASS":
+        if divergence_entry is None:
+            return []
+        return [f"stale divergence manifest entry: {divergence_entry.classification} - {divergence_entry.summary}"]
+    if status == "REF-DISAGREE":
+        if divergence_entry is not None:
+            return []
+        return ["unclassified reference disagreement", *result.detail_lines()]
+    if divergence_entry is not None:
+        return [f"stale divergence manifest entry: {divergence_entry.classification} - {divergence_entry.summary}"]
+    return result.detail_lines()
+
+
 def run_case(case: CorpusCase, engine: EngineName = "quawk") -> CorpusResult:
     """Run one case under the selected engine."""
-    command = build_engine_command(engine, case.program_path)
+    command = build_engine_command(engine, case.program_path, cli_args=case.cli_args, input_paths=case.input_paths)
     result = subprocess.run(
         command,
         input=case.input_text(),
@@ -323,17 +443,23 @@ def run_case_differential(
     return DifferentialCaseResult(case=case, results_by_engine=run_case_for_engines(case, engines=engines))
 
 
-def build_engine_command(engine: EngineName, program_path: Path) -> list[str]:
+def build_engine_command(
+    engine: EngineName,
+    program_path: Path,
+    cli_args: tuple[str, ...] = (),
+    input_paths: tuple[Path, ...] = (),
+) -> list[str]:
     """Build the command used to execute one corpus case."""
+    input_args = [str(input_path) for input_path in input_paths]
     match engine:
         case "quawk":
-            return ["quawk", "-f", str(program_path)]
+            return ["quawk", *cli_args, "-f", str(program_path), *input_args]
         case "gawk-posix":
-            return ["gawk", "--posix", "-f", str(program_path)]
+            return ["gawk", "--posix", *cli_args, "-f", str(program_path), *input_args]
         case "one-true-awk":
             # This intentionally uses the host `awk` command. A stricter
             # one-true-awk path can be configured later if needed.
-            return ["awk", "-f", str(program_path)]
+            return ["awk", *cli_args, "-f", str(program_path), *input_args]
     raise AssertionError(f"unhandled engine: {engine}")
 
 
@@ -389,12 +515,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.differential:
+        divergences = load_divergence_manifest()
         failures = 0
         for case in cases:
             differential_result = run_case_differential(case)
             status = differential_result.status()
-            print(f"{status} {case.id}")
-            if status == "FAIL":
+            divergence_entry = divergences.get(case.id)
+            if status == "REF-DISAGREE" and divergence_entry is not None:
+                print(f"{status} {case.id} [{divergence_entry.classification}]")
+            else:
+                print(f"{status} {case.id}")
+            if differential_validation_errors(differential_result, divergences):
                 failures += 1
             if status == "SKIP":
                 failures += 1

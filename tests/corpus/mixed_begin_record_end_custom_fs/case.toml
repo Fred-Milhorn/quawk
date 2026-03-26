@@ -1,0 +1,10 @@
+id = "mixed_begin_record_end_custom_fs"
+description = "Mixed BEGIN/record/END execution honors a custom field separator."
+program = "program.awk"
+args = ["-F:"]
+inputs = ["input.txt"]
+tags = ["supported", "mixed-program", "records", "io", "p3"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0
