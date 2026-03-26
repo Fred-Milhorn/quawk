@@ -248,6 +248,7 @@ In scope:
 - divergence classification workflow
 - parser/runtime/regex/io compatibility corpus expansion
 - regression triage and targeted fixes
+- implementation details for `T-035` live in [compatibility.md](compatibility.md)
 
 Success in this phase looks like:
 - supported parser, semantic, and runtime fixtures run through stable compatibility infrastructure instead of only ad hoc local checks
@@ -289,6 +290,7 @@ Target outcome:
 - compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
 
 1. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+   See [compatibility.md](compatibility.md).
 2. `T-036` seed compatibility corpus for supported parser/runtime behaviors
 3. `T-037` add divergence manifest and classification workflow
 
