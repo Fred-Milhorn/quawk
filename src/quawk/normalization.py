@@ -110,56 +110,53 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
         names.append(name)
 
     def visit_expression(expression: Expr) -> None:
-        if isinstance(expression, NameExpr):
-            note_name(expression.name)
-            return
-        if isinstance(expression, ArrayIndexExpr):
-            visit_expression(expression.index)
-            return
-        if isinstance(expression, BinaryExpr):
-            visit_expression(expression.left)
-            visit_expression(expression.right)
+        match expression:
+            case NameExpr(name=name):
+                note_name(name)
+            case ArrayIndexExpr(index=index):
+                visit_expression(index)
+            case BinaryExpr(left=left, right=right):
+                visit_expression(left)
+                visit_expression(right)
+            case _:
+                return
 
     def visit_statement(statement: Stmt) -> None:
-        if isinstance(statement, AssignStmt):
-            if statement.index is None:
-                note_name(statement.name)
-            else:
-                visit_expression(statement.index)
-            visit_expression(statement.value)
-            return
-        if isinstance(statement, BlockStmt):
-            for nested in statement.statements:
-                visit_statement(nested)
-            return
-        if isinstance(statement, DeleteStmt):
-            visit_expression(statement.index)
-            return
-        if isinstance(statement, IfStmt):
-            visit_expression(statement.condition)
-            visit_statement(statement.then_branch)
-            return
-        if isinstance(statement, WhileStmt):
-            visit_expression(statement.condition)
-            visit_statement(statement.body)
-            return
-        if isinstance(statement, ForStmt):
-            if statement.init is not None:
-                visit_statement(statement.init)
-            if statement.condition is not None:
-                visit_expression(statement.condition)
-            if statement.update is not None:
-                visit_statement(statement.update)
-            visit_statement(statement.body)
-            return
-        if isinstance(statement, ForInStmt):
-            note_name(statement.name)
-            note_name(statement.array_name)
-            visit_statement(statement.body)
-            return
-        if isinstance(statement, PrintStmt):
-            for argument in statement.arguments:
-                visit_expression(argument)
+        match statement:
+            case AssignStmt(name=name, index=index, value=value):
+                if index is None:
+                    note_name(name)
+                else:
+                    visit_expression(index)
+                visit_expression(value)
+            case BlockStmt(statements=statements):
+                for nested in statements:
+                    visit_statement(nested)
+            case DeleteStmt(index=index):
+                visit_expression(index)
+            case IfStmt(condition=condition, then_branch=then_branch):
+                visit_expression(condition)
+                visit_statement(then_branch)
+            case WhileStmt(condition=condition, body=body):
+                visit_expression(condition)
+                visit_statement(body)
+            case ForStmt(init=init, condition=condition, update=update, body=body):
+                if init is not None:
+                    visit_statement(init)
+                if condition is not None:
+                    visit_expression(condition)
+                if update is not None:
+                    visit_statement(update)
+                visit_statement(body)
+            case ForInStmt(name=name, array_name=array_name, body=body):
+                note_name(name)
+                note_name(array_name)
+                visit_statement(body)
+            case PrintStmt(arguments=arguments):
+                for argument in arguments:
+                    visit_expression(argument)
+            case _:
+                return
 
     for item in program.items:
         if not isinstance(item, PatternAction) or not isinstance(item.action, Action):

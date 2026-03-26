@@ -359,36 +359,34 @@ def lower_input_aware_program_to_llvm_ir(
 
 def lower_statement(statement: Stmt, state: LoweringState) -> None:
     """Lower one supported statement into side-effecting IR."""
-    if isinstance(statement, AssignStmt):
-        lower_assignment_statement(statement, state)
-        return
-    if isinstance(statement, BlockStmt):
-        for nested in statement.statements:
-            lower_statement(nested, state)
-        return
-    if isinstance(statement, BreakStmt):
-        raise RuntimeError("break statements are not supported by the current backend")
-    if isinstance(statement, ContinueStmt):
-        raise RuntimeError("continue statements are not supported by the current backend")
-    if isinstance(statement, DeleteStmt):
-        raise RuntimeError("delete statements are not supported by the LLVM-backed backend")
-    if isinstance(statement, IfStmt):
-        lower_if_statement(statement, state)
-        return
-    if isinstance(statement, WhileStmt):
-        lower_while_statement(statement, state)
-        return
-    if isinstance(statement, ForStmt):
-        raise RuntimeError("for statements are not supported by the LLVM-backed backend")
-    if isinstance(statement, ForInStmt):
-        raise RuntimeError("for-in statements are not supported by the LLVM-backed backend")
-    if isinstance(statement, ReturnStmt):
-        raise RuntimeError("return statements are not supported by the LLVM-backed backend")
-    if not isinstance(statement, PrintStmt):
-        raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
-    if len(statement.arguments) != 1:
-        raise RuntimeError("the current backend only supports print with one argument")
-    lower_print_expression(statement.arguments[0], state)
+    match statement:
+        case AssignStmt():
+            lower_assignment_statement(statement, state)
+        case BlockStmt(statements=statements):
+            for nested in statements:
+                lower_statement(nested, state)
+        case BreakStmt():
+            raise RuntimeError("break statements are not supported by the current backend")
+        case ContinueStmt():
+            raise RuntimeError("continue statements are not supported by the current backend")
+        case DeleteStmt():
+            raise RuntimeError("delete statements are not supported by the LLVM-backed backend")
+        case IfStmt():
+            lower_if_statement(statement, state)
+        case WhileStmt():
+            lower_while_statement(statement, state)
+        case ForStmt():
+            raise RuntimeError("for statements are not supported by the LLVM-backed backend")
+        case ForInStmt():
+            raise RuntimeError("for-in statements are not supported by the LLVM-backed backend")
+        case ReturnStmt():
+            raise RuntimeError("return statements are not supported by the LLVM-backed backend")
+        case PrintStmt(arguments=arguments):
+            if len(arguments) != 1:
+                raise RuntimeError("the current backend only supports print with one argument")
+            lower_print_expression(arguments[0], state)
+        case _:
+            raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
 
 
 def lower_record_item(pattern: ExprPattern | None, action: Action, state: LoweringState) -> None:
@@ -1066,81 +1064,78 @@ def execute_statement(
     locals_scope: LocalScope | None,
 ) -> None:
     """Execute one statement in the currently supported host-runtime subset."""
-    if isinstance(statement, AssignStmt):
-        value = evaluate_numeric_expression(statement.value, state, record, locals_scope)
-        if statement.index is not None:
-            key = evaluate_array_index(statement.index, state, record, locals_scope)
-            array = state.arrays.setdefault(statement.name, {})
-            array[key] = value
-            return
-        if locals_scope is not None and statement.name in locals_scope:
-            locals_scope[statement.name] = value
-        else:
-            state.variables[statement.name] = value
-        return
-    if isinstance(statement, BlockStmt):
-        for nested in statement.statements:
-            execute_statement(nested, state, record, locals_scope)
-        return
-    if isinstance(statement, BreakStmt):
-        raise BreakSignal()
-    if isinstance(statement, ContinueStmt):
-        raise ContinueSignal()
-    if isinstance(statement, DeleteStmt):
-        key = evaluate_array_index(statement.index, state, record, locals_scope)
-        target_array: dict[str, float] | None = state.arrays.get(statement.array_name)
-        if target_array is not None:
-            target_array.pop(key, None)
-        return
-    if isinstance(statement, IfStmt):
-        if evaluate_condition(statement.condition, state, record, locals_scope):
-            execute_statement(statement.then_branch, state, record, locals_scope)
-        return
-    if isinstance(statement, WhileStmt):
-        while evaluate_condition(statement.condition, state, record, locals_scope):
-            try:
-                execute_statement(statement.body, state, record, locals_scope)
-            except ContinueSignal:
-                continue
-            except BreakSignal:
-                break
-        return
-    if isinstance(statement, ForStmt):
-        if statement.init is not None:
-            execute_statement(statement.init, state, record, locals_scope)
-        while statement.condition is None or evaluate_condition(statement.condition, state, record, locals_scope):
-            should_continue = False
-            try:
-                execute_statement(statement.body, state, record, locals_scope)
-            except ContinueSignal:
-                should_continue = True
-            except BreakSignal:
-                break
-            if statement.update is not None:
-                execute_statement(statement.update, state, record, locals_scope)
-            if should_continue:
-                continue
-        return
-    if isinstance(statement, ForInStmt):
-        keys = tuple(state.arrays.get(statement.array_name, {}).keys())
-        for key in keys:
-            assign_scalar_value(statement.name, key, state, locals_scope)
-            try:
-                execute_statement(statement.body, state, record, locals_scope)
-            except ContinueSignal:
-                continue
-            except BreakSignal:
-                break
-        return
-    if isinstance(statement, ReturnStmt):
-        if locals_scope is None:
-            raise RuntimeError("return is only valid inside a function")
-        if statement.value is None:
-            raise ReturnSignal(0.0)
-        raise ReturnSignal(evaluate_numeric_expression(statement.value, state, record, locals_scope))
-    if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
-        raise RuntimeError("the current runtime only supports print with one argument")
-    print_value(evaluate_print_expression(statement.arguments[0], state, record, locals_scope))
+    match statement:
+        case AssignStmt(name=name, index=index, value=expression):
+            value = evaluate_numeric_expression(expression, state, record, locals_scope)
+            if index is not None:
+                key = evaluate_array_index(index, state, record, locals_scope)
+                array = state.arrays.setdefault(name, {})
+                array[key] = value
+                return
+            if locals_scope is not None and name in locals_scope:
+                locals_scope[name] = value
+            else:
+                state.variables[name] = value
+        case BlockStmt(statements=statements):
+            for nested in statements:
+                execute_statement(nested, state, record, locals_scope)
+        case BreakStmt():
+            raise BreakSignal()
+        case ContinueStmt():
+            raise ContinueSignal()
+        case DeleteStmt(array_name=array_name, index=index):
+            key = evaluate_array_index(index, state, record, locals_scope)
+            target_array: dict[str, float] | None = state.arrays.get(array_name)
+            if target_array is not None:
+                target_array.pop(key, None)
+        case IfStmt(condition=condition, then_branch=then_branch):
+            if evaluate_condition(condition, state, record, locals_scope):
+                execute_statement(then_branch, state, record, locals_scope)
+        case WhileStmt(condition=condition, body=body):
+            while evaluate_condition(condition, state, record, locals_scope):
+                try:
+                    execute_statement(body, state, record, locals_scope)
+                except ContinueSignal:
+                    continue
+                except BreakSignal:
+                    break
+        case ForStmt(init=init, condition=condition, update=update, body=body):
+            if init is not None:
+                execute_statement(init, state, record, locals_scope)
+            while condition is None or evaluate_condition(condition, state, record, locals_scope):
+                should_continue = False
+                try:
+                    execute_statement(body, state, record, locals_scope)
+                except ContinueSignal:
+                    should_continue = True
+                except BreakSignal:
+                    break
+                if update is not None:
+                    execute_statement(update, state, record, locals_scope)
+                if should_continue:
+                    continue
+        case ForInStmt(name=name, array_name=array_name, body=body):
+            keys = tuple(state.arrays.get(array_name, {}).keys())
+            for key in keys:
+                assign_scalar_value(name, key, state, locals_scope)
+                try:
+                    execute_statement(body, state, record, locals_scope)
+                except ContinueSignal:
+                    continue
+                except BreakSignal:
+                    break
+        case ReturnStmt(value=value):
+            if locals_scope is None:
+                raise RuntimeError("return is only valid inside a function")
+            if value is None:
+                raise ReturnSignal(0.0)
+            raise ReturnSignal(evaluate_numeric_expression(value, state, record, locals_scope))
+        case PrintStmt(arguments=arguments):
+            if len(arguments) != 1:
+                raise RuntimeError("the current runtime only supports print with one argument")
+            print_value(evaluate_print_expression(arguments[0], state, record, locals_scope))
+        case _:
+            raise RuntimeError("the current runtime only supports print with one argument")
 
 
 def evaluate_print_expression(
@@ -1150,18 +1145,20 @@ def evaluate_print_expression(
     locals_scope: LocalScope | None,
 ) -> str | float:
     """Evaluate an expression in the forms the current runtime can print."""
-    if isinstance(expression, StringLiteralExpr):
-        return expression.value
-    if isinstance(expression, FieldExpr):
-        if record is None:
-            raise RuntimeError("field expressions require an active input record")
-        return resolve_field_value(expression.index, record)
-    if isinstance(expression, ArrayIndexExpr):
-        return evaluate_numeric_expression(expression, state, record, locals_scope)
-    if isinstance(expression, NameExpr):
-        value = read_scalar_value(expression.name, state, locals_scope)
-        return 0.0 if value is None else value
-    return evaluate_numeric_expression(expression, state, record, locals_scope)
+    match expression:
+        case StringLiteralExpr(value=literal_value):
+            return literal_value
+        case FieldExpr(index=index):
+            if record is None:
+                raise RuntimeError("field expressions require an active input record")
+            return resolve_field_value(index, record)
+        case ArrayIndexExpr():
+            return evaluate_numeric_expression(expression, state, record, locals_scope)
+        case NameExpr(name=name):
+            scalar_value = read_scalar_value(name, state, locals_scope)
+            return 0.0 if scalar_value is None else scalar_value
+        case _:
+            return evaluate_numeric_expression(expression, state, record, locals_scope)
 
 
 def evaluate_numeric_expression(
@@ -1171,41 +1168,46 @@ def evaluate_numeric_expression(
     locals_scope: LocalScope | None,
 ) -> float:
     """Evaluate a numeric expression in the current host-runtime subset."""
-    if isinstance(expression, NumericLiteralExpr):
-        return expression.value
-    if isinstance(expression, ArrayIndexExpr):
-        key = evaluate_array_index(expression.index, state, record, locals_scope)
-        array = state.arrays.get(expression.array_name)
-        if array is None:
-            return 0.0
-        return array.get(key, 0.0)
-    if isinstance(expression, NameExpr):
-        value = read_scalar_value(expression.name, state, locals_scope)
-        return coerce_scalar_to_number(value)
-    if isinstance(expression, CallExpr):
-        return call_function(expression, state, record, locals_scope)
-    if isinstance(expression, BinaryExpr):
-        if expression.op is BinaryOp.ADD:
-            return evaluate_numeric_expression(
-                expression.left,
-                state,
-                record,
-                locals_scope,
-            ) + evaluate_numeric_expression(expression.right, state, record, locals_scope)
-        if expression.op is BinaryOp.LESS:
-            return 1.0 if evaluate_condition(expression, state, record, locals_scope) else 0.0
-        if expression.op is BinaryOp.EQUAL:
-            left_value = evaluate_numeric_expression(expression.left, state, record, locals_scope)
-            right_value = evaluate_numeric_expression(expression.right, state, record, locals_scope)
-            return 1.0 if left_value == right_value else 0.0
-        if expression.op is BinaryOp.LOGICAL_AND:
-            if not evaluate_condition(expression.left, state, record, locals_scope):
+    match expression:
+        case NumericLiteralExpr(value=literal_value):
+            return literal_value
+        case ArrayIndexExpr(array_name=array_name, index=index):
+            key = evaluate_array_index(index, state, record, locals_scope)
+            array = state.arrays.get(array_name)
+            if array is None:
                 return 0.0
-            return 1.0 if evaluate_condition(expression.right, state, record, locals_scope) else 0.0
-        raise RuntimeError(f"unsupported numeric operator in current runtime: {expression.op.name}")
-    raise RuntimeError(
-        "the current runtime only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
-    )
+            return array.get(key, 0.0)
+        case NameExpr(name=name):
+            scalar_value = read_scalar_value(name, state, locals_scope)
+            return coerce_scalar_to_number(scalar_value)
+        case CallExpr():
+            return call_function(expression, state, record, locals_scope)
+        case BinaryExpr(op=op, left=left, right=right):
+            match op:
+                case BinaryOp.ADD:
+                    return evaluate_numeric_expression(
+                        left,
+                        state,
+                        record,
+                        locals_scope,
+                    ) + evaluate_numeric_expression(right, state, record, locals_scope)
+                case BinaryOp.LESS:
+                    return 1.0 if evaluate_condition(expression, state, record, locals_scope) else 0.0
+                case BinaryOp.EQUAL:
+                    left_value = evaluate_numeric_expression(left, state, record, locals_scope)
+                    right_value = evaluate_numeric_expression(right, state, record, locals_scope)
+                    return 1.0 if left_value == right_value else 0.0
+                case BinaryOp.LOGICAL_AND:
+                    if not evaluate_condition(left, state, record, locals_scope):
+                        return 0.0
+                    return 1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0
+                case _:
+                    raise RuntimeError(f"unsupported numeric operator in current runtime: {op.name}")
+        case _:
+            raise RuntimeError(
+                "the current runtime only supports numeric literals, "
+                "variable reads, and the current arithmetic/boolean subset"
+            )
 
 
 def evaluate_condition(
@@ -1215,28 +1217,30 @@ def evaluate_condition(
     locals_scope: LocalScope | None,
 ) -> bool:
     """Evaluate a condition expression using the supported truthiness rules."""
-    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LESS:
-        return evaluate_numeric_expression(
-            expression.left,
-            state,
-            record,
-            locals_scope,
-        ) < evaluate_numeric_expression(expression.right, state, record, locals_scope)
-    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.EQUAL:
-        return evaluate_numeric_expression(
-            expression.left,
-            state,
-            record,
-            locals_scope,
-        ) == evaluate_numeric_expression(expression.right, state, record, locals_scope)
-    if isinstance(expression, BinaryExpr) and expression.op is BinaryOp.LOGICAL_AND:
-        return evaluate_condition(expression.left, state, record, locals_scope) and evaluate_condition(
-            expression.right,
-            state,
-            record,
-            locals_scope,
-        )
-    return evaluate_numeric_expression(expression, state, record, locals_scope) != 0.0
+    match expression:
+        case BinaryExpr(op=BinaryOp.LESS, left=left, right=right):
+            return evaluate_numeric_expression(
+                left,
+                state,
+                record,
+                locals_scope,
+            ) < evaluate_numeric_expression(right, state, record, locals_scope)
+        case BinaryExpr(op=BinaryOp.EQUAL, left=left, right=right):
+            return evaluate_numeric_expression(
+                left,
+                state,
+                record,
+                locals_scope,
+            ) == evaluate_numeric_expression(right, state, record, locals_scope)
+        case BinaryExpr(op=BinaryOp.LOGICAL_AND, left=left, right=right):
+            return evaluate_condition(left, state, record, locals_scope) and evaluate_condition(
+                right,
+                state,
+                record,
+                locals_scope,
+            )
+        case _:
+            return evaluate_numeric_expression(expression, state, record, locals_scope) != 0.0
 
 
 def call_function(
@@ -1422,47 +1426,46 @@ def has_host_runtime_only_operations(program: Program) -> bool:
     """Report whether `program` contains features not yet supported by LLVM lowering."""
 
     def expression_has_host_runtime_only_ops(expression: Expr) -> bool:
-        if isinstance(expression, ArrayIndexExpr):
-            return True
-        if isinstance(expression, BinaryExpr):
-            return (
-                expression_has_host_runtime_only_ops(expression.left)
-                or expression_has_host_runtime_only_ops(expression.right)
-            )
-        if isinstance(expression, CallExpr):
-            if is_builtin_function_name(expression.function):
+        match expression:
+            case ArrayIndexExpr():
                 return True
-            return any(expression_has_host_runtime_only_ops(argument) for argument in expression.args)
-        return False
+            case BinaryExpr(left=left, right=right):
+                return expression_has_host_runtime_only_ops(left) or expression_has_host_runtime_only_ops(right)
+            case CallExpr(function=function_name, args=args):
+                if is_builtin_function_name(function_name):
+                    return True
+                return any(expression_has_host_runtime_only_ops(argument) for argument in args)
+            case _:
+                return False
 
     def statement_has_host_runtime_only_ops(statement: Stmt) -> bool:
-        if isinstance(statement, AssignStmt):
-            if statement.index is not None:
+        match statement:
+            case AssignStmt(index=index, value=value):
+                if index is not None:
+                    return True
+                return expression_has_host_runtime_only_ops(value)
+            case BlockStmt(statements=statements):
+                return any(statement_has_host_runtime_only_ops(nested) for nested in statements)
+            case DeleteStmt():
                 return True
-            return expression_has_host_runtime_only_ops(statement.value)
-        if isinstance(statement, BlockStmt):
-            return any(statement_has_host_runtime_only_ops(nested) for nested in statement.statements)
-        if isinstance(statement, DeleteStmt):
-            return True
-        if isinstance(statement, IfStmt):
-            return (
-                expression_has_host_runtime_only_ops(statement.condition)
-                or statement_has_host_runtime_only_ops(statement.then_branch)
-            )
-        if isinstance(statement, WhileStmt):
-            return (
-                expression_has_host_runtime_only_ops(statement.condition)
-                or statement_has_host_runtime_only_ops(statement.body)
-            )
-        if isinstance(statement, ForStmt):
-            return True
-        if isinstance(statement, ForInStmt):
-            return True
-        if isinstance(statement, PrintStmt):
-            return any(expression_has_host_runtime_only_ops(argument) for argument in statement.arguments)
-        if isinstance(statement, ReturnStmt) and statement.value is not None:
-            return expression_has_host_runtime_only_ops(statement.value)
-        return False
+            case IfStmt(condition=condition, then_branch=then_branch):
+                return expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(
+                    then_branch
+                )
+            case WhileStmt(condition=condition, body=body):
+                return expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(body)
+            case ForStmt():
+                return True
+            case ForInStmt():
+                return True
+            case PrintStmt(arguments=arguments):
+                return any(expression_has_host_runtime_only_ops(argument) for argument in arguments)
+            case ReturnStmt(value=value):
+                if value is None:
+                    return False
+                return expression_has_host_runtime_only_ops(value)
+            case _:
+                return False
 
     for item in program.items:
         if isinstance(item, FunctionDef):

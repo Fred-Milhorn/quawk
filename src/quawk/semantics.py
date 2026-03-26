@@ -110,104 +110,100 @@ def validate_statement(
     loop_depth: int,
 ) -> None:
     """Validate one statement in the current semantic context."""
-    if isinstance(statement, AssignStmt):
-        validate_assignment_statement(statement, functions, scope=scope)
-        return
-    if isinstance(statement, BlockStmt):
-        for nested in statement.statements:
-            validate_statement(nested, functions, scope=scope, inside_function=inside_function, loop_depth=loop_depth)
-        return
-    if isinstance(statement, BreakStmt):
-        if loop_depth == 0:
-            raise SemanticError("break is only valid inside a loop", statement.span)
-        return
-    if isinstance(statement, ContinueStmt):
-        if loop_depth == 0:
-            raise SemanticError("continue is only valid inside a loop", statement.span)
-        return
-    if isinstance(statement, DeleteStmt):
-        validate_expression(statement.index, functions)
-        return
-    if isinstance(statement, IfStmt):
-        validate_expression(statement.condition, functions)
-        validate_statement(
-            statement.then_branch,
-            functions,
-            scope=scope,
-            inside_function=inside_function,
-            loop_depth=loop_depth,
-        )
-        return
-    if isinstance(statement, WhileStmt):
-        validate_expression(statement.condition, functions)
-        validate_statement(
-            statement.body,
-            functions,
-            scope=scope,
-            inside_function=inside_function,
-            loop_depth=loop_depth + 1,
-        )
-        return
-    if isinstance(statement, ForStmt):
-        if statement.init is not None:
-            validate_assignment_statement(statement.init, functions, scope=scope)
-        if statement.condition is not None:
-            validate_expression(statement.condition, functions)
-        if statement.update is not None:
-            validate_assignment_statement(statement.update, functions, scope=scope)
-        validate_statement(
-            statement.body,
-            functions,
-            scope=scope,
-            inside_function=inside_function,
-            loop_depth=loop_depth + 1,
-        )
-        return
-    if isinstance(statement, ForInStmt):
-        if statement.name in functions and not (scope is not None and scope.is_local_name(statement.name)):
-            raise SemanticError(f"cannot assign to function name: {statement.name}", statement.span)
-        validate_statement(
-            statement.body,
-            functions,
-            scope=scope,
-            inside_function=inside_function,
-            loop_depth=loop_depth + 1,
-        )
-        return
-    if isinstance(statement, PrintStmt):
-        for argument in statement.arguments:
-            validate_expression(argument, functions)
-        return
-    if isinstance(statement, ReturnStmt):
-        if not inside_function:
-            raise SemanticError("return is only valid inside a function", statement.span)
-        if statement.value is not None:
-            validate_expression(statement.value, functions)
-        return
-    raise AssertionError(f"unhandled statement type: {type(statement)!r}")
+    match statement:
+        case AssignStmt():
+            validate_assignment_statement(statement, functions, scope=scope)
+        case BlockStmt(statements=statements):
+            for nested in statements:
+                validate_statement(
+                    nested,
+                    functions,
+                    scope=scope,
+                    inside_function=inside_function,
+                    loop_depth=loop_depth,
+                )
+        case BreakStmt(span=span):
+            if loop_depth == 0:
+                raise SemanticError("break is only valid inside a loop", span)
+        case ContinueStmt(span=span):
+            if loop_depth == 0:
+                raise SemanticError("continue is only valid inside a loop", span)
+        case DeleteStmt(index=index):
+            validate_expression(index, functions)
+        case IfStmt(condition=condition, then_branch=then_branch):
+            validate_expression(condition, functions)
+            validate_statement(
+                then_branch,
+                functions,
+                scope=scope,
+                inside_function=inside_function,
+                loop_depth=loop_depth,
+            )
+        case WhileStmt(condition=condition, body=body):
+            validate_expression(condition, functions)
+            validate_statement(
+                body,
+                functions,
+                scope=scope,
+                inside_function=inside_function,
+                loop_depth=loop_depth + 1,
+            )
+        case ForStmt(init=init, condition=condition, update=update, body=body):
+            if init is not None:
+                validate_assignment_statement(init, functions, scope=scope)
+            if condition is not None:
+                validate_expression(condition, functions)
+            if update is not None:
+                validate_assignment_statement(update, functions, scope=scope)
+            validate_statement(
+                body,
+                functions,
+                scope=scope,
+                inside_function=inside_function,
+                loop_depth=loop_depth + 1,
+            )
+        case ForInStmt(name=name, body=body, span=span):
+            if name in functions and not (scope is not None and scope.is_local_name(name)):
+                raise SemanticError(f"cannot assign to function name: {name}", span)
+            validate_statement(
+                body,
+                functions,
+                scope=scope,
+                inside_function=inside_function,
+                loop_depth=loop_depth + 1,
+            )
+        case PrintStmt(arguments=arguments):
+            for argument in arguments:
+                validate_expression(argument, functions)
+        case ReturnStmt(value=value, span=span):
+            if not inside_function:
+                raise SemanticError("return is only valid inside a function", span)
+            if value is not None:
+                validate_expression(value, functions)
+        case _:
+            raise AssertionError(f"unhandled statement type: {type(statement)!r}")
 
 
 def validate_expression(expression: Expr, functions: dict[str, FunctionDef]) -> None:
     """Validate one expression tree in the current subset."""
-    if isinstance(expression, BinaryExpr):
-        validate_expression(expression.left, functions)
-        validate_expression(expression.right, functions)
-        return
-    if isinstance(expression, ArrayIndexExpr):
-        validate_expression(expression.index, functions)
-        return
-    if isinstance(expression, CallExpr):
-        function_def = functions.get(expression.function)
-        if function_def is None and not is_builtin_function_name(expression.function):
-            raise SemanticError(f"call to undefined function: {expression.function}", expression.span)
-        if function_def is None and expression.function == "length" and len(expression.args) > 1:
-            raise SemanticError("builtin length expects zero or one argument", expression.span)
-        for argument in expression.args:
-            validate_expression(argument, functions)
-        return
-    if isinstance(expression, NameExpr):
-        return
-    return
+    match expression:
+        case BinaryExpr(left=left, right=right):
+            validate_expression(left, functions)
+            validate_expression(right, functions)
+        case ArrayIndexExpr(index=index):
+            validate_expression(index, functions)
+        case CallExpr(function=function_name, args=args, span=span):
+            function_def = functions.get(function_name)
+            if function_def is None and not is_builtin_function_name(function_name):
+                raise SemanticError(f"call to undefined function: {function_name}", span)
+            if function_def is None and function_name == "length" and len(args) > 1:
+                raise SemanticError("builtin length expects zero or one argument", span)
+            for argument in args:
+                validate_expression(argument, functions)
+        case NameExpr():
+            return
+        case _:
+            return
 
 
 def validate_assignment_statement(
