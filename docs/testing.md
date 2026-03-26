@@ -79,7 +79,7 @@ Each case lives in its own directory and includes:
 The manifest records:
 - case ID and short description
 - expected exit status
-- tags such as `supported`, `known-gap`, and `posix-required`
+- tags such as `supported`, `known-gap`, `compat-baseline`, and `posix-required`
 - optional `xfail_reason` for known unsupported behavior
 
 ## When To Add A Corpus Case
@@ -154,6 +154,7 @@ Normalize before comparison:
 - locale and timezone-sensitive values via a fixed environment
 
 This oracle model becomes a primary workflow in the compatibility phase, not a blocker for the initial `P1` path.
+Before that runner exists, `compat-baseline` cases may be surfaced through strict `xfail` pytest baselines so the intended differential corpus is checked in and reviewable.
 
 ## Divergence Classification
 

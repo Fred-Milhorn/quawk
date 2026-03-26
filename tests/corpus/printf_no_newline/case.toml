@@ -1,7 +1,7 @@
 id = "printf_formatting"
 description = "Printf formatting emits the requested formatted output."
 program = "program.awk"
-tags = ["builtin", "printf", "p8"]
+tags = ["builtin", "printf", "compat-baseline", "p8"]
 
 [expect]
 stdout = "expected.stdout"

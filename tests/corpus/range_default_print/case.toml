@@ -2,7 +2,7 @@ id = "range_default_print"
 description = "Range patterns without an explicit action print matching records by default."
 program = "program.awk"
 input = "input.txt"
-tags = ["runtime", "range", "p8"]
+tags = ["runtime", "range", "compat-baseline", "p8"]
 
 [expect]
 stdout = "expected.stdout"

@@ -1,7 +1,7 @@
 id = "begin_print_literal"
 description = "Literal string print from BEGIN."
 program = "program.awk"
-tags = ["supported", "smoke", "p1"]
+tags = ["supported", "compat-baseline", "smoke", "p1"]
 
 [expect]
 stdout = "expected.stdout"

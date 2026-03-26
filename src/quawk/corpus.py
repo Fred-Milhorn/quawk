@@ -80,6 +80,11 @@ def load_cases(root: Path | None = None) -> list[CorpusCase]:
     return cases
 
 
+def compatibility_baseline_cases(root: Path | None = None) -> list[CorpusCase]:
+    """Return the corpus cases that seed the P10 compatibility baseline."""
+    return [case for case in load_cases(root) if "compat-baseline" in case.tags]
+
+
 def load_case(manifest_path: Path) -> CorpusCase:
     """Load one corpus case from `manifest_path`."""
     manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))

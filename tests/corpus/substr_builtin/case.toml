@@ -1,7 +1,7 @@
 id = "substr_builtin"
 description = "The substr builtin returns the requested slice."
 program = "program.awk"
-tags = ["builtin", "substr", "p8"]
+tags = ["builtin", "substr", "compat-baseline", "p8"]
 
 [expect]
 stdout = "expected.stdout"

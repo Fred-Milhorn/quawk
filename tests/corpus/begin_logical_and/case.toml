@@ -1,7 +1,7 @@
 id = "begin_logical_and"
 description = "Grouped logical AND expression in BEGIN."
 program = "program.awk"
-tags = ["supported", "p4", "expressions"]
+tags = ["supported", "compat-baseline", "p4", "expressions"]
 
 [expect]
 stdout = "expected.stdout"

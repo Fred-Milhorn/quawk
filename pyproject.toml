@@ -36,6 +36,7 @@ files = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "compat: differential compatibility baseline coverage",
     "corpus: compatibility corpus coverage",
     "property: reserved for property-based tests",
     "smoke: reserved for smoke coverage",

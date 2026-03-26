@@ -1,7 +1,7 @@
 id = "begin_if_less"
 description = "Simple comparison and if statement in BEGIN."
 program = "program.awk"
-tags = ["supported", "p2", "control-flow"]
+tags = ["supported", "compat-baseline", "p2", "control-flow"]
 
 [expect]
 stdout = "expected.stdout"

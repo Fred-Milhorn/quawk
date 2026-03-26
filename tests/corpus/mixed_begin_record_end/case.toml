@@ -2,7 +2,7 @@ id = "mixed_begin_record_end"
 description = "Mixed BEGIN, record action, and END execution."
 program = "program.awk"
 input = "input.txt"
-tags = ["supported", "mixed-program", "p3"]
+tags = ["supported", "compat-baseline", "mixed-program", "p3"]
 
 [expect]
 stdout = "expected.stdout"

@@ -2,7 +2,7 @@ id = "next_skip_record"
 description = "The next statement skips the remainder of the current record and continues with the next one."
 program = "program.awk"
 input = "input.txt"
-tags = ["runtime", "next", "p8"]
+tags = ["runtime", "compat-baseline", "next", "p8"]
 
 [expect]
 stdout = "expected.stdout"

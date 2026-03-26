@@ -288,10 +288,9 @@ Next deliverable: P10 compatibility and hardening
 Target outcome:
 - compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
 
-1. `T-047` author compatibility tests as `xfail` baseline for the supported subset
-2. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
-3. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-4. `T-037` add divergence manifest and classification workflow
+1. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+2. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+3. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -385,7 +384,7 @@ Priority values:
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
 | T-039 | P11 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
-| T-047 | P10 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | todo |
+| T-047 | P10 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
 | T-035 | P10 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
 | T-036 | P10 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
 | T-037 | P10 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |

@@ -2,7 +2,7 @@ id = "regex_filter"
 description = "Regex-driven record filtering."
 program = "program.awk"
 input = "input.txt"
-tags = ["supported", "regex", "posix-required"]
+tags = ["supported", "compat-baseline", "regex", "posix-required"]
 
 [expect]
 stdout = "expected.stdout"
