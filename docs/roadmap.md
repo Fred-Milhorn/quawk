@@ -28,8 +28,9 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P7 | POSIX Core Syntax and AST Completion | Frontend covers the remaining POSIX-core concrete syntax and AST surface |
 | P8 | POSIX Core Runtime and Builtins Completion | Public execution covers POSIX-core semantics, builtins, and builtin variables |
 | P9 | Backend Parity and Inspection Completion | LLVM/reusable backend and inspection modes cover the same POSIX-core surface |
-| P10 | Compatibility and Hardening | Differential compatibility gates and regression control |
-| P11 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
+| P10 | Grammar Contract and Doc Alignment | Full `grammar.ebnf` implementation and honest design/AST docs |
+| P11 | Compatibility and Hardening | Differential compatibility gates and regression control |
+| P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 
 ## Phase Entry and Exit Rules
 
@@ -238,7 +239,32 @@ Exit criteria:
 - `--ir` and `--asm` work for representative programs across the completed supported surface
 - any remaining host-runtime fallback is explicitly documented and narrowed to deferred families rather than the core array/iteration/builtin surface
 
-### P10: Compatibility and Hardening
+### P10: Grammar Contract and Doc Alignment
+
+Objective:
+- make `grammar.ebnf` the implemented concrete-syntax contract and align the surrounding design and AST docs with the shipped implementation
+
+In scope:
+- finish parser support for the full `grammar.ebnf` surface
+- remove remaining parser, semantic, runtime, and backend narrowing for grammar-admitted forms
+- refresh `design.md` current-state sections so they describe the real implementation
+- reconcile `quawk.asdl` with the current parser AST and normalized future AST
+- implementation details for this phase live in [grammar-alignment.md](grammar-alignment.md)
+
+Success in this phase looks like:
+- every `grammar.ebnf` production family is intentionally covered by parser conformance tests
+- no parser-only narrowing remains for valid grammar constructs in the chosen language contract
+- public execution covers the admitted grammar surface instead of failing on grammar-valid forms
+- `design.md` accurately distinguishes parser, public execution, and backend or inspection support
+- `quawk.asdl` is explicitly either the current AST or a future AST with a separate current-AST document
+
+Exit criteria:
+- every `grammar.ebnf` production is parseable
+- the remaining grammar-admitted forms execute through public `quawk` execution
+- `design.md`, `grammar.ebnf`, and the AST docs are internally consistent
+- compatibility work no longer needs to discover missing grammar implementation work
+
+### P11: Compatibility and Hardening
 
 Objective:
 - maximize POSIX compatibility and reduce behavioral gaps after feature completion is already in place
@@ -265,7 +291,7 @@ Exit criteria:
 - known divergences are documented, tagged, and classified in the checked-in manifest
 - hardening pass closes or explicitly triages all high-severity regressions discovered during the phase
 
-### P11: Pre-Release Readiness
+### P12: Pre-Release Readiness
 
 Objective:
 - ship an initial public release candidate
@@ -284,15 +310,21 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P10 compatibility and hardening
+Next deliverable: P10 grammar contract and doc alignment
 
 Target outcome:
-- compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
+- `grammar.ebnf` is fully implemented and the design/AST docs describe the real implementation
 
-1. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+1. `T-122` author grammar-alignment baselines and coverage checklist
+   See [grammar-alignment.md](grammar-alignment.md).
+2. `T-123` implement the remaining `grammar.ebnf` parser gaps
+3. `T-124` remove semantic/runtime/backend narrowing for grammar-admitted forms
+4. `T-125` rewrite current-state sections in `design.md` and clarify `grammar.ebnf` conformance intent
+5. `T-126` split current-vs-future AST docs and align `quawk.asdl`
+6. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
    See [compatibility.md](compatibility.md).
-2. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-3. `T-037` add divergence manifest and classification workflow
+7. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+8. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -385,14 +417,19 @@ Priority values:
 | T-077 | P2 | P0 | Extend runtime state for branching and loop execution | T-076 | Runtime can execute the supported control-flow constructs | done |
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
-| T-039 | P11 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
-| T-047 | P10 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
-| T-035 | P10 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
-| T-036 | P10 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
-| T-037 | P10 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
-| T-048 | P11 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
-| T-040 | P11 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
-| T-042 | P11 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-122 | P10 | P0 | Author grammar-alignment baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `grammar.ebnf`/design/AST drift explicit before implementation | todo |
+| T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | todo |
+| T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | todo |
+| T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `grammar.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | todo |
+| T-126 | P10 | P1 | Split current-vs-future AST docs and align `quawk.asdl` with the chosen contract | T-124 | AST docs clearly distinguish the implemented parser AST from the future normalized AST, or one aligned AST spec replaces both roles | todo |
+| T-039 | P12 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |
+| T-047 | P11 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
+| T-035 | P11 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | todo |
+| T-036 | P11 | P0 | Seed compatibility corpus for supported parser/runtime behaviors | T-035 | Core corpus executes and reports per-case status | todo |
+| T-037 | P11 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | todo |
+| T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | todo |
+| T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | todo |
+| T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
