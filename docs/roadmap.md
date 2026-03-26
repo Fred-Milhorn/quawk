@@ -288,16 +288,15 @@ Next deliverable: P7 POSIX core syntax and AST completion
 Target outcome:
 - parser, AST, and semantics cover the remaining POSIX-core language surface so runtime completion can proceed against a stable frontend
 
-1. `T-112` extend token and lexer support for the remaining POSIX-core operators and keywords
-2. `T-113` complete parser and AST support for the remaining POSIX-core statement, expression, and lvalue forms
-3. `T-114` complete semantic validation for the remaining POSIX-core syntax surface
-4. `T-115` author runtime and builtin baselines for the remaining POSIX-core execution surface
-5. `T-116` replace the scalar runtime model with AWK-style value cells and coercions
-6. `T-117` implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields
-7. `T-118` implement the remaining POSIX-core builtins and builtin variables
-8. `T-119` author backend-parity and inspection baselines for the completed POSIX-core subset
-9. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
-10. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
+1. `T-113` complete parser and AST support for the remaining POSIX-core statement, expression, and lvalue forms
+2. `T-114` complete semantic validation for the remaining POSIX-core syntax surface
+3. `T-115` author runtime and builtin baselines for the remaining POSIX-core execution surface
+4. `T-116` replace the scalar runtime model with AWK-style value cells and coercions
+5. `T-117` implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields
+6. `T-118` implement the remaining POSIX-core builtins and builtin variables
+7. `T-119` author backend-parity and inspection baselines for the completed POSIX-core subset
+8. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
+9. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
 
 ## Backlog
 
@@ -356,7 +355,7 @@ Priority values:
 | T-109 | P6 | P0 | Author end-to-end tests for `delete`, `for`, and `for ... in` | T-108 | CLI tests exist for representative array deletion and iteration programs before implementation | done |
 | T-110 | P6 | P0 | Implement `delete`, `for`, and `for ... in` for the array model | T-109, T-108 | Representative array deletion and iteration programs execute correctly | done |
 | T-111 | P7 | P0 | Author parser and semantic baselines for the remaining POSIX-core syntax surface | T-017 | Tests exist for the remaining POSIX-core statements, operators, and lvalue forms before implementation | done |
-| T-112 | P7 | P0 | Extend token and lexer support for the remaining POSIX-core operators and keywords | T-111 | Lexer fixtures pass for the remaining POSIX-core token surface | todo |
+| T-112 | P7 | P0 | Extend token and lexer support for the remaining POSIX-core operators and keywords | T-111 | Lexer fixtures pass for the remaining POSIX-core token surface | done |
 | T-113 | P7 | P0 | Complete parser and AST support for the remaining POSIX-core statement, expression, and lvalue forms | T-112 | The parser accepts the remaining POSIX-core statement and expression families with stable AST shapes | todo |
 | T-114 | P7 | P1 | Complete semantic validation for the remaining POSIX-core syntax surface | T-113 | Semantics enforce legality for the completed POSIX-core frontend surface with deterministic diagnostics | todo |
 | T-115 | P8 | P0 | Author runtime and builtin baselines for the remaining POSIX-core execution surface | T-114 | CLI and corpus tests exist for the remaining POSIX-core runtime, builtin, and builtin-variable behaviors before implementation | todo |

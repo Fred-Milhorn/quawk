@@ -356,6 +356,87 @@ def test_lexes_break_and_continue_tokens() -> None:
     ]
 
 
+def test_lexes_remaining_posix_keywords() -> None:
+    tokens = lex("{ if (1) print 1; else do print 2 while (0); next; nextfile }\nBEGIN { exit 1 }")
+
+    assert [token.kind for token in tokens if token.kind in {
+        TokenKind.IF,
+        TokenKind.ELSE,
+        TokenKind.DO,
+        TokenKind.WHILE,
+        TokenKind.NEXT,
+        TokenKind.NEXTFILE,
+        TokenKind.EXIT,
+    }] == [
+        TokenKind.IF,
+        TokenKind.ELSE,
+        TokenKind.DO,
+        TokenKind.WHILE,
+        TokenKind.NEXT,
+        TokenKind.NEXTFILE,
+        TokenKind.EXIT,
+    ]
+
+
+def test_lexes_remaining_posix_operators_and_compound_assignments() -> None:
+    tokens = lex(
+        'BEGIN { x += 1; x -= 2; x *= 3; x /= 4; x %= 5; x ^= 6; '
+        'print (1 ? 2 : 3) || (4 != 5) || (6 <= 7) || (8 > 9) || (10 >= 11); '
+        'print (a ~ /x/); print (a !~ /y/); print !-x; ++x; x++; --y; y--; print 8 - 3 * 2 / 1 % 4 ^ 2 }'
+    )
+
+    assert TokenKind.PLUS_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.MINUS_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.STAR_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.SLASH_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.PERCENT_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.CARET_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.QUESTION in [token.kind for token in tokens]
+    assert TokenKind.COLON in [token.kind for token in tokens]
+    assert TokenKind.OR_OR in [token.kind for token in tokens]
+    assert TokenKind.NOT_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.LESS_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.GREATER in [token.kind for token in tokens]
+    assert TokenKind.GREATER_EQUAL in [token.kind for token in tokens]
+    assert TokenKind.MATCH in [token.kind for token in tokens]
+    assert TokenKind.NOT_MATCH in [token.kind for token in tokens]
+    assert TokenKind.BANG in [token.kind for token in tokens]
+    assert TokenKind.MINUS in [token.kind for token in tokens]
+    assert TokenKind.STAR in [token.kind for token in tokens]
+    assert TokenKind.SLASH in [token.kind for token in tokens]
+    assert TokenKind.PERCENT in [token.kind for token in tokens]
+    assert TokenKind.CARET in [token.kind for token in tokens]
+    assert TokenKind.PLUS_PLUS in [token.kind for token in tokens]
+    assert TokenKind.MINUS_MINUS in [token.kind for token in tokens]
+
+
+def test_lexes_regex_after_new_operand_position_tokens() -> None:
+    tokens = lex('BEGIN { print (1 ? /x/ : /y/); print !/z/; print (a ~ /q/); print (b !~ /w/) }')
+
+    regex_tokens = [token for token in tokens if token.kind is TokenKind.REGEX]
+    assert [token.text for token in regex_tokens] == ["/x/", "/y/", "/z/", "/q/", "/w/"]
+
+
+def test_lexes_postfix_increment_before_division_operator() -> None:
+    tokens = lex("BEGIN { x++ / 2; y-- / 3 }")
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.IDENT,
+        TokenKind.PLUS_PLUS,
+        TokenKind.SLASH,
+        TokenKind.NUMBER,
+        TokenKind.SEMICOLON,
+        TokenKind.IDENT,
+        TokenKind.MINUS_MINUS,
+        TokenKind.SLASH,
+        TokenKind.NUMBER,
+        TokenKind.RBRACE,
+        TokenKind.EOF,
+    ]
+
+
 def test_lexes_mixed_begin_record_end_tokens() -> None:
     tokens = lex('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
 

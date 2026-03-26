@@ -17,11 +17,16 @@ class TokenKind(Enum):
     BREAK = auto()
     CONTINUE = auto()
     DELETE = auto()
+    DO = auto()
     END = auto()
+    ELSE = auto()
+    EXIT = auto()
     FOR = auto()
     FUNCTION = auto()
     IF = auto()
     IN = auto()
+    NEXT = auto()
+    NEXTFILE = auto()
     PRINT = auto()
     PRINTF = auto()
     RETURN = auto()
@@ -31,12 +36,34 @@ class TokenKind(Enum):
     NUMBER = auto()
     REGEX = auto()
     LESS = auto()
+    LESS_EQUAL = auto()
+    GREATER = auto()
+    GREATER_EQUAL = auto()
     EQUAL_EQUAL = auto()
+    NOT_EQUAL = auto()
+    OR_OR = auto()
     AND_AND = auto()
+    MATCH = auto()
+    NOT_MATCH = auto()
     PLUS = auto()
+    MINUS = auto()
+    STAR = auto()
     SLASH = auto()
+    PERCENT = auto()
+    CARET = auto()
+    BANG = auto()
     EQUAL = auto()
+    PLUS_EQUAL = auto()
+    MINUS_EQUAL = auto()
+    STAR_EQUAL = auto()
+    SLASH_EQUAL = auto()
+    PERCENT_EQUAL = auto()
+    CARET_EQUAL = auto()
+    PLUS_PLUS = auto()
+    MINUS_MINUS = auto()
     DOLLAR = auto()
+    QUESTION = auto()
+    COLON = auto()
     LBRACE = auto()
     RBRACE = auto()
     LPAREN = auto()
@@ -54,11 +81,16 @@ KEYWORDS: dict[str, TokenKind] = {
     "break": TokenKind.BREAK,
     "continue": TokenKind.CONTINUE,
     "delete": TokenKind.DELETE,
+    "do": TokenKind.DO,
     "END": TokenKind.END,
+    "else": TokenKind.ELSE,
+    "exit": TokenKind.EXIT,
     "for": TokenKind.FOR,
     "function": TokenKind.FUNCTION,
     "if": TokenKind.IF,
     "in": TokenKind.IN,
+    "next": TokenKind.NEXT,
+    "nextfile": TokenKind.NEXTFILE,
     "print": TokenKind.PRINT,
     "printf": TokenKind.PRINTF,
     "return": TokenKind.RETURN,
@@ -70,22 +102,49 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.BREAK: "break",
     TokenKind.CONTINUE: "continue",
     TokenKind.DELETE: "delete",
+    TokenKind.DO: "do",
     TokenKind.END: "END",
+    TokenKind.ELSE: "else",
+    TokenKind.EXIT: "exit",
     TokenKind.FOR: "for",
     TokenKind.FUNCTION: "function",
     TokenKind.IF: "if",
     TokenKind.IN: "in",
+    TokenKind.NEXT: "next",
+    TokenKind.NEXTFILE: "nextfile",
     TokenKind.PRINT: "print",
     TokenKind.PRINTF: "printf",
     TokenKind.RETURN: "return",
     TokenKind.WHILE: "while",
     TokenKind.LESS: "<",
+    TokenKind.LESS_EQUAL: "<=",
+    TokenKind.GREATER: ">",
+    TokenKind.GREATER_EQUAL: ">=",
     TokenKind.EQUAL_EQUAL: "==",
+    TokenKind.NOT_EQUAL: "!=",
+    TokenKind.OR_OR: "||",
     TokenKind.AND_AND: "&&",
+    TokenKind.MATCH: "~",
+    TokenKind.NOT_MATCH: "!~",
     TokenKind.PLUS: "+",
+    TokenKind.MINUS: "-",
+    TokenKind.STAR: "*",
     TokenKind.SLASH: "/",
+    TokenKind.PERCENT: "%",
+    TokenKind.CARET: "^",
+    TokenKind.BANG: "!",
     TokenKind.EQUAL: "=",
+    TokenKind.PLUS_EQUAL: "+=",
+    TokenKind.MINUS_EQUAL: "-=",
+    TokenKind.STAR_EQUAL: "*=",
+    TokenKind.SLASH_EQUAL: "/=",
+    TokenKind.PERCENT_EQUAL: "%=",
+    TokenKind.CARET_EQUAL: "^=",
+    TokenKind.PLUS_PLUS: "++",
+    TokenKind.MINUS_MINUS: "--",
     TokenKind.DOLLAR: "$",
+    TokenKind.QUESTION: "?",
+    TokenKind.COLON: ":",
     TokenKind.LBRACE: "{",
     TokenKind.RBRACE: "}",
     TokenKind.LPAREN: "(",
@@ -99,9 +158,18 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
     "<": TokenKind.LESS,
+    ">": TokenKind.GREATER,
     "+": TokenKind.PLUS,
+    "-": TokenKind.MINUS,
+    "*": TokenKind.STAR,
+    "%": TokenKind.PERCENT,
+    "^": TokenKind.CARET,
+    "!": TokenKind.BANG,
+    "~": TokenKind.MATCH,
     "$": TokenKind.DOLLAR,
     "=": TokenKind.EQUAL,
+    "?": TokenKind.QUESTION,
+    ":": TokenKind.COLON,
     "{": TokenKind.LBRACE,
     "}": TokenKind.RBRACE,
     "(": TokenKind.LPAREN,
@@ -113,8 +181,21 @@ PUNCTUATION_KINDS: dict[str, TokenKind] = {
 }
 
 MULTI_CHAR_TOKEN_KINDS: dict[str, TokenKind] = {
+    "<=": TokenKind.LESS_EQUAL,
+    ">=": TokenKind.GREATER_EQUAL,
     "==": TokenKind.EQUAL_EQUAL,
+    "!=": TokenKind.NOT_EQUAL,
+    "||": TokenKind.OR_OR,
     "&&": TokenKind.AND_AND,
+    "!~": TokenKind.NOT_MATCH,
+    "+=": TokenKind.PLUS_EQUAL,
+    "-=": TokenKind.MINUS_EQUAL,
+    "*=": TokenKind.STAR_EQUAL,
+    "/=": TokenKind.SLASH_EQUAL,
+    "%=": TokenKind.PERCENT_EQUAL,
+    "^=": TokenKind.CARET_EQUAL,
+    "++": TokenKind.PLUS_PLUS,
+    "--": TokenKind.MINUS_MINUS,
 }
 
 
@@ -285,6 +366,10 @@ class Lexer:
     def scan_slash_or_regex(self, start: SourcePoint) -> Token:
         """Scan either a regex literal or a slash operator token."""
         if not self.expect_operand:
+            if self.cursor.peek(1) == "=":
+                self.cursor.advance()
+                self.cursor.advance()
+                return self.finish_token(Token(TokenKind.SLASH_EQUAL, self.source.span(start, self.cursor.point())))
             self.cursor.advance()
             return self.finish_token(Token(TokenKind.SLASH, self.source.span(start, self.cursor.point())))
         return self.scan_regex_literal(start)
@@ -321,21 +406,53 @@ class Lexer:
 
     def finish_token(self, token: Token) -> Token:
         """Update scanner context after producing one non-trivia token."""
+        was_expecting_operand = self.expect_operand
+        if token.kind in {TokenKind.PLUS_PLUS, TokenKind.MINUS_MINUS}:
+            self.expect_operand = was_expecting_operand
+            return token
+
         self.expect_operand = token.kind in {
             TokenKind.AND_AND,
+            TokenKind.BANG,
+            TokenKind.CARET,
+            TokenKind.COLON,
             TokenKind.COMMA,
             TokenKind.DOLLAR,
+            TokenKind.DO,
+            TokenKind.ELSE,
             TokenKind.EQUAL,
             TokenKind.EQUAL_EQUAL,
+            TokenKind.EXIT,
+            TokenKind.GREATER,
+            TokenKind.GREATER_EQUAL,
+            TokenKind.IF,
+            TokenKind.IN,
             TokenKind.LBRACE,
+            TokenKind.LBRACKET,
             TokenKind.LESS,
+            TokenKind.LESS_EQUAL,
             TokenKind.LPAREN,
+            TokenKind.MATCH,
+            TokenKind.MINUS,
             TokenKind.NEWLINE,
+            TokenKind.NOT_EQUAL,
+            TokenKind.NOT_MATCH,
+            TokenKind.OR_OR,
+            TokenKind.PERCENT,
             TokenKind.PLUS,
+            TokenKind.PLUS_EQUAL,
+            TokenKind.MINUS_EQUAL,
+            TokenKind.STAR_EQUAL,
+            TokenKind.SLASH_EQUAL,
+            TokenKind.PERCENT_EQUAL,
+            TokenKind.CARET_EQUAL,
             TokenKind.PRINT,
             TokenKind.PRINTF,
+            TokenKind.QUESTION,
+            TokenKind.RETURN,
             TokenKind.SEMICOLON,
             TokenKind.SLASH,
+            TokenKind.STAR,
         }
         return token
 
