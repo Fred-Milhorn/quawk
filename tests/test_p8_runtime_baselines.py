@@ -7,8 +7,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -84,7 +82,6 @@ def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-118 not implemented: string builtins beyond length")
 def test_split_and_substr_builtins_execute() -> None:
     result = run_quawk('BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }')
 
@@ -101,7 +98,6 @@ def test_dynamic_field_assignment_updates_the_selected_field() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-118 not implemented: builtin variable runtime semantics")
 def test_builtin_variables_nr_fnr_and_nf_update_per_record() -> None:
     result = run_quawk("{ print NR; print FNR; print NF }", stdin="a b\nc d\n")
 

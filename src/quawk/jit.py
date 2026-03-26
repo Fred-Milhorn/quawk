@@ -15,7 +15,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TextIO
 
 from . import runtime_support
-from .builtins import is_builtin_function_name
+from .builtins import is_builtin_function_name, is_builtin_variable_name
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
@@ -102,6 +102,7 @@ class RuntimeState:
     arrays: dict[str, dict[str, AwkValue]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
     field_separator: str | None = None
+    current_filename: str = "-"
 
 
 @dataclass
@@ -986,6 +987,7 @@ def execute_host_runtime(
         functions=collect_function_definitions(program),
         field_separator=field_separator,
     )
+    initialize_builtin_variables(state)
     exit_status = 0
     terminated = False
 
@@ -997,14 +999,17 @@ def execute_host_runtime(
         terminated = True
 
     if not terminated and record_items:
-        for input_records in iter_input_files(input_files):
+        for filename, input_records in iter_input_files(input_files):
             skip_remaining_file = False
+            state.current_filename = filename
+            state.variables["FNR"] = make_numeric_value(0.0)
             for line in input_records:
                 record_text = line.rstrip("\n")
                 record = RecordContext(
                     field0=record_text,
                     fields=split_fields(record_text, field_separator),
                 )
+                update_record_builtin_variables(state, record)
                 try:
                     for item in record_items:
                         if record_item_matches(item, state, record):
@@ -1138,25 +1143,25 @@ def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Acti
     return begin_actions, record_actions, end_actions
 
 
-def iter_input_files(input_files: list[str]) -> list[list[str]]:
+def iter_input_files(input_files: list[str]) -> list[tuple[str, list[str]]]:
     """Collect logical input records grouped by input source."""
     if not input_files:
-        return [sys.stdin.readlines()]
+        return [("-", sys.stdin.readlines())]
 
-    grouped_records: list[list[str]] = []
+    grouped_records: list[tuple[str, list[str]]] = []
     for path in input_files:
         if path == "-":
-            grouped_records.append(sys.stdin.readlines())
+            grouped_records.append(("-", sys.stdin.readlines()))
             continue
         with Path(path).open("r", encoding="utf-8") as handle:
-            grouped_records.append(handle.readlines())
+            grouped_records.append((path, handle.readlines()))
     return grouped_records
 
 
 def iter_input_records(input_files: list[str]) -> list[str]:
     """Collect logical input records from files or standard input."""
     records: list[str] = []
-    for grouped_records in iter_input_files(input_files):
+    for _, grouped_records in iter_input_files(input_files):
         records.extend(grouped_records)
     return records
 
@@ -1545,9 +1550,15 @@ def call_builtin_function(
     locals_scope: LocalScope | None,
 ) -> AwkValue:
     """Execute one supported builtin function call in the current host runtime."""
-    if expression.function == "length":
-        return call_length_builtin(expression, state, record, locals_scope)
-    raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
+    match expression.function:
+        case "length":
+            return call_length_builtin(expression, state, record, locals_scope)
+        case "split":
+            return call_split_builtin(expression, state, record, locals_scope)
+        case "substr":
+            return call_substr_builtin(expression, state, record, locals_scope)
+        case _:
+            raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
 
 
 def call_length_builtin(
@@ -1568,6 +1579,53 @@ def call_length_builtin(
         if scalar_value.kind is ValueKind.UNINITIALIZED and argument.name in state.arrays:
             return make_numeric_value(float(len(state.arrays[argument.name])))
     return make_numeric_value(float(len(evaluate_string_expression(argument, state, record, locals_scope))))
+
+
+def call_split_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the current subset's `split` builtin."""
+    if len(expression.args) not in {2, 3}:
+        raise RuntimeError("builtin split expects two or three arguments")
+    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
+    target_expr = expression.args[1]
+    if not isinstance(target_expr, NameExpr):
+        raise RuntimeError("builtin split requires a named array target in the current runtime")
+
+    separator = None
+    if len(expression.args) == 3:
+        separator = evaluate_string_expression(expression.args[2], state, record, locals_scope)
+
+    parts = split_fields(source_text, separator if separator is not None else state.field_separator)
+    target_array: dict[str, AwkValue] = {}
+    for index, part in enumerate(parts, start=1):
+        target_array[str(index)] = make_string_value(part)
+    state.arrays[target_expr.name] = target_array
+    return make_numeric_value(float(len(parts)))
+
+
+def call_substr_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the current subset's `substr` builtin."""
+    if len(expression.args) not in {2, 3}:
+        raise RuntimeError("builtin substr expects two or three arguments")
+    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
+    start = int(evaluate_numeric_expression(expression.args[1], state, record, locals_scope))
+    start_index = max(start - 1, 0)
+    if len(expression.args) == 2:
+        return make_string_value(source_text[start_index:])
+
+    length = int(evaluate_numeric_expression(expression.args[2], state, record, locals_scope))
+    if length <= 0:
+        return make_string_value("")
+    return make_string_value(source_text[start_index : start_index + length])
 
 
 def evaluate_array_index(
@@ -1607,6 +1665,8 @@ def read_scalar_value(
     """Read one scalar from the active local scope first, then globals."""
     if locals_scope is not None and name in locals_scope:
         return locals_scope[name]
+    if is_builtin_variable_name(name):
+        return state.variables.get(name, UNINITIALIZED_VALUE)
     return state.variables.get(name, UNINITIALIZED_VALUE)
 
 
@@ -1659,6 +1719,24 @@ def coerce_scalar_to_truthy(value: AwkValue) -> bool:
 def print_value(value: AwkValue) -> None:
     """Print one runtime value with the same formatting the LLVM path uses today."""
     print(coerce_scalar_to_string(value))
+
+
+def initialize_builtin_variables(state: RuntimeState) -> None:
+    """Seed the builtin variables tracked by the host runtime."""
+    state.variables["NR"] = make_numeric_value(0.0)
+    state.variables["FNR"] = make_numeric_value(0.0)
+    state.variables["NF"] = make_numeric_value(0.0)
+    state.variables["FILENAME"] = make_string_value(state.current_filename)
+
+
+def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
+    """Refresh builtin variables for the active input record."""
+    current_nr = coerce_scalar_to_number(state.variables.get("NR", make_numeric_value(0.0)))
+    current_fnr = coerce_scalar_to_number(state.variables.get("FNR", make_numeric_value(0.0)))
+    state.variables["NR"] = make_numeric_value(current_nr + 1.0)
+    state.variables["FNR"] = make_numeric_value(current_fnr + 1.0)
+    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
+    state.variables["FILENAME"] = make_string_value(state.current_filename)
 
 
 def make_numeric_value(value: float) -> AwkValue:

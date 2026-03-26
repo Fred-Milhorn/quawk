@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .builtins import is_builtin_function_name
+from .builtins import builtin_accepts_arity, is_builtin_function_name
 from .diagnostics import SemanticError
 from .parser import (
     Action,
@@ -272,8 +272,16 @@ def validate_expression(
             function_def = functions.get(function_name)
             if function_def is None and not is_builtin_function_name(function_name):
                 raise SemanticError(f"call to undefined function: {function_name}", span)
-            if function_def is None and function_name == "length" and len(args) > 1:
-                raise SemanticError("builtin length expects zero or one argument", span)
+            if function_def is None and not builtin_accepts_arity(function_name, len(args)):
+                match function_name:
+                    case "length":
+                        raise SemanticError("builtin length expects zero or one argument", span)
+                    case "split":
+                        raise SemanticError("builtin split expects two or three arguments", span)
+                    case "substr":
+                        raise SemanticError("builtin substr expects two or three arguments", span)
+                    case _:
+                        raise SemanticError(f"unsupported builtin call: {function_name}", span)
             for argument in args:
                 validate_expression(argument, functions, scope=scope)
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):

@@ -237,8 +237,11 @@ Acceptance scenarios:
 - inline `BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }` executes correctly
 - inline `BEGIN { a["x"] = 1; for (k in a) print k }` executes correctly
 - inline `BEGIN { print length("hello") }` executes correctly
+- inline `BEGIN { print substr("hello", 2, 3) }` executes correctly
+- inline `BEGIN { n = split("a b", a); print n; print a[1] }` executes correctly
 - inline `{ print $0 }` processes stdin records correctly
 - inline `{ print $1 }` processes stdin records correctly
+- inline `{ print NR; print FNR; print NF }` updates builtin variables per record
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
 - expanding the supported subset does not break the earlier working `P1` path

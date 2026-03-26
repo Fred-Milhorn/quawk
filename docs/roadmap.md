@@ -286,12 +286,11 @@ Start here unless priorities change:
 Next deliverable: P8 POSIX core runtime and builtins completion
 
 Target outcome:
-- AWK-style value cells plus the remaining control-flow, pattern, record, and field semantics are in place, leaving P8 focused on builtins and builtin variables
+- public execution covers the chosen builtin and builtin-variable surface, leaving the next work in backend parity and inspection
 
-1. `T-118` implement the remaining POSIX-core builtins and builtin variables
-2. `T-119` author backend-parity and inspection baselines for the completed POSIX-core subset
-3. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
-4. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
+1. `T-119` author backend-parity and inspection baselines for the completed POSIX-core subset
+2. `T-120` extend lowering and runtime ABI coverage to the completed POSIX-core subset
+3. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
 
 ## Backlog
 
@@ -356,7 +355,7 @@ Priority values:
 | T-115 | P8 | P0 | Author runtime and builtin baselines for the remaining POSIX-core execution surface | T-114 | CLI and corpus tests exist for the remaining POSIX-core runtime, builtin, and builtin-variable behaviors before implementation | done |
 | T-116 | P8 | P0 | Replace the scalar runtime model with AWK-style value cells and coercions | T-115 | Runtime values support AWK-style numeric/string duality, truthiness, and conversion rules across the supported surface | done |
 | T-117 | P8 | P0 | Implement the remaining POSIX-core runtime semantics for statements, patterns, records, and fields | T-116 | Public execution supports the remaining POSIX-core control-flow, pattern, record, and field behaviors | done |
-| T-118 | P8 | P0 | Implement the remaining POSIX-core builtins and builtin variables | T-116, T-117 | Public execution covers the chosen POSIX-core builtin set and builtin-variable semantics | todo |
+| T-118 | P8 | P0 | Implement the remaining POSIX-core builtins and builtin variables | T-116, T-117 | Public execution covers the chosen POSIX-core builtin set and builtin-variable semantics | done |
 | T-119 | P9 | P0 | Author backend-parity and inspection baselines for the completed POSIX-core subset | T-118 | Tests specify backend execution and `--ir` / `--asm` behavior for representative programs across the completed surface before implementation | todo |
 | T-120 | P9 | P0 | Extend lowering and runtime ABI coverage to the completed POSIX-core subset | T-119 | Representative programs across the completed POSIX-core subset execute through the backend path and lower to reusable artifacts | todo |
 | T-121 | P9 | P1 | Remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps | T-120 | No supported POSIX-core feature remains host-runtime-only when P9 closes | todo |

@@ -154,6 +154,26 @@ def test_execute_host_runtime_supports_length_builtin_for_strings_and_arrays(cap
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_split_and_substr_builtins(capsys) -> None:
+    program = parse_program('BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }')
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "2\na\nell\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_updates_nr_fnr_and_nf(capsys, monkeypatch) -> None:
+    program = parse_program("{ print NR; print FNR; print NF }")
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("a b\nc d\n"))
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "1\n1\n2\n2\n2\n2\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_supports_do_while(capsys) -> None:
     program = parse_program("BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
