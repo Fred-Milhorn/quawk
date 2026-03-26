@@ -315,14 +315,12 @@ Next deliverable: P10 grammar contract and doc alignment
 Target outcome:
 - `grammar.ebnf` is fully implemented and the design/AST docs describe the real implementation
 
-1. `T-123` implement the remaining `grammar.ebnf` parser gaps
-2. `T-124` remove semantic/runtime/backend narrowing for grammar-admitted forms
-3. `T-125` rewrite current-state sections in `design.md` and clarify `grammar.ebnf` conformance intent
-4. `T-126` split current-vs-future AST docs and align `quawk.asdl`
-5. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
+1. `T-125` rewrite current-state sections in `design.md` and clarify `grammar.ebnf` conformance intent
+2. `T-126` split current-vs-future AST docs and align `quawk.asdl`
+3. `T-035` implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`)
    See [compatibility.md](compatibility.md).
-6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-7. `T-037` add divergence manifest and classification workflow
+4. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+5. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -416,8 +414,8 @@ Priority values:
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
 | T-122 | P10 | P0 | Author grammar-alignment baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `grammar.ebnf`/design/AST drift explicit before implementation | done |
-| T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | todo |
-| T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | todo |
+| T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | done |
+| T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | done |
 | T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `grammar.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | todo |
 | T-126 | P10 | P1 | Split current-vs-future AST docs and align `quawk.asdl` with the chosen contract | T-124 | AST docs clearly distinguish the implemented parser AST from the future normalized AST, or one aligned AST spec replaces both roles | todo |
 | T-039 | P12 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | todo |

@@ -7,8 +7,6 @@ tracked by `P10` and `T-122` through `T-126`.
 
 | Area | Doc Source | Current Drift | Baseline | Next Task |
 |---|---|---|---|---|
-| Classic `for` init/update accept `expr_list` | [grammar.ebnf](/Users/fred/dev/quawk/docs/grammar.ebnf) | Parser narrows init/update to assignment statements only | [test_p10_grammar_alignment.py](/Users/fred/dev/quawk/tests/test_p10_grammar_alignment.py) | `T-123`, `T-124` |
-| `for (IDENT in expr)` accepts a general iterable expression | [grammar.ebnf](/Users/fred/dev/quawk/docs/grammar.ebnf) | Parser/runtime narrow the iterable to a bare array name | [test_p10_grammar_alignment.py](/Users/fred/dev/quawk/tests/test_p10_grammar_alignment.py) | `T-123`, `T-124` |
 | Current execution model description matches shipped behavior | [design.md](/Users/fred/dev/quawk/docs/design.md) | Current-state prose still understates the implemented feature surface and backend split | [grammar-alignment.md](/Users/fred/dev/quawk/docs/grammar-alignment.md) | `T-125` |
 | Current parser AST vs future normalized AST are clearly distinguished | [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl) | The documented AST role is still broader and differently shaped than the implemented parser tree | [grammar-alignment.md](/Users/fred/dev/quawk/docs/grammar-alignment.md) | `T-126` |
 

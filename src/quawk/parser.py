@@ -352,9 +352,9 @@ class DoWhileStmt:
 
 @dataclass(frozen=True)
 class ForStmt:
-    init: AssignStmt | None
+    init: tuple[Expr, ...]
     condition: Expr | None
-    update: AssignStmt | None
+    update: tuple[Expr, ...]
     body: Stmt
     span: SourceSpan
 
@@ -362,9 +362,16 @@ class ForStmt:
 @dataclass(frozen=True)
 class ForInStmt:
     name: str
-    array_name: str
+    iterable: Expr
     body: Stmt
     span: SourceSpan
+
+    @property
+    def array_name(self) -> str | None:
+        """Return the iterated array name when the iterable is a bare name."""
+        if isinstance(self.iterable, NameExpr):
+            return self.iterable.name
+        return None
 
 
 @dataclass(frozen=True)
@@ -586,15 +593,17 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             return lines
         case ForStmt():
             lines = [f"{indent}ForStmt span={statement.span.format_start()}"]
-            if statement.init is not None:
+            if statement.init:
                 lines.append(f"{indent}  Init")
-                lines.extend(format_statement(statement.init, indent + "    "))
+                for expression in statement.init:
+                    lines.extend(format_expression(expression, indent + "    "))
             if statement.condition is not None:
                 lines.append(f"{indent}  Condition")
                 lines.extend(format_expression(statement.condition, indent + "    "))
-            if statement.update is not None:
+            if statement.update:
                 lines.append(f"{indent}  Update")
-                lines.extend(format_statement(statement.update, indent + "    "))
+                for expression in statement.update:
+                    lines.extend(format_expression(expression, indent + "    "))
             lines.append(f"{indent}  Body")
             lines.extend(format_statement(statement.body, indent + "    "))
             return lines
@@ -602,9 +611,11 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             lines = [
                 (
                     f"{indent}ForInStmt span={statement.span.format_start()} "
-                    f"name={statement.name!r} array_name={statement.array_name!r}"
+                    f"name={statement.name!r}"
                 )
             ]
+            lines.append(f"{indent}  Iterable")
+            lines.extend(format_expression(statement.iterable, indent + "    "))
             lines.append(f"{indent}  Body")
             lines.extend(format_statement(statement.body, indent + "    "))
             return lines
@@ -874,22 +885,22 @@ class Parser:
         if self.check(TokenKind.IDENT) and self.peek_kind() is TokenKind.IN:
             name_token = self.expect(TokenKind.IDENT)
             self.expect(TokenKind.IN)
-            array_token = self.expect(TokenKind.IDENT)
+            iterable = self.parse_expression()
             self.expect(TokenKind.RPAREN)
             body = self.parse_statement()
             return ForInStmt(
                 name=name_token.text or "",
-                array_name=array_token.text or "",
+                iterable=iterable,
                 body=body,
                 span=combine_spans(for_token.span, body.span),
             )
 
-        init: AssignStmt | None = None
+        init: tuple[Expr, ...] = ()
         condition: Expr | None = None
-        update: AssignStmt | None = None
+        update: tuple[Expr, ...] = ()
 
         if not self.check(TokenKind.SEMICOLON):
-            init = self.parse_assignment_statement()
+            init = tuple(self.parse_expression_list())
         self.expect(TokenKind.SEMICOLON)
 
         if not self.check(TokenKind.SEMICOLON):
@@ -897,7 +908,7 @@ class Parser:
         self.expect(TokenKind.SEMICOLON)
 
         if not self.check(TokenKind.RPAREN):
-            update = self.parse_assignment_statement()
+            update = tuple(self.parse_expression_list())
         self.expect(TokenKind.RPAREN)
 
         body = self.parse_statement()

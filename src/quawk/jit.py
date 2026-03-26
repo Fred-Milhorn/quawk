@@ -50,6 +50,7 @@ from .parser import (
     NextFileStmt,
     NextStmt,
     NumericLiteralExpr,
+    PostfixOp,
     PatternAction,
     PostfixExpr,
     PrintfStmt,
@@ -63,6 +64,7 @@ from .parser import (
     UnaryExpr,
     UnaryOp,
     WhileStmt,
+    expression_to_lvalue,
 )
 
 
@@ -756,8 +758,8 @@ def lower_runtime_delete_statement(statement: DeleteStmt, state: LoweringState) 
 
 def lower_runtime_for_statement(statement: ForStmt, state: LoweringState) -> None:
     """Lower one classic `for` loop in the runtime-backed backend subset."""
-    if statement.init is not None:
-        lower_runtime_assignment_statement(statement.init, state)
+    for expression in statement.init:
+        lower_runtime_side_effect_expression(expression, state)
 
     cond_label = state.next_label("for.cond")
     body_label = state.next_label("for.body")
@@ -774,8 +776,8 @@ def lower_runtime_for_statement(statement: ForStmt, state: LoweringState) -> Non
     lower_statement(statement.body, state)
     state.instructions.append(f"  br label %{update_label}")
     state.instructions.append(f"{update_label}:")
-    if statement.update is not None:
-        lower_runtime_assignment_statement(statement.update, state)
+    for expression in statement.update:
+        lower_runtime_side_effect_expression(expression, state)
     state.instructions.append(f"  br label %{cond_label}")
     state.instructions.append(f"{end_label}:")
 
@@ -783,7 +785,10 @@ def lower_runtime_for_statement(statement: ForStmt, state: LoweringState) -> Non
 def lower_runtime_for_in_statement(statement: ForInStmt, state: LoweringState) -> None:
     """Lower one `for (k in a)` loop in the runtime-backed backend subset."""
     assert state.runtime_param is not None
-    array_name_ptr = lower_runtime_constant_string(statement.array_name, state)
+    array_name = statement.array_name
+    if array_name is None:
+        raise RuntimeError("for-in iteration requires a named array in the runtime-backed backend")
+    array_name_ptr = lower_runtime_constant_string(array_name, state)
     key_slot = state.next_temp("forin.slot")
     first_key = state.next_temp("forin.first")
     cond_label = state.next_label("forin.cond")
@@ -971,10 +976,14 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
 
 def lower_runtime_side_effect_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one expression statement for the runtime-backed backend subset."""
-    if isinstance(expression, CallExpr) and expression.function == "split":
+    if runtime_expression_has_string_result(expression):
+        _ = lower_runtime_string_expression(expression, state)
+        return
+    try:
         _ = lower_runtime_numeric_expression(expression, state)
         return
-    raise RuntimeError("expression statements are not supported by the runtime-backed backend")
+    except RuntimeError as exc:
+        raise RuntimeError("expression statements are not supported by the runtime-backed backend") from exc
 
 
 def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
@@ -1033,6 +1042,30 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             temp = state.next_temp("load")
             state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
             return temp
+        case AssignExpr():
+            return lower_runtime_assignment_expression(expression, state)
+        case UnaryExpr(op=UnaryOp.UPLUS, operand=operand):
+            return lower_runtime_numeric_expression(operand, state)
+        case UnaryExpr(op=UnaryOp.UMINUS, operand=operand):
+            operand_value = lower_runtime_numeric_expression(operand, state)
+            temp = state.next_temp("neg")
+            state.instructions.append(f"  {temp} = fsub double 0.000000000000000e+00, {operand_value}")
+            return temp
+        case UnaryExpr(op=UnaryOp.NOT, operand=operand):
+            condition_value = lower_condition_expression(operand, state)
+            temp = state.next_temp("notnum")
+            state.instructions.append(
+                f"  {temp} = select i1 {condition_value}, double 0.000000000000000e+00, double 1.000000000000000e+00"
+            )
+            return temp
+        case UnaryExpr(op=UnaryOp.PRE_INC, operand=NameExpr(name=name)):
+            return lower_runtime_increment_expression(name, 1.0, return_old=False, state=state)
+        case UnaryExpr(op=UnaryOp.PRE_DEC, operand=NameExpr(name=name)):
+            return lower_runtime_increment_expression(name, -1.0, return_old=False, state=state)
+        case PostfixExpr(op=PostfixOp.POST_INC, operand=NameExpr(name=name)):
+            return lower_runtime_increment_expression(name, 1.0, return_old=True, state=state)
+        case PostfixExpr(op=PostfixOp.POST_DEC, operand=NameExpr(name=name)):
+            return lower_runtime_increment_expression(name, -1.0, return_old=True, state=state)
         case CallExpr(function="split"):
             return lower_runtime_split_builtin(expression, state)
         case CallExpr(function="length"):
@@ -1050,6 +1083,48 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return temp
         case _:
             raise RuntimeError("unsupported numeric expression in runtime-backed backend")
+
+
+def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringState) -> str:
+    """Lower one numeric assignment expression in the runtime-backed backend subset."""
+    if expression.op is not AssignOp.PLAIN:
+        raise RuntimeError("compound assignment expressions are not supported by the runtime-backed backend")
+
+    target = expression.target
+    numeric_value = lower_runtime_numeric_expression(expression.value, state)
+    match target:
+        case FieldLValue(index=index):
+            index_value = lower_runtime_field_index(index, state)
+            assert state.runtime_param is not None
+            state.instructions.append(
+                f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
+            )
+        case ArrayLValue(name=name, subscripts=(subscript,)):
+            assert state.runtime_param is not None
+            array_name_ptr = lower_runtime_constant_string(name, state)
+            key_ptr = lower_runtime_array_key(subscript, state)
+            state.instructions.append(
+                f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {numeric_value})"
+            )
+        case NameLValue(name=name):
+            slot_name = variable_address(name, state)
+            state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+        case _:
+            raise RuntimeError("unsupported assignment expression in the runtime-backed backend")
+    return numeric_value
+
+
+def lower_runtime_increment_expression(name: str, delta: float, *, return_old: bool, state: LoweringState) -> str:
+    """Lower one scalar pre/post increment or decrement expression."""
+    slot_name = variable_address(name, state)
+    old_value = state.next_temp("inc.old")
+    new_value = state.next_temp("inc.new")
+    state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
+    opcode = "fadd" if delta >= 0 else "fsub"
+    amount = format_double_literal(abs(delta))
+    state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+    state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
+    return old_value if return_old else new_value
 
 
 def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> str:
@@ -1831,30 +1906,13 @@ def execute_statement(
 ) -> None:
     """Execute one statement in the currently supported host-runtime subset."""
     match statement:
-        case AssignStmt(value=expression):
-            value = evaluate_value_expression(expression, state, record, locals_scope)
-            name = statement.name
-            index = statement.index
-            if statement.op is not statement.op.PLAIN:
-                raise RuntimeError("compound assignments are not supported by the current runtime")
-            if statement.field_index is not None:
-                if record is None:
-                    raise RuntimeError("field assignments require an active input record")
-                assign_field_value(statement.field_index, value, state, record, locals_scope)
-                return
-            if name is None:
-                raise RuntimeError("non-scalar assignments are not supported by the current runtime")
-            if statement.extra_indexes:
-                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
-            if index is not None:
-                key = evaluate_array_index(index, state, record, locals_scope)
-                array = state.arrays.setdefault(name, {})
-                array[key] = value
-                return
-            if locals_scope is not None and name in locals_scope:
-                locals_scope[name] = value
-            else:
-                state.variables[name] = value
+        case AssignStmt(target=target, op=op, value=value, span=span):
+            _ = evaluate_assignment_expression(
+                AssignExpr(target=target, op=op, value=value, span=span),
+                state,
+                record,
+                locals_scope,
+            )
         case BlockStmt(statements=statements):
             for nested in statements:
                 execute_statement(nested, state, record, locals_scope)
@@ -1900,8 +1958,8 @@ def execute_statement(
                 if not evaluate_condition(condition, state, record, locals_scope):
                     break
         case ForStmt(init=init, condition=condition, update=update, body=body):
-            if init is not None:
-                execute_statement(init, state, record, locals_scope)
+            for expression in init:
+                evaluate_value_expression(expression, state, record, locals_scope)
             while condition is None or evaluate_condition(condition, state, record, locals_scope):
                 should_continue = False
                 try:
@@ -1910,11 +1968,14 @@ def execute_statement(
                     should_continue = True
                 except BreakSignal:
                     break
-                if update is not None:
-                    execute_statement(update, state, record, locals_scope)
+                for expression in update:
+                    evaluate_value_expression(expression, state, record, locals_scope)
                 if should_continue:
                     continue
-        case ForInStmt(name=name, array_name=array_name, body=body):
+        case ForInStmt(name=name, iterable=iterable, body=body):
+            if not isinstance(iterable, NameExpr):
+                raise RuntimeError("for-in iteration requires an array name in the current runtime")
+            array_name = iterable.name
             keys = tuple(state.arrays.get(array_name, {}).keys())
             for key in keys:
                 assign_scalar_value(name, make_string_value(key), state, locals_scope)
@@ -1963,6 +2024,8 @@ def evaluate_value_expression(
             return make_numeric_value(literal_value)
         case StringLiteralExpr(value=literal_value):
             return make_string_value(literal_value)
+        case AssignExpr():
+            return evaluate_assignment_expression(expression, state, record, locals_scope)
         case FieldExpr(index=index):
             if record is None:
                 raise RuntimeError("field expressions require an active input record")
@@ -1990,12 +2053,24 @@ def evaluate_value_expression(
                     return make_numeric_value(-evaluate_numeric_expression(operand, state, record, locals_scope))
                 case UnaryOp.NOT:
                     return make_numeric_value(0.0 if evaluate_condition(operand, state, record, locals_scope) else 1.0)
+                case UnaryOp.PRE_INC:
+                    return evaluate_increment_expression(
+                        operand, 1.0, return_old=False, state=state, record=record, locals_scope=locals_scope
+                    )
+                case UnaryOp.PRE_DEC:
+                    return evaluate_increment_expression(
+                        operand, -1.0, return_old=False, state=state, record=record, locals_scope=locals_scope
+                    )
                 case _:
                     raise RuntimeError(f"unsupported unary operator in current runtime: {op.name}")
-        case PostfixExpr():
-            raise RuntimeError("increment and decrement are not supported by the current runtime")
-        case AssignExpr():
-            raise RuntimeError("assignment expressions are not supported by the current runtime")
+        case PostfixExpr(op=PostfixOp.POST_INC, operand=operand):
+            return evaluate_increment_expression(
+                operand, 1.0, return_old=True, state=state, record=record, locals_scope=locals_scope
+            )
+        case PostfixExpr(op=PostfixOp.POST_DEC, operand=operand):
+            return evaluate_increment_expression(
+                operand, -1.0, return_old=True, state=state, record=record, locals_scope=locals_scope
+            )
         case BinaryExpr(op=op, left=left, right=right):
             match op:
                 case BinaryOp.ADD:
@@ -2256,6 +2331,117 @@ def assign_scalar_value(
         locals_scope[name] = value
         return
     state.variables[name] = value
+
+
+def read_lvalue_value(
+    target: NameLValue | ArrayLValue | FieldLValue,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Read one assignable target through the current runtime value model."""
+    match target:
+        case NameLValue(name=name):
+            return read_scalar_value(name, state, locals_scope)
+        case ArrayLValue(name=name, subscripts=subscripts):
+            if len(subscripts) != 1:
+                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
+            key = evaluate_array_index(subscripts[0], state, record, locals_scope)
+            array = state.arrays.get(name)
+            if array is None:
+                return UNINITIALIZED_VALUE
+            return array.get(key, UNINITIALIZED_VALUE)
+        case FieldLValue(index=index):
+            if record is None:
+                raise RuntimeError("field assignments require an active input record")
+            field_index = evaluate_field_index(index, state, record, locals_scope)
+            return make_string_value(resolve_field_value(field_index, record))
+
+
+def assign_lvalue_value(
+    target: NameLValue | ArrayLValue | FieldLValue,
+    value: AwkValue,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> None:
+    """Assign one runtime value through a validated lvalue target."""
+    match target:
+        case NameLValue(name=name):
+            assign_scalar_value(name, value, state, locals_scope)
+        case ArrayLValue(name=name, subscripts=subscripts):
+            if len(subscripts) != 1:
+                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
+            key = evaluate_array_index(subscripts[0], state, record, locals_scope)
+            state.arrays.setdefault(name, {})[key] = value
+        case FieldLValue(index=index):
+            if record is None:
+                raise RuntimeError("field assignments require an active input record")
+            assign_field_value(index, value, state, record, locals_scope)
+
+
+def apply_numeric_assign_op(op: AssignOp, current: float, rhs: float) -> float:
+    """Apply one numeric assignment operator."""
+    match op:
+        case AssignOp.PLAIN:
+            return rhs
+        case AssignOp.ADD:
+            return current + rhs
+        case AssignOp.SUB:
+            return current - rhs
+        case AssignOp.MUL:
+            return current * rhs
+        case AssignOp.DIV:
+            return current / rhs
+        case AssignOp.MOD:
+            return current % rhs
+        case AssignOp.POW:
+            return current**rhs
+
+
+def evaluate_assignment_expression(
+    expression: AssignExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Evaluate one assignment expression and return the assigned value."""
+    value = evaluate_value_expression(expression.value, state, record, locals_scope)
+    if expression.op is AssignOp.PLAIN:
+        assigned = value
+    else:
+        current = read_lvalue_value(expression.target, state, record, locals_scope)
+        assigned = make_numeric_value(
+            apply_numeric_assign_op(
+                expression.op,
+                coerce_scalar_to_number(current),
+                coerce_scalar_to_number(value),
+            )
+        )
+    assign_lvalue_value(expression.target, assigned, state, record, locals_scope)
+    return assigned
+
+
+def evaluate_increment_expression(
+    operand: Expr,
+    delta: float,
+    *,
+    return_old: bool,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Evaluate one pre/post increment or decrement expression."""
+    target = expression_to_lvalue(operand)
+    if target is None:
+        raise RuntimeError("increment and decrement require an assignable expression")
+    current = read_lvalue_value(target, state, record, locals_scope)
+    current_number = coerce_scalar_to_number(current)
+    updated = make_numeric_value(current_number + delta)
+    assign_lvalue_value(target, updated, state, record, locals_scope)
+    if return_old:
+        return make_numeric_value(current_number)
+    return updated
 
 
 def coerce_scalar_to_number(value: AwkValue) -> float:
@@ -2630,6 +2816,20 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return True
             case NameExpr():
                 return True
+            case AssignExpr(op=AssignOp.PLAIN, target=target, value=value):
+                match target:
+                    case NameLValue() | FieldLValue():
+                        return supports_numeric_expression(value)
+                    case ArrayLValue(subscripts=subscripts):
+                        return len(subscripts) == 1 and supports_array_key(subscripts[0]) and supports_numeric_expression(value)
+                    case _:
+                        return False
+            case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
+                return supports_numeric_expression(operand)
+            case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr()):
+                return True
+            case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr()):
+                return True
             case BinaryExpr(
                 op=BinaryOp.ADD | BinaryOp.LESS | BinaryOp.EQUAL | BinaryOp.LOGICAL_AND,
                 left=left,
@@ -2664,6 +2864,13 @@ def supports_runtime_backend_subset(program: Program) -> bool:
         if isinstance(pattern, RangePattern):
             return supports_pattern(pattern.left) and supports_pattern(pattern.right)
         return False
+
+    def supports_side_effect_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
+        return (
+            supports_string_expression(expression, string_bindings)
+            or supports_numeric_expression(expression)
+            or (isinstance(expression, CallExpr) and expression.function == "split" and supports_numeric_expression(expression))
+        )
 
     def supports_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
@@ -2717,17 +2924,17 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         return False
                 return True
             case ExprStmt(value=value):
-                return isinstance(value, CallExpr) and value.function == "split" and supports_numeric_expression(value)
+                return supports_side_effect_expression(value, string_bindings)
             case NextStmt():
                 return True
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
-                    (init is None or supports_statement(init, string_bindings))
+                    all(supports_side_effect_expression(expression, string_bindings) for expression in init)
                     and (condition is None or supports_numeric_expression(condition))
-                    and (update is None or supports_statement(update, string_bindings))
+                    and all(supports_side_effect_expression(expression, string_bindings) for expression in update)
                     and supports_statement(body, string_bindings)
                 )
-            case ForInStmt(name=name, array_name=array_name, body=body):
+            case ForInStmt(name=name, iterable=NameExpr(name=array_name), body=body):
                 if array_name not in array_names:
                     return False
                 return supports_statement(body, string_bindings | frozenset({name}))

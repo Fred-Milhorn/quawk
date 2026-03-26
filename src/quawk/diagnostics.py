@@ -22,6 +22,7 @@ class SemanticErrorCode(StrEnum):
     UNDEFINED_FUNCTION_CALL = "SEM010"
     INVALID_BUILTIN_CALL = "SEM011"
     INVALID_INCREMENT_TARGET = "SEM012"
+    INVALID_FOR_IN_ITERABLE = "SEM013"
 
 
 class QuawkError(ValueError):

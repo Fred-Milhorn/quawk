@@ -198,16 +198,16 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
                 visit_statement(body)
                 visit_expression(condition)
             case ForStmt(init=init, condition=condition, update=update, body=body):
-                if init is not None:
-                    visit_statement(init)
+                for expression in init:
+                    visit_expression(expression)
                 if condition is not None:
                     visit_expression(condition)
-                if update is not None:
-                    visit_statement(update)
+                for expression in update:
+                    visit_expression(expression)
                 visit_statement(body)
-            case ForInStmt(name=name, array_name=array_name, body=body):
+            case ForInStmt(name=name, iterable=iterable, body=body):
                 note_name(name)
-                note_name(array_name)
+                visit_expression(iterable)
                 visit_statement(body)
             case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
                 for argument in arguments:
@@ -306,15 +306,18 @@ def collect_array_names(program: Program) -> frozenset[str]:
                 visit_statement(body)
                 visit_expression(condition)
             case ForStmt(init=init, condition=condition, update=update, body=body):
-                if init is not None:
-                    visit_statement(init)
+                for expression in init:
+                    visit_expression(expression)
                 if condition is not None:
                     visit_expression(condition)
-                if update is not None:
-                    visit_statement(update)
+                for expression in update:
+                    visit_expression(expression)
                 visit_statement(body)
-            case ForInStmt(array_name=array_name, body=body):
-                names.add(array_name)
+            case ForInStmt(iterable=iterable, body=body):
+                if isinstance(iterable, NameExpr):
+                    names.add(iterable.name)
+                else:
+                    visit_expression(iterable)
                 visit_statement(body)
             case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
                 for argument in arguments:

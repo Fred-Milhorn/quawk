@@ -233,12 +233,12 @@ def validate_statement(
             )
             validate_expression(condition, functions, scope=scope)
         case ForStmt(init=init, condition=condition, update=update, body=body):
-            if init is not None:
-                validate_assignment_statement(init, functions, scope=scope)
+            for expression in init:
+                validate_expression(expression, functions, scope=scope)
             if condition is not None:
                 validate_expression(condition, functions, scope=scope)
-            if update is not None:
-                validate_assignment_statement(update, functions, scope=scope)
+            for expression in update:
+                validate_expression(expression, functions, scope=scope)
             validate_statement(
                 body,
                 functions,
@@ -247,12 +247,19 @@ def validate_statement(
                 in_record_action=in_record_action,
                 loop_depth=loop_depth + 1,
             )
-        case ForInStmt(name=name, body=body, span=span):
+        case ForInStmt(name=name, iterable=iterable, body=body, span=span):
             if name in functions and not (scope is not None and scope.is_local_name(name)):
                 raise SemanticError(
                     f"cannot assign to function name: {name}",
                     span,
                     SemanticErrorCode.ASSIGN_TO_FUNCTION_NAME,
+                )
+            validate_expression(iterable, functions, scope=scope)
+            if not isinstance(iterable, NameExpr):
+                raise SemanticError(
+                    "for-in iteration requires an array name",
+                    iterable.span,
+                    SemanticErrorCode.INVALID_FOR_IN_ITERABLE,
                 )
             validate_statement(
                 body,
@@ -375,14 +382,20 @@ def validate_lvalue(
 ) -> None:
     """Validate an lvalue tree in the current frontend."""
     match target:
-        case NameLValue(name=name, span=span) | ArrayLValue(name=name, span=span):
+        case NameLValue(name=name, span=span):
             if name in functions and not (scope is not None and scope.is_local_name(name)):
                 raise SemanticError(
                     f"cannot assign to function name: {name}",
                     span,
                     SemanticErrorCode.ASSIGN_TO_FUNCTION_NAME,
                 )
-        case ArrayLValue(subscripts=subscripts):
+        case ArrayLValue(name=name, subscripts=subscripts, span=span):
+            if name in functions and not (scope is not None and scope.is_local_name(name)):
+                raise SemanticError(
+                    f"cannot assign to function name: {name}",
+                    span,
+                    SemanticErrorCode.ASSIGN_TO_FUNCTION_NAME,
+                )
             for subscript in subscripts:
                 validate_expression(subscript, functions, scope=scope)
         case FieldLValue(index=index):

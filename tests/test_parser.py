@@ -36,6 +36,7 @@ from quawk.parser import (
     FunctionDef,
     IfStmt,
     NameExpr,
+    NameLValue,
     NextFileStmt,
     NextStmt,
     NumericLiteralExpr,
@@ -163,11 +164,14 @@ def test_parses_classic_for_statement() -> None:
     assert isinstance(action, Action)
     loop = action.statements[0]
     assert isinstance(loop, ForStmt)
-    assert isinstance(loop.init, AssignStmt)
-    assert loop.init.name == "i"
+    assert len(loop.init) == 1
+    assert isinstance(loop.init[0], AssignExpr)
+    assert isinstance(loop.init[0].target, NameLValue)
+    assert loop.init[0].target.name == "i"
     assert isinstance(loop.condition, BinaryExpr)
     assert loop.condition.op is BinaryOp.LESS
-    assert isinstance(loop.update, AssignStmt)
+    assert len(loop.update) == 1
+    assert isinstance(loop.update[0], AssignExpr)
     assert isinstance(loop.body, PrintStmt)
 
 
@@ -180,7 +184,35 @@ def test_parses_for_in_statement() -> None:
     assert isinstance(loop, ForInStmt)
     assert loop.name == "k"
     assert loop.array_name == "a"
+    assert isinstance(loop.iterable, NameExpr)
     assert isinstance(loop.body, PrintStmt)
+
+
+def test_parses_classic_for_expression_lists() -> None:
+    program = parse(lex("BEGIN { for (i = 0, j = 1; i < 3; i++, --j) print i }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForStmt)
+    assert len(loop.init) == 2
+    assert isinstance(loop.init[0], AssignExpr)
+    assert isinstance(loop.init[1], AssignExpr)
+    assert len(loop.update) == 2
+    assert isinstance(loop.update[0], PostfixExpr)
+    assert isinstance(loop.update[1], UnaryExpr)
+
+
+def test_parses_for_in_statement_with_parenthesized_iterable() -> None:
+    program = parse(lex('BEGIN { for (k in (a)) print k }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForInStmt)
+    assert loop.name == "k"
+    assert isinstance(loop.iterable, NameExpr)
+    assert loop.iterable.name == "a"
 
 
 def test_parses_bare_action_with_field_expression() -> None:

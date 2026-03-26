@@ -136,8 +136,26 @@ def test_execute_host_runtime_supports_classic_for_loops(capsys) -> None:
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_classic_for_expression_lists(capsys) -> None:
+    program = parse_program("BEGIN { for (i = 0, j = 5; i < 3; i++, --j) print i }")
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "0\n1\n2\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_supports_for_in_loops(capsys) -> None:
     program = parse_program('BEGIN { a["x"] = 1; for (k in a) print k }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "x\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_parenthesized_for_in_iterable(capsys) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; for (k in (a)) print k }')
 
     jit.execute_host_runtime(program, [], None)
     captured = capsys.readouterr()

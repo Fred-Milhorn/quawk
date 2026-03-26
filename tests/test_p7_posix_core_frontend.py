@@ -169,3 +169,14 @@ def test_increment_on_non_lvalue_reports_semantic_error() -> None:
         "BEGIN { ++(1 + 2) }\n"
         "        ^\n"
     )
+
+
+def test_for_in_with_non_array_expression_reports_semantic_error() -> None:
+    result = run_quawk("BEGIN { for (k in 1 + 2) print k }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:19: error[SEM013]: for-in iteration requires an array name\n"
+        "BEGIN { for (k in 1 + 2) print k }\n"
+        "                  ^\n"
+    )
