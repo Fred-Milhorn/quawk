@@ -215,15 +215,15 @@ Currently supported execution path:
 - nested braced blocks in `BEGIN`
 - user-defined functions and returns on the host-runtime path
 - associative arrays with indexed reads and writes
-- `delete`, classic `for`, and `for ... in` on the host-runtime path
-- the `length` builtin for strings, current records, and arrays on the host-runtime path
+- `delete`, classic `for`, and `for ... in`
+- the `length` builtin for strings, current records, and arrays
 - bare action record processing
 - `$0` and `$1` field reads
 
 Current architectural caveat:
-- mixed and regex-driven record execution now lower through the reusable program/runtime split above
-- the host runtime remains the fallback for the language families not yet lowered through LLVM, including functions, arrays, iteration, and builtins
-- further backend work should shrink that host-runtime-only surface over time
+- mixed and richer BEGIN programs now lower through the reusable program/runtime split above
+- the host runtime remains the fallback for the language families not yet lowered through LLVM, including user-defined functions, `nextfile`, `exit`, and richer string-scalar semantics such as concatenation through assigned string variables
+- compatibility work should drive whether the remaining host-runtime fallback families are lowered further or explicitly scoped
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes

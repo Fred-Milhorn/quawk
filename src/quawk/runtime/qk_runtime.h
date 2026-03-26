@@ -52,6 +52,12 @@ double qk_get_nf(qk_runtime *runtime);
 const char *qk_get_filename(qk_runtime *runtime);
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator);
 const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key);
+void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value);
+void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key);
+void qk_array_clear(qk_runtime *runtime, const char *array_name);
+double qk_array_length(qk_runtime *runtime, const char *array_name);
+const char *qk_array_first_key(qk_runtime *runtime, const char *array_name);
+const char *qk_array_next_key(qk_runtime *runtime, const char *array_name, const char *current_key);
 const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start);
 const char *qk_substr3(qk_runtime *runtime, const char *text, int64_t start, int64_t length);
 

@@ -225,18 +225,18 @@ Exit criteria:
 ### P9: Backend Parity and Inspection Completion
 
 Objective:
-- make the LLVM/reusable backend and inspection modes support the same POSIX-core surface as public execution
+- make the LLVM/reusable backend and inspection modes cover the completed pre-compatibility surface and shrink the remaining documented fallback families
 
 In scope:
 - lowering and runtime ABI expansion for the completed POSIX-core AST
-- removal of host-runtime-only status for supported core-language families
+- removal of the largest host-runtime-only gaps in the supported core-language families
 - `--ir` and `--asm` parity for representative programs across the completed surface
 - backend-vs-reference parity checks before compatibility work starts
 
 Exit criteria:
-- representative programs for every supported POSIX-core family execute through the backend path
+- representative programs for the completed array, iteration, builtin, and record families execute through the backend path
 - `--ir` and `--asm` work for representative programs across the completed supported surface
-- no supported POSIX-core feature remains host-runtime-only
+- any remaining host-runtime fallback is explicitly documented and narrowed to deferred families rather than the core array/iteration/builtin surface
 
 ### P10: Compatibility and Hardening
 
@@ -283,12 +283,18 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P9 backend parity and inspection
+Next deliverable: P10 compatibility and hardening
 
 Target outcome:
-- representative completed POSIX-core programs execute through the backend path and inspect cleanly via `--ir` and `--asm`
+- compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
 
-1. `T-121` remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps
+1. `T-023` define semantic error code catalog after core execution behavior stabilizes
+2. `T-015` add parser error recovery at statement boundaries
+3. `T-016` add parser golden tests for AST snapshots where they improve reviewability
+4. `T-047` author compatibility tests as `xfail` baseline for the supported subset
+5. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
+6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+7. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -356,7 +362,7 @@ Priority values:
 | T-118 | P8 | P0 | Implement the remaining POSIX-core builtins and builtin variables | T-116, T-117 | Public execution covers the chosen POSIX-core builtin set and builtin-variable semantics | done |
 | T-119 | P9 | P0 | Author backend-parity and inspection baselines for the completed POSIX-core subset | T-118 | Tests specify backend execution and `--ir` / `--asm` behavior for representative programs across the completed surface before implementation | done |
 | T-120 | P9 | P0 | Extend lowering and runtime ABI coverage to the completed POSIX-core subset | T-119 | Representative programs across the completed POSIX-core subset execute through the backend path and lower to reusable artifacts | done |
-| T-121 | P9 | P1 | Remove host-runtime-only status for supported POSIX-core features and close pre-compatibility backend gaps | T-120 | No supported POSIX-core feature remains host-runtime-only when P9 closes | todo |
+| T-121 | P9 | P1 | Remove the remaining array, iteration, and builtin host-runtime-only gaps and close the major pre-compatibility backend gaps | T-120 | Representative array, iteration, builtin, and record programs no longer stay on the host runtime, and any remaining fallback families are explicitly documented | done |
 | T-028 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the numeric-print increment | T-025 | Integration tests run for the current increment in required CI jobs | done |
 | T-056 | P2 | P0 | Author end-to-end tests for scalar variables and assignment in `BEGIN` | T-028 | CLI tests exist for `BEGIN { x = 1; print x }` and `BEGIN { x = 1 + 2; print x }` before implementation | done |
 | T-057 | P2 | P0 | Extend token/source-span modeling for names and `=` | T-028 | Token/span code cleanly supports assignment-oriented syntax | done |

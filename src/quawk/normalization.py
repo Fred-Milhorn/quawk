@@ -58,6 +58,7 @@ class NormalizedLoweringProgram:
     record_items: tuple[NormalizedRecordItem, ...]
     end_actions: tuple[Action, ...]
     variable_indexes: dict[str, int]
+    array_names: frozenset[str]
 
 
 def normalize_program_for_lowering(program: Program) -> NormalizedLoweringProgram:
@@ -106,6 +107,7 @@ def normalize_program_for_lowering(program: Program) -> NormalizedLoweringProgra
         record_items=tuple(record_items),
         end_actions=tuple(end_actions),
         variable_indexes=collect_variable_indexes(program, extra_names=tuple(range_state_names)),
+        array_names=collect_array_names(program),
     )
 
 
@@ -239,3 +241,106 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
         note_name(extra_name)
 
     return {name: index for index, name in enumerate(names)}
+
+
+def collect_array_names(program: Program) -> frozenset[str]:
+    """Collect names used as associative arrays in the currently supported surface."""
+    names: set[str] = set()
+
+    def visit_expression(expression: Expr) -> None:
+        match expression:
+            case ArrayIndexExpr(array_name=array_name):
+                names.add(array_name)
+                for subscript in expression.subscripts:
+                    visit_expression(subscript)
+            case BinaryExpr(left=left, right=right):
+                visit_expression(left)
+                visit_expression(right)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                visit_expression(test)
+                visit_expression(if_true)
+                visit_expression(if_false)
+            case AssignExpr(target=target, value=value):
+                visit_lvalue(target)
+                visit_expression(value)
+            case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
+                visit_expression(operand)
+            case FieldExpr(index=index):
+                if not isinstance(index, int):
+                    visit_expression(index)
+            case _:
+                return
+
+    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue) -> None:
+        match target:
+            case ArrayLValue(name=name, subscripts=subscripts):
+                names.add(name)
+                for subscript in subscripts:
+                    visit_expression(subscript)
+            case FieldLValue(index=index):
+                visit_expression(index)
+            case _:
+                return
+
+    def visit_statement(statement: Stmt) -> None:
+        match statement:
+            case AssignStmt(target=target, value=value):
+                visit_lvalue(target)
+                visit_expression(value)
+            case ExprStmt(value=value):
+                visit_expression(value)
+            case BlockStmt(statements=statements):
+                for nested in statements:
+                    visit_statement(nested)
+            case DeleteStmt(target=target):
+                visit_lvalue(target)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                visit_expression(condition)
+                visit_statement(then_branch)
+                if else_branch is not None:
+                    visit_statement(else_branch)
+            case WhileStmt(condition=condition, body=body):
+                visit_expression(condition)
+                visit_statement(body)
+            case DoWhileStmt(body=body, condition=condition):
+                visit_statement(body)
+                visit_expression(condition)
+            case ForStmt(init=init, condition=condition, update=update, body=body):
+                if init is not None:
+                    visit_statement(init)
+                if condition is not None:
+                    visit_expression(condition)
+                if update is not None:
+                    visit_statement(update)
+                visit_statement(body)
+            case ForInStmt(array_name=array_name, body=body):
+                names.add(array_name)
+                visit_statement(body)
+            case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
+                for argument in arguments:
+                    visit_expression(argument)
+            case _:
+                return
+
+    for item in program.items:
+        if not isinstance(item, PatternAction) or item.action is None:
+            continue
+        if isinstance(item.pattern, ExprPattern):
+            visit_expression(item.pattern.test)
+        if isinstance(item.pattern, RangePattern):
+            if isinstance(item.pattern.left, ExprPattern | RangePattern):
+                match item.pattern.left:
+                    case ExprPattern(test=test):
+                        visit_expression(test)
+                    case RangePattern():
+                        pass
+            if isinstance(item.pattern.right, ExprPattern | RangePattern):
+                match item.pattern.right:
+                    case ExprPattern(test=test):
+                        visit_expression(test)
+                    case RangePattern():
+                        pass
+        for statement in item.action.statements:
+            visit_statement(statement)
+
+    return frozenset(names)

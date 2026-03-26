@@ -199,6 +199,33 @@ static const char *qk_array_get_value(struct qk_runtime *runtime, const char *ar
     return QK_EMPTY_FIELD;
 }
 
+static bool qk_array_delete_value(struct qk_runtime *runtime, const char *array_name, const char *key)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if ((array == NULL) || (key == NULL)) {
+        return false;
+    }
+
+    struct qk_array_entry *previous = NULL;
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            if (previous == NULL) {
+                array->entries = entry->next;
+            } else {
+                previous->next = entry->next;
+            }
+            free(entry->key);
+            free(entry->value);
+            free(entry);
+            return true;
+        }
+        previous = entry;
+        entry = entry->next;
+    }
+    return false;
+}
+
 static bool qk_store_scratch(qk_runtime *runtime, const char *text, size_t length)
 {
     size_t required = length + 1U;
@@ -643,6 +670,74 @@ const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char
         return QK_EMPTY_FIELD;
     }
     return qk_array_get_value(runtime, array_name, key);
+}
+
+void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value)
+{
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%g", value);
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return;
+    }
+    (void)qk_array_set(runtime, array_name, key, buffer);
+}
+
+void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key)
+{
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return;
+    }
+    (void)qk_array_delete_value(runtime, array_name, key);
+}
+
+void qk_array_clear(qk_runtime *runtime, const char *array_name)
+{
+    if ((runtime == NULL) || (array_name == NULL)) {
+        return;
+    }
+    qk_clear_array(qk_find_array(runtime, array_name, false));
+}
+
+double qk_array_length(qk_runtime *runtime, const char *array_name)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if (array == NULL) {
+        return 0.0;
+    }
+
+    size_t count = 0U;
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        count += 1U;
+        entry = entry->next;
+    }
+    return (double)count;
+}
+
+const char *qk_array_first_key(qk_runtime *runtime, const char *array_name)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if ((array == NULL) || (array->entries == NULL)) {
+        return NULL;
+    }
+    return array->entries->key;
+}
+
+const char *qk_array_next_key(qk_runtime *runtime, const char *array_name, const char *current_key)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if ((array == NULL) || (current_key == NULL)) {
+        return NULL;
+    }
+
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        if (strcmp(entry->key, current_key) == 0) {
+            return entry->next == NULL ? NULL : entry->next->key;
+        }
+        entry = entry->next;
+    }
+    return NULL;
 }
 
 const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start)

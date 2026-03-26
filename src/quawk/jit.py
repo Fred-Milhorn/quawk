@@ -20,6 +20,7 @@ from .normalization import NormalizedLoweringProgram, normalize_program_for_lowe
 from .parser import (
     Action,
     ArrayIndexExpr,
+    ArrayLValue,
     AssignExpr,
     AssignOp,
     AssignStmt,
@@ -84,6 +85,8 @@ class LoweringState:
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
     action_exit_label: str | None = None
+    array_names: frozenset[str] = field(default_factory=frozenset)
+    loop_string_bindings: dict[str, str] = field(default_factory=dict)
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -303,6 +306,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
     record_items = normalized_program.record_items
     end_actions = normalized_program.end_actions
     variable_indexes = normalized_program.variable_indexes
+    array_names = normalized_program.array_names
     state_type = render_state_type(variable_indexes)
 
     declarations = [
@@ -317,14 +321,26 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_get_filename(ptr)",
         "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
         "declare ptr @qk_array_get(ptr, ptr, ptr)",
+        "declare void @qk_array_set_number(ptr, ptr, ptr, double)",
+        "declare void @qk_array_delete(ptr, ptr, ptr)",
+        "declare void @qk_array_clear(ptr, ptr)",
+        "declare double @qk_array_length(ptr, ptr)",
+        "declare ptr @qk_array_first_key(ptr, ptr)",
+        "declare ptr @qk_array_next_key(ptr, ptr, ptr)",
         "declare ptr @qk_substr2(ptr, ptr, i64)",
         "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
+        "declare i64 @strlen(ptr)",
         "declare i32 @printf(ptr, ...)",
     ]
     if state_type is not None:
         declarations.append(state_type)
 
-    begin_state = LoweringState(runtime_param="%rt", state_param="%state", variable_indexes=variable_indexes)
+    begin_state = LoweringState(
+        runtime_param="%rt",
+        state_param="%state",
+        variable_indexes=variable_indexes,
+        array_names=array_names,
+    )
     for action in begin_actions:
         lower_action(action, begin_state, record=None)
 
@@ -333,6 +349,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         state_param="%state",
         variable_indexes=variable_indexes,
         string_index=begin_state.string_index,
+        array_names=array_names,
     )
     for record_item in record_items:
         lower_runtime_record_item(record_item.pattern, record_item.action, record_state, record_item.range_state_name)
@@ -342,6 +359,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         state_param="%state",
         variable_indexes=variable_indexes,
         string_index=record_state.string_index,
+        array_names=array_names,
     )
     for action in end_actions:
         lower_action(action, end_state, record=None)
@@ -468,15 +486,21 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
         case ContinueStmt():
             raise RuntimeError("continue statements are not supported by the current backend")
         case DeleteStmt():
-            raise RuntimeError("delete statements are not supported by the LLVM-backed backend")
+            if state.runtime_param is None:
+                raise RuntimeError("delete statements are not supported by the direct LLVM-backed backend")
+            lower_runtime_delete_statement(statement, state)
         case IfStmt():
             lower_if_statement(statement, state)
         case WhileStmt():
             lower_while_statement(statement, state)
         case ForStmt():
-            raise RuntimeError("for statements are not supported by the LLVM-backed backend")
+            if state.runtime_param is None:
+                raise RuntimeError("for statements are not supported by the direct LLVM-backed backend")
+            lower_runtime_for_statement(statement, state)
         case ForInStmt():
-            raise RuntimeError("for-in statements are not supported by the LLVM-backed backend")
+            if state.runtime_param is None:
+                raise RuntimeError("for-in statements are not supported by the direct LLVM-backed backend")
+            lower_runtime_for_in_statement(statement, state)
         case ReturnStmt():
             raise RuntimeError("return statements are not supported by the LLVM-backed backend")
         case PrintStmt(arguments=arguments):
@@ -696,10 +720,115 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
     if statement.extra_indexes:
         raise RuntimeError("multi-subscript assignments are not supported by the runtime-backed backend")
     if statement.index is not None:
-        raise RuntimeError("array assignments are not supported by the runtime-backed backend")
+        array_name_ptr = lower_runtime_constant_string(statement.name, state)
+        key_ptr = lower_runtime_array_key(statement.index, state)
+        numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        state.instructions.append(
+            (
+                f"  call void @qk_array_set_number("
+                f"ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {numeric_value})"
+            )
+        )
+        return
     slot_name = variable_address(statement.name, state)
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+
+
+def lower_runtime_delete_statement(statement: DeleteStmt, state: LoweringState) -> None:
+    """Lower one `delete` statement in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    array_name = statement.array_name
+    if array_name is None:
+        raise RuntimeError("non-array delete targets are not supported by the runtime-backed backend")
+    if statement.extra_indexes:
+        raise RuntimeError("multi-subscript delete targets are not supported by the runtime-backed backend")
+
+    array_name_ptr = lower_runtime_constant_string(array_name, state)
+    if statement.index is None:
+        state.instructions.append(f"  call void @qk_array_clear(ptr {state.runtime_param}, ptr {array_name_ptr})")
+        return
+    key_ptr = lower_runtime_array_key(statement.index, state)
+    state.instructions.append(
+        f"  call void @qk_array_delete(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+    )
+
+
+def lower_runtime_for_statement(statement: ForStmt, state: LoweringState) -> None:
+    """Lower one classic `for` loop in the runtime-backed backend subset."""
+    if statement.init is not None:
+        lower_runtime_assignment_statement(statement.init, state)
+
+    cond_label = state.next_label("for.cond")
+    body_label = state.next_label("for.body")
+    update_label = state.next_label("for.update")
+    end_label = state.next_label("for.end")
+    state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{cond_label}:")
+    if statement.condition is None:
+        state.instructions.append(f"  br label %{body_label}")
+    else:
+        condition = lower_condition_expression(statement.condition, state)
+        state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
+    state.instructions.append(f"{body_label}:")
+    lower_statement(statement.body, state)
+    state.instructions.append(f"  br label %{update_label}")
+    state.instructions.append(f"{update_label}:")
+    if statement.update is not None:
+        lower_runtime_assignment_statement(statement.update, state)
+    state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{end_label}:")
+
+
+def lower_runtime_for_in_statement(statement: ForInStmt, state: LoweringState) -> None:
+    """Lower one `for (k in a)` loop in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    array_name_ptr = lower_runtime_constant_string(statement.array_name, state)
+    key_slot = state.next_temp("forin.slot")
+    first_key = state.next_temp("forin.first")
+    cond_label = state.next_label("forin.cond")
+    body_label = state.next_label("forin.body")
+    step_label = state.next_label("forin.step")
+    end_label = state.next_label("forin.end")
+    current_key = state.next_temp("forin.key")
+    has_key = state.next_temp("forin.has")
+    next_key = state.next_temp("forin.next")
+
+    state.allocas.append(f"  {key_slot} = alloca ptr")
+    state.instructions.extend(
+        [
+            f"  {first_key} = call ptr @qk_array_first_key(ptr {state.runtime_param}, ptr {array_name_ptr})",
+            f"  store ptr {first_key}, ptr {key_slot}",
+            f"  br label %{cond_label}",
+            f"{cond_label}:",
+            f"  {current_key} = load ptr, ptr {key_slot}",
+            f"  {has_key} = icmp ne ptr {current_key}, null",
+            f"  br i1 {has_key}, label %{body_label}, label %{end_label}",
+            f"{body_label}:",
+        ]
+    )
+    previous_binding = state.loop_string_bindings.get(statement.name)
+    state.loop_string_bindings[statement.name] = current_key
+    try:
+        lower_statement(statement.body, state)
+    finally:
+        if previous_binding is None:
+            state.loop_string_bindings.pop(statement.name, None)
+        else:
+            state.loop_string_bindings[statement.name] = previous_binding
+    state.instructions.extend(
+        [
+            f"  br label %{step_label}",
+            f"{step_label}:",
+            (
+                f"  {next_key} = call ptr @qk_array_next_key("
+                f"ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {current_key})"
+            ),
+            f"  store ptr {next_key}, ptr {key_slot}",
+            f"  br label %{cond_label}",
+            f"{end_label}:",
+        ]
+    )
 
 
 def lower_initial_variables(initial_variables: InitialVariables, state: LoweringState) -> None:
@@ -784,6 +913,10 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
 def lower_runtime_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one print expression against the reusable runtime ABI."""
     assert state.runtime_param is not None
+    if isinstance(expression, NameExpr) and expression.name in state.loop_string_bindings:
+        string_value = lower_runtime_string_expression(expression, state)
+        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
+        return
     if isinstance(expression, StringLiteralExpr):
         string_value = lower_runtime_string_expression(expression, state)
         state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
@@ -902,6 +1035,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return temp
         case CallExpr(function="split"):
             return lower_runtime_split_builtin(expression, state)
+        case CallExpr(function="length"):
+            return lower_runtime_length_builtin(expression, state)
         case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
@@ -926,6 +1061,8 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             string_ptr = state.next_temp("strptr")
             state.instructions.append(emit_gep(string_ptr, byte_length, global_name))
             return string_ptr
+        case NameExpr(name=name) if name in state.loop_string_bindings:
+            return state.loop_string_bindings[name]
         case NameExpr(name="FILENAME"):
             temp = state.next_temp("filename")
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
@@ -949,8 +1086,50 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             return temp
         case CallExpr(function="substr"):
             return lower_runtime_substr_builtin(expression, state)
+        case CallExpr(function="length"):
+            raise RuntimeError("length lowers as a numeric expression in the runtime-backed backend")
         case _:
             raise RuntimeError("unsupported string expression in runtime-backed backend")
+
+
+def lower_runtime_length_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `length` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) > 1:
+        raise RuntimeError("builtin length expects zero or one argument")
+
+    if not expression.args:
+        field_ptr = state.next_temp("length.record")
+        size_value = state.next_temp("length.size")
+        numeric_value = state.next_temp("length.num")
+        state.instructions.extend(
+            [
+                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  {size_value} = call i64 @strlen(ptr {field_ptr})",
+                f"  {numeric_value} = uitofp i64 {size_value} to double",
+            ]
+        )
+        return numeric_value
+
+    argument = expression.args[0]
+    if isinstance(argument, NameExpr) and argument.name in state.array_names:
+        array_name_ptr = lower_runtime_constant_string(argument.name, state)
+        numeric_value = state.next_temp("length.array")
+        state.instructions.append(
+            f"  {numeric_value} = call double @qk_array_length(ptr {state.runtime_param}, ptr {array_name_ptr})"
+        )
+        return numeric_value
+
+    string_value = lower_runtime_string_expression(argument, state)
+    size_value = state.next_temp("length.size")
+    numeric_value = state.next_temp("length.num")
+    state.instructions.extend(
+        [
+            f"  {size_value} = call i64 @strlen(ptr {string_value})",
+            f"  {numeric_value} = uitofp i64 {size_value} to double",
+        ]
+    )
+    return numeric_value
 
 
 def lower_runtime_split_builtin(expression: CallExpr, state: LoweringState) -> str:
@@ -1021,6 +1200,8 @@ def lower_runtime_constant_string(value: str, state: LoweringState) -> str:
 def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
     """Lower one array key expression to a string pointer."""
     match expression:
+        case NameExpr(name=name) if name in state.loop_string_bindings:
+            return state.loop_string_bindings[name]
         case NumericLiteralExpr(value=value):
             return lower_runtime_constant_string(format_numeric_value(value), state)
         case StringLiteralExpr(value=value):
@@ -1054,16 +1235,17 @@ def runtime_expression_has_string_result(expression: Expr) -> bool:
 
 def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     """Lower a supported condition expression to an LLVM `i1` value."""
+    numeric_lowerer = lower_runtime_numeric_expression if state.runtime_param is not None else lower_numeric_expression
     if isinstance(expression, BinaryExpr):
         if expression.op is BinaryOp.LESS:
-            left_operand = lower_numeric_expression(expression.left, state)
-            right_operand = lower_numeric_expression(expression.right, state)
+            left_operand = numeric_lowerer(expression.left, state)
+            right_operand = numeric_lowerer(expression.right, state)
             temp = state.next_temp("cmp")
             state.instructions.append(f"  {temp} = fcmp olt double {left_operand}, {right_operand}")
             return temp
         if expression.op is BinaryOp.EQUAL:
-            left_operand = lower_numeric_expression(expression.left, state)
-            right_operand = lower_numeric_expression(expression.right, state)
+            left_operand = numeric_lowerer(expression.left, state)
+            right_operand = numeric_lowerer(expression.right, state)
             temp = state.next_temp("eq")
             state.instructions.append(f"  {temp} = fcmp oeq double {left_operand}, {right_operand}")
             return temp
@@ -1086,7 +1268,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             )
             return phi_temp
 
-    numeric_value = lower_numeric_expression(expression, state)
+    numeric_value = numeric_lowerer(expression, state)
     temp = state.next_temp("truthy")
     state.instructions.append(f"  {temp} = fcmp one double {numeric_value}, 0.000000000000000e+00")
     return temp
@@ -2409,25 +2591,32 @@ def requires_host_runtime_value_execution(program: Program) -> bool:
 def supports_runtime_backend_subset(program: Program) -> bool:
     """Report whether `program` fits the reusable backend's current runtime-backed subset."""
 
-    def supports_string_expression(expression: Expr) -> bool:
+    normalized_program = normalize_program_for_lowering(program)
+    array_names = normalized_program.array_names
+
+    def supports_string_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
             case StringLiteralExpr():
                 return True
+            case NameExpr(name=name):
+                return name == "FILENAME" or name in string_bindings
             case NameExpr(name="FILENAME"):
                 return True
             case FieldExpr():
                 return True
             case ArrayIndexExpr(extra_indexes=()):
-                return supports_array_key(expression.index)
+                return expression.array_name in array_names and supports_array_key(expression.index, string_bindings)
             case CallExpr(function="substr", args=args):
-                return len(args) in {2, 3} and supports_string_expression(args[0]) and all(
+                return len(args) in {2, 3} and supports_string_expression(args[0], string_bindings) and all(
                     supports_numeric_expression(argument) for argument in args[1:]
                 )
             case _:
                 return False
 
-    def supports_array_key(expression: Expr) -> bool:
+    def supports_array_key(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
+            case NameExpr(name=name):
+                return name in string_bindings
             case NumericLiteralExpr() | StringLiteralExpr():
                 return True
             case _:
@@ -2455,6 +2644,15 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 if not isinstance(args[1], NameExpr):
                     return False
                 return len(args) == 2 or supports_string_expression(args[2])
+            case CallExpr(function="length", args=args):
+                if len(args) > 1:
+                    return False
+                if not args:
+                    return True
+                argument = args[0]
+                if isinstance(argument, NameExpr) and argument.name in array_names:
+                    return True
+                return supports_string_expression(argument)
             case _:
                 return False
 
@@ -2467,7 +2665,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             return supports_pattern(pattern.left) and supports_pattern(pattern.right)
         return False
 
-    def supports_statement(statement: Stmt) -> bool:
+    def supports_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
             case AssignStmt(op=op, target=target, value=value):
                 if op is not AssignOp.PLAIN:
@@ -2475,17 +2673,32 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 match target:
                     case NameLValue():
                         return supports_numeric_expression(value)
+                    case ArrayLValue(name=name, subscripts=subscripts):
+                        return (
+                            name in array_names
+                            and len(subscripts) == 1
+                            and supports_array_key(subscripts[0], string_bindings)
+                            and supports_numeric_expression(value)
+                        )
                     case FieldLValue(index=index):
                         return supports_numeric_expression(index) and supports_numeric_expression(value)
                     case _:
                         return False
             case BlockStmt(statements=statements):
-                return all(supports_statement(nested) for nested in statements)
+                return all(supports_statement(nested, string_bindings) for nested in statements)
+            case DeleteStmt():
+                if statement.array_name is None or statement.array_name not in array_names or statement.extra_indexes:
+                    return False
+                return statement.index is None or supports_array_key(statement.index, string_bindings)
             case PrintStmt(arguments=arguments):
                 if len(arguments) != 1:
                     return False
                 argument = arguments[0]
-                return runtime_expression_has_string_result(argument) or supports_numeric_expression(argument)
+                return (
+                    supports_string_expression(argument, string_bindings)
+                    or runtime_expression_has_string_result(argument)
+                    or supports_numeric_expression(argument)
+                )
             case PrintfStmt(arguments=arguments):
                 if not arguments or not isinstance(arguments[0], StringLiteralExpr):
                     return False
@@ -2497,7 +2710,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     return False
                 for specifier, argument in zip(specifiers, arguments[1:], strict=True):
                     if specifier == "s":
-                        if not supports_string_expression(argument):
+                        if not supports_string_expression(argument, string_bindings):
                             return False
                         continue
                     if not supports_numeric_expression(argument):
@@ -2507,6 +2720,17 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return isinstance(value, CallExpr) and value.function == "split" and supports_numeric_expression(value)
             case NextStmt():
                 return True
+            case ForStmt(init=init, condition=condition, update=update, body=body):
+                return (
+                    (init is None or supports_statement(init, string_bindings))
+                    and (condition is None or supports_numeric_expression(condition))
+                    and (update is None or supports_statement(update, string_bindings))
+                    and supports_statement(body, string_bindings)
+                )
+            case ForInStmt(name=name, array_name=array_name, body=body):
+                if array_name not in array_names:
+                    return False
+                return supports_statement(body, string_bindings | frozenset({name}))
             case _:
                 return False
 
@@ -2534,6 +2758,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and isinstance(statement.value, CallExpr):
                 found_supported_runtime_feature = True
+            if isinstance(statement, AssignStmt) and isinstance(statement.target, ArrayLValue):
+                found_supported_runtime_feature = True
+            if isinstance(statement, DeleteStmt | ForStmt | ForInStmt):
+                found_supported_runtime_feature = True
+            if isinstance(statement, PrintStmt) and statement.arguments:
+                argument = statement.arguments[0]
+                if isinstance(argument, CallExpr) and argument.function == "length":
+                    found_supported_runtime_feature = True
     return found_supported_runtime_feature
 
 
@@ -2656,6 +2888,7 @@ def render_reusable_function(name: str, state: LoweringState) -> str:
         [
             f"define void @{name}(ptr %rt, ptr %state) {{",
             "entry:",
+            *state.allocas,
             *state.instructions,
             "  ret void",
             "}",

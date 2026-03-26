@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 
 BEGIN_PARITY_PROGRAM = 'BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }'
 RECORD_PARITY_PROGRAM = '/start/,/stop/ { i = 2; $i = NR; printf "%s:%g\\n", FILENAME, NF; next }'
+ARRAY_DELETE_PROGRAM = 'BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }'
+FOR_LOOP_PROGRAM = "BEGIN { for (i = 0; i < 3; i = i + 1) print i }"
+FOR_IN_PROGRAM = 'BEGIN { a["x"] = 1; for (k in a) print k }'
+LENGTH_PROGRAM = 'BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }'
 
 
 def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -143,3 +147,147 @@ def test_quawk_asm_flag_prints_backend_assembly_for_completed_record_programs() 
     assert result.returncode == 0, result.stderr
     assert "quawk_record" in result.stdout
     assert result.stderr == ""
+
+
+def test_execute_routes_array_delete_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(ARRAY_DELETE_PROGRAM)
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("array delete programs should not stay on the host runtime once T-121 lands")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; p9 array delete module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; p9 array delete module"
+        assert linked_program is program
+        return "; p9 linked array delete module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; p9 linked array delete module"
+
+
+def test_execute_routes_classic_for_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(FOR_LOOP_PROGRAM)
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("classic for programs should not stay on the host runtime once T-121 lands")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; p9 for loop module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; p9 for loop module"
+        assert linked_program is program
+        return "; p9 linked for loop module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; p9 linked for loop module"
+
+
+def test_execute_routes_for_in_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(FOR_IN_PROGRAM)
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("for-in programs should not stay on the host runtime once T-121 lands")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; p9 for in module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; p9 for in module"
+        assert linked_program is program
+        return "; p9 linked for in module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; p9 linked for in module"
+
+
+def test_execute_routes_length_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(LENGTH_PROGRAM)
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("length programs should not stay on the host runtime once T-121 lands")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; p9 length module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; p9 length module"
+        assert linked_program is program
+        return "; p9 linked length module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; p9 linked length module"

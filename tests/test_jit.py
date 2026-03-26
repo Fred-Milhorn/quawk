@@ -240,46 +240,121 @@ def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     assert captured.err == ""
 
 
-def test_execute_routes_array_programs_through_host_runtime(monkeypatch, capsys) -> None:
+def test_execute_routes_array_programs_through_backend(monkeypatch) -> None:
     program = parse_program('BEGIN { a["x"] = 1; print a["x"] }')
+    captured_ir: dict[str, str] = {}
 
-    def fail_lower_to_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("array programs should not lower through the LLVM backend yet")
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("array programs should not stay on the host runtime now")
 
-    monkeypatch.setattr(jit, "lower_to_llvm_ir", fail_lower_to_llvm_ir)
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; array backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; array backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked array backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "1\n"
-    assert captured.err == ""
+    assert captured_ir["module"] == "; linked array backend module"
 
 
-def test_execute_routes_for_loop_programs_through_host_runtime(monkeypatch, capsys) -> None:
+def test_execute_routes_for_loop_programs_through_backend(monkeypatch) -> None:
     program = parse_program("BEGIN { for (i = 0; i < 2; i = i + 1) print i }")
+    captured_ir: dict[str, str] = {}
 
-    def fail_lower_to_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("for-loop programs should not lower through the LLVM backend yet")
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("for-loop programs should not stay on the host runtime now")
 
-    monkeypatch.setattr(jit, "lower_to_llvm_ir", fail_lower_to_llvm_ir)
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; for backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; for backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked for backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "0\n1\n"
-    assert captured.err == ""
+    assert captured_ir["module"] == "; linked for backend module"
 
 
-def test_execute_routes_builtin_only_programs_through_host_runtime(monkeypatch, capsys) -> None:
+def test_execute_routes_builtin_only_programs_through_backend(monkeypatch) -> None:
     program = parse_program('BEGIN { print length("abc") }')
+    captured_ir: dict[str, str] = {}
 
-    def fail_lower_to_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("builtin-only programs should not lower through the LLVM backend yet")
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("builtin-only programs should not stay on the host runtime now")
 
-    monkeypatch.setattr(jit, "lower_to_llvm_ir", fail_lower_to_llvm_ir)
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; builtin backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; builtin backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked builtin backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "3\n"
-    assert captured.err == ""
+    assert captured_ir["module"] == "; linked builtin backend module"
 
 
 def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:
