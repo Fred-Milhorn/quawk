@@ -5,15 +5,19 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
 
 EngineName = Literal["quawk", "gawk-posix", "one-true-awk"]
+DifferentialStatus = Literal["PASS", "FAIL", "SKIP", "REF-DISAGREE"]
 
 DEFAULT_CORPUS_ROOT: Final[Path] = Path(__file__).resolve().parents[2] / "tests" / "corpus"
+DEFAULT_DIFFERENTIAL_ENGINES: Final[tuple[EngineName, ...]] = ("quawk", "one-true-awk", "gawk-posix")
 
 
 @dataclass(frozen=True)
@@ -59,6 +63,72 @@ class CorpusResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class NormalizedCorpusResult:
+    """Captured corpus result after deterministic normalization."""
+
+    engine: EngineName
+    command: tuple[str, ...]
+    returncode: int
+    stdout: str
+    stderr: str
+
+    def comparable_fields(self) -> tuple[int, str, str]:
+        """Return the normalized fields used for deterministic comparison."""
+        return (self.returncode, self.stdout, self.stderr)
+
+
+@dataclass(frozen=True)
+class DifferentialCaseResult:
+    """Differential execution result for one corpus case."""
+
+    case: CorpusCase
+    results_by_engine: dict[EngineName, NormalizedCorpusResult]
+    missing_engines: tuple[EngineName, ...] = ()
+
+    def reference_results(self) -> tuple[NormalizedCorpusResult, NormalizedCorpusResult]:
+        """Return the normalized reference-engine results."""
+        return (self.results_by_engine["one-true-awk"], self.results_by_engine["gawk-posix"])
+
+    def references_agree(self) -> bool:
+        """Report whether the reference engines agree exactly."""
+        if self.missing_engines:
+            return False
+        left, right = self.reference_results()
+        return left.comparable_fields() == right.comparable_fields()
+
+    def quawk_matches_references(self) -> bool:
+        """Report whether `quawk` matches the agreed reference result."""
+        if not self.references_agree():
+            return False
+        quawk_result = self.results_by_engine["quawk"]
+        reference_result, _ = self.reference_results()
+        return quawk_result.comparable_fields() == reference_result.comparable_fields()
+
+    def status(self) -> DifferentialStatus:
+        """Return the comparison status for this differential run."""
+        if self.missing_engines:
+            return "SKIP"
+        if not self.references_agree():
+            return "REF-DISAGREE"
+        if self.quawk_matches_references():
+            return "PASS"
+        return "FAIL"
+
+    def detail_lines(self) -> list[str]:
+        """Return human-readable detail lines for reporting or pytest failures."""
+        if self.missing_engines:
+            missing = ", ".join(self.missing_engines)
+            return [f"missing engines: {missing}"]
+
+        lines: list[str] = []
+        for engine in DEFAULT_DIFFERENTIAL_ENGINES:
+            result = self.results_by_engine[engine]
+            lines.append(f"{engine}: exit={result.returncode} stdout={result.stdout!r} stderr={result.stderr!r}")
+            lines.append(f"{engine}: command={' '.join(result.command)}")
+        return lines
 
 
 def corpus_root() -> Path:
@@ -209,6 +279,50 @@ def run_case(case: CorpusCase, engine: EngineName = "quawk") -> CorpusResult:
     )
 
 
+def normalize_result(result: CorpusResult) -> NormalizedCorpusResult:
+    """Normalize one raw subprocess result conservatively for comparison."""
+    return NormalizedCorpusResult(
+        engine=result.engine,
+        command=result.command,
+        returncode=result.returncode,
+        stdout=result.stdout.replace("\r\n", "\n"),
+        stderr=result.stderr.replace("\r\n", "\n"),
+    )
+
+
+def is_engine_available(engine: EngineName) -> bool:
+    """Report whether the requested engine is available in the current environment."""
+    executable = build_engine_command(engine, Path("program.awk"))[0]
+    return shutil.which(executable) is not None
+
+
+def missing_engines(engines: tuple[EngineName, ...] = DEFAULT_DIFFERENTIAL_ENGINES) -> tuple[EngineName, ...]:
+    """Return the differential engines missing from the current environment."""
+    return tuple(engine for engine in engines if not is_engine_available(engine))
+
+
+def run_case_for_engines(
+    case: CorpusCase,
+    engines: tuple[EngineName, ...] = DEFAULT_DIFFERENTIAL_ENGINES,
+) -> dict[EngineName, NormalizedCorpusResult]:
+    """Run one corpus case under each requested engine exactly once."""
+    results: dict[EngineName, NormalizedCorpusResult] = {}
+    for engine in engines:
+        results[engine] = normalize_result(run_case(case, engine=engine))
+    return results
+
+
+def run_case_differential(
+    case: CorpusCase,
+    engines: tuple[EngineName, ...] = DEFAULT_DIFFERENTIAL_ENGINES,
+) -> DifferentialCaseResult:
+    """Run one corpus case under all differential engines and compare them."""
+    missing = missing_engines(engines)
+    if missing:
+        return DifferentialCaseResult(case=case, results_by_engine={}, missing_engines=missing)
+    return DifferentialCaseResult(case=case, results_by_engine=run_case_for_engines(case, engines=engines))
+
+
 def build_engine_command(engine: EngineName, program_path: Path) -> list[str]:
     """Build the command used to execute one corpus case."""
     match engine:
@@ -244,6 +358,11 @@ def main(argv: list[str] | None = None) -> int:
         description="Run quawk compatibility corpus cases.",
     )
     parser.add_argument(
+        "--differential",
+        action="store_true",
+        help="Run each case under quawk, awk, and gawk --posix.",
+    )
+    parser.add_argument(
         "--engine",
         choices=("quawk", "gawk-posix", "one-true-awk"),
         default="quawk",
@@ -260,12 +379,31 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional case IDs to run. Default: run all cases.",
     )
     args = parser.parse_args(argv)
+    if args.differential and args.engine != "quawk":
+        parser.error("--differential cannot be combined with --engine")
 
     cases = select_cases(args.cases)
     if args.list:
         for case in cases:
             print(f"{case.id}: {case.description}")
         return 0
+
+    if args.differential:
+        failures = 0
+        for case in cases:
+            differential_result = run_case_differential(case)
+            status = differential_result.status()
+            print(f"{status} {case.id}")
+            if status == "FAIL":
+                failures += 1
+            if status == "SKIP":
+                failures += 1
+
+        missing = missing_engines()
+        if missing:
+            missing_text = ", ".join(missing)
+            print(f"corpus: missing differential engines: {missing_text}", file=sys.stderr)
+        return 0 if failures == 0 else 1
 
     failures = 0
     for case in cases:

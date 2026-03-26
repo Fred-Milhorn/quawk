@@ -149,12 +149,10 @@ For each compatibility case:
 4. compare normalized outputs and exit codes
 
 Normalize before comparison:
-- line endings
-- trailing whitespace policy
-- locale and timezone-sensitive values via a fixed environment
+- line endings for `stdout` and `stderr` in the current differential runner
+- additional normalization policy can expand later if compatibility work needs it
 
 This oracle model becomes a primary workflow in the compatibility phase, not a blocker for the initial `P1` path.
-Before that runner exists, `compat-baseline` cases may be surfaced through strict `xfail` pytest baselines so the intended differential corpus is checked in and reviewable.
 
 ## Divergence Classification
 
