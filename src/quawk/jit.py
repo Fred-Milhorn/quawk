@@ -299,7 +299,7 @@ def lower_record_program_to_llvm_ir(program: Program) -> str:
         argument = statement.arguments[0]
         if not isinstance(argument, FieldExpr):
             raise RuntimeError("the record-loop increment only supports $0 and $1 field expressions")
-        param_name = field_parameter_name(argument.index)
+        param_name = field_parameter_name(static_field_index(argument))
         call_temp = next_temp("call")
         instructions.append(f"  {call_temp} = call i32 @puts(ptr {param_name})")
 
@@ -445,7 +445,11 @@ def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
 
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
     """Lower a scalar numeric assignment."""
-    if statement.index is not None:
+    if statement.op is not statement.op.PLAIN:
+        raise RuntimeError("compound assignments are not supported by the LLVM-backed backend")
+    if statement.name is None:
+        raise RuntimeError("non-scalar assignments are not supported by the LLVM-backed backend")
+    if statement.index is not None or statement.extra_indexes:
         raise RuntimeError("array assignments are not supported by the LLVM-backed backend")
     slot_name = variable_address(statement.name, state)
     numeric_value = lower_numeric_expression(statement.value, state)
@@ -504,7 +508,10 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
         if state.current_record is None:
             raise RuntimeError("field expressions require an active input record in the current backend")
         state.uses_puts = True
-        global_name, byte_length = declare_string(state, resolve_field_value(expression.index, state.current_record))
+        global_name, byte_length = declare_string(
+            state,
+            resolve_field_value(static_field_index(expression), state.current_record),
+        )
         string_ptr = state.next_temp("strptr")
         call_temp = state.next_temp("call")
         state.instructions.extend(
@@ -1065,8 +1072,16 @@ def execute_statement(
 ) -> None:
     """Execute one statement in the currently supported host-runtime subset."""
     match statement:
-        case AssignStmt(name=name, index=index, value=expression):
+        case AssignStmt(value=expression):
             value = evaluate_numeric_expression(expression, state, record, locals_scope)
+            name = statement.name
+            index = statement.index
+            if statement.op is not statement.op.PLAIN:
+                raise RuntimeError("compound assignments are not supported by the current runtime")
+            if name is None:
+                raise RuntimeError("non-scalar assignments are not supported by the current runtime")
+            if statement.extra_indexes:
+                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
             if index is not None:
                 key = evaluate_array_index(index, state, record, locals_scope)
                 array = state.arrays.setdefault(name, {})
@@ -1083,7 +1098,16 @@ def execute_statement(
             raise BreakSignal()
         case ContinueStmt():
             raise ContinueSignal()
-        case DeleteStmt(array_name=array_name, index=index):
+        case DeleteStmt():
+            array_name = statement.array_name
+            index = statement.index
+            if array_name is None:
+                raise RuntimeError("non-array delete targets are not supported by the current runtime")
+            if statement.extra_indexes:
+                raise RuntimeError("multi-subscript delete targets are not supported by the current runtime")
+            if index is None:
+                state.arrays.pop(array_name, None)
+                return
             key = evaluate_array_index(index, state, record, locals_scope)
             target_array: dict[str, float] | None = state.arrays.get(array_name)
             if target_array is not None:
@@ -1151,6 +1175,8 @@ def evaluate_print_expression(
         case FieldExpr(index=index):
             if record is None:
                 raise RuntimeError("field expressions require an active input record")
+            if not isinstance(index, int):
+                raise RuntimeError("dynamic field expressions are not supported by the current runtime")
             return resolve_field_value(index, record)
         case ArrayIndexExpr():
             return evaluate_numeric_expression(expression, state, record, locals_scope)
@@ -1316,7 +1342,7 @@ def evaluate_array_index(
     if isinstance(expression, FieldExpr):
         if record is None:
             raise RuntimeError("field expressions require an active input record")
-        return resolve_field_value(expression.index, record)
+        return resolve_field_value(static_field_index(expression), record)
     if isinstance(expression, NameExpr):
         value = read_scalar_value(expression.name, state, locals_scope)
         if isinstance(value, str):
@@ -1337,7 +1363,7 @@ def evaluate_string_expression(
     if isinstance(expression, FieldExpr):
         if record is None:
             raise RuntimeError("field expressions require an active input record")
-        return resolve_field_value(expression.index, record)
+        return resolve_field_value(static_field_index(expression), record)
     if isinstance(expression, NameExpr):
         value = read_scalar_value(expression.name, state, locals_scope)
         if value is None:
@@ -1412,6 +1438,13 @@ def resolve_field_value(index: int, record: RecordContext) -> str:
     return ""
 
 
+def static_field_index(expression: FieldExpr) -> int:
+    """Return the current subset's literal field index or raise for dynamic fields."""
+    if not isinstance(expression.index, int):
+        raise RuntimeError("dynamic field expressions are not supported by the current execution path")
+    return expression.index
+
+
 def has_function_definitions(program: Program) -> bool:
     """Report whether `program` contains any top-level user-defined functions."""
     return any(isinstance(item, FunctionDef) for item in program.items)
@@ -1440,7 +1473,14 @@ def has_host_runtime_only_operations(program: Program) -> bool:
 
     def statement_has_host_runtime_only_ops(statement: Stmt) -> bool:
         match statement:
-            case AssignStmt(index=index, value=value):
+            case AssignStmt(value=value):
+                if statement.op is not statement.op.PLAIN:
+                    return True
+                if statement.name is None:
+                    return True
+                if statement.extra_indexes:
+                    return True
+                index = statement.index
                 if index is not None:
                     return True
                 return expression_has_host_runtime_only_ops(value)

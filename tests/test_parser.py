@@ -11,6 +11,9 @@ from quawk.lexer import lex
 from quawk.parser import (
     Action,
     ArrayIndexExpr,
+    ArrayLValue,
+    AssignExpr,
+    AssignOp,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -18,23 +21,36 @@ from quawk.parser import (
     BlockStmt,
     BreakStmt,
     CallExpr,
+    ConditionalExpr,
     ContinueStmt,
     DeleteStmt,
+    DoWhileStmt,
     EndPattern,
+    ExitStmt,
     ExprPattern,
+    ExprStmt,
     FieldExpr,
+    FieldLValue,
     ForInStmt,
     ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
+    NextFileStmt,
+    NextStmt,
     NumericLiteralExpr,
     PatternAction,
+    PostfixExpr,
+    PostfixOp,
+    PrintfStmt,
     PrintStmt,
     Program,
+    RangePattern,
     RegexLiteralExpr,
     ReturnStmt,
     StringLiteralExpr,
+    UnaryExpr,
+    UnaryOp,
     WhileStmt,
     format_program,
     parse,
@@ -448,3 +464,143 @@ def test_parses_regex_pattern_action_program() -> None:
     assert isinstance(item.action.statements[0], PrintStmt)
     assert isinstance(item.action.statements[0].arguments[0], FieldExpr)
     assert item.action.statements[0].arguments[0].index == 0
+
+
+def test_parses_expression_pattern_without_action() -> None:
+    program = parse(lex("1 < 2"))
+
+    assert len(program.items) == 1
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.pattern, ExprPattern)
+    assert item.action is None
+    assert isinstance(item.pattern.test, BinaryExpr)
+    assert item.pattern.test.op is BinaryOp.LESS
+
+
+def test_parses_range_pattern_and_if_else() -> None:
+    program = parse(lex('/start/,/stop/ { if (1 < 2) print 1; else print 2 }'))
+
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.pattern, RangePattern)
+    assert isinstance(item.pattern.left, ExprPattern)
+    assert isinstance(item.pattern.right, ExprPattern)
+    assert isinstance(item.action, Action)
+    statement = item.action.statements[0]
+    assert isinstance(statement, IfStmt)
+    assert isinstance(statement.else_branch, PrintStmt)
+
+
+def test_parses_do_while_next_nextfile_and_exit() -> None:
+    program = parse(lex("{ next }\n{ nextfile }\nBEGIN { x = 0; do { x = x + 1 } while (x < 3); exit 1 }"))
+
+    first_item = program.items[0]
+    assert isinstance(first_item, PatternAction)
+    assert isinstance(first_item.action, Action)
+    assert isinstance(first_item.action.statements[0], NextStmt)
+
+    second_item = program.items[1]
+    assert isinstance(second_item, PatternAction)
+    assert isinstance(second_item.action, Action)
+    assert isinstance(second_item.action.statements[0], NextFileStmt)
+
+    begin_item = program.items[2]
+    assert isinstance(begin_item, PatternAction)
+    assert isinstance(begin_item.action, Action)
+    assert isinstance(begin_item.action.statements[1], DoWhileStmt)
+    assert isinstance(begin_item.action.statements[2], ExitStmt)
+
+
+def test_parses_printf_expr_stmt_and_assignment_forms() -> None:
+    program = parse(lex('BEGIN { printf "%s %g\\n", "x", 1; print (x = 1); x += 2 }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert isinstance(action.statements[0], PrintfStmt)
+
+    print_stmt = action.statements[1]
+    assert isinstance(print_stmt, PrintStmt)
+    assert isinstance(print_stmt.arguments[0], AssignExpr)
+    assert print_stmt.arguments[0].op is AssignOp.PLAIN
+
+    update_stmt = action.statements[2]
+    assert isinstance(update_stmt, AssignStmt)
+    assert update_stmt.op is AssignOp.ADD
+
+
+def test_parses_dynamic_fields_multi_subscripts_and_delete_name() -> None:
+    program = parse(lex("BEGIN { i = 1; print $i; $i = 2; a[1, 2] = 3; delete a }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert isinstance(action.statements[1], PrintStmt)
+    assert isinstance(action.statements[1].arguments[0], FieldExpr)
+    assert isinstance(action.statements[1].arguments[0].index, NameExpr)
+
+    field_assign = action.statements[2]
+    assert isinstance(field_assign, AssignStmt)
+    assert isinstance(field_assign.target, FieldLValue)
+
+    array_assign = action.statements[3]
+    assert isinstance(array_assign, AssignStmt)
+    assert isinstance(array_assign.target, ArrayLValue)
+    assert len(array_assign.target.subscripts) == 2
+
+    delete_stmt = action.statements[4]
+    assert isinstance(delete_stmt, DeleteStmt)
+    assert delete_stmt.index is None
+
+
+def test_parses_remaining_expression_families() -> None:
+    program = parse(
+        lex(
+            'BEGIN { '
+            'print (1 ? 2 : 3) || (4 != 5) || (6 <= 7) || (8 > 9) || (10 >= 11); '
+            'print (a ~ /x/); print (a !~ /y/); print (1 in a); print 1 "x"; '
+            'print 8 - 3 * 2 / 1 % 4 ^ 2; print !-x; ++x; x++ }'
+        )
+    )
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    first_print = action.statements[0]
+    assert isinstance(first_print, PrintStmt)
+    assert isinstance(first_print.arguments[0], BinaryExpr)
+    assert first_print.arguments[0].op is BinaryOp.LOGICAL_OR
+    left_chain = first_print.arguments[0].left
+    assert isinstance(left_chain, BinaryExpr)
+    assert isinstance(left_chain.left, BinaryExpr)
+    assert isinstance(left_chain.left.left, BinaryExpr)
+    assert isinstance(left_chain.left.left.left, ConditionalExpr)
+
+    assert isinstance(action.statements[1], PrintStmt)
+    assert isinstance(action.statements[1].arguments[0], BinaryExpr)
+    assert action.statements[1].arguments[0].op is BinaryOp.MATCH
+
+    assert isinstance(action.statements[2], PrintStmt)
+    assert action.statements[2].arguments[0].op is BinaryOp.NOT_MATCH
+
+    assert isinstance(action.statements[3], PrintStmt)
+    assert action.statements[3].arguments[0].op is BinaryOp.IN
+
+    assert isinstance(action.statements[4], PrintStmt)
+    assert action.statements[4].arguments[0].op is BinaryOp.CONCAT
+
+    assert isinstance(action.statements[5], PrintStmt)
+    arithmetic = action.statements[5].arguments[0]
+    assert isinstance(arithmetic, BinaryExpr)
+    assert arithmetic.op is BinaryOp.SUB
+
+    assert isinstance(action.statements[6], PrintStmt)
+    assert isinstance(action.statements[6].arguments[0], UnaryExpr)
+    assert action.statements[6].arguments[0].op is UnaryOp.NOT
+
+    assert isinstance(action.statements[7], ExprStmt)
+    assert isinstance(action.statements[7].value, UnaryExpr)
+    assert action.statements[7].value.op is UnaryOp.PRE_INC
+
+    assert isinstance(action.statements[8], ExprStmt)
+    assert isinstance(action.statements[8].value, PostfixExpr)
+    assert action.statements[8].value.op is PostfixOp.POST_INC

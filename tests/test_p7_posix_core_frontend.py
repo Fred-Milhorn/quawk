@@ -23,7 +23,6 @@ def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProce
     )
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: expression patterns without actions")
 def test_expr_pattern_without_action_parses() -> None:
     result = run_quawk("--parse", "1 < 2")
 
@@ -32,7 +31,6 @@ def test_expr_pattern_without_action_parses() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: range patterns")
 def test_range_pattern_parses() -> None:
     result = run_quawk("--parse", "/start/,/stop/ { print $0 }")
 
@@ -41,7 +39,6 @@ def test_range_pattern_parses() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: if/else")
 def test_if_else_statement_parses() -> None:
     result = run_quawk("--parse", "BEGIN { if (1 < 2) print 1; else print 2 }")
 
@@ -51,7 +48,6 @@ def test_if_else_statement_parses() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: do-while loops")
 def test_do_while_statement_parses() -> None:
     result = run_quawk("--parse", "BEGIN { x = 0; do { x = x + 1 } while (x < 3) }")
 
@@ -60,7 +56,6 @@ def test_do_while_statement_parses() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: next, nextfile, and exit statements")
 def test_next_nextfile_and_exit_statements_parse() -> None:
     result = run_quawk("--parse", "{ next }\n{ nextfile }\nBEGIN { exit 1 }")
 
@@ -71,7 +66,6 @@ def test_next_nextfile_and_exit_statements_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: printf and expression statements")
 def test_printf_and_expression_statement_parse() -> None:
     result = run_quawk('--parse', 'BEGIN { printf "%s %g\\n", "x", 1; 1 + 2 }')
 
@@ -81,7 +75,6 @@ def test_printf_and_expression_statement_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: dynamic field expressions and field lvalues")
 def test_dynamic_field_expression_and_field_assignment_parse() -> None:
     result = run_quawk("--parse", "BEGIN { i = 1; print $i; $i = 2 }")
 
@@ -91,7 +84,6 @@ def test_dynamic_field_expression_and_field_assignment_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: multi-subscript arrays and whole-array delete")
 def test_multi_subscript_array_and_whole_array_delete_parse() -> None:
     result = run_quawk("--parse", "BEGIN { a[1, 2] = 3; delete a }")
 
@@ -101,7 +93,6 @@ def test_multi_subscript_array_and_whole_array_delete_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: assignment expressions and compound assignments")
 def test_assignment_expression_and_compound_assignment_parse() -> None:
     result = run_quawk("--parse", "BEGIN { print (x = 1); x += 2 }")
 
@@ -111,10 +102,6 @@ def test_assignment_expression_and_compound_assignment_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-112/T-113 not implemented: conditional, logical-or, and remaining comparisons",
-)
 def test_conditional_logical_or_and_remaining_comparisons_parse() -> None:
     result = run_quawk("--parse", "BEGIN { print (1 ? 2 : 3) || (4 != 5) || (6 <= 7) || (8 > 9) || (10 >= 11) }")
 
@@ -128,7 +115,6 @@ def test_conditional_logical_or_and_remaining_comparisons_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-112/T-113 not implemented: match, in, and concatenation operators")
 def test_match_in_and_concat_operators_parse() -> None:
     result = run_quawk("--parse", 'BEGIN { print (a ~ /x/); print (a !~ /y/); print (1 in a); print 1 "x" }')
 
@@ -140,10 +126,6 @@ def test_match_in_and_concat_operators_parse() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-112/T-113 not implemented: remaining arithmetic, unary, and postfix operators",
-)
 def test_remaining_arithmetic_unary_and_postfix_operators_parse() -> None:
     result = run_quawk("--parse", "BEGIN { print 8 - 3 * 2 / 1 % 4 ^ 2; print !-x; ++x; x++ }")
 

@@ -184,10 +184,12 @@ def test_quawk_parse_flag_prints_assignment_ast() -> None:
         "  PatternAction span=<inline>:1:1\n"
         "    BeginPattern span=<inline>:1:1\n"
         "    Action span=<inline>:1:7\n"
-        "      AssignStmt span=<inline>:1:9 name='x'\n"
-        "        BinaryExpr span=<inline>:1:13 op=ADD\n"
-        "          NumericLiteralExpr span=<inline>:1:13 value=1.0\n"
-        "          NumericLiteralExpr span=<inline>:1:17 value=2.0\n"
+        "      AssignStmt span=<inline>:1:9 op=PlainAssign\n"
+        "        NameLValue span=<inline>:1:9 name='x'\n"
+        "        Value\n"
+        "          BinaryExpr span=<inline>:1:13 op=ADD\n"
+        "            NumericLiteralExpr span=<inline>:1:13 value=1.0\n"
+        "            NumericLiteralExpr span=<inline>:1:17 value=2.0\n"
         "      PrintStmt span=<inline>:1:20\n"
         "        NameExpr span=<inline>:1:26 name='x'\n"
     )
@@ -203,10 +205,11 @@ def test_quawk_parse_flag_prints_array_assignment_ast() -> None:
         "  PatternAction span=<inline>:1:1\n"
         "    BeginPattern span=<inline>:1:1\n"
         "    Action span=<inline>:1:7\n"
-        "      AssignStmt span=<inline>:1:9 name='a'\n"
-        "        Index\n"
+        "      AssignStmt span=<inline>:1:9 op=PlainAssign\n"
+        "        ArrayLValue span=<inline>:1:9 name='a'\n"
         "          StringLiteralExpr span=<inline>:1:11 value='x'\n"
-        "        NumericLiteralExpr span=<inline>:1:18 value=1.0\n"
+        "        Value\n"
+        "          NumericLiteralExpr span=<inline>:1:18 value=1.0\n"
         "      PrintStmt span=<inline>:1:21\n"
         "        ArrayIndexExpr span=<inline>:1:27 array_name='a'\n"
         "          StringLiteralExpr span=<inline>:1:29 value='x'\n"
@@ -514,8 +517,8 @@ def test_quawk_reports_the_correct_file_for_multi_file_errors() -> None:
     result = run_quawk("-f", str(first_path), "-f", str(second_path))
 
     assert result.returncode == 2
-    assert result.stderr == (f"{second_path}:1:1: error: expected statement, got IDENT\n"
-                             "x\n"
+    assert result.stderr == (f"{second_path}:1:1: error: expected statement, got RPAREN\n"
+                             ")\n"
                              "^\n")
 
 

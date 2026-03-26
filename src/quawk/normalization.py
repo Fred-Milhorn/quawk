@@ -7,23 +7,34 @@ from dataclasses import dataclass
 from .parser import (
     Action,
     ArrayIndexExpr,
+    ArrayLValue,
+    AssignExpr,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
     BlockStmt,
+    ConditionalExpr,
     DeleteStmt,
+    DoWhileStmt,
     EndPattern,
     Expr,
     ExprPattern,
+    ExprStmt,
+    FieldExpr,
+    FieldLValue,
     ForInStmt,
     ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
+    NameLValue,
     PatternAction,
+    PostfixExpr,
+    PrintfStmt,
     PrintStmt,
     Program,
     Stmt,
+    UnaryExpr,
     WhileStmt,
 )
 
@@ -113,33 +124,63 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
         match expression:
             case NameExpr(name=name):
                 note_name(name)
-            case ArrayIndexExpr(index=index):
+            case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
+                note_name(array_name)
                 visit_expression(index)
+                for extra_index in extra_indexes:
+                    visit_expression(extra_index)
             case BinaryExpr(left=left, right=right):
                 visit_expression(left)
                 visit_expression(right)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                visit_expression(test)
+                visit_expression(if_true)
+                visit_expression(if_false)
+            case AssignExpr(target=target, value=value):
+                visit_lvalue(target)
+                visit_expression(value)
+            case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
+                visit_expression(operand)
+            case FieldExpr(index=index):
+                if not isinstance(index, int):
+                    visit_expression(index)
             case _:
                 return
 
+    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue) -> None:
+        match target:
+            case NameLValue(name=name):
+                note_name(name)
+            case ArrayLValue(name=name, subscripts=subscripts):
+                note_name(name)
+                for subscript in subscripts:
+                    visit_expression(subscript)
+            case FieldLValue(index=index):
+                visit_expression(index)
+
     def visit_statement(statement: Stmt) -> None:
         match statement:
-            case AssignStmt(name=name, index=index, value=value):
-                if index is None:
-                    note_name(name)
-                else:
-                    visit_expression(index)
+            case AssignStmt(target=target, value=value):
+                visit_lvalue(target)
+                visit_expression(value)
+            case ExprStmt(value=value):
                 visit_expression(value)
             case BlockStmt(statements=statements):
                 for nested in statements:
                     visit_statement(nested)
-            case DeleteStmt(index=index):
-                visit_expression(index)
-            case IfStmt(condition=condition, then_branch=then_branch):
+            case DeleteStmt(target=target):
+                visit_lvalue(target)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
                 visit_expression(condition)
                 visit_statement(then_branch)
+                if else_branch is not None:
+                    visit_statement(else_branch)
             case WhileStmt(condition=condition, body=body):
                 visit_expression(condition)
                 visit_statement(body)
+            case DoWhileStmt(body=body, condition=condition):
+                visit_statement(body)
+                visit_expression(condition)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 if init is not None:
                     visit_statement(init)
@@ -152,7 +193,7 @@ def collect_variable_indexes(program: Program) -> dict[str, int]:
                 note_name(name)
                 note_name(array_name)
                 visit_statement(body)
-            case PrintStmt(arguments=arguments):
+            case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
                 for argument in arguments:
                     visit_expression(argument)
             case _:
