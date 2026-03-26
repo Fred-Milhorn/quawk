@@ -31,20 +31,27 @@ from .parser import (
     ConditionalExpr,
     ContinueStmt,
     DeleteStmt,
+    DoWhileStmt,
     EndPattern,
+    ExitStmt,
     Expr,
     ExprPattern,
+    ExprStmt,
     FieldExpr,
     ForInStmt,
     ForStmt,
     FunctionDef,
     IfStmt,
     NameExpr,
+    NextFileStmt,
+    NextStmt,
     NumericLiteralExpr,
     PatternAction,
     PostfixExpr,
+    PrintfStmt,
     PrintStmt,
     Program,
+    RangePattern,
     RegexLiteralExpr,
     ReturnStmt,
     Stmt,
@@ -94,14 +101,24 @@ class RuntimeState:
     variables: dict[str, AwkValue] = field(default_factory=dict)
     arrays: dict[str, dict[str, AwkValue]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
+    field_separator: str | None = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class RecordContext:
     """Host-side view of the current input record for field resolution."""
 
     field0: str
-    fields: tuple[str, ...]
+    fields: list[str]
+
+
+@dataclass
+class HostRuntimeRecordItem:
+    """One record-phase item with optional range-pattern state."""
+
+    pattern: ExprPattern | RangePattern | None
+    action: Action | None
+    range_active: bool = False
 
 
 class ReturnSignal(Exception):
@@ -118,6 +135,22 @@ class BreakSignal(Exception):
 
 class ContinueSignal(Exception):
     """Internal control-flow signal used to skip to the next loop iteration."""
+
+
+class NextSignal(Exception):
+    """Internal control-flow signal used to skip to the next record."""
+
+
+class NextFileSignal(Exception):
+    """Internal control-flow signal used to skip the rest of the current file."""
+
+
+class ExitSignal(Exception):
+    """Internal control-flow signal used to terminate execution with a status."""
+
+    def __init__(self, status: int):
+        super().__init__()
+        self.status = status
 
 
 InitialVariables = list[tuple[str, float]]
@@ -142,6 +175,7 @@ class AwkValue:
 
 UNINITIALIZED_VALUE = AwkValue(ValueKind.UNINITIALIZED)
 NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
+PRINTF_SPEC_PATTERN = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)([%aAcdeEfgGiosuxX])")
 
 LocalScope = dict[str, AwkValue]
 
@@ -167,8 +201,7 @@ def emit_assembly(llvm_ir: str) -> str:
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
     if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
-        execute_host_runtime(program, [], None, initial_variables)
-        return 0
+        return execute_host_runtime(program, [], None, initial_variables)
     if requires_input_aware_execution(program):
         raise RuntimeError("input-aware programs require input-aware execution")
 
@@ -691,8 +724,7 @@ def execute_with_inputs(
 ) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
     if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
-        execute_host_runtime(program, input_files, field_separator, initial_variables)
-        return 0
+        return execute_host_runtime(program, input_files, field_separator, initial_variables)
     if requires_input_aware_execution(program):
         llvm_ir = lower_to_llvm_ir(program)
         llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
@@ -931,7 +963,7 @@ def has_input_aware_patterns(program: Program) -> bool:
             continue
         if item.pattern is None:
             return True
-        if isinstance(item.pattern, ExprPattern):
+        if isinstance(item.pattern, ExprPattern | RangePattern):
             return True
     return False
 
@@ -946,31 +978,57 @@ def execute_host_runtime(
     input_files: list[str],
     field_separator: str | None,
     initial_variables: InitialVariables | None = None,
-) -> None:
+) -> int:
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
-    begin_actions, record_items, end_actions = partition_runtime_items(program)
+    begin_actions, record_items, end_actions = partition_host_runtime_items(program)
     state = RuntimeState(
         variables={name: make_numeric_value(value) for name, value in (initial_variables or [])},
         functions=collect_function_definitions(program),
+        field_separator=field_separator,
     )
+    exit_status = 0
+    terminated = False
 
-    for action in begin_actions:
-        execute_action(action, state, record=None, locals_scope=None)
+    try:
+        for action in begin_actions:
+            execute_action(action, state, record=None, locals_scope=None)
+    except ExitSignal as signal:
+        exit_status = signal.status
+        terminated = True
 
-    if record_items:
-        for line in iter_input_records(input_files):
-            record_text = line.rstrip("\n")
-            fields = split_fields(record_text, field_separator)
-            record = RecordContext(
-                field0=record_text,
-                fields=tuple(fields),
-            )
-            for pattern, action in record_items:
-                if record_matches_pattern(pattern, record):
-                    execute_action(action, state, record=record, locals_scope=None)
+    if not terminated and record_items:
+        for input_records in iter_input_files(input_files):
+            skip_remaining_file = False
+            for line in input_records:
+                record_text = line.rstrip("\n")
+                record = RecordContext(
+                    field0=record_text,
+                    fields=split_fields(record_text, field_separator),
+                )
+                try:
+                    for item in record_items:
+                        if record_item_matches(item, state, record):
+                            execute_record_item(item, state, record)
+                except NextSignal:
+                    continue
+                except NextFileSignal:
+                    skip_remaining_file = True
+                    break
+                except ExitSignal as signal:
+                    exit_status = signal.status
+                    terminated = True
+                    break
+            if terminated:
+                break
+            if skip_remaining_file:
+                continue
 
     for action in end_actions:
-        execute_action(action, state, record=None, locals_scope=None)
+        try:
+            execute_action(action, state, record=None, locals_scope=None)
+        except ExitSignal as signal:
+            return signal.status
+    return exit_status
 
 
 def collect_record_contexts(
@@ -988,9 +1046,50 @@ def collect_record_contexts(
         record_text = line.rstrip("\n")
         records.append(RecordContext(
             field0=record_text,
-            fields=tuple(split_fields(record_text, field_separator)),
+            fields=split_fields(record_text, field_separator),
         ))
     return records
+
+
+def partition_host_runtime_items(
+    program: Program,
+) -> tuple[
+    list[Action],
+    list[HostRuntimeRecordItem],
+    list[Action],
+]:
+    """Split items into ordered BEGIN actions, record items, and END actions for the host runtime."""
+    begin_actions: list[Action] = []
+    record_items: list[HostRuntimeRecordItem] = []
+    end_actions: list[Action] = []
+
+    for item in program.items:
+        if isinstance(item, FunctionDef):
+            continue
+        if not isinstance(item, PatternAction):
+            raise RuntimeError("the current runtime only supports pattern-action items")
+
+        if item.pattern is None:
+            if item.action is None:
+                raise RuntimeError("bare record rules require an action in the current runtime")
+            record_items.append(HostRuntimeRecordItem(pattern=None, action=item.action))
+            continue
+        if isinstance(item.pattern, BeginPattern):
+            if item.action is None:
+                raise RuntimeError("BEGIN rules require an action in the current runtime")
+            begin_actions.append(item.action)
+            continue
+        if isinstance(item.pattern, EndPattern):
+            if item.action is None:
+                raise RuntimeError("END rules require an action in the current runtime")
+            end_actions.append(item.action)
+            continue
+        if isinstance(item.pattern, ExprPattern | RangePattern):
+            record_items.append(HostRuntimeRecordItem(pattern=item.pattern, action=item.action))
+            continue
+        raise RuntimeError("unsupported pattern in current runtime")
+
+    return begin_actions, record_items, end_actions
 
 
 def partition_runtime_items(
@@ -1039,19 +1138,26 @@ def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Acti
     return begin_actions, record_actions, end_actions
 
 
+def iter_input_files(input_files: list[str]) -> list[list[str]]:
+    """Collect logical input records grouped by input source."""
+    if not input_files:
+        return [sys.stdin.readlines()]
+
+    grouped_records: list[list[str]] = []
+    for path in input_files:
+        if path == "-":
+            grouped_records.append(sys.stdin.readlines())
+            continue
+        with Path(path).open("r", encoding="utf-8") as handle:
+            grouped_records.append(handle.readlines())
+    return grouped_records
+
+
 def iter_input_records(input_files: list[str]) -> list[str]:
     """Collect logical input records from files or standard input."""
     records: list[str] = []
-    if not input_files:
-        records.extend(sys.stdin.readlines())
-        return records
-
-    for path in input_files:
-        if path == "-":
-            records.extend(sys.stdin.readlines())
-            continue
-        with Path(path).open("r", encoding="utf-8") as handle:
-            records.extend(handle.readlines())
+    for grouped_records in iter_input_files(input_files):
+        records.extend(grouped_records)
     return records
 
 
@@ -1069,6 +1175,52 @@ def record_matches_pattern(pattern: ExprPattern | None, record: RecordContext) -
     if isinstance(pattern.test, RegexLiteralExpr):
         return regex_matches_record(pattern.test, record)
     raise RuntimeError("the current runtime only supports regex expression patterns for record selection")
+
+
+def record_item_matches(
+    item: HostRuntimeRecordItem,
+    state: RuntimeState,
+    record: RecordContext,
+) -> bool:
+    """Report whether one host-runtime record item should fire for the current record."""
+    pattern = item.pattern
+    if pattern is None:
+        return True
+    if isinstance(pattern, RangePattern):
+        if item.range_active:
+            if pattern_matches_record(pattern.right, state, record):
+                item.range_active = False
+            return True
+        if pattern_matches_record(pattern.left, state, record):
+            item.range_active = not pattern_matches_record(pattern.right, state, record)
+            return True
+        return False
+    return pattern_matches_record(pattern, state, record)
+
+
+def pattern_matches_record(
+    pattern: ExprPattern | BeginPattern | EndPattern | RangePattern,
+    state: RuntimeState,
+    record: RecordContext,
+) -> bool:
+    """Evaluate one record-phase pattern against the current record."""
+    if isinstance(pattern, ExprPattern):
+        if isinstance(pattern.test, RegexLiteralExpr):
+            return regex_matches_record(pattern.test, record)
+        return evaluate_condition(pattern.test, state, record, locals_scope=None)
+    raise RuntimeError("BEGIN, END, and nested range patterns are not supported in record-phase matching")
+
+
+def execute_record_item(
+    item: HostRuntimeRecordItem,
+    state: RuntimeState,
+    record: RecordContext,
+) -> None:
+    """Execute one record item, applying AWK's default print when no action is present."""
+    if item.action is None:
+        print_value(make_string_value(record.field0))
+        return
+    execute_action(item.action, state, record=record, locals_scope=None)
 
 
 def regex_matches_record(expression: RegexLiteralExpr, record: RecordContext) -> bool:
@@ -1105,6 +1257,11 @@ def execute_statement(
             index = statement.index
             if statement.op is not statement.op.PLAIN:
                 raise RuntimeError("compound assignments are not supported by the current runtime")
+            if statement.field_index is not None:
+                if record is None:
+                    raise RuntimeError("field assignments require an active input record")
+                assign_field_value(statement.field_index, value, state, record, locals_scope)
+                return
             if name is None:
                 raise RuntimeError("non-scalar assignments are not supported by the current runtime")
             if statement.extra_indexes:
@@ -1139,9 +1296,11 @@ def execute_statement(
             target_array = state.arrays.get(array_name)
             if target_array is not None:
                 target_array.pop(key, None)
-        case IfStmt(condition=condition, then_branch=then_branch):
+        case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
             if evaluate_condition(condition, state, record, locals_scope):
                 execute_statement(then_branch, state, record, locals_scope)
+            elif else_branch is not None:
+                execute_statement(else_branch, state, record, locals_scope)
         case WhileStmt(condition=condition, body=body):
             while evaluate_condition(condition, state, record, locals_scope):
                 try:
@@ -1149,6 +1308,16 @@ def execute_statement(
                 except ContinueSignal:
                     continue
                 except BreakSignal:
+                    break
+        case DoWhileStmt(body=body, condition=condition):
+            while True:
+                try:
+                    execute_statement(body, state, record, locals_scope)
+                except ContinueSignal:
+                    pass
+                except BreakSignal:
+                    break
+                if not evaluate_condition(condition, state, record, locals_scope):
                     break
         case ForStmt(init=init, condition=condition, update=update, body=body):
             if init is not None:
@@ -1185,6 +1354,19 @@ def execute_statement(
             if len(arguments) != 1:
                 raise RuntimeError("the current runtime only supports print with one argument")
             print_value(evaluate_value_expression(arguments[0], state, record, locals_scope))
+        case PrintfStmt(arguments=arguments):
+            if not arguments:
+                raise RuntimeError("printf requires at least a format string")
+            print(render_printf_output(arguments, state, record, locals_scope), end="")
+        case ExprStmt(value=value):
+            evaluate_value_expression(value, state, record, locals_scope)
+        case NextStmt():
+            raise NextSignal()
+        case NextFileStmt():
+            raise NextFileSignal()
+        case ExitStmt(value=value):
+            status = 0 if value is None else int(evaluate_numeric_expression(value, state, record, locals_scope))
+            raise ExitSignal(status)
         case _:
             raise RuntimeError("the current runtime only supports print with one argument")
 
@@ -1587,6 +1769,59 @@ def evaluate_field_index(
     return int(evaluate_numeric_expression(expression, state, record, locals_scope))
 
 
+def assign_field_value(
+    index_expression: Expr,
+    value: AwkValue,
+    state: RuntimeState,
+    record: RecordContext,
+    locals_scope: LocalScope | None,
+) -> None:
+    """Assign one value through a field lvalue and update `$0`/field views."""
+    field_index = evaluate_field_index(index_expression, state, record, locals_scope)
+    string_value = coerce_scalar_to_string(value)
+    if field_index == 0:
+        record.field0 = string_value
+        record.fields = split_fields(string_value, state.field_separator)
+        return
+    if field_index < 0:
+        raise RuntimeError("negative field indexes are not supported by the current runtime")
+
+    while len(record.fields) < field_index:
+        record.fields.append("")
+    record.fields[field_index - 1] = string_value
+    record.field0 = " ".join(record.fields)
+
+
+def render_printf_output(
+    arguments: tuple[Expr, ...],
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> str:
+    """Render one `printf` call using the current subset's format support."""
+    format_text = evaluate_string_expression(arguments[0], state, record, locals_scope)
+    specifiers = [match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_text) if match.group(1) != "%"]
+    if len(specifiers) != len(arguments) - 1:
+        raise RuntimeError("printf argument count does not match the format string in the current runtime")
+
+    formatted_args: list[object] = []
+    for specifier, argument in zip(specifiers, arguments[1:], strict=True):
+        value = evaluate_value_expression(argument, state, record, locals_scope)
+        if specifier in {"s"}:
+            formatted_args.append(coerce_scalar_to_string(value))
+            continue
+        if specifier in {"d", "i", "o", "u", "x", "X"}:
+            formatted_args.append(int(coerce_scalar_to_number(value)))
+            continue
+        formatted_args.append(coerce_scalar_to_number(value))
+
+    if not formatted_args:
+        return format_text % ()
+    if len(formatted_args) == 1:
+        return format_text % formatted_args[0]
+    return format_text % tuple(formatted_args)
+
+
 def format_numeric_value(value: float) -> str:
     """Render one numeric value using the current `%g`-style output shape."""
     return f"{value:g}"
@@ -1663,10 +1898,21 @@ def requires_host_runtime_value_execution(program: Program) -> bool:
                     expression_needs_value_runtime(condition, allow_string_literal=False)
                     or statement_needs_value_runtime(body)
                 )
+            case DoWhileStmt(body=body, condition=condition):
+                return (
+                    statement_needs_value_runtime(body)
+                    or expression_needs_value_runtime(condition, allow_string_literal=False)
+                )
             case PrintStmt(arguments=arguments):
                 return any(
                     expression_needs_value_runtime(argument, allow_string_literal=True) for argument in arguments
                 )
+            case PrintfStmt(arguments=arguments):
+                return any(
+                    expression_needs_value_runtime(argument, allow_string_literal=False) for argument in arguments
+                )
+            case ExprStmt(value=value):
+                return expression_needs_value_runtime(value, allow_string_literal=False)
             case ReturnStmt(value=value):
                 return value is not None and expression_needs_value_runtime(value, allow_string_literal=False)
             case _:
@@ -1680,6 +1926,8 @@ def requires_host_runtime_value_execution(program: Program) -> bool:
         if isinstance(item, PatternAction) and item.action is not None:
             if any(statement_needs_value_runtime(statement) for statement in item.action.statements):
                 return True
+        if isinstance(item, PatternAction) and item.action is None:
+            return True
     return False
 
 
@@ -1730,6 +1978,8 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 if else_branch is None:
                     return False
                 return statement_has_host_runtime_only_ops(else_branch)
+            case DoWhileStmt():
+                return True
             case WhileStmt(condition=condition, body=body):
                 return expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(body)
             case ForStmt():
@@ -1738,6 +1988,12 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 return True
             case PrintStmt(arguments=arguments):
                 return any(expression_has_host_runtime_only_ops(argument) for argument in arguments)
+            case PrintfStmt():
+                return True
+            case ExprStmt():
+                return True
+            case NextStmt() | NextFileStmt() | ExitStmt():
+                return True
             case ReturnStmt(value=value):
                 if value is None:
                     return False
@@ -1751,6 +2007,8 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 return True
             continue
         if isinstance(item, PatternAction):
+            if item.action is None or isinstance(item.pattern, RangePattern):
+                return True
             if isinstance(item.pattern, ExprPattern) and expression_has_host_runtime_only_ops(item.pattern.test):
                 return True
             if item.action is not None and any(

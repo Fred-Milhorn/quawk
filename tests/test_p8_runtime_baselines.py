@@ -23,7 +23,6 @@ def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProce
     )
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-116/T-117 not implemented: range-pattern default action execution")
 def test_range_pattern_without_action_prints_matching_records() -> None:
     result = run_quawk("/start/,/stop/", stdin="skip\nstart\nkeep\nstop\nafter\n")
 
@@ -32,7 +31,6 @@ def test_range_pattern_without_action_prints_matching_records() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: do-while runtime semantics")
 def test_do_while_executes_body_before_testing_condition() -> None:
     result = run_quawk("BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
@@ -41,7 +39,6 @@ def test_do_while_executes_body_before_testing_condition() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: next runtime semantics")
 def test_next_skips_to_the_next_record() -> None:
     result = run_quawk('/skip/ { next } { print $0 }', stdin="skip\nkeep\n")
 
@@ -50,7 +47,6 @@ def test_next_skips_to_the_next_record() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: nextfile runtime semantics")
 def test_nextfile_skips_remaining_records_in_current_file(tmp_path: Path) -> None:
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"
@@ -64,7 +60,6 @@ def test_nextfile_skips_remaining_records_in_current_file(tmp_path: Path) -> Non
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: exit runtime semantics")
 def test_exit_returns_requested_status_after_prior_output() -> None:
     result = run_quawk('BEGIN { print "before"; exit 7; print "after" }')
 
@@ -73,7 +68,6 @@ def test_exit_returns_requested_status_after_prior_output() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: printf runtime semantics")
 def test_printf_does_not_append_an_implicit_newline() -> None:
     result = run_quawk('BEGIN { printf "%s:%g", "x", 1 }')
 
@@ -99,7 +93,6 @@ def test_split_and_substr_builtins_execute() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-117 not implemented: dynamic field assignment semantics")
 def test_dynamic_field_assignment_updates_the_selected_field() -> None:
     result = run_quawk('{ i = 2; $i = 9; print $0 }', stdin="1 2 3\n")
 

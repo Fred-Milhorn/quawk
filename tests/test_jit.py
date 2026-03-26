@@ -154,6 +154,61 @@ def test_execute_host_runtime_supports_length_builtin_for_strings_and_arrays(cap
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_do_while(capsys) -> None:
+    program = parse_program("BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "0\n1\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_range_patterns_and_default_print(capsys, monkeypatch) -> None:
+    program = parse_program("/start/,/stop/")
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("skip\nstart\nkeep\nstop\nafter\n"))
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "start\nkeep\nstop\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_next_and_nextfile(capsys, monkeypatch, tmp_path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("a\nstop\nb\n", encoding="utf-8")
+    second.write_text("c\n", encoding="utf-8")
+
+    program = parse_program('/stop/ { nextfile }\n/skip/ { next }\n{ print $0 }')
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+
+    assert jit.execute_host_runtime(program, [str(first), str(second)], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "a\nc\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_printf_and_dynamic_field_assignment(capsys, monkeypatch) -> None:
+    program = parse_program('{ i = 2; $i = 9; print $0 }\nBEGIN { printf "%s:%g", "x", 1 }')
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("1 2 3\n"))
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "x:11 9 3\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_returns_exit_status_and_runs_end(capsys) -> None:
+    program = parse_program('BEGIN { print "before"; exit 7 }\nEND { print "done" }')
+
+    assert jit.execute_host_runtime(program, [], None) == 7
+    captured = capsys.readouterr()
+    assert captured.out == "before\ndone\n"
+    assert captured.err == ""
+
+
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 

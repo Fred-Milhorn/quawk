@@ -2,7 +2,6 @@ id = "printf_formatting"
 description = "Printf formatting emits the requested formatted output."
 program = "program.awk"
 tags = ["builtin", "printf", "p8"]
-xfail_reason = "T-115/T-117 not implemented: printf runtime semantics"
 
 [expect]
 stdout = "expected.stdout"

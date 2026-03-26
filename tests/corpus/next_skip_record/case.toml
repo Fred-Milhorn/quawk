@@ -3,7 +3,6 @@ description = "The next statement skips the remainder of the current record and 
 program = "program.awk"
 input = "input.txt"
 tags = ["runtime", "next", "p8"]
-xfail_reason = "T-115/T-117 not implemented: next runtime semantics"
 
 [expect]
 stdout = "expected.stdout"
