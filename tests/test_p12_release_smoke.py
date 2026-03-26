@@ -63,7 +63,6 @@ def test_release_smoke_requires_spec_feature_matrix() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.xfail(strict=True, reason="T-042: release checklist doc is not committed yet")
 def test_release_smoke_requires_versioned_release_checklist() -> None:
     checklist_path = ROOT / "docs" / "release-checklist.md"
 
@@ -71,7 +70,6 @@ def test_release_smoke_requires_versioned_release_checklist() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.xfail(strict=True, reason="T-042: changelog workflow artifact is not committed yet")
 def test_release_smoke_requires_changelog_artifact() -> None:
     changelog_path = ROOT / "CHANGELOG.md"
 

@@ -315,7 +315,8 @@ Next deliverable: P12 pre-release readiness
 Target outcome:
 - release-readiness smoke coverage, feature matrix, and release checklist are in place for an initial candidate
 
-1. `T-042` finalize release checklist and changelog workflow
+No remaining `P12` tasks are currently tracked.
+Reprioritize the roadmap before starting a new phase or adding post-`P12` work here.
 
 ## Backlog
 
@@ -420,7 +421,7 @@ Priority values:
 | T-037 | P11 | P1 | Add divergence manifest and classification workflow | T-035 | Divergences tracked with explicit categories | done |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
-| T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | todo |
+| T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

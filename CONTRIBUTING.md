@@ -90,11 +90,14 @@ mypy src
 
 Before opening or updating a PR, verify that:
 - the change is scoped and clearly explained
+- [CHANGELOG.md](CHANGELOG.md) was updated when the change affects user-visible behavior or release notes
 - affected docs or specs were updated
 - tests were added or updated when behavior changed
 - compatibility impact is called out explicitly
 - local links are relative and not broken
 - required local checks pass when the relevant tooling exists
+
+For release-process changes, update [docs/release-checklist.md](docs/release-checklist.md) in the same change.
 
 ## Review Notes
 
