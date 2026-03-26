@@ -226,6 +226,7 @@ Required jobs:
 
 Optional jobs initially:
 - `compat-smoke`
+- `release-smoke`
 
 Minimum CI matrix:
 - Python 3.14 on Linux x86_64
@@ -246,6 +247,7 @@ Common local commands once the scaffold exists:
 quawk --help
 corpus --list
 pytest
+pytest -m smoke
 yapf --diff --recursive src tests
 ruff check .
 mypy src
