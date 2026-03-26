@@ -143,7 +143,7 @@ def test_next_outside_record_action_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:9: error: next is only valid in record actions\n"
+        "<inline>:1:9: error[SEM006]: next is only valid in record actions\n"
         "BEGIN { next }\n"
         "        ^\n"
     )
@@ -154,7 +154,7 @@ def test_nextfile_outside_record_action_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:7: error: nextfile is only valid in record actions\n"
+        "<inline>:1:7: error[SEM007]: nextfile is only valid in record actions\n"
         "END { nextfile }\n"
         "      ^\n"
     )
@@ -165,7 +165,7 @@ def test_increment_on_non_lvalue_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:9: error: increment and decrement require an assignable expression\n"
+        "<inline>:1:9: error[SEM012]: increment and decrement require an assignable expression\n"
         "BEGIN { ++(1 + 2) }\n"
         "        ^\n"
     )

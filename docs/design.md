@@ -289,6 +289,22 @@ Exit status:
   4  Runtime, compiler, or internal failure
 ```
 
+Semantic diagnostic codes:
+- semantic errors include stable public codes in `error[SEMxxx]` format
+- current semantic catalog:
+  - `SEM001` duplicate function definition
+  - `SEM002` function parameter conflicts with function name
+  - `SEM003` duplicate function parameter name
+  - `SEM004` `break` outside a loop
+  - `SEM005` `continue` outside a loop
+  - `SEM006` `next` outside a record action
+  - `SEM007` `nextfile` outside a record action
+  - `SEM008` assignment to a function name
+  - `SEM009` `return` outside a function
+  - `SEM010` call to an undefined function
+  - `SEM011` invalid builtin call or builtin arity
+  - `SEM012` increment/decrement on a non-assignable expression
+
 Goals:
 - preserve familiar AWK invocation patterns
 - keep POSIX-style options front and center

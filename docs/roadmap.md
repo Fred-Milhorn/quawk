@@ -288,13 +288,12 @@ Next deliverable: P10 compatibility and hardening
 Target outcome:
 - compatibility infrastructure is ready to measure parser, semantic, and runtime gaps against other AWK implementations
 
-1. `T-023` define semantic error code catalog after core execution behavior stabilizes
-2. `T-015` add parser error recovery at statement boundaries
-3. `T-016` add parser golden tests for AST snapshots where they improve reviewability
-4. `T-047` author compatibility tests as `xfail` baseline for the supported subset
-5. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
-6. `T-036` seed compatibility corpus for supported parser/runtime behaviors
-7. `T-037` add divergence manifest and classification workflow
+1. `T-015` add parser error recovery at statement boundaries
+2. `T-016` add parser golden tests for AST snapshots where they improve reviewability
+3. `T-047` author compatibility tests as `xfail` baseline for the supported subset
+4. `T-035` implement differential test runner (`ota`, `gawk --posix`, `quawk`)
+5. `T-036` seed compatibility corpus for supported parser/runtime behaviors
+6. `T-037` add divergence manifest and classification workflow
 
 ## Backlog
 
@@ -343,7 +342,7 @@ Priority values:
 | T-020 | P5 | P1 | Implement control-flow legality checks when loops/functions land | T-018 | `break`/`continue`/`return` legality tests pass for supported constructs | done |
 | T-021 | P5 | P2 | Implement function declaration/definition checks when functions land | T-018 | Duplicate/conflicting definitions handled deterministically | done |
 | T-022 | P6 | P1 | Add normalization only where backend support needs it | T-019, T-020, T-021 | Lowering consumes stable normalized forms for supported behavior | done |
-| T-023 | P10 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | todo |
+| T-023 | P10 | P2 | Define semantic error code catalog after core execution behavior stabilizes | T-019, T-020, T-021 | Errors emitted with stable code and source span | done |
 | T-024 | P2 | P0 | Extend the runtime value model for numeric values in the current increment | T-014 | Runtime representation supports numeric literals and additive results | done |
 | T-025 | P2 | P0 | Extend lowering from supported AST forms to LLVM IR for numeric print | T-024 | `BEGIN { print 1 }` and `BEGIN { print 1 + 2 }` execute through the LLVM-backed path | done |
 | T-026 | P3 | P0 | Implement runtime input loop (`BEGIN`, records, `END`) when mixed program execution becomes active | T-024, T-025 | Mixed `BEGIN` / record / `END` fixtures pass for the supported subset | todo |

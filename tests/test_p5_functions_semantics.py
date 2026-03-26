@@ -34,7 +34,7 @@ def test_duplicate_function_definitions_report_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:2:1: error: duplicate function definition: f\n"
+        "<inline>:2:1: error[SEM001]: duplicate function definition: f\n"
         "function f(y) { return y }\n"
         "^\n"
     )
@@ -45,7 +45,7 @@ def test_duplicate_function_parameter_names_report_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:15: error: duplicate parameter name in function f: x\n"
+        "<inline>:1:15: error[SEM003]: duplicate parameter name in function f: x\n"
         "function f(x, x) { return x }\n"
         "              ^\n"
     )
@@ -56,7 +56,7 @@ def test_function_parameter_name_conflicting_with_function_name_reports_semantic
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:12: error: function parameter conflicts with function name: f\n"
+        "<inline>:1:12: error[SEM002]: function parameter conflicts with function name: f\n"
         "function f(f) { return f }\n"
         "           ^\n"
     )
@@ -67,7 +67,7 @@ def test_call_to_undefined_function_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:15: error: call to undefined function: missing\n"
+        "<inline>:1:15: error[SEM010]: call to undefined function: missing\n"
         "BEGIN { print missing(1) }\n"
         "              ^\n"
     )
@@ -78,7 +78,7 @@ def test_return_outside_function_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:9: error: return is only valid inside a function\n"
+        "<inline>:1:9: error[SEM009]: return is only valid inside a function\n"
         "BEGIN { return 1 }\n"
         "        ^\n"
     )
@@ -89,7 +89,7 @@ def test_assignment_to_function_name_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:2:9: error: cannot assign to function name: f\n"
+        "<inline>:2:9: error[SEM008]: cannot assign to function name: f\n"
         "BEGIN { f = 1 }\n"
         "        ^\n"
     )
@@ -100,7 +100,7 @@ def test_assignment_to_function_name_inside_function_reports_semantic_error() ->
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:17: error: cannot assign to function name: f\n"
+        "<inline>:1:17: error[SEM008]: cannot assign to function name: f\n"
         "function f(x) { f = 1; return x }\n"
         "                ^\n"
     )
@@ -111,7 +111,7 @@ def test_break_outside_loop_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:9: error: break is only valid inside a loop\n"
+        "<inline>:1:9: error[SEM004]: break is only valid inside a loop\n"
         "BEGIN { break }\n"
         "        ^\n"
     )
@@ -122,9 +122,20 @@ def test_continue_outside_loop_reports_semantic_error() -> None:
 
     assert result.returncode == 2
     assert result.stderr == (
-        "<inline>:1:9: error: continue is only valid inside a loop\n"
+        "<inline>:1:9: error[SEM005]: continue is only valid inside a loop\n"
         "BEGIN { continue }\n"
         "        ^\n"
+    )
+
+
+def test_builtin_arity_errors_report_semantic_error_code() -> None:
+    result = run_quawk("BEGIN { print substr(\"abc\") }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:15: error[SEM011]: builtin substr expects two or three arguments\n"
+        "BEGIN { print substr(\"abc\") }\n"
+        "              ^\n"
     )
 
 
