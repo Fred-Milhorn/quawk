@@ -200,28 +200,29 @@ AOT-oriented design goals:
 - `--ir` and `--asm` should describe the reusable compiled program, not a concrete run specialized to one input stream
 - input size should not cause IR size to scale with record count
 
-Currently supported execution path:
-- one `BEGIN` action
-- one or more `print` statements
-- string literals
-- numeric literals
-- additive numeric expressions
-- `<` comparisons
-- scalar assignments in `BEGIN`
-- scalar variable reads in expressions
-- `if` statements in `BEGIN`
-- `while` loops in `BEGIN`
-- nested braced blocks in `BEGIN`
-- user-defined functions and returns on the host-runtime path
-- associative arrays with indexed reads and writes
-- `delete`, classic `for`, and `for ... in`
-- the `length` builtin for strings, current records, and arrays
-- bare action record processing
-- `$0` and `$1` field reads
+Current implementation model:
+- the parser and semantic layers target the current `docs/grammar.ebnf` surface rather than an older execution-only subset
+- public execution is broader than backend inspection support: some programs execute through the reusable LLVM/runtime path, while others still fall back to the Python host runtime
+- `--ir` and `--asm` describe only the backend-lowered surface; they are not promised for every program that public `quawk` execution can run today
+
+Current public execution surface:
+- mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules
+- scalar and associative-array execution with AWK-style unset-value behavior and string/number coercions
+- `print` and `printf`
+- field reads, dynamic field assignment, and builtin variables such as `NR`, `FNR`, `NF`, and `FILENAME`
+- `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
+- assignment expressions, unary and postfix increment/decrement, and implicit concatenation
+- user-defined functions and returns
+- the current builtin tranche, including `length`, `split`, and `substr`
+- `-F` field-separator support and numeric `-v` preassignment
+
+Current backend and inspection surface:
+- the reusable LLVM/runtime path covers representative record-driven and richer `BEGIN` programs, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, and `next`
+- backend parity is intentionally narrower than public execution: programs that still require the host runtime do not have guaranteed `--ir` or `--asm` support
 
 Current architectural caveat:
-- mixed and richer BEGIN programs now lower through the reusable program/runtime split above
-- the host runtime remains the fallback for the language families not yet lowered through LLVM, including user-defined functions, `nextfile`, `exit`, and richer string-scalar semantics such as concatenation through assigned string variables
+- the preferred public path is the reusable program/runtime split above, not Python-side whole-input materialization
+- the host runtime remains the fallback for the language families not yet lowered through LLVM, notably user-defined functions, `exit`, `nextfile`, and richer scalar-string execution paths such as concatenation through scalar reads
 - compatibility work should drive whether the remaining host-runtime fallback families are lowered further or explicitly scoped
 
 Acceptance scenarios:
@@ -235,11 +236,16 @@ Acceptance scenarios:
 - inline `function f(x) { return x + 1 } BEGIN { print f(2) }` executes correctly
 - inline `BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }` executes correctly
 - inline `BEGIN { a["x"] = 1; for (k in a) print k }` executes correctly
+- inline `BEGIN { for (i = 0, j = 5; i < 3; i++, --j) print i }` executes correctly
 - inline `BEGIN { print length("hello") }` executes correctly
 - inline `BEGIN { print substr("hello", 2, 3) }` executes correctly
 - inline `BEGIN { n = split("a b", a); print n; print a[1] }` executes correctly
+- inline `BEGIN { x = "12"; print x + 1; print x "a" }` executes correctly
 - inline `{ print $0 }` processes stdin records correctly
 - inline `{ print $1 }` processes stdin records correctly
+- inline `{ i = 2; $i = 9; print $0 }` updates the selected field and record text correctly
+- inline `/start/,/stop/` executes with the default print action over the selected record range
+- inline `/stop/ { nextfile } { print $0 }` skips the remainder of the current file correctly
 - inline `{ print NR; print FNR; print NF }` updates builtin variables per record
 - `-f hello.awk` with the same program compiles and executes
 - unsupported syntax fails with deterministic diagnostics
@@ -303,6 +309,7 @@ Semantic diagnostic codes:
   - `SEM010` call to an undefined function
   - `SEM011` invalid builtin call or builtin arity
   - `SEM012` increment/decrement on a non-assignable expression
+  - `SEM013` invalid `for ... in` iterable
 
 Goals:
 - preserve familiar AWK invocation patterns
@@ -310,10 +317,10 @@ Goals:
 - keep the initial CLI contract small until real implementation pressure justifies expansion
 
 Program source rules:
-- if one or more `-f` options are present, concatenate those files in order
+- if one or more `-f` options are present, those files define the AWK program in order
 - otherwise, the first non-option argument is the AWK program text
 - remaining arguments are input files or stdin if none are provided
-- mixing `-f` with inline program text is an error
+- when `-f` is used, the first positional operand is treated as an input file, not inline program text
 
 Repeated `-v` assignments apply in argument order. In the current executable subset,
 `-v` supports numeric scalar values only.
@@ -354,6 +361,7 @@ Target baseline:
 - standard expression and operator behavior, including implicit concatenation
 
 Current limitations:
-- scalar string variables and string-valued `-v` assignments are not supported yet
+- string-valued `-v` assignments are not supported yet
+- `--ir` and `--asm` only cover programs that fit the current backend-lowered surface; public execution is broader
 - assembly inspection output is backend- and platform-dependent
 - compatibility corpus is still in bootstrap phase

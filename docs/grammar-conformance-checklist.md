@@ -7,7 +7,6 @@ tracked by `P10` and `T-122` through `T-126`.
 
 | Area | Doc Source | Current Drift | Baseline | Next Task |
 |---|---|---|---|---|
-| Current execution model description matches shipped behavior | [design.md](/Users/fred/dev/quawk/docs/design.md) | Current-state prose still understates the implemented feature surface and backend split | [grammar-alignment.md](/Users/fred/dev/quawk/docs/grammar-alignment.md) | `T-125` |
 | Current parser AST vs future normalized AST are clearly distinguished | [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl) | The documented AST role is still broader and differently shaped than the implemented parser tree | [grammar-alignment.md](/Users/fred/dev/quawk/docs/grammar-alignment.md) | `T-126` |
 
 ## Existing Coverage That Already Helps
@@ -23,5 +22,4 @@ tracked by `P10` and `T-122` through `T-126`.
 This checklist can be retired or collapsed into broader docs when:
 
 - the `T-122` xfail baselines are burned down
-- `design.md` describes the current implementation honestly
 - the AST docs clearly separate current and future shapes
