@@ -82,12 +82,12 @@ def test_execute_host_runtime_keeps_function_parameters_local(capsys) -> None:
     assert captured.err == ""
 
 
-def test_execute_host_runtime_defaults_unset_globals_to_zero(capsys) -> None:
+def test_execute_host_runtime_prints_unset_globals_as_empty_strings(capsys) -> None:
     program = parse_program("function f(x) { return x }\nBEGIN { print y }")
 
     jit.execute_host_runtime(program, [], None)
     captured = capsys.readouterr()
-    assert captured.out == "0\n"
+    assert captured.out == "\n"
     assert captured.err == ""
 
 
@@ -96,7 +96,7 @@ def test_execute_host_runtime_supports_array_assignment_and_indexed_read(capsys)
 
     jit.execute_host_runtime(program, [], None)
     captured = capsys.readouterr()
-    assert captured.out == "1\n0\n"
+    assert captured.out == "1\n\n"
     assert captured.err == ""
 
 
@@ -105,7 +105,25 @@ def test_execute_host_runtime_supports_array_delete(capsys) -> None:
 
     jit.execute_host_runtime(program, [], None)
     captured = capsys.readouterr()
-    assert captured.out == "0\n"
+    assert captured.out == "\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_coerces_string_scalars_in_arithmetic_and_concat(capsys) -> None:
+    program = parse_program('BEGIN { x = "12"; print x + 1; print x "a" }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "13\n12a\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_uses_string_truthiness_and_string_comparison(capsys) -> None:
+    program = parse_program('BEGIN { x = "0"; y = ""; print x && 1; print !y; z = "2"; print z < 10 }')
+
+    jit.execute_host_runtime(program, [], None)
+    captured = capsys.readouterr()
+    assert captured.out == "1\n1\n0\n"
     assert captured.err == ""
 
 

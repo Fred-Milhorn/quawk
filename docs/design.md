@@ -302,7 +302,11 @@ Repeated `-v` assignments apply in argument order. In the current executable sub
 
 Unset scalar reads use AWK-style defaults in the current runtime subset:
 - numeric contexts read as `0`
-- printing an unset scalar produces `0`
+- string/print contexts read as `""`
+
+Missing associative-array elements follow the same value-cell rules:
+- numeric contexts read as `0`
+- string/print contexts read as `""`
 
 Inspection rules:
 - `--lex`, `--parse`, `--ir`, and `--asm` are mutually exclusive

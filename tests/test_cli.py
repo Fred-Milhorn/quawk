@@ -112,19 +112,19 @@ def test_quawk_rejects_v_assignment_to_function_name() -> None:
     assert result.stderr == "quawk: cannot assign to function name via -v: f\n"
 
 
-def test_quawk_defaults_unset_begin_scalar_reads_to_zero() -> None:
+def test_quawk_prints_unset_begin_scalars_as_empty_strings() -> None:
     result = run_quawk("BEGIN { print x }")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "0\n"
+    assert result.stdout == "\n"
     assert result.stderr == ""
 
 
-def test_quawk_defaults_unset_mixed_program_scalar_reads_to_zero() -> None:
+def test_quawk_prints_unset_mixed_program_scalars_as_empty_strings() -> None:
     result = run_quawk('BEGIN { print x } END { print "done" }')
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "0\ndone\n"
+    assert result.stdout == "\ndone\n"
     assert result.stderr == ""
 
 

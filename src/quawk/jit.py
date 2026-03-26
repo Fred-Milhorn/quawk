@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TextIO
@@ -19,6 +20,7 @@ from .normalization import NormalizedLoweringProgram, normalize_program_for_lowe
 from .parser import (
     Action,
     ArrayIndexExpr,
+    AssignExpr,
     AssignStmt,
     BeginPattern,
     BinaryExpr,
@@ -26,6 +28,7 @@ from .parser import (
     BlockStmt,
     BreakStmt,
     CallExpr,
+    ConditionalExpr,
     ContinueStmt,
     DeleteStmt,
     EndPattern,
@@ -39,12 +42,15 @@ from .parser import (
     NameExpr,
     NumericLiteralExpr,
     PatternAction,
+    PostfixExpr,
     PrintStmt,
     Program,
     RegexLiteralExpr,
     ReturnStmt,
     Stmt,
     StringLiteralExpr,
+    UnaryExpr,
+    UnaryOp,
     WhileStmt,
 )
 
@@ -85,8 +91,8 @@ class LoweringState:
 class RuntimeState:
     """Mutable host-runtime state for the currently supported interpreter path."""
 
-    variables: dict[str, float | str] = field(default_factory=dict)
-    arrays: dict[str, dict[str, float]] = field(default_factory=dict)
+    variables: dict[str, AwkValue] = field(default_factory=dict)
+    arrays: dict[str, dict[str, AwkValue]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
 
 
@@ -101,7 +107,7 @@ class RecordContext:
 class ReturnSignal(Exception):
     """Internal control-flow signal used to unwind one function return."""
 
-    def __init__(self, value: float):
+    def __init__(self, value: AwkValue):
         super().__init__()
         self.value = value
 
@@ -115,8 +121,29 @@ class ContinueSignal(Exception):
 
 
 InitialVariables = list[tuple[str, float]]
-ScalarValue = float | str
-LocalScope = dict[str, ScalarValue]
+
+
+class ValueKind(Enum):
+    """Classify the host runtime's scalar values by their primary AWK view."""
+
+    UNINITIALIZED = auto()
+    NUMBER = auto()
+    STRING = auto()
+
+
+@dataclass(frozen=True)
+class AwkValue:
+    """Host-runtime scalar cell with AWK-style numeric and string coercions."""
+
+    kind: ValueKind
+    number: float = 0.0
+    string: str = ""
+
+
+UNINITIALIZED_VALUE = AwkValue(ValueKind.UNINITIALIZED)
+NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
+
+LocalScope = dict[str, AwkValue]
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -139,7 +166,7 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
-    if requires_host_runtime_execution(program):
+    if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
         execute_host_runtime(program, [], None, initial_variables)
         return 0
     if requires_input_aware_execution(program):
@@ -663,7 +690,7 @@ def execute_with_inputs(
     initial_variables: InitialVariables | None = None,
 ) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
-    if requires_host_runtime_execution(program):
+    if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
         execute_host_runtime(program, input_files, field_separator, initial_variables)
         return 0
     if requires_input_aware_execution(program):
@@ -923,7 +950,7 @@ def execute_host_runtime(
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
     begin_actions, record_items, end_actions = partition_runtime_items(program)
     state = RuntimeState(
-        variables=dict(initial_variables or []),
+        variables={name: make_numeric_value(value) for name, value in (initial_variables or [])},
         functions=collect_function_definitions(program),
     )
 
@@ -1073,7 +1100,7 @@ def execute_statement(
     """Execute one statement in the currently supported host-runtime subset."""
     match statement:
         case AssignStmt(value=expression):
-            value = evaluate_numeric_expression(expression, state, record, locals_scope)
+            value = evaluate_value_expression(expression, state, record, locals_scope)
             name = statement.name
             index = statement.index
             if statement.op is not statement.op.PLAIN:
@@ -1109,7 +1136,7 @@ def execute_statement(
                 state.arrays.pop(array_name, None)
                 return
             key = evaluate_array_index(index, state, record, locals_scope)
-            target_array: dict[str, float] | None = state.arrays.get(array_name)
+            target_array = state.arrays.get(array_name)
             if target_array is not None:
                 target_array.pop(key, None)
         case IfStmt(condition=condition, then_branch=then_branch):
@@ -1141,7 +1168,7 @@ def execute_statement(
         case ForInStmt(name=name, array_name=array_name, body=body):
             keys = tuple(state.arrays.get(array_name, {}).keys())
             for key in keys:
-                assign_scalar_value(name, key, state, locals_scope)
+                assign_scalar_value(name, make_string_value(key), state, locals_scope)
                 try:
                     execute_statement(body, state, record, locals_scope)
                 except ContinueSignal:
@@ -1152,39 +1179,132 @@ def execute_statement(
             if locals_scope is None:
                 raise RuntimeError("return is only valid inside a function")
             if value is None:
-                raise ReturnSignal(0.0)
-            raise ReturnSignal(evaluate_numeric_expression(value, state, record, locals_scope))
+                raise ReturnSignal(UNINITIALIZED_VALUE)
+            raise ReturnSignal(evaluate_value_expression(value, state, record, locals_scope))
         case PrintStmt(arguments=arguments):
             if len(arguments) != 1:
                 raise RuntimeError("the current runtime only supports print with one argument")
-            print_value(evaluate_print_expression(arguments[0], state, record, locals_scope))
+            print_value(evaluate_value_expression(arguments[0], state, record, locals_scope))
         case _:
             raise RuntimeError("the current runtime only supports print with one argument")
 
 
-def evaluate_print_expression(
+def evaluate_value_expression(
     expression: Expr,
     state: RuntimeState,
     record: RecordContext | None,
     locals_scope: LocalScope | None,
-) -> str | float:
-    """Evaluate an expression in the forms the current runtime can print."""
+) -> AwkValue:
+    """Evaluate an expression into the host runtime's AWK value model."""
     match expression:
+        case NumericLiteralExpr(value=literal_value):
+            return make_numeric_value(literal_value)
         case StringLiteralExpr(value=literal_value):
-            return literal_value
+            return make_string_value(literal_value)
         case FieldExpr(index=index):
             if record is None:
                 raise RuntimeError("field expressions require an active input record")
-            if not isinstance(index, int):
-                raise RuntimeError("dynamic field expressions are not supported by the current runtime")
-            return resolve_field_value(index, record)
-        case ArrayIndexExpr():
-            return evaluate_numeric_expression(expression, state, record, locals_scope)
+            field_index = index if isinstance(index, int) else evaluate_field_index(index, state, record, locals_scope)
+            return make_string_value(resolve_field_value(field_index, record))
+        case ArrayIndexExpr(array_name=array_name, index=index):
+            key = evaluate_array_index(index, state, record, locals_scope)
+            array = state.arrays.get(array_name)
+            if array is None:
+                return UNINITIALIZED_VALUE
+            return array.get(key, UNINITIALIZED_VALUE)
         case NameExpr(name=name):
-            scalar_value = read_scalar_value(name, state, locals_scope)
-            return 0.0 if scalar_value is None else scalar_value
+            return read_scalar_value(name, state, locals_scope)
+        case CallExpr():
+            return call_function(expression, state, record, locals_scope)
+        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+            if evaluate_condition(test, state, record, locals_scope):
+                return evaluate_value_expression(if_true, state, record, locals_scope)
+            return evaluate_value_expression(if_false, state, record, locals_scope)
+        case UnaryExpr(op=op, operand=operand):
+            match op:
+                case UnaryOp.UPLUS:
+                    return make_numeric_value(evaluate_numeric_expression(operand, state, record, locals_scope))
+                case UnaryOp.UMINUS:
+                    return make_numeric_value(-evaluate_numeric_expression(operand, state, record, locals_scope))
+                case UnaryOp.NOT:
+                    return make_numeric_value(0.0 if evaluate_condition(operand, state, record, locals_scope) else 1.0)
+                case _:
+                    raise RuntimeError(f"unsupported unary operator in current runtime: {op.name}")
+        case PostfixExpr():
+            raise RuntimeError("increment and decrement are not supported by the current runtime")
+        case AssignExpr():
+            raise RuntimeError("assignment expressions are not supported by the current runtime")
+        case BinaryExpr(op=op, left=left, right=right):
+            match op:
+                case BinaryOp.ADD:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        + evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.SUB:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        - evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.MUL:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        * evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.DIV:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        / evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.MOD:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        % evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.POW:
+                    return make_numeric_value(
+                        evaluate_numeric_expression(left, state, record, locals_scope)
+                        ** evaluate_numeric_expression(right, state, record, locals_scope)
+                    )
+                case BinaryOp.LESS | BinaryOp.LESS_EQUAL | BinaryOp.GREATER | BinaryOp.GREATER_EQUAL:
+                    return make_numeric_value(
+                        1.0 if compare_values(op, left, right, state, record, locals_scope) else 0.0
+                    )
+                case BinaryOp.EQUAL | BinaryOp.NOT_EQUAL:
+                    return make_numeric_value(
+                        1.0 if compare_values(op, left, right, state, record, locals_scope) else 0.0
+                    )
+                case BinaryOp.LOGICAL_AND:
+                    if not evaluate_condition(left, state, record, locals_scope):
+                        return make_numeric_value(0.0)
+                    return make_numeric_value(1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0)
+                case BinaryOp.LOGICAL_OR:
+                    if evaluate_condition(left, state, record, locals_scope):
+                        return make_numeric_value(1.0)
+                    return make_numeric_value(1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0)
+                case BinaryOp.CONCAT:
+                    return make_string_value(
+                        coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope))
+                        + coerce_scalar_to_string(evaluate_value_expression(right, state, record, locals_scope))
+                    )
+                case BinaryOp.MATCH:
+                    return make_numeric_value(
+                        1.0 if evaluate_match_expression(left, right, state, record, locals_scope) else 0.0
+                    )
+                case BinaryOp.NOT_MATCH:
+                    return make_numeric_value(
+                        0.0 if evaluate_match_expression(left, right, state, record, locals_scope) else 1.0
+                    )
+                case BinaryOp.IN:
+                    return make_numeric_value(
+                        1.0 if evaluate_in_expression(left, right, state, record, locals_scope) else 0.0
+                    )
+                case _:
+                    raise RuntimeError(f"unsupported binary operator in current runtime: {op.name}")
+        case RegexLiteralExpr(raw_text=raw_text):
+            return make_string_value(raw_text)
         case _:
-            return evaluate_numeric_expression(expression, state, record, locals_scope)
+            raise RuntimeError("unsupported expression in current runtime")
 
 
 def evaluate_numeric_expression(
@@ -1194,46 +1314,7 @@ def evaluate_numeric_expression(
     locals_scope: LocalScope | None,
 ) -> float:
     """Evaluate a numeric expression in the current host-runtime subset."""
-    match expression:
-        case NumericLiteralExpr(value=literal_value):
-            return literal_value
-        case ArrayIndexExpr(array_name=array_name, index=index):
-            key = evaluate_array_index(index, state, record, locals_scope)
-            array = state.arrays.get(array_name)
-            if array is None:
-                return 0.0
-            return array.get(key, 0.0)
-        case NameExpr(name=name):
-            scalar_value = read_scalar_value(name, state, locals_scope)
-            return coerce_scalar_to_number(scalar_value)
-        case CallExpr():
-            return call_function(expression, state, record, locals_scope)
-        case BinaryExpr(op=op, left=left, right=right):
-            match op:
-                case BinaryOp.ADD:
-                    return evaluate_numeric_expression(
-                        left,
-                        state,
-                        record,
-                        locals_scope,
-                    ) + evaluate_numeric_expression(right, state, record, locals_scope)
-                case BinaryOp.LESS:
-                    return 1.0 if evaluate_condition(expression, state, record, locals_scope) else 0.0
-                case BinaryOp.EQUAL:
-                    left_value = evaluate_numeric_expression(left, state, record, locals_scope)
-                    right_value = evaluate_numeric_expression(right, state, record, locals_scope)
-                    return 1.0 if left_value == right_value else 0.0
-                case BinaryOp.LOGICAL_AND:
-                    if not evaluate_condition(left, state, record, locals_scope):
-                        return 0.0
-                    return 1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0
-                case _:
-                    raise RuntimeError(f"unsupported numeric operator in current runtime: {op.name}")
-        case _:
-            raise RuntimeError(
-                "the current runtime only supports numeric literals, "
-                "variable reads, and the current arithmetic/boolean subset"
-            )
+    return coerce_scalar_to_number(evaluate_value_expression(expression, state, record, locals_scope))
 
 
 def evaluate_condition(
@@ -1243,30 +1324,7 @@ def evaluate_condition(
     locals_scope: LocalScope | None,
 ) -> bool:
     """Evaluate a condition expression using the supported truthiness rules."""
-    match expression:
-        case BinaryExpr(op=BinaryOp.LESS, left=left, right=right):
-            return evaluate_numeric_expression(
-                left,
-                state,
-                record,
-                locals_scope,
-            ) < evaluate_numeric_expression(right, state, record, locals_scope)
-        case BinaryExpr(op=BinaryOp.EQUAL, left=left, right=right):
-            return evaluate_numeric_expression(
-                left,
-                state,
-                record,
-                locals_scope,
-            ) == evaluate_numeric_expression(right, state, record, locals_scope)
-        case BinaryExpr(op=BinaryOp.LOGICAL_AND, left=left, right=right):
-            return evaluate_condition(left, state, record, locals_scope) and evaluate_condition(
-                right,
-                state,
-                record,
-                locals_scope,
-            )
-        case _:
-            return evaluate_numeric_expression(expression, state, record, locals_scope) != 0.0
+    return coerce_scalar_to_truthy(evaluate_value_expression(expression, state, record, locals_scope))
 
 
 def call_function(
@@ -1274,7 +1332,7 @@ def call_function(
     state: RuntimeState,
     record: RecordContext | None,
     caller_locals: LocalScope | None,
-) -> float:
+) -> AwkValue:
     """Execute one user-defined function call in the current host runtime."""
     function_def = state.functions.get(expression.function)
     if function_def is None and is_builtin_function_name(expression.function):
@@ -1287,7 +1345,7 @@ def call_function(
         )
 
     locals_scope: LocalScope = {
-        param: evaluate_numeric_expression(argument, state, record, caller_locals)
+        param: evaluate_value_expression(argument, state, record, caller_locals)
         for param, argument in zip(function_def.params, expression.args, strict=True)
     }
     try:
@@ -1295,7 +1353,7 @@ def call_function(
             execute_statement(statement, state, record, locals_scope)
     except ReturnSignal as signal:
         return signal.value
-    return 0.0
+    return UNINITIALIZED_VALUE
 
 
 def call_builtin_function(
@@ -1303,7 +1361,7 @@ def call_builtin_function(
     state: RuntimeState,
     record: RecordContext | None,
     locals_scope: LocalScope | None,
-) -> float:
+) -> AwkValue:
     """Execute one supported builtin function call in the current host runtime."""
     if expression.function == "length":
         return call_length_builtin(expression, state, record, locals_scope)
@@ -1315,19 +1373,19 @@ def call_length_builtin(
     state: RuntimeState,
     record: RecordContext | None,
     locals_scope: LocalScope | None,
-) -> float:
+) -> AwkValue:
     """Execute the current subset's `length` builtin."""
     if len(expression.args) > 1:
         raise RuntimeError("builtin length expects zero or one argument")
     if not expression.args:
-        return float(len(record.field0)) if record is not None else 0.0
+        return make_numeric_value(float(len(record.field0)) if record is not None else 0.0)
 
     argument = expression.args[0]
     if isinstance(argument, NameExpr):
         scalar_value = read_scalar_value(argument.name, state, locals_scope)
-        if scalar_value is None and argument.name in state.arrays:
-            return float(len(state.arrays[argument.name]))
-    return float(len(evaluate_string_expression(argument, state, record, locals_scope)))
+        if scalar_value.kind is ValueKind.UNINITIALIZED and argument.name in state.arrays:
+            return make_numeric_value(float(len(state.arrays[argument.name])))
+    return make_numeric_value(float(len(evaluate_string_expression(argument, state, record, locals_scope))))
 
 
 def evaluate_array_index(
@@ -1337,18 +1395,16 @@ def evaluate_array_index(
     locals_scope: LocalScope | None,
 ) -> str:
     """Evaluate one associative-array index using the current subset's coercions."""
-    if isinstance(expression, StringLiteralExpr):
-        return expression.value
     if isinstance(expression, FieldExpr):
         if record is None:
             raise RuntimeError("field expressions require an active input record")
-        return resolve_field_value(static_field_index(expression), record)
-    if isinstance(expression, NameExpr):
-        value = read_scalar_value(expression.name, state, locals_scope)
-        if isinstance(value, str):
-            return value
-        return format_numeric_value(0.0 if value is None else value)
-    return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
+        field_index = (
+            expression.index
+            if isinstance(expression.index, int)
+            else evaluate_field_index(expression.index, state, record, locals_scope)
+        )
+        return resolve_field_value(field_index, record)
+    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope))
 
 
 def evaluate_string_expression(
@@ -1358,41 +1414,23 @@ def evaluate_string_expression(
     locals_scope: LocalScope | None,
 ) -> str:
     """Evaluate an expression into the string view needed by string-oriented builtins."""
-    if isinstance(expression, StringLiteralExpr):
-        return expression.value
-    if isinstance(expression, FieldExpr):
-        if record is None:
-            raise RuntimeError("field expressions require an active input record")
-        return resolve_field_value(static_field_index(expression), record)
-    if isinstance(expression, NameExpr):
-        value = read_scalar_value(expression.name, state, locals_scope)
-        if value is None:
-            return ""
-        if isinstance(value, str):
-            return value
-        return format_numeric_value(value)
-    if isinstance(expression, ArrayIndexExpr):
-        return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
-    return format_numeric_value(evaluate_numeric_expression(expression, state, record, locals_scope))
+    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope))
 
 
 def read_scalar_value(
     name: str,
     state: RuntimeState,
     locals_scope: LocalScope | None,
-) -> ScalarValue | None:
+) -> AwkValue:
     """Read one scalar from the active local scope first, then globals."""
-    value = None
-    if locals_scope is not None:
-        value = locals_scope.get(name)
-    if value is None:
-        value = state.variables.get(name)
-    return value
+    if locals_scope is not None and name in locals_scope:
+        return locals_scope[name]
+    return state.variables.get(name, UNINITIALIZED_VALUE)
 
 
 def assign_scalar_value(
     name: str,
-    value: ScalarValue,
+    value: AwkValue,
     state: RuntimeState,
     locals_scope: LocalScope | None,
 ) -> None:
@@ -1403,24 +1441,150 @@ def assign_scalar_value(
     state.variables[name] = value
 
 
-def coerce_scalar_to_number(value: ScalarValue | None) -> float:
+def coerce_scalar_to_number(value: AwkValue) -> float:
     """Coerce the current scalar subset into its numeric value."""
-    if value is None:
-        return 0.0
-    if isinstance(value, str):
-        try:
-            return float(value)
-        except ValueError:
+    match value.kind:
+        case ValueKind.UNINITIALIZED:
             return 0.0
-    return value
+        case ValueKind.NUMBER:
+            return value.number
+        case ValueKind.STRING:
+            return parse_awk_numeric_prefix(value.string)
 
 
-def print_value(value: str | float) -> None:
+def coerce_scalar_to_string(value: AwkValue) -> str:
+    """Coerce one runtime value into its string view."""
+    match value.kind:
+        case ValueKind.UNINITIALIZED:
+            return ""
+        case ValueKind.NUMBER:
+            return format_numeric_value(value.number)
+        case ValueKind.STRING:
+            return value.string
+
+
+def coerce_scalar_to_truthy(value: AwkValue) -> bool:
+    """Apply AWK-style truthiness to one runtime value."""
+    match value.kind:
+        case ValueKind.UNINITIALIZED:
+            return False
+        case ValueKind.NUMBER:
+            return value.number != 0.0
+        case ValueKind.STRING:
+            return value.string != ""
+
+
+def print_value(value: AwkValue) -> None:
     """Print one runtime value with the same formatting the LLVM path uses today."""
-    if isinstance(value, str):
-        print(value)
-        return
-    print(format_numeric_value(value))
+    print(coerce_scalar_to_string(value))
+
+
+def make_numeric_value(value: float) -> AwkValue:
+    """Create one numeric runtime value."""
+    return AwkValue(ValueKind.NUMBER, number=value)
+
+
+def make_string_value(value: str) -> AwkValue:
+    """Create one string runtime value."""
+    return AwkValue(ValueKind.STRING, string=value)
+
+
+def parse_awk_numeric_prefix(text: str) -> float:
+    """Parse the numeric prefix AWK would use when coercing a string to a number."""
+    match = NUMERIC_PREFIX_PATTERN.match(text)
+    if match is None:
+        return 0.0
+    return float(match.group(1))
+
+
+def compare_values(
+    op: BinaryOp,
+    left: Expr,
+    right: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> bool:
+    """Evaluate one comparison operator with AWK-style string/number coercions."""
+    left_value = evaluate_value_expression(left, state, record, locals_scope)
+    right_value = evaluate_value_expression(right, state, record, locals_scope)
+
+    if left_value.kind is ValueKind.STRING or right_value.kind is ValueKind.STRING:
+        left_string = coerce_scalar_to_string(left_value)
+        right_string = coerce_scalar_to_string(right_value)
+        match op:
+            case BinaryOp.LESS:
+                return left_string < right_string
+            case BinaryOp.LESS_EQUAL:
+                return left_string <= right_string
+            case BinaryOp.GREATER:
+                return left_string > right_string
+            case BinaryOp.GREATER_EQUAL:
+                return left_string >= right_string
+            case BinaryOp.EQUAL:
+                return left_string == right_string
+            case BinaryOp.NOT_EQUAL:
+                return left_string != right_string
+            case _:
+                raise RuntimeError(f"unsupported comparison operator in current runtime: {op.name}")
+
+    left_number = coerce_scalar_to_number(left_value)
+    right_number = coerce_scalar_to_number(right_value)
+    match op:
+        case BinaryOp.LESS:
+            return left_number < right_number
+        case BinaryOp.LESS_EQUAL:
+            return left_number <= right_number
+        case BinaryOp.GREATER:
+            return left_number > right_number
+        case BinaryOp.GREATER_EQUAL:
+            return left_number >= right_number
+        case BinaryOp.EQUAL:
+            return left_number == right_number
+        case BinaryOp.NOT_EQUAL:
+            return left_number != right_number
+        case _:
+            raise RuntimeError(f"unsupported comparison operator in current runtime: {op.name}")
+
+
+def evaluate_match_expression(
+    left: Expr,
+    right: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> bool:
+    """Evaluate one string/regex match expression in the host runtime."""
+    left_string = evaluate_string_expression(left, state, record, locals_scope)
+    right_value = evaluate_value_expression(right, state, record, locals_scope)
+    pattern_text = coerce_scalar_to_string(right_value)
+    if isinstance(right, RegexLiteralExpr):
+        pattern_text = right.raw_text[1:-1]
+    return re.search(pattern_text, left_string) is not None
+
+
+def evaluate_in_expression(
+    left: Expr,
+    right: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> bool:
+    """Evaluate the current subset's array-membership operator."""
+    if not isinstance(right, NameExpr):
+        raise RuntimeError("the current runtime only supports `in` against a named array")
+    key = coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope))
+    return key in state.arrays.get(right.name, {})
+
+
+def evaluate_field_index(
+    expression: Expr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> int:
+    """Evaluate one dynamic field reference into an integer field index."""
+    return int(evaluate_numeric_expression(expression, state, record, locals_scope))
 
 
 def format_numeric_value(value: float) -> str:
@@ -1455,6 +1619,70 @@ def requires_host_runtime_execution(program: Program) -> bool:
     return has_function_definitions(program) or has_host_runtime_only_operations(program)
 
 
+def requires_host_runtime_value_execution(program: Program) -> bool:
+    """Report whether public execution needs the host runtime's richer value semantics."""
+
+    def expression_needs_value_runtime(expression: Expr, *, allow_string_literal: bool) -> bool:
+        match expression:
+            case NumericLiteralExpr():
+                return False
+            case StringLiteralExpr():
+                return not allow_string_literal
+            case NameExpr():
+                return True
+            case FieldExpr(index=index):
+                return not isinstance(index, int)
+            case ArrayIndexExpr() | CallExpr() | ConditionalExpr() | AssignExpr() | UnaryExpr() | PostfixExpr():
+                return True
+            case RegexLiteralExpr():
+                return False
+            case BinaryExpr(op=op, left=left, right=right):
+                if op is BinaryOp.CONCAT:
+                    return True
+                return (
+                    expression_needs_value_runtime(left, allow_string_literal=False)
+                    or expression_needs_value_runtime(right, allow_string_literal=False)
+                )
+            case _:
+                return True
+
+    def statement_needs_value_runtime(statement: Stmt) -> bool:
+        match statement:
+            case AssignStmt(value=value):
+                return expression_needs_value_runtime(value, allow_string_literal=False)
+            case BlockStmt(statements=statements):
+                return any(statement_needs_value_runtime(nested) for nested in statements)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                if expression_needs_value_runtime(condition, allow_string_literal=False):
+                    return True
+                if statement_needs_value_runtime(then_branch):
+                    return True
+                return else_branch is not None and statement_needs_value_runtime(else_branch)
+            case WhileStmt(condition=condition, body=body):
+                return (
+                    expression_needs_value_runtime(condition, allow_string_literal=False)
+                    or statement_needs_value_runtime(body)
+                )
+            case PrintStmt(arguments=arguments):
+                return any(
+                    expression_needs_value_runtime(argument, allow_string_literal=True) for argument in arguments
+                )
+            case ReturnStmt(value=value):
+                return value is not None and expression_needs_value_runtime(value, allow_string_literal=False)
+            case _:
+                return False
+
+    for item in program.items:
+        if isinstance(item, FunctionDef):
+            if any(statement_needs_value_runtime(statement) for statement in item.body.statements):
+                return True
+            continue
+        if isinstance(item, PatternAction) and item.action is not None:
+            if any(statement_needs_value_runtime(statement) for statement in item.action.statements):
+                return True
+    return False
+
+
 def has_host_runtime_only_operations(program: Program) -> bool:
     """Report whether `program` contains features not yet supported by LLVM lowering."""
 
@@ -1462,7 +1690,15 @@ def has_host_runtime_only_operations(program: Program) -> bool:
         match expression:
             case ArrayIndexExpr():
                 return True
-            case BinaryExpr(left=left, right=right):
+            case ConditionalExpr() | AssignExpr() | UnaryExpr() | PostfixExpr():
+                return True
+            case FieldExpr(index=index):
+                if isinstance(index, int):
+                    return False
+                return True
+            case BinaryExpr(op=op, left=left, right=right):
+                if op not in {BinaryOp.ADD, BinaryOp.LESS, BinaryOp.EQUAL, BinaryOp.LOGICAL_AND}:
+                    return True
                 return expression_has_host_runtime_only_ops(left) or expression_has_host_runtime_only_ops(right)
             case CallExpr(function=function_name, args=args):
                 if is_builtin_function_name(function_name):
@@ -1488,10 +1724,12 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 return any(statement_has_host_runtime_only_ops(nested) for nested in statements)
             case DeleteStmt():
                 return True
-            case IfStmt(condition=condition, then_branch=then_branch):
-                return expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(
-                    then_branch
-                )
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                if expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(then_branch):
+                    return True
+                if else_branch is None:
+                    return False
+                return statement_has_host_runtime_only_ops(else_branch)
             case WhileStmt(condition=condition, body=body):
                 return expression_has_host_runtime_only_ops(condition) or statement_has_host_runtime_only_ops(body)
             case ForStmt():

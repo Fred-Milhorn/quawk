@@ -82,7 +82,6 @@ def test_printf_does_not_append_an_implicit_newline() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(strict=True, reason="T-115/T-116/T-117 not implemented: string coercion and concatenation")
 def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
     result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
 

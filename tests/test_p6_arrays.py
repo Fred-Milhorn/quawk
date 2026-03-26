@@ -37,11 +37,11 @@ def test_file_based_begin_array_assignment_and_read_executes() -> None:
     assert result.stderr == ""
 
 
-def test_inline_begin_array_missing_index_defaults_to_zero() -> None:
+def test_inline_begin_array_missing_index_prints_as_empty_string() -> None:
     result = run_quawk('BEGIN { print a["missing"] }')
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "0\n"
+    assert result.stdout == "\n"
     assert result.stderr == ""
 
 
@@ -49,7 +49,7 @@ def test_inline_begin_array_delete_removes_indexed_value() -> None:
     result = run_quawk('BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }')
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "0\n"
+    assert result.stdout == "\n"
     assert result.stderr == ""
 
 
