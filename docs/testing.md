@@ -42,6 +42,7 @@ Secondary reference:
 Decision rule:
 - if `one-true-awk` and `gawk --posix` agree, `quawk` should match
 - if they differ, classify behavior by POSIX text before deciding expected behavior
+- required compatibility pytest jobs must fail, not skip, when either reference engine is missing
 
 ## Test Corpus Structure
 
@@ -205,6 +206,11 @@ Differential corpus policy:
 - `PASS`: `quawk` matches the agreeing references and has no stale divergence entry
 - `REF-DISAGREE`: allowed only when the case is classified in `tests/corpus/divergences.toml`
 - `FAIL`: `quawk` differs from agreeing references, the references disagree without a classification, or a divergence entry has gone stale
+
+Required environment policy:
+- local ad hoc runs may still use the CLI's nonzero missing-engine path for diagnostics
+- required pytest compatibility suites must treat missing `awk` or `gawk` as environment failures, not skips
+- intentional `quawk` extensions are allowed only when they are documented and classified in `tests/corpus/divergences.toml`
 
 Release gate recommendation:
 - no failing `posix-required` tests

@@ -1,3 +1,16 @@
 # Checked-in classification for persistent reference disagreements.
-# Leave this empty until a supported corpus case shows a stable reference split.
 
+[[divergence]]
+case_id = "begin_equality"
+classification = "extension"
+summary = "host awk rejects == here, but gawk --posix and quawk accept it"
+
+[[divergence]]
+case_id = "for_expr_list_loop"
+classification = "extension"
+summary = "expression-list classic for loops are accepted by quawk but rejected by the current reference awks"
+
+[[divergence]]
+case_id = "for_in_parenthesized_array"
+classification = "extension"
+summary = "quawk accepts a parenthesized array iterable in for-in loops, while the current reference awks reject it"

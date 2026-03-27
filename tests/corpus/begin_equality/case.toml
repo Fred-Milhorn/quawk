@@ -1,7 +1,7 @@
 id = "begin_equality"
 description = "Equality expression in BEGIN."
 program = "program.awk"
-tags = ["supported", "compat-baseline", "p4", "expressions"]
+tags = ["supported", "compat-baseline", "p4", "expressions", "extension"]
 
 [expect]
 stdout = "expected.stdout"

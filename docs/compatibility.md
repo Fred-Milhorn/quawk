@@ -56,11 +56,10 @@ Implement helpers such as:
 Expected behavior:
 
 - `quawk` is required in-repo
-- `gawk` and host `awk` may be absent
-- pytest differential tests should `skip` cleanly when an external engine is unavailable
+- required pytest differential tests should fail clearly when `gawk` or host `awk` is unavailable
 - the CLI should print a useful message and exit nonzero if asked to run differential mode without the required engines
 
-Missing engines should not be reported as compatibility failures.
+Missing engines are environment failures for the required compatibility gate.
 
 ### 3. Normalize outputs conservatively
 
@@ -110,9 +109,9 @@ Update [test_p10_compat_baselines.py](/Users/fred/dev/quawk/tests/test_p10_compa
 - remove the placeholder runner
 - parameterize over `compatibility_baseline_cases()`
 - run differential execution
-- `skip` when required external engines are unavailable
+- fail clearly when required external engines are unavailable
 - pass when references agree and `quawk` matches
-- pass when references disagree
+- pass when references disagree only if the case is classified in `tests/corpus/divergences.toml`
 - fail when references agree and `quawk` differs
 
 This should burn down the current strict `xfail` placeholders added by `T-047`.
@@ -163,8 +162,8 @@ Update [test_p10_compat_baselines.py](/Users/fred/dev/quawk/tests/test_p10_compa
 Expected outcomes:
 
 - no placeholder `xfail`s remain for `T-035`
-- cases either pass, skip, or fail with concrete diffs
-- missing `gawk` or `awk` yields skip, not failure
+- cases either pass or fail with concrete diffs
+- missing `gawk` or `awk` yields an environment failure, not a skip
 
 ### Existing corpus coverage
 
@@ -178,7 +177,7 @@ Keep [test_corpus.py](/Users/fred/dev/quawk/tests/test_corpus.py) unchanged as t
 - the `T-047` placeholder `xfail`s are removed
 - the runner executes `quawk`, `one-true-awk`, and `gawk --posix`
 - normalized results are compared deterministically
-- missing external interpreters produce clean skips
+- missing external interpreters produce clear environment failures in required pytest gates
 - reference disagreement is surfaced distinctly from `quawk` mismatches
 - [roadmap.md](roadmap.md) marks `T-035` done
 
@@ -197,7 +196,7 @@ Keep [test_corpus.py](/Users/fred/dev/quawk/tests/test_corpus.py) unchanged as t
 These policy choices are assumed by this plan:
 
 - compare `stderr` exactly after newline normalization
-- missing external engines should skip, not fail
+- missing external engines should fail in required pytest suites
 - reference disagreement should be reported but not treated as a failure until `T-037`
 - `T-035` should burn down the `T-047` placeholders rather than creating a second parallel baseline
 
@@ -209,3 +208,77 @@ This is a medium task:
 - one new unit test file
 - one existing baseline test update
 - small roadmap and testing-doc updates
+
+## Coverage Checklist
+
+Use this rubric to decide whether the compatibility corpus is comprehensive
+enough for the shipped public surface.
+
+Coverage levels:
+- `none`: no differential corpus case exists for the feature family
+- `smoke`: one basic happy-path case exists
+- `happy + edge`: one normal case and at least one boundary/default/interaction case exist
+- `happy + edge + divergence`: normal and edge coverage exist, plus any known
+  extension or reference-split case is tagged and classified
+
+For each implemented public feature in [SPEC.md](/Users/fred/dev/quawk/SPEC.md),
+the compatibility corpus should answer all of these:
+- is there at least one happy-path case?
+- is there at least one edge/default/interaction case?
+- if `quawk` intentionally differs from the reference awks here, is that case
+  tagged and classified in `tests/corpus/divergences.toml`?
+- can a reviewer point from the case back to a SPEC row, roadmap claim, or
+  known divergence?
+
+The compatibility corpus is only close to comprehensive when every implemented
+feature family reaches at least `happy + edge`, and every known extension or
+reference split reaches `happy + edge + divergence`.
+
+## Current Coverage Matrix
+
+Current corpus size:
+- 26 checked-in corpus cases under `tests/corpus/`
+
+Current matrix against the shipped surface:
+
+| Feature family | Current level | Current evidence | Main gaps |
+|---|---|---|---|
+| `BEGIN` scalar and expression basics | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases if those become compatibility-sensitive. |
+| Record actions and mixed programs | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases. |
+| Regex and range patterns | `happy + edge` | `regex_filter`, `range_default_print` | Add regex edge cases and more range boundary cases. |
+| Arrays and iteration | `smoke` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add a standard non-extension `for ... in` case, more array key/value interaction cases, and more delete/iteration combinations. |
+| Fields and record mutation | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases. |
+| Control flow and record control | `smoke` | `begin_if_less`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add `while`, standard classic `for`, `break`, and `continue` cases. |
+| Builtins | `smoke` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior and any additional builtins claimed in SPEC. |
+| Builtin variables | `smoke` | `nr_nf_builtin_vars` | Add explicit `FILENAME` and more multi-file boundary cases. |
+| String/number coercions | `smoke` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
+| CLI/runtime option interactions in corpus | `smoke` | `mixed_begin_record_end_custom_fs` | Add corpus coverage for `-v`, stdin `-`, `--`, and more file-argv permutations. |
+| User-defined functions | `none` | none | Add at least one happy-path function case and one scope/return interaction case. |
+| Diagnostics and error-shape compatibility | `none` | none | Add negative corpus cases only where end-to-end compatibility behavior matters more than direct pytest assertions. |
+
+## Current Gap List
+
+The biggest current compatibility gaps are:
+- user-defined functions have no differential corpus coverage
+- standard loop families are under-covered: no standard classic `for`, no plain
+  non-extension `for ... in`, and no `break` / `continue` corpus cases
+- CLI/runtime option coverage is thin: no corpus cases for `-v`, stdin `-`, or
+  `--` operand parsing
+- builtin-variable coverage is thin beyond `NR`, `FNR`, and `NF`
+- builtin coverage is still a small tranche and has little boundary testing
+- coercion coverage relies on one concatenation-oriented case
+- regex/range coverage exists but is still only one or two cases deep
+
+## Recommended Next Additions
+
+If coverage expansion resumes, prioritize these next:
+1. one happy-path user-defined function case
+2. one standard classic `for` case and one standard plain `for ... in` case
+3. one `break` case and one `continue` case
+4. one `-v` compatibility case and one stdin `-` / `--` operand-routing case
+5. one explicit `FILENAME` multi-file case
+6. one additional coercion/truthiness case
+7. one regex boundary case and one range boundary case
+
+This keeps corpus growth tied to the real compatibility-risk surface instead of
+adding cases just to increase the raw count.

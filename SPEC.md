@@ -34,11 +34,11 @@ Evidence:
 | Regex-driven selection | implemented | Public execution and parser support are present. |
 | Default-print pattern rules | implemented | Bare range/expression patterns print matching records. |
 | Scalar variables and assignment | implemented | Includes assignment expressions and compound assignment parsing. |
-| Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. |
+| Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also documents a parenthesized `for ... in` iterable extension in the compatibility corpus. |
 | Fields | implemented | `$0`, `$n`, dynamic field reads and assignment. |
-| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue`. |
+| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue`. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | implemented | Arithmetic, comparisons, equality, logical operators, ternary, match ops, `in`, concatenation, unary and postfix inc/dec. |
+| Expressions | implemented | Arithmetic, comparisons, equality, logical operators, ternary, match ops, `in`, concatenation, unary and postfix inc/dec. Compatibility-tracked broader admitted forms are recorded in `tests/corpus/divergences.toml`. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/grammar.ebnf` surface. |
 
@@ -87,7 +87,8 @@ Evidence:
 |---|---|---|
 | Single-engine corpus coverage | implemented | File-backed corpus under `tests/corpus/` |
 | Differential compatibility runner | implemented | `quawk`, `awk`, and `gawk --posix` |
-| Divergence manifest workflow | implemented | Classified reference disagreements live in `tests/corpus/divergences.toml`. |
+| Divergence manifest workflow | implemented | Classified reference disagreements and intentional extensions live in `tests/corpus/divergences.toml`. |
+| Required compatibility gate environment | implemented | Required pytest compatibility suites expect both host `awk` and `gawk --posix`; missing engines are environment failures. |
 | Release smoke baseline | implemented | `tests/test_p12_release_smoke.py` |
 | Versioned release checklist | planned | `T-042` |
 | Versioned changelog artifact | planned | `T-042` |

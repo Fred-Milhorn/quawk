@@ -18,7 +18,7 @@ from quawk.corpus import (
 def test_supported_compatibility_corpus(case) -> None:
     missing = missing_engines()
     if missing:
-        pytest.skip(f"missing differential engines: {', '.join(missing)}")
+        pytest.fail(f"missing differential engines: {', '.join(missing)}")
 
     divergences = load_divergence_manifest()
     result = run_case_differential(case)
