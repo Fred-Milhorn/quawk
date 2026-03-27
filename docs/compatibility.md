@@ -263,6 +263,14 @@ The biggest current compatibility gaps are:
 - mixed-program coverage could use more multi-file and empty-input boundary cases
 - diagnostics and error-shape compatibility still live almost entirely in direct pytest tests rather than the corpus
 
+## Rebaseline Status
+
+After `T-128` through `T-130`:
+- every implemented feature family with a non-`none` target level now meets that target
+- intentional broader admitted forms remain classified in `tests/corpus/divergences.toml`
+- the remaining follow-on work is depth-oriented, not minimum-coverage work
+- diagnostics remain intentionally outside the current corpus-expansion target because their target level is still `none`
+
 ## Recommended Next Additions
 
 If coverage expansion resumes, prioritize these next:
