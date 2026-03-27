@@ -1,0 +1,8 @@
+id = "numeric_string_truthiness"
+description = "String and numeric truthiness diverge for numeric-looking strings such as 0."
+program = "program.awk"
+tags = ["supported", "runtime", "expressions", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

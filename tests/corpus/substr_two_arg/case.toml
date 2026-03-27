@@ -1,0 +1,8 @@
+id = "substr_two_arg"
+description = "The two-argument substr form returns the suffix starting at the requested position."
+program = "program.awk"
+tags = ["supported", "builtin", "substr", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

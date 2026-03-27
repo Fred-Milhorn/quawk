@@ -315,8 +315,7 @@ Next deliverable: P11 compatibility coverage expansion
 Target outcome:
 - every implemented feature family reaches at least happy + edge differential corpus coverage, and every intentional extension or reference split is classified
 
-1. `T-130` add differential corpus coverage for coercions, regex/range boundaries, and builtin boundary behavior
-2. `T-131` rebaseline the compatibility coverage matrix after the expansion wave
+1. `T-131` rebaseline the compatibility coverage matrix after the expansion wave
 
 ## Backlog
 
@@ -422,7 +421,7 @@ Priority values:
 | T-127 | P11 | P0 | Define the next compatibility corpus expansion from the public feature matrix | T-036, T-037, T-040 | `docs/compatibility.md` maps each implemented feature family to a target coverage level and names the next required corpus cases for every area still at `none` or `smoke` | done |
 | T-128 | P11 | P0 | Add differential corpus coverage for user-defined functions and standard loop families | T-127 | New corpus cases cover at least one happy-path and one edge-path for functions, `while`, standard classic `for`, plain `for ... in`, `break`, and `continue`; required compatibility suites pass or all new divergences are classified | done |
 | T-129 | P11 | P0 | Add differential corpus coverage for CLI/runtime option interactions and builtin variables | T-127 | New corpus cases cover `-v`, stdin `-`, `--`, multi-file `FILENAME`, and multi-file builtin-variable behavior; required compatibility suites pass or all new divergences are classified | done |
-| T-130 | P11 | P1 | Add differential corpus coverage for coercions, regex/range boundaries, and builtin boundary behavior | T-127 | New corpus cases cover at least one additional coercion/truthiness case, one regex boundary case, one range boundary case, and boundary cases for the currently claimed builtins; required compatibility suites pass or all new divergences are classified | todo |
+| T-130 | P11 | P1 | Add differential corpus coverage for coercions, regex/range boundaries, and builtin boundary behavior | T-127 | New corpus cases cover at least one additional coercion/truthiness case, one regex boundary case, one range boundary case, and boundary cases for the currently claimed builtins; required compatibility suites pass or all new divergences are classified | done |
 | T-131 | P11 | P1 | Rebaseline the compatibility coverage matrix after the expansion wave | T-128, T-129, T-130 | `docs/compatibility.md` reflects the new case inventory, updated coverage levels, and the remaining gaps after the new cases land | todo |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |

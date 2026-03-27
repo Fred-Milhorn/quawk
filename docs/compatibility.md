@@ -237,7 +237,7 @@ reference split reaches `happy + edge + divergence`.
 ## Current Coverage Matrix
 
 Current corpus size:
-- 38 checked-in corpus cases under `tests/corpus/`
+- 45 checked-in corpus cases under `tests/corpus/`
 
 Current matrix against the shipped surface:
 
@@ -245,13 +245,13 @@ Current matrix against the shipped surface:
 |---|---|---|---|---|
 | `BEGIN` scalar and expression basics | `happy + edge + divergence` | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases only if they become compatibility-sensitive. |
 | Record actions and mixed programs | `happy + edge` | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases as depth work, not as the immediate minimum. |
-| Regex and range patterns | `happy + edge` | `happy + edge` | `regex_filter`, `range_default_print` | Add regex edge cases and more range boundary cases to deepen beyond the minimum. |
+| Regex and range patterns | `happy + edge` | `happy + edge` | `regex_filter`, `regex_no_match`, `range_default_print`, `range_single_record` | Add more mixed regex/range interaction cases only if compatibility work exposes gaps. |
 | Arrays and iteration | `happy + edge + divergence` | `happy + edge + divergence` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_in_plain_array`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add more array key/value interaction cases and more delete/iteration combinations as depth work. |
 | Fields and record mutation | `happy + edge` | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases as depth work. |
 | Control flow and record control | `happy + edge` | `happy + edge` | `begin_if_less`, `while_loop_print`, `for_standard_loop`, `break_in_loop`, `continue_in_loop`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add more nested and multi-file control-flow interactions as depth work. |
-| Builtins | `smoke` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior for the currently claimed builtin tranche. |
+| Builtins | `happy + edge` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `length_empty_string`, `split_builtin`, `split_explicit_separator`, `substr_builtin`, `substr_two_arg` | Add more builtin interaction cases only if compatibility work exposes gaps. |
 | Builtin variables | `happy + edge` | `happy + edge` | `nr_nf_builtin_vars`, `filename_two_files`, `builtin_vars_multi_file_reset` | Add more builtin-variable combinations only if compatibility work exposes gaps. |
-| String/number coercions | `smoke` | `happy + edge` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
+| String/number coercions | `happy + edge` | `happy + edge` | `string_coercion_concat`, `numeric_string_truthiness`, `unset_scalar_coercion` | Add more coercion interactions only if compatibility work exposes gaps. |
 | CLI/runtime option interactions in corpus | `happy + edge` | `happy + edge` | `mixed_begin_record_end_custom_fs`, `v_numeric_begin`, `stdin_dash_operand`, `dash_dash_input_operand` | Add more file-argv permutations only if compatibility work exposes gaps. |
 | User-defined functions | `happy + edge` | `happy + edge` | `function_basic_call`, `function_local_scope` | Add more function-argument and return-shape cases only if compatibility work exposes gaps. |
 | Diagnostics and error-shape compatibility | `none` | `none` | none | Keep most diagnostics in direct pytest coverage; add corpus negatives only where end-to-end compatibility behavior matters more than direct assertions. |
@@ -259,18 +259,18 @@ Current matrix against the shipped surface:
 ## Current Gap List
 
 The biggest current compatibility gaps are:
-- builtin coverage is still a small tranche and has little boundary testing
-- coercion coverage relies on one concatenation-oriented case
-- regex/range coverage exists but is still only one or two cases deep
+- arrays and iteration still need deeper interaction coverage beyond the current happy-path, default, and extension cases
+- mixed-program coverage could use more multi-file and empty-input boundary cases
+- diagnostics and error-shape compatibility still live almost entirely in direct pytest tests rather than the corpus
 
 ## Recommended Next Additions
 
 If coverage expansion resumes, prioritize these next:
-1. one additional coercion/truthiness case
-2. one regex boundary case and one range boundary case
-3. one builtin boundary case for each of `length`, `split`, and `substr`
-4. one deeper array iteration interaction case
-5. one additional mixed-program multi-file boundary case
+1. one deeper array iteration interaction case
+2. one additional mixed-program multi-file boundary case
+3. one empty-input mixed-program boundary case
+4. one additional builtin-variable interaction case if compatibility work exposes one
+5. one end-to-end diagnostics corpus case only if a real compatibility question needs it
 
 This keeps corpus growth tied to the real compatibility-risk surface instead of
 adding cases just to increase the raw count.
@@ -325,7 +325,7 @@ Expected result:
 
 ### T-130: Coercions, regex/range boundaries, and builtin edges
 
-Add these corpus cases:
+Committed corpus cases:
 - `numeric_string_truthiness`
   - one case that forces both numeric and string truthiness/coercion behavior
 - `unset_scalar_coercion`

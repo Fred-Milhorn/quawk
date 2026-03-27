@@ -1,0 +1,8 @@
+id = "split_explicit_separator"
+description = "Split accepts an explicit separator argument and populates array elements in order."
+program = "program.awk"
+tags = ["supported", "builtin", "arrays", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

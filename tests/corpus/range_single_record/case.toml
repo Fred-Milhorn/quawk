@@ -1,0 +1,9 @@
+id = "range_single_record"
+description = "A range whose start and end both match the same record prints only that record."
+program = "program.awk"
+input = "input.txt"
+tags = ["supported", "range", "runtime", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

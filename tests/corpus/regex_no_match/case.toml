@@ -1,0 +1,9 @@
+id = "regex_no_match"
+description = "A regex pattern with no matches produces no output."
+program = "program.awk"
+input = "input.txt"
+tags = ["supported", "regex", "runtime", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

@@ -1,0 +1,8 @@
+id = "length_empty_string"
+description = "Length returns 0 for the empty string."
+program = "program.awk"
+tags = ["supported", "builtin", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0
