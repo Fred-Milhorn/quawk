@@ -241,20 +241,20 @@ Current corpus size:
 
 Current matrix against the shipped surface:
 
-| Feature family | Current level | Current evidence | Main gaps |
-|---|---|---|---|
-| `BEGIN` scalar and expression basics | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases if those become compatibility-sensitive. |
-| Record actions and mixed programs | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases. |
-| Regex and range patterns | `happy + edge` | `regex_filter`, `range_default_print` | Add regex edge cases and more range boundary cases. |
-| Arrays and iteration | `smoke` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add a standard non-extension `for ... in` case, more array key/value interaction cases, and more delete/iteration combinations. |
-| Fields and record mutation | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases. |
-| Control flow and record control | `smoke` | `begin_if_less`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add `while`, standard classic `for`, `break`, and `continue` cases. |
-| Builtins | `smoke` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior and any additional builtins claimed in SPEC. |
-| Builtin variables | `smoke` | `nr_nf_builtin_vars` | Add explicit `FILENAME` and more multi-file boundary cases. |
-| String/number coercions | `smoke` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
-| CLI/runtime option interactions in corpus | `smoke` | `mixed_begin_record_end_custom_fs` | Add corpus coverage for `-v`, stdin `-`, `--`, and more file-argv permutations. |
-| User-defined functions | `none` | none | Add at least one happy-path function case and one scope/return interaction case. |
-| Diagnostics and error-shape compatibility | `none` | none | Add negative corpus cases only where end-to-end compatibility behavior matters more than direct pytest assertions. |
+| Feature family | Current level | Target level | Current evidence | Main gaps |
+|---|---|---|---|---|
+| `BEGIN` scalar and expression basics | `happy + edge + divergence` | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases only if they become compatibility-sensitive. |
+| Record actions and mixed programs | `happy + edge` | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases as depth work, not as the immediate minimum. |
+| Regex and range patterns | `happy + edge` | `happy + edge` | `regex_filter`, `range_default_print` | Add regex edge cases and more range boundary cases to deepen beyond the minimum. |
+| Arrays and iteration | `smoke` | `happy + edge + divergence` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add a standard non-extension `for ... in` case, more array key/value interaction cases, and more delete/iteration combinations. |
+| Fields and record mutation | `happy + edge` | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases as depth work. |
+| Control flow and record control | `smoke` | `happy + edge` | `begin_if_less`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add `while`, standard classic `for`, `break`, and `continue` cases. |
+| Builtins | `smoke` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior for the currently claimed builtin tranche. |
+| Builtin variables | `smoke` | `happy + edge` | `nr_nf_builtin_vars` | Add explicit `FILENAME` and more multi-file boundary cases. |
+| String/number coercions | `smoke` | `happy + edge` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
+| CLI/runtime option interactions in corpus | `smoke` | `happy + edge` | `mixed_begin_record_end_custom_fs` | Add corpus coverage for `-v`, stdin `-`, `--`, and more file-argv permutations. |
+| User-defined functions | `none` | `happy + edge` | none | Add at least one happy-path function case and one scope/return interaction case. |
+| Diagnostics and error-shape compatibility | `none` | `none` | none | Keep most diagnostics in direct pytest coverage; add corpus negatives only where end-to-end compatibility behavior matters more than direct assertions. |
 
 ## Current Gap List
 
@@ -287,6 +287,11 @@ adding cases just to increase the raw count.
 
 This section is the concrete planning surface for the next `P11` expansion wave
 tracked in [roadmap.md](roadmap.md) as `T-127` through `T-131`.
+
+`T-127` is complete when:
+- every implemented feature family above has an explicit target coverage level
+- every area still at `none` or `smoke` has named next corpus cases below
+- the immediate implementation work is partitioned into `T-128`, `T-129`, and `T-130`
 
 ### T-128: Functions and standard loop families
 
