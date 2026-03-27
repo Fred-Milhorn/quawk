@@ -282,3 +282,78 @@ If coverage expansion resumes, prioritize these next:
 
 This keeps corpus growth tied to the real compatibility-risk surface instead of
 adding cases just to increase the raw count.
+
+## Planned Case Inventory
+
+This section is the concrete planning surface for the next `P11` expansion wave
+tracked in [roadmap.md](roadmap.md) as `T-127` through `T-131`.
+
+### T-128: Functions and standard loop families
+
+Add these corpus cases:
+- `function_basic_call`
+  - `function f(x) { return x + 1 } BEGIN { print f(2) }`
+- `function_local_scope`
+  - `function f(x) { x = x + 1; return x } BEGIN { x = 10; print f(2); print x }`
+- `while_loop_print`
+  - `BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }`
+- `for_standard_loop`
+  - `BEGIN { for (i = 0; i < 3; i = i + 1) print i }`
+- `for_in_plain_array`
+  - `BEGIN { a["x"] = 1; for (k in a) print k }`
+- `break_in_loop`
+  - one loop case with early exit through `break`
+- `continue_in_loop`
+  - one loop case that skips exactly one iteration through `continue`
+
+Expected result:
+- functions and standard loop families reach at least `happy + edge`
+
+### T-129: CLI/runtime options and builtin variables
+
+Add these corpus cases:
+- `v_numeric_begin`
+  - `-v x=7` is visible before `BEGIN`
+- `stdin_dash_operand`
+  - `-` stdin operand is processed in file order
+- `dash_dash_input_operand`
+  - `--` preserves an input file operand beginning with `-`
+- `filename_two_files`
+  - explicit `FILENAME` coverage across two file operands
+- `builtin_vars_multi_file_reset`
+  - `NR`, `FNR`, and `NF` behavior across multiple files
+
+Expected result:
+- CLI/runtime option interactions and builtin variables reach at least `happy + edge`
+
+### T-130: Coercions, regex/range boundaries, and builtin edges
+
+Add these corpus cases:
+- `numeric_string_truthiness`
+  - one case that forces both numeric and string truthiness/coercion behavior
+- `unset_scalar_coercion`
+  - one case that reads the same unset scalar in numeric and string contexts
+- `regex_no_match`
+  - regex selection produces no output
+- `range_single_record`
+  - range starts and ends on the same record
+- `substr_two_arg`
+  - two-argument `substr`
+- `split_explicit_separator`
+  - `split` with an explicit separator argument
+- `length_empty_string`
+  - empty-string length boundary case
+
+Expected result:
+- coercions, regex/range boundaries, and the currently claimed builtin tranche move beyond `smoke`
+
+### T-131: Rebaseline
+
+After the new cases land:
+- rerun the required differential suites
+- classify/document any new intentional extensions or reference splits
+- update the coverage matrix above to reflect the new case inventory and the remaining gaps
+
+Implementation rule:
+- if the references agree and `quawk` differs, treat the case as a bug or unsupported gap
+- if `quawk` intentionally differs and that behavior is acceptable, tag the case appropriately and add a checked-in divergence entry
