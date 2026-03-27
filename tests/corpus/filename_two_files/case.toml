@@ -1,0 +1,9 @@
+id = "filename_two_files"
+description = "FILENAME is non-empty and changes as execution moves across input files."
+program = "program.awk"
+inputs = ["first.txt", "second.txt"]
+tags = ["supported", "builtin-vars", "io", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

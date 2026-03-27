@@ -1,0 +1,9 @@
+id = "builtin_vars_multi_file_reset"
+description = "NR, FNR, and NF reflect multi-file processing and FNR resets at file boundaries."
+program = "program.awk"
+inputs = ["first.txt", "second.txt"]
+tags = ["supported", "builtin-vars", "runtime", "io", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

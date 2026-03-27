@@ -1,0 +1,2 @@
+-:from-stdin
+/Users/fred/dev/quawk/tests/corpus/stdin_dash_operand/records.txt:from-file

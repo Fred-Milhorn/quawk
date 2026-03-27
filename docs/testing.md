@@ -75,6 +75,7 @@ Each case lives in its own directory and includes:
 - `program.awk`
 - optional stdin fixture such as `input.txt`
 - optional file-argv fixtures listed under `inputs`
+- optional literal/file operand list under `operands` for post-program argv such as `-` or a dashed filename
 - optional `expected.stdout`
 - optional `expected.stderr`
 - optional shared `divergences.toml` entry when references disagree persistently
@@ -85,6 +86,8 @@ The manifest records:
 - tags such as `supported`, `known-gap`, `compat-baseline`, and `posix-required`
 - optional `args` for AWK CLI options such as `-F:`
 - optional `inputs` for record files passed on the command line after `-f`
+- optional `operands` for exact post-program operands, including literal `-`
+- optional `operand_separator = true` when the corpus command should insert `--` before post-program operands
 - optional `xfail_reason` for known unsupported behavior
 
 ## When To Add A Corpus Case
@@ -118,20 +121,23 @@ Examples of good corpus cases:
 2. Add `program.awk`.
 3. Add `input.txt` if the case should feed stdin text to the program.
 4. Add file fixtures and list them under `inputs` if the case needs real AWK input files.
-5. Add `expected.stdout` and, if needed, `expected.stderr`.
-6. Add `case.toml` with:
+5. Use `operands` instead of `inputs` when the case needs an exact post-program operand sequence such as `-` or a filename beginning with `-`.
+6. Add `expected.stdout` and, if needed, `expected.stderr`.
+7. Add `case.toml` with:
    - `id`
    - `description`
    - `program`
    - optional `input`
    - optional `inputs`
+   - optional `operands`
+   - optional `operand_separator`
    - optional `args`
    - `tags`
    - optional `xfail_reason`
    - `[expect]` including `exit` and any expected output files
-7. If the reference AWKs disagree, add or update the entry in `tests/corpus/divergences.toml`.
-8. Run `uv run corpus --list` to confirm the case is discovered.
-9. Run `uv run pytest tests/test_corpus.py`.
+8. If the reference AWKs disagree, add or update the entry in `tests/corpus/divergences.toml`.
+9. Run `uv run corpus --list` to confirm the case is discovered.
+10. Run `uv run pytest tests/test_corpus.py`.
 
 Minimal example:
 

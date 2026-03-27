@@ -16,6 +16,8 @@ def make_case() -> corpus.CorpusCase:
         program_path=case_dir / "program.awk",
         input_path=None,
         input_paths=(),
+        input_operands=(),
+        operand_separator=False,
         cli_args=(),
         expected_stdout_path=None,
         expected_stderr_path=None,
@@ -48,11 +50,30 @@ def test_build_engine_command_uses_expected_process_prefixes() -> None:
     assert corpus.build_engine_command("quawk", program_path) == ["quawk", "-f", str(program_path)]
     assert corpus.build_engine_command("one-true-awk", program_path) == ["awk", "-f", str(program_path)]
     assert corpus.build_engine_command("gawk-posix", program_path) == ["gawk", "--posix", "-f", str(program_path)]
-    assert corpus.build_engine_command("quawk", program_path, cli_args=("-F:",), input_paths=(input_path, )) == [
+    assert corpus.build_engine_command("quawk", program_path, cli_args=("-F:",), input_operands=(str(input_path), )) == [
         "quawk",
         "-F:",
         "-f",
         str(program_path),
+        str(input_path),
+    ]
+
+
+def test_build_engine_command_supports_operand_separator_and_literal_operands() -> None:
+    program_path = Path("/tmp/program.awk")
+    input_path = Path("/tmp/--records.txt")
+
+    assert corpus.build_engine_command(
+        "quawk",
+        program_path,
+        input_operands=("-", str(input_path)),
+        operand_separator=True,
+    ) == [
+        "quawk",
+        "-f",
+        str(program_path),
+        "--",
+        "-",
         str(input_path),
     ]
 
@@ -121,7 +142,43 @@ def test_load_case_reads_optional_args_and_input_files(tmp_path: Path) -> None:
 
     assert case.cli_args == ("-F:",)
     assert case.input_paths == (case_dir / "one.txt", case_dir / "two.txt")
+    assert case.input_operands == (str(case_dir / "one.txt"), str(case_dir / "two.txt"))
     assert case.input_text() == "unused\n"
+
+
+def test_load_case_reads_optional_operands_and_separator(tmp_path: Path) -> None:
+    case_dir = tmp_path / "with-operands"
+    case_dir.mkdir()
+    (case_dir / "program.awk").write_text("{ print FILENAME }\n", encoding="utf-8")
+    (case_dir / "stdin.txt").write_text("from-stdin\n", encoding="utf-8")
+    (case_dir / "--records.txt").write_text("alpha beta\n", encoding="utf-8")
+    (case_dir / "expected.stdout").write_text("--\n", encoding="utf-8")
+    (case_dir / "case.toml").write_text(
+        '\n'.join(
+            [
+                'id = "with_operands"',
+                'description = "demo"',
+                'program = "program.awk"',
+                'input = "stdin.txt"',
+                'operands = ["-", "--records.txt"]',
+                'operand_separator = true',
+                'tags = ["supported"]',
+                "",
+                "[expect]",
+                'stdout = "expected.stdout"',
+                "exit = 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    case = corpus.load_case(case_dir / "case.toml")
+
+    assert case.input_paths == ()
+    assert case.input_operands == ("-", str(case_dir / "--records.txt"))
+    assert case.operand_separator is True
+    assert case.input_text() == "from-stdin\n"
 
 
 def test_load_divergence_manifest_accepts_empty_manifest(tmp_path: Path) -> None:

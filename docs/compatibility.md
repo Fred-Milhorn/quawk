@@ -237,7 +237,7 @@ reference split reaches `happy + edge + divergence`.
 ## Current Coverage Matrix
 
 Current corpus size:
-- 33 checked-in corpus cases under `tests/corpus/`
+- 38 checked-in corpus cases under `tests/corpus/`
 
 Current matrix against the shipped surface:
 
@@ -250,18 +250,15 @@ Current matrix against the shipped surface:
 | Fields and record mutation | `happy + edge` | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases as depth work. |
 | Control flow and record control | `happy + edge` | `happy + edge` | `begin_if_less`, `while_loop_print`, `for_standard_loop`, `break_in_loop`, `continue_in_loop`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add more nested and multi-file control-flow interactions as depth work. |
 | Builtins | `smoke` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior for the currently claimed builtin tranche. |
-| Builtin variables | `smoke` | `happy + edge` | `nr_nf_builtin_vars` | Add explicit `FILENAME` and more multi-file boundary cases. |
+| Builtin variables | `happy + edge` | `happy + edge` | `nr_nf_builtin_vars`, `filename_two_files`, `builtin_vars_multi_file_reset` | Add more builtin-variable combinations only if compatibility work exposes gaps. |
 | String/number coercions | `smoke` | `happy + edge` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
-| CLI/runtime option interactions in corpus | `smoke` | `happy + edge` | `mixed_begin_record_end_custom_fs` | Add corpus coverage for `-v`, stdin `-`, `--`, and more file-argv permutations. |
+| CLI/runtime option interactions in corpus | `happy + edge` | `happy + edge` | `mixed_begin_record_end_custom_fs`, `v_numeric_begin`, `stdin_dash_operand`, `dash_dash_input_operand` | Add more file-argv permutations only if compatibility work exposes gaps. |
 | User-defined functions | `happy + edge` | `happy + edge` | `function_basic_call`, `function_local_scope` | Add more function-argument and return-shape cases only if compatibility work exposes gaps. |
 | Diagnostics and error-shape compatibility | `none` | `none` | none | Keep most diagnostics in direct pytest coverage; add corpus negatives only where end-to-end compatibility behavior matters more than direct assertions. |
 
 ## Current Gap List
 
 The biggest current compatibility gaps are:
-- CLI/runtime option coverage is thin: no corpus cases for `-v`, stdin `-`, or
-  `--` operand parsing
-- builtin-variable coverage is thin beyond `NR`, `FNR`, and `NF`
 - builtin coverage is still a small tranche and has little boundary testing
 - coercion coverage relies on one concatenation-oriented case
 - regex/range coverage exists but is still only one or two cases deep
@@ -269,11 +266,11 @@ The biggest current compatibility gaps are:
 ## Recommended Next Additions
 
 If coverage expansion resumes, prioritize these next:
-1. one `-v` compatibility case and one stdin `-` / `--` operand-routing case
-2. one explicit `FILENAME` multi-file case
-3. one additional coercion/truthiness case
-4. one regex boundary case and one range boundary case
-5. one builtin boundary case for each of `length`, `split`, and `substr`
+1. one additional coercion/truthiness case
+2. one regex boundary case and one range boundary case
+3. one builtin boundary case for each of `length`, `split`, and `substr`
+4. one deeper array iteration interaction case
+5. one additional mixed-program multi-file boundary case
 
 This keeps corpus growth tied to the real compatibility-risk surface instead of
 adding cases just to increase the raw count.
@@ -311,7 +308,7 @@ Expected result:
 
 ### T-129: CLI/runtime options and builtin variables
 
-Add these corpus cases:
+Committed corpus cases:
 - `v_numeric_begin`
   - `-v x=7` is visible before `BEGIN`
 - `stdin_dash_operand`

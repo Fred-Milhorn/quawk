@@ -1,0 +1,10 @@
+id = "stdin_dash_operand"
+description = "A literal - input operand reads stdin in the requested file order."
+program = "program.awk"
+input = "stdin.txt"
+operands = ["-", "records.txt"]
+tags = ["supported", "cli", "io", "p12"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

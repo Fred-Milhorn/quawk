@@ -1,0 +1,10 @@
+id = "dash_dash_input_operand"
+description = "A -- separator preserves an input file operand that begins with a dash."
+program = "program.awk"
+operands = ["--records.txt"]
+operand_separator = true
+tags = ["supported", "cli", "io", "p12"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

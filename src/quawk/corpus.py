@@ -38,6 +38,8 @@ class CorpusCase:
     program_path: Path
     input_path: Path | None
     input_paths: tuple[Path, ...]
+    input_operands: tuple[str, ...]
+    operand_separator: bool
     cli_args: tuple[str, ...]
     expected_stdout_path: Path | None
     expected_stderr_path: Path | None
@@ -205,6 +207,13 @@ def load_case(manifest_path: Path) -> CorpusCase:
     program_path = case_dir / program_rel
     input_path = resolve_optional_path(case_dir, manifest.get("input"), "input", manifest_path)
     input_paths = tuple(resolve_optional_paths(case_dir, manifest.get("inputs"), "inputs", manifest_path))
+    raw_input_operands = manifest.get("operands")
+    if raw_input_operands is not None and input_paths:
+        raise ValueError(f"{manifest_path}: cannot combine 'inputs' with 'operands'")
+    input_operands = tuple(resolve_optional_operands(case_dir, raw_input_operands, "operands", manifest_path))
+    if not input_operands:
+        input_operands = tuple(str(input_path) for input_path in input_paths)
+    operand_separator = read_optional_bool(manifest.get("operand_separator"), "operand_separator", manifest_path)
 
     expect_table = manifest.get("expect")
     if not isinstance(expect_table, dict):
@@ -231,6 +240,8 @@ def load_case(manifest_path: Path) -> CorpusCase:
         program_path=program_path,
         input_path=input_path,
         input_paths=input_paths,
+        input_operands=input_operands,
+        operand_separator=operand_separator,
         cli_args=cli_args,
         expected_stdout_path=expected_stdout_path,
         expected_stderr_path=expected_stderr_path,
@@ -292,6 +303,29 @@ def resolve_optional_paths(case_dir: Path, value: object, field_name: str, manif
     """Resolve an optional list of relative paths from a case manifest."""
     path_values = read_optional_string_list(value, field_name, manifest_path)
     return [case_dir / path_value for path_value in path_values]
+
+
+def resolve_optional_operands(case_dir: Path, value: object, field_name: str, manifest_path: Path) -> list[str]:
+    """Resolve optional post-program operand strings from a case manifest."""
+    operand_values = read_optional_string_list(value, field_name, manifest_path)
+    operands: list[str] = []
+    for index, operand_value in enumerate(operand_values, start=1):
+        if operand_value == "-":
+            operands.append(operand_value)
+            continue
+        operand_path = case_dir / operand_value
+        ensure_file_exists(operand_path, manifest_path, f"{field_name}[{index}]")
+        operands.append(str(operand_path))
+    return operands
+
+
+def read_optional_bool(value: object, field_name: str, manifest_path: Path) -> bool:
+    """Return an optional boolean manifest field."""
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ValueError(f"{manifest_path}: invalid boolean field {field_name!r}")
+    return value
 
 
 def ensure_file_exists(path: Path, manifest_path: Path, field_name: str) -> None:
@@ -382,7 +416,13 @@ def differential_validation_errors(
 
 def run_case(case: CorpusCase, engine: EngineName = "quawk") -> CorpusResult:
     """Run one case under the selected engine."""
-    command = build_engine_command(engine, case.program_path, cli_args=case.cli_args, input_paths=case.input_paths)
+    command = build_engine_command(
+        engine,
+        case.program_path,
+        cli_args=case.cli_args,
+        input_operands=case.input_operands,
+        operand_separator=case.operand_separator,
+    )
     result = subprocess.run(
         command,
         input=case.input_text(),
@@ -447,19 +487,21 @@ def build_engine_command(
     engine: EngineName,
     program_path: Path,
     cli_args: tuple[str, ...] = (),
-    input_paths: tuple[Path, ...] = (),
+    input_operands: tuple[str, ...] = (),
+    operand_separator: bool = False,
 ) -> list[str]:
     """Build the command used to execute one corpus case."""
-    input_args = [str(input_path) for input_path in input_paths]
+    input_args = list(input_operands)
+    operand_separator_args = ["--"] if operand_separator and input_args else []
     match engine:
         case "quawk":
-            return ["quawk", *cli_args, "-f", str(program_path), *input_args]
+            return ["quawk", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
         case "gawk-posix":
-            return ["gawk", "--posix", *cli_args, "-f", str(program_path), *input_args]
+            return ["gawk", "--posix", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
         case "one-true-awk":
             # This intentionally uses the host `awk` command. A stricter
             # one-true-awk path can be configured later if needed.
-            return ["awk", *cli_args, "-f", str(program_path), *input_args]
+            return ["awk", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
     raise AssertionError(f"unhandled engine: {engine}")
 
 

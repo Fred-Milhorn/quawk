@@ -1,0 +1,9 @@
+id = "v_numeric_begin"
+description = "A numeric -v assignment is visible before BEGIN executes."
+program = "program.awk"
+args = ["-v", "x=7"]
+tags = ["supported", "cli", "runtime", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

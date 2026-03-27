@@ -1,0 +1,1 @@
+{ print FILENAME ":" $1 }
