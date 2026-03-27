@@ -1,0 +1,8 @@
+id = "while_loop_print"
+description = "A standard while loop executes until its condition becomes false."
+program = "program.awk"
+tags = ["supported", "control-flow", "loops", "p2"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

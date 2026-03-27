@@ -1,0 +1,8 @@
+id = "for_standard_loop"
+description = "A standard classic for loop executes init, condition, and update forms."
+program = "program.awk"
+tags = ["supported", "loops", "p6"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

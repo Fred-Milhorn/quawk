@@ -1,0 +1,8 @@
+id = "function_local_scope"
+description = "Function parameters stay local to the function body and do not overwrite caller state."
+program = "program.awk"
+tags = ["supported", "functions", "runtime", "p5"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

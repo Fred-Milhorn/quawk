@@ -1,0 +1,8 @@
+id = "for_in_plain_array"
+description = "A standard for-in loop iterates over array keys without the parenthesized extension."
+program = "program.awk"
+tags = ["supported", "loops", "arrays", "p6"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

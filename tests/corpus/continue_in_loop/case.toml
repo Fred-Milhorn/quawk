@@ -1,0 +1,8 @@
+id = "continue_in_loop"
+description = "Continue skips the rest of the current loop iteration."
+program = "program.awk"
+tags = ["supported", "control-flow", "loops", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

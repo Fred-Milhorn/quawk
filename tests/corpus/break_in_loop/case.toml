@@ -1,0 +1,8 @@
+id = "break_in_loop"
+description = "Break exits the innermost loop immediately."
+program = "program.awk"
+tags = ["supported", "control-flow", "loops", "p8"]
+
+[expect]
+stdout = "expected.stdout"
+exit = 0

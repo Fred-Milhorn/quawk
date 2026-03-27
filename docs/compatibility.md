@@ -237,7 +237,7 @@ reference split reaches `happy + edge + divergence`.
 ## Current Coverage Matrix
 
 Current corpus size:
-- 26 checked-in corpus cases under `tests/corpus/`
+- 33 checked-in corpus cases under `tests/corpus/`
 
 Current matrix against the shipped surface:
 
@@ -246,22 +246,19 @@ Current matrix against the shipped surface:
 | `BEGIN` scalar and expression basics | `happy + edge + divergence` | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases only if they become compatibility-sensitive. |
 | Record actions and mixed programs | `happy + edge` | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases as depth work, not as the immediate minimum. |
 | Regex and range patterns | `happy + edge` | `happy + edge` | `regex_filter`, `range_default_print` | Add regex edge cases and more range boundary cases to deepen beyond the minimum. |
-| Arrays and iteration | `smoke` | `happy + edge + divergence` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add a standard non-extension `for ... in` case, more array key/value interaction cases, and more delete/iteration combinations. |
+| Arrays and iteration | `happy + edge + divergence` | `happy + edge + divergence` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_in_plain_array`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add more array key/value interaction cases and more delete/iteration combinations as depth work. |
 | Fields and record mutation | `happy + edge` | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases as depth work. |
-| Control flow and record control | `smoke` | `happy + edge` | `begin_if_less`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add `while`, standard classic `for`, `break`, and `continue` cases. |
+| Control flow and record control | `happy + edge` | `happy + edge` | `begin_if_less`, `while_loop_print`, `for_standard_loop`, `break_in_loop`, `continue_in_loop`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add more nested and multi-file control-flow interactions as depth work. |
 | Builtins | `smoke` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `split_builtin`, `substr_builtin` | Add more arity/boundary behavior for the currently claimed builtin tranche. |
 | Builtin variables | `smoke` | `happy + edge` | `nr_nf_builtin_vars` | Add explicit `FILENAME` and more multi-file boundary cases. |
 | String/number coercions | `smoke` | `happy + edge` | `string_coercion_concat` | Add more numeric-string conversion and truthiness cases. |
 | CLI/runtime option interactions in corpus | `smoke` | `happy + edge` | `mixed_begin_record_end_custom_fs` | Add corpus coverage for `-v`, stdin `-`, `--`, and more file-argv permutations. |
-| User-defined functions | `none` | `happy + edge` | none | Add at least one happy-path function case and one scope/return interaction case. |
+| User-defined functions | `happy + edge` | `happy + edge` | `function_basic_call`, `function_local_scope` | Add more function-argument and return-shape cases only if compatibility work exposes gaps. |
 | Diagnostics and error-shape compatibility | `none` | `none` | none | Keep most diagnostics in direct pytest coverage; add corpus negatives only where end-to-end compatibility behavior matters more than direct assertions. |
 
 ## Current Gap List
 
 The biggest current compatibility gaps are:
-- user-defined functions have no differential corpus coverage
-- standard loop families are under-covered: no standard classic `for`, no plain
-  non-extension `for ... in`, and no `break` / `continue` corpus cases
 - CLI/runtime option coverage is thin: no corpus cases for `-v`, stdin `-`, or
   `--` operand parsing
 - builtin-variable coverage is thin beyond `NR`, `FNR`, and `NF`
@@ -272,13 +269,11 @@ The biggest current compatibility gaps are:
 ## Recommended Next Additions
 
 If coverage expansion resumes, prioritize these next:
-1. one happy-path user-defined function case
-2. one standard classic `for` case and one standard plain `for ... in` case
-3. one `break` case and one `continue` case
-4. one `-v` compatibility case and one stdin `-` / `--` operand-routing case
-5. one explicit `FILENAME` multi-file case
-6. one additional coercion/truthiness case
-7. one regex boundary case and one range boundary case
+1. one `-v` compatibility case and one stdin `-` / `--` operand-routing case
+2. one explicit `FILENAME` multi-file case
+3. one additional coercion/truthiness case
+4. one regex boundary case and one range boundary case
+5. one builtin boundary case for each of `length`, `split`, and `substr`
 
 This keeps corpus growth tied to the real compatibility-risk surface instead of
 adding cases just to increase the raw count.
@@ -295,7 +290,7 @@ tracked in [roadmap.md](roadmap.md) as `T-127` through `T-131`.
 
 ### T-128: Functions and standard loop families
 
-Add these corpus cases:
+Committed corpus cases:
 - `function_basic_call`
   - `function f(x) { return x + 1 } BEGIN { print f(2) }`
 - `function_local_scope`
