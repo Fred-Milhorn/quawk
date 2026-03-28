@@ -31,6 +31,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P10 | Grammar Contract and Doc Alignment | Full `grammar.ebnf` implementation and honest design/AST docs |
 | P11 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
+| P13 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `awk`, and `gawk --posix` |
 
 ## Phase Entry and Exit Rules
 
@@ -306,17 +307,40 @@ Exit criteria:
 - smoke test matrix passes on declared environments
 - documentation is internally consistent and accurate
 
+### P13: Benchmarking and Performance Characterization
+
+Objective:
+- add a repeatable local benchmark that characterizes `quawk` against `one-true-awk` and `gawk --posix`
+
+In scope:
+- repo-owned benchmark harness and workload definitions
+- deterministic large dataset generation
+- end-to-end timing and peak-memory measurement
+- `quawk`-only compile-versus-run breakdown for the LLVM-backed subset
+- developer documentation for running and interpreting the benchmark
+- implementation details for this phase live in [benchmark.md](benchmark.md)
+
+Exit criteria:
+- one documented command runs the full benchmark suite locally
+- the benchmark covers a small fixed workload suite with generated `smoke`, `medium`, and `large` datasets
+- output includes end-to-end timing and peak RSS for all engines
+- output includes a clearly labeled `quawk` split breakdown in addition to end-to-end results
+- harness tests cover determinism, engine command construction, and summary/reporting behavior
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-Next deliverable: P11 compatibility coverage expansion
+Next deliverable: P13 benchmarking baseline
 
 Target outcome:
-- every implemented feature family reaches at least happy + edge differential corpus coverage, and every intentional extension or reference split is classified
+- one documented local benchmark command compares `quawk`, `awk`, and `gawk --posix` on representative workloads with timing and memory summaries
 
-No remaining `P11` compatibility-expansion tasks are currently tracked.
-Reprioritize the roadmap before starting the next coverage-depth pass or a new phase.
+1. `T-132` define the benchmark harness interface, workload suite, and measurement contract
+2. `T-133` implement deterministic dataset generation and fixed benchmark workloads
+3. `T-134` implement end-to-end engine measurement and summary reporting
+4. `T-135` add `quawk` split compile-versus-run measurement support
+5. `T-136` add benchmark smoke tests and developer documentation
 
 ## Backlog
 
@@ -427,6 +451,11 @@ Priority values:
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
+| T-132 | P13 | P0 | Define the benchmark harness interface, workload suite, and measurement contract | T-042 | `docs/benchmark.md` specifies the command, metrics, workload set, dataset scales, and `quawk` timing model clearly enough to implement without further design work | todo |
+| T-133 | P13 | P0 | Implement deterministic dataset generation and fixed benchmark workloads | T-132 | The benchmark harness can generate the planned workloads and `smoke`/`medium`/`large` datasets reproducibly from a fixed seed | todo |
+| T-134 | P13 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `awk`, and `gawk --posix` and prints stable summary tables | todo |
+| T-135 | P13 | P1 | Add `quawk` split compile-versus-run measurement support | T-134 | The benchmark reports clearly labeled `quawk` frontend or lowering versus `lli` execution timings for the same workloads without changing the public CLI surface | todo |
+| T-136 | P13 | P1 | Add benchmark smoke tests and developer documentation | T-134, T-135 | Harness tests cover determinism and reporting behavior, and the benchmark workflow is documented for developers | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
