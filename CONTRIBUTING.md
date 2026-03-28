@@ -81,6 +81,7 @@ Current local checks are defined in [docs/testing.md](docs/testing.md). When the
 quawk --help
 corpus --list
 pytest
+uv run pytest -m compat
 yapf --diff --recursive src tests
 ruff check .
 mypy src

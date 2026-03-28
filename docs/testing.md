@@ -259,6 +259,7 @@ Common local commands once the scaffold exists:
 quawk --help
 corpus --list
 pytest
+uv run pytest -m compat
 pytest -m smoke
 yapf --diff --recursive src tests
 ruff check .

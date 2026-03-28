@@ -6,6 +6,8 @@ import pytest
 
 from quawk import corpus
 
+pytestmark = pytest.mark.compat
+
 
 def make_case() -> corpus.CorpusCase:
     case_dir = Path("/tmp/corpus-case")

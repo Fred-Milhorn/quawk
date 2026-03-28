@@ -8,6 +8,8 @@ import pytest
 
 from quawk.corpus import CorpusCase, compare_case, load_cases, run_case
 
+pytestmark = pytest.mark.compat
+
 
 def build_case_params() -> list[pytest.ParameterSet]:
     """Create pytest parameters for all known corpus cases."""
