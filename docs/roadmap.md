@@ -341,11 +341,10 @@ Next deliverable: P11 upstream compatibility transition
 Target outcome:
 - one documented local workflow builds pinned One True Awk and gawk references, runs the selected upstream-suite-derived compatibility slice, and records evaluated non-fix failures explicitly
 
-1. `T-139` add the upstream suite inventory and selection manifest
-2. `T-140` implement the first upstream-suite-derived compatibility slice for One True Awk and gawk
-3. `T-141` reclassify the repo-owned corpus as supplemental `compat_local` coverage
-4. `T-142` add the evaluated-divergence metadata and companion compatibility notes
-5. `T-143` add the optional CI job and promotion criteria for the upstream compatibility gate
+1. `T-140` implement the first upstream-suite-derived compatibility slice for One True Awk and gawk
+2. `T-141` reclassify the repo-owned corpus as supplemental `compat_local` coverage
+3. `T-142` add the evaluated-divergence metadata and companion compatibility notes
+4. `T-143` add the optional CI job and promotion criteria for the upstream compatibility gate
 
 ## Backlog
 
@@ -455,7 +454,7 @@ Priority values:
 | T-131 | P11 | P1 | Rebaseline the compatibility coverage matrix after the expansion wave | T-128, T-129, T-130 | `docs/compatibility.md` reflects the new case inventory, updated coverage levels, and the remaining gaps after the new cases land | done |
 | T-137 | P11 | P0 | Pin One True Awk and gawk upstream sources and define the repo-managed bootstrap workflow | T-131 | `third_party/` holds pinned upstream source trees, and the local bootstrap/build flow is implemented and documented | done |
 | T-138 | P11 | P0 | Remove host-`awk` aliasing and resolve only pinned local reference binaries | T-137 | Compatibility code fails clearly when the repo-managed reference builds are missing and never treats host `awk` as One True Awk | done |
-| T-139 | P11 | P0 | Add the upstream suite inventory and checked-in selection manifest | T-137, T-138 | The repo classifies which upstream cases are run or skipped, with explicit reasons and adapter metadata for both upstream suites | todo |
+| T-139 | P11 | P0 | Add the upstream suite inventory and checked-in selection manifest | T-137, T-138 | The repo classifies which upstream cases are run or skipped, with explicit reasons and adapter metadata for both upstream suites | done |
 | T-140 | P11 | P1 | Implement the first upstream-suite-derived compatibility slice for One True Awk and gawk | T-139 | A portable, POSIX-relevant selected slice from both upstream suites executes across `quawk`, One True Awk, and gawk with deterministic reporting | todo |
 | T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | todo |
 | T-142 | P11 | P1 | Add evaluated-divergence metadata and companion compatibility notes for upstream-suite failures | T-140 | Executed upstream failures are either fixed or classified with checked-in metadata plus reviewed human-readable notes, and stale or unclassified entries fail the gate | todo |

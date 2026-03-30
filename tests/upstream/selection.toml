@@ -1,0 +1,53 @@
+# Curated starter inventory for the pinned upstream compatibility suites.
+# This is intentionally a small checked-in slice, not an exhaustive list of
+# every upstream case that may eventually be classified.
+
+[[case]]
+suite = "one-true-awk"
+case_id = "t.split1"
+path = "third_party/onetrueawk/testdir/t.split1"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "split", "records"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "t.for"
+path = "third_party/onetrueawk/testdir/t.for"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "loops", "records"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "T.split"
+path = "third_party/onetrueawk/testdir/T.split"
+status = "skip"
+adapter = "onetrueawk-shell-driver"
+reason = "Shell-driver adaptation lands after the initial direct-program slice."
+tags = ["shell-driver", "split"]
+
+[[case]]
+suite = "gawk"
+case_id = "assignnumfield"
+path = "third_party/gawk/test/assignnumfield.awk"
+status = "run"
+adapter = "gawk-awk-in-ok"
+tags = ["posix", "fields", "records"]
+
+[[case]]
+suite = "gawk"
+case_id = "posix_compare"
+path = "third_party/gawk/test/posix_compare.awk"
+status = "run"
+adapter = "gawk-awk-ok"
+tags = ["posix", "comparison", "strings"]
+
+[[case]]
+suite = "gawk"
+case_id = "cmdlinefsbacknl"
+path = "third_party/gawk/test/cmdlinefsbacknl.sh"
+status = "skip"
+adapter = "gawk-shell-driver"
+reason = "Shell-driver and CLI-wrapper adaptation land after the initial awk/in/ok slice."
+tags = ["shell-driver", "cli"]

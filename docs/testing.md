@@ -47,6 +47,7 @@ Decision rule:
 Reference-engine policy:
 - required compatibility work uses the pinned upstream source trees under `third_party/`
 - One True Awk and gawk are resolved through the repo-managed local wrappers under `build/upstream/bin/`
+- the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
 - host `awk` is not a compatibility reference
 
 ## Test Corpus Structure
