@@ -368,4 +368,4 @@ Current limitations:
 - string-valued `-v` assignments are not supported yet
 - `--ir` and `--asm` only cover programs that fit the current backend-lowered surface; public execution is broader
 - assembly inspection output is backend- and platform-dependent
-- the compatibility corpus now covers the supported public execution surface, but broader POSIX hardening is still ongoing
+- the repo-owned compatibility corpus is now supplemental to the upstream compatibility gate, and broader POSIX hardening is still ongoing

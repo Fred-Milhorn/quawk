@@ -1,4 +1,4 @@
-"""Supported compatibility corpus executed through the differential runner."""
+"""Supplemental local supported corpus executed through the differential runner."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from quawk.corpus import (
 
 
 @pytest.mark.compat
+@pytest.mark.compat_local
 @pytest.mark.parametrize("case", supported_corpus_cases(), ids=lambda case: case.id)
 def test_supported_compatibility_corpus(case) -> None:
     missing = missing_engines()

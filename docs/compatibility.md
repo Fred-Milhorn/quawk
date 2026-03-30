@@ -42,6 +42,7 @@ Recommended local flow:
 git submodule update --init --recursive
 uv run python scripts/upstream_compat.py bootstrap
 uv run pytest -m compat_upstream
+uv run pytest -m compat_local
 ```
 
 Expected behavior:
@@ -49,6 +50,8 @@ Expected behavior:
 - `bootstrap` builds deterministic local reference binaries for One True Awk and gawk under ignored `build/` paths
 - the compatibility harness resolves only those pinned binaries by default
 - optional override env vars may exist for debugging or CI, but the normal local path is repo-managed and deterministic
+- `compat_upstream` is the authoritative compatibility gate
+- `compat_local` remains available as a faster repo-owned regression suite
 
 ## Design
 

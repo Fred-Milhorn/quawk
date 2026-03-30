@@ -38,6 +38,7 @@ testpaths = ["tests"]
 markers = [
     "compat: full compatibility suite coverage, including corpus and differential checks",
     "compat_upstream: upstream-suite-derived compatibility coverage",
+    "compat_local: repo-owned supplemental compatibility corpus coverage",
     "corpus: single-engine compatibility corpus coverage",
     "property: reserved for property-based tests",
     "smoke: reserved for smoke coverage",

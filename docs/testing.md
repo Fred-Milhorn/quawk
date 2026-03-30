@@ -56,9 +56,21 @@ Current upstream adapter coverage:
 - `gawk-awk-ok` for `.awk` + `.ok` fixtures
 - `gawk-awk-in-ok` for `.awk` + `.in` + `.ok` fixtures
 
+## Compatibility Surfaces
+
+Compatibility pytest surfaces are split intentionally:
+- `compat_upstream` is the primary compatibility authority and is derived from the pinned upstream suites
+- `compat_local` is the repo-owned supplemental corpus used for fast regression and smoke coverage
+- `compat` remains the umbrella marker for both surfaces
+
+Recommended commands:
+- `uv run pytest -m compat_upstream`
+- `uv run pytest -m compat_local`
+
 ## Test Corpus Structure
 
-Start with small end-to-end fixtures for the current supported execution path.
+Keep the repo-owned corpus small, fast, and reviewable.
+It is a supplemental regression surface, not the primary compatibility gate.
 
 For the `P1` phase, CLI-driven end-to-end tests are the primary proof that work is moving in the right direction.
 Lexer, parser, and lowering unit tests are supporting tests, not substitutes for CLI-level execution coverage.
@@ -104,7 +116,7 @@ The manifest records:
 
 ## When To Add A Corpus Case
 
-Use the corpus for user-visible AWK behavior.
+Use the local corpus for user-visible AWK behavior that is worth pinning in-repo.
 
 Add a corpus case when:
 - the behavior is naturally expressed as a small AWK program

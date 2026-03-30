@@ -1,4 +1,4 @@
-"""P10 compatibility baselines executed through the real differential runner."""
+"""Supplemental local compatibility baselines executed through the differential runner."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from quawk.corpus import (
 
 
 @pytest.mark.compat
+@pytest.mark.compat_local
 @pytest.mark.parametrize("case", compatibility_baseline_cases(), ids=lambda case: case.id)
 def test_compatibility_baseline(case) -> None:
     missing = missing_engines()

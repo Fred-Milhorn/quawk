@@ -1,5 +1,5 @@
 # Corpus-runner tests.
-# These cases make the AWK compatibility corpus a first-class pytest surface,
+# This repo-owned corpus is a supplemental local regression surface,
 # including strict xfail coverage for known unsupported behaviors.
 
 from __future__ import annotations
@@ -8,7 +8,7 @@ import pytest
 
 from quawk.corpus import CorpusCase, compare_case, load_cases, run_case
 
-pytestmark = pytest.mark.compat
+pytestmark = [pytest.mark.compat, pytest.mark.compat_local]
 
 
 def build_case_params() -> list[pytest.ParameterSet]:

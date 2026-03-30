@@ -341,9 +341,8 @@ Next deliverable: P11 upstream compatibility transition
 Target outcome:
 - one documented local workflow builds pinned One True Awk and gawk references, runs the selected upstream-suite-derived compatibility slice, and records evaluated non-fix failures explicitly
 
-1. `T-141` reclassify the repo-owned corpus as supplemental `compat_local` coverage
-2. `T-142` add the evaluated-divergence metadata and companion compatibility notes
-3. `T-143` add the optional CI job and promotion criteria for the upstream compatibility gate
+1. `T-142` add the evaluated-divergence metadata and companion compatibility notes
+2. `T-143` add the optional CI job and promotion criteria for the upstream compatibility gate
 
 ## Backlog
 
@@ -455,7 +454,7 @@ Priority values:
 | T-138 | P11 | P0 | Remove host-`awk` aliasing and resolve only pinned local reference binaries | T-137 | Compatibility code fails clearly when the repo-managed reference builds are missing and never treats host `awk` as One True Awk | done |
 | T-139 | P11 | P0 | Add the upstream suite inventory and checked-in selection manifest | T-137, T-138 | The repo classifies which upstream cases are run or skipped, with explicit reasons and adapter metadata for both upstream suites | done |
 | T-140 | P11 | P1 | Implement the first upstream-suite-derived compatibility slice for One True Awk and gawk | T-139 | A portable, POSIX-relevant selected slice from both upstream suites executes across `quawk`, One True Awk, and gawk with deterministic reporting | done |
-| T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | todo |
+| T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | done |
 | T-142 | P11 | P1 | Add evaluated-divergence metadata and companion compatibility notes for upstream-suite failures | T-140 | Executed upstream failures are either fixed or classified with checked-in metadata plus reviewed human-readable notes, and stale or unclassified entries fail the gate | todo |
 | T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility slice, and the roadmap/docs define when that job becomes required | todo |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
