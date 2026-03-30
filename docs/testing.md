@@ -44,6 +44,11 @@ Decision rule:
 - if they differ, classify behavior by POSIX text before deciding expected behavior
 - required compatibility pytest jobs must fail, not skip, when either reference engine is missing
 
+Reference-engine policy:
+- required compatibility work uses the pinned upstream source trees under `third_party/`
+- One True Awk and gawk are resolved through the repo-managed local wrappers under `build/upstream/bin/`
+- host `awk` is not a compatibility reference
+
 ## Test Corpus Structure
 
 Start with small end-to-end fixtures for the current supported execution path.
@@ -215,7 +220,7 @@ Differential corpus policy:
 
 Required environment policy:
 - local ad hoc runs may still use the CLI's nonzero missing-engine path for diagnostics
-- required pytest compatibility suites must treat missing `awk` or `gawk` as environment failures, not skips
+- required pytest compatibility suites must treat missing pinned One True Awk or pinned gawk references as environment failures, not skips
 - intentional `quawk` extensions are allowed only when they are documented and classified in `tests/corpus/divergences.toml`
 
 Release gate recommendation:

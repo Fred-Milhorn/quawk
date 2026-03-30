@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
 
+from quawk.upstream_compat import upstream_projects
+
 EngineName = Literal["quawk", "gawk-posix", "one-true-awk"]
 DifferentialStatus = Literal["PASS", "FAIL", "SKIP", "REF-DISAGREE"]
 DivergenceClassification = Literal["POSIX-specified", "implementation-defined", "unspecified/undefined", "extension"]
@@ -450,10 +452,25 @@ def normalize_result(result: CorpusResult) -> NormalizedCorpusResult:
     )
 
 
+def engine_executable(engine: EngineName) -> str:
+    """Return the executable path or command name for one engine."""
+    if engine == "quawk":
+        return "quawk"
+
+    project_by_name = {project.name: project for project in upstream_projects()}
+    project_by_engine = {
+        "one-true-awk": project_by_name["one-true-awk"],
+        "gawk-posix": project_by_name["gawk"],
+    }
+    return str(project_by_engine[engine].wrapper_path)
+
+
 def is_engine_available(engine: EngineName) -> bool:
     """Report whether the requested engine is available in the current environment."""
-    executable = build_engine_command(engine, Path("program.awk"))[0]
-    return shutil.which(executable) is not None
+    executable = engine_executable(engine)
+    if engine == "quawk":
+        return shutil.which(executable) is not None
+    return Path(executable).is_file()
 
 
 def missing_engines(engines: tuple[EngineName, ...] = DEFAULT_DIFFERENTIAL_ENGINES) -> tuple[EngineName, ...]:
@@ -493,15 +510,14 @@ def build_engine_command(
     """Build the command used to execute one corpus case."""
     input_args = list(input_operands)
     operand_separator_args = ["--"] if operand_separator and input_args else []
+    executable = engine_executable(engine)
     match engine:
         case "quawk":
-            return ["quawk", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
+            return [executable, *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
         case "gawk-posix":
-            return ["gawk", "--posix", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
+            return [executable, "--posix", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
         case "one-true-awk":
-            # This intentionally uses the host `awk` command. A stricter
-            # one-true-awk path can be configured later if needed.
-            return ["awk", *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
+            return [executable, *cli_args, "-f", str(program_path), *operand_separator_args, *input_args]
     raise AssertionError(f"unhandled engine: {engine}")
 
 
@@ -528,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--differential",
         action="store_true",
-        help="Run each case under quawk, awk, and gawk --posix.",
+        help="Run each case under quawk, pinned one-true-awk, and pinned gawk --posix.",
     )
     parser.add_argument(
         "--engine",

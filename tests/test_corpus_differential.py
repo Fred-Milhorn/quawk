@@ -50,8 +50,17 @@ def test_build_engine_command_uses_expected_process_prefixes() -> None:
     input_path = Path("/tmp/input.txt")
 
     assert corpus.build_engine_command("quawk", program_path) == ["quawk", "-f", str(program_path)]
-    assert corpus.build_engine_command("one-true-awk", program_path) == ["awk", "-f", str(program_path)]
-    assert corpus.build_engine_command("gawk-posix", program_path) == ["gawk", "--posix", "-f", str(program_path)]
+    assert corpus.build_engine_command("one-true-awk", program_path) == [
+        str(corpus.upstream_projects()[0].wrapper_path),
+        "-f",
+        str(program_path),
+    ]
+    assert corpus.build_engine_command("gawk-posix", program_path) == [
+        str(corpus.upstream_projects()[1].wrapper_path),
+        "--posix",
+        "-f",
+        str(program_path),
+    ]
     assert corpus.build_engine_command("quawk", program_path, cli_args=("-F:",), input_operands=(str(input_path), )) == [
         "quawk",
         "-F:",
@@ -80,20 +89,45 @@ def test_build_engine_command_supports_operand_separator_and_literal_operands() 
     ]
 
 
-def test_is_engine_available_uses_resolved_executable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_engine_executable_uses_pinned_reference_wrappers() -> None:
+    assert corpus.engine_executable("quawk") == "quawk"
+    assert corpus.engine_executable("one-true-awk").endswith("build/upstream/bin/one-true-awk")
+    assert corpus.engine_executable("gawk-posix").endswith("build/upstream/bin/gawk")
+
+
+def test_is_engine_available_checks_quawk_on_path_and_references_on_disk(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[str] = []
 
     def fake_which(name: str) -> str | None:
         seen.append(name)
-        if name == "gawk":
-            return "/usr/bin/gawk"
+        if name == "quawk":
+            return "/tmp/quawk"
         return None
 
-    monkeypatch.setattr(corpus.shutil, "which", fake_which)
+    def fake_is_file(self: Path) -> bool:
+        return self.name == "gawk"
 
+    monkeypatch.setattr(corpus.shutil, "which", fake_which)
+    monkeypatch.setattr(Path, "is_file", fake_is_file)
+
+    assert corpus.is_engine_available("quawk") is True
     assert corpus.is_engine_available("gawk-posix") is True
     assert corpus.is_engine_available("one-true-awk") is False
-    assert seen == ["gawk", "awk"]
+    assert seen == ["quawk"]
+
+
+def test_missing_engines_reports_engine_names_not_host_commands(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_which(name: str) -> str | None:
+        assert name == "quawk"
+        return "/tmp/quawk"
+
+    def fake_is_file(self: Path) -> bool:
+        return self.name == "one-true-awk"
+
+    monkeypatch.setattr(corpus.shutil, "which", fake_which)
+    monkeypatch.setattr(Path, "is_file", fake_is_file)
+
+    assert corpus.missing_engines() == ("gawk-posix",)
 
 
 def test_normalize_result_only_normalizes_line_endings() -> None:
@@ -382,8 +416,12 @@ def test_main_differential_returns_nonzero_and_reports_missing_engines(
 ) -> None:
     case = make_case()
     monkeypatch.setattr(corpus, "select_cases", lambda case_ids: [case])
-    monkeypatch.setattr(corpus, "run_case_differential", lambda case: corpus.DifferentialCaseResult(case, {}, ("awk",)))
-    monkeypatch.setattr(corpus, "missing_engines", lambda engines=corpus.DEFAULT_DIFFERENTIAL_ENGINES: ("awk",))
+    monkeypatch.setattr(
+        corpus,
+        "run_case_differential",
+        lambda case: corpus.DifferentialCaseResult(case, {}, ("one-true-awk",)),
+    )
+    monkeypatch.setattr(corpus, "missing_engines", lambda engines=corpus.DEFAULT_DIFFERENTIAL_ENGINES: ("one-true-awk",))
     monkeypatch.setattr(corpus, "load_divergence_manifest", lambda root=None, path=None: {})
 
     exit_code = corpus.main(["--differential"])
@@ -391,7 +429,7 @@ def test_main_differential_returns_nonzero_and_reports_missing_engines(
 
     assert exit_code == 1
     assert captured.out == "SKIP demo\n"
-    assert captured.err == "corpus: missing differential engines: awk\n"
+    assert captured.err == "corpus: missing differential engines: one-true-awk\n"
 
 
 def test_main_differential_allows_classified_ref_disagreements_without_failure(

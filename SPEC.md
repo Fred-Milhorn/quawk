@@ -86,9 +86,9 @@ Evidence:
 | Area | Status | Notes |
 |---|---|---|
 | Single-engine corpus coverage | implemented | File-backed corpus under `tests/corpus/` |
-| Differential compatibility runner | implemented | `quawk`, `awk`, and `gawk --posix` |
+| Differential compatibility runner | implemented | `quawk`, pinned `one-true-awk`, and pinned `gawk --posix` |
 | Divergence manifest workflow | implemented | Classified reference disagreements and intentional extensions live in `tests/corpus/divergences.toml`. |
-| Required compatibility gate environment | implemented | Required pytest compatibility suites expect both host `awk` and `gawk --posix`; missing engines are environment failures. |
+| Required compatibility gate environment | implemented | Required pytest compatibility suites expect repo-managed One True Awk and gawk references built from the pinned upstream sources; missing engines are environment failures. |
 | Release smoke baseline | implemented | `tests/test_p12_release_smoke.py` |
 | Versioned release checklist | planned | `T-042` |
 | Versioned changelog artifact | planned | `T-042` |
