@@ -1,0 +1,89 @@
+name: compat-upstream
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/compat-upstream.yml"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/compatibility-evaluations.md"
+      - "docs/compatibility.md"
+      - "docs/getting-started.md"
+      - "docs/release-checklist.md"
+      - "docs/roadmap.md"
+      - "docs/testing.md"
+      - "pyproject.toml"
+      - "scripts/upstream_compat.py"
+      - "src/**"
+      - "tests/**"
+      - "third_party/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/compat-upstream.yml"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/compatibility-evaluations.md"
+      - "docs/compatibility.md"
+      - "docs/getting-started.md"
+      - "docs/release-checklist.md"
+      - "docs/roadmap.md"
+      - "docs/testing.md"
+      - "pyproject.toml"
+      - "scripts/upstream_compat.py"
+      - "src/**"
+      - "tests/**"
+      - "third_party/**"
+
+permissions:
+  contents: read
+
+jobs:
+  compat-upstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install LLVM and upstream build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            bison \
+            build-essential \
+            clang \
+            gettext \
+            libtool \
+            llvm \
+            make \
+            texinfo
+
+      - name: Export LLVM tool directory
+        run: echo "$(llvm-config --bindir)" >> "$GITHUB_PATH"
+
+      - name: Sync development dependencies
+        run: uv sync --dev
+
+      - name: Bootstrap pinned upstream references
+        run: uv run python scripts/upstream_compat.py bootstrap
+
+      - name: Run upstream compatibility slice
+        run: uv run pytest -m compat_upstream

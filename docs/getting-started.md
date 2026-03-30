@@ -53,7 +53,11 @@ the upstream compatibility transition:
 
 ```sh
 uv run python scripts/upstream_compat.py bootstrap
+uv run pytest -m compat_upstream
 ```
+
+The same `compat_upstream` command now runs in the optional GitHub Actions
+workflow at `.github/workflows/compat-upstream.yml`.
 
 ## Common Commands
 

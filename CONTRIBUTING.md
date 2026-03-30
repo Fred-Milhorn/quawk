@@ -97,7 +97,13 @@ also run:
 
 ```sh
 uv run python scripts/upstream_compat.py bootstrap
+uv run pytest -m compat_upstream
 ```
+
+The matching GitHub Actions workflow lives at
+`.github/workflows/compat-upstream.yml`. It is intentionally non-required until
+the promotion criteria in [docs/compatibility.md](docs/compatibility.md) are
+met.
 
 ## Pull Request Checklist
 

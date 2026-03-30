@@ -69,6 +69,10 @@ Recommended commands:
 - `uv run pytest -m compat_upstream`
 - `uv run pytest -m compat_local`
 
+CI parity:
+- `.github/workflows/compat-upstream.yml` runs the same `uv run pytest -m compat_upstream` command after bootstrapping the pinned references on `ubuntu-latest`
+- the workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
+
 ## Test Corpus Structure
 
 Keep the repo-owned corpus small, fast, and reviewable.

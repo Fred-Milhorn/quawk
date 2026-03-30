@@ -183,6 +183,14 @@ Gate policy:
 The upstream-suite workflow should not become a required CI gate in a single
 step.
 
+Current workflow:
+
+- `.github/workflows/compat-upstream.yml`
+- runs on pull requests, pushes to `main`, and manual `workflow_dispatch`
+- builds the pinned references with the same repo-managed bootstrap used locally
+- runs `uv run pytest -m compat_upstream`
+- is intentionally optional at the branch-protection level for now
+
 Promotion sequence:
 
 1. land the submodules, bootstrap command, and local harness
@@ -195,6 +203,14 @@ During the transition:
 - keep the local corpus green
 - keep the upstream gate authoritative once promoted
 - do not regress back to host `awk` aliasing for convenience
+
+Promotion criteria:
+
+- the workflow passes on the default branch for at least 10 consecutive runs without infrastructure-only flakes
+- typical runtime on the default GitHub-hosted runner stays under 15 minutes for the active upstream slice
+- the pinned One True Awk and gawk bootstrap remains deterministic on `ubuntu-latest`
+- active non-fix upstream failures, if any, are classified in `tests/upstream/divergences.toml` and reviewed in `docs/compatibility-evaluations.md`
+- repository maintainers explicitly add `compat-upstream` to required branch protection only after the criteria above are satisfied
 
 ## Acceptance Criteria
 

@@ -59,6 +59,8 @@ Pinned upstream compatibility references now live under `third_party/`. From a
 fresh checkout, initialize them with `git submodule update --init --recursive`.
 When working on the compatibility transition, build the local One True Awk and
 gawk wrappers with `uv run python scripts/upstream_compat.py bootstrap`.
+GitHub Actions now also has an optional `compat-upstream` workflow that runs
+the same upstream compatibility slice in CI.
 
 ## Docs Map
 
