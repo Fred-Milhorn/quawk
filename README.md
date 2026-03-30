@@ -55,6 +55,11 @@ Full setup and local command guidance live in [docs/getting-started.md](docs/get
 
 The current runtime shells out to system LLVM binaries rather than bundling an LLVM distribution. On macOS, package-manager LLVM installs are often not on `PATH` by default, so make sure the directory containing these tools is exported before running `quawk`.
 
+Pinned upstream compatibility references now live under `third_party/`. From a
+fresh checkout, initialize them with `git submodule update --init --recursive`.
+When working on the compatibility transition, build the local One True Awk and
+gawk wrappers with `uv run python scripts/upstream_compat.py bootstrap`.
+
 ## Docs Map
 
 - [CHANGELOG.md](CHANGELOG.md): user-visible release history

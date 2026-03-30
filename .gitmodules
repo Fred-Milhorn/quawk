@@ -1,0 +1,6 @@
+[submodule "third_party/onetrueawk"]
+	path = third_party/onetrueawk
+	url = https://github.com/onetrueawk/awk.git
+[submodule "third_party/gawk"]
+	path = third_party/gawk
+	url = https://git.savannah.gnu.org/git/gawk.git

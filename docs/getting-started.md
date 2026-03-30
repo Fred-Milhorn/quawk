@@ -12,6 +12,11 @@ Required:
   - `clang`, `llvm-as`, and `llvm-link` for the current record/input execution path
   - `llc` for `quawk --asm`
 
+Needed for pinned upstream compatibility references:
+- `make`
+- a working C toolchain
+- a POSIX shell environment capable of running gawk's `configure`
+
 `quawk` uses a Python-native build model:
 
 1. environment/toolchain layer: `uv` + Python `3.14.x` + project-local `.venv`
@@ -35,6 +40,19 @@ Install the project and development dependencies:
 
 ```sh
 uv pip install -e .[dev]
+```
+
+Initialize the pinned upstream compatibility sources:
+
+```sh
+git submodule update --init --recursive
+```
+
+Build the local One True Awk and gawk compatibility references when working on
+the upstream compatibility transition:
+
+```sh
+uv run python scripts/upstream_compat.py bootstrap
 ```
 
 ## Common Commands
@@ -65,6 +83,7 @@ These local outputs should be ignored by Git as needed:
 Current state:
 - committed `src/quawk` package with a working CLI, parser, semantic checks, and execution backends
 - documentation, conformance fixtures, and corpus tests alongside the implementation
+- pinned upstream compatibility source trees under `third_party/`
 - `examples/` is present for manual inspection and smoke programs
 - compatibility coverage is still growing; the roadmap remains the source of truth for next increments
 
@@ -76,14 +95,17 @@ Target implementation layout:
 ├── README.md
 ├── CONTRIBUTING.md
 ├── docs/
+├── scripts/
 ├── src/
 │   └── quawk/
 ├── tests/
 ├── examples/
-└── third_party/    # only when source vendoring is required
+└── third_party/    # pinned upstream source trees when required by compatibility work
 ```
 
-Use `third_party/` only when source vendoring is unavoidable. Do not vendor Python toolchains, LLVM distributions, or package manager caches.
+Use `third_party/` only for pinned upstream sources that are part of the
+compatibility workflow. Do not vendor Python toolchains, LLVM distributions, or
+package manager caches.
 
 ## Next Reads
 

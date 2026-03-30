@@ -25,6 +25,11 @@ Use the local environment described in [docs/getting-started.md](docs/getting-st
 - Python `3.14.x`
 - project-local `.venv` managed by `uv`
 
+Compatibility work also depends on the pinned upstream sources under
+`third_party/`. Initialize them with `git submodule update --init --recursive`.
+When working on the upstream compatibility transition, build the local One True
+Awk and gawk references with `uv run python scripts/upstream_compat.py bootstrap`.
+
 ## Workflow Expectations
 
 - Keep changes scoped and easy to review.
@@ -85,6 +90,13 @@ uv run pytest -m compat
 yapf --diff --recursive src tests
 ruff check .
 mypy src
+```
+
+When touching the upstream compatibility bootstrap or suite-selection flow,
+also run:
+
+```sh
+uv run python scripts/upstream_compat.py bootstrap
 ```
 
 ## Pull Request Checklist
