@@ -1,40 +1,49 @@
 # Compatibility Plan
 
-This document is the implementation plan for the next `P11` compatibility
-transition. The current repo-owned corpus remains useful, but it is no longer
-the primary compatibility authority. The primary compatibility signal should
-come from pinned upstream suites for One True Awk and gawk.
+This document defines the current `P11` compatibility plan for `quawk`.
+
+The initial transition to pinned upstream references is complete. The next
+stage is to grow the upstream compatibility suite deliberately, with a
+POSIX-first stop condition that matches the public claims in [SPEC.md](../SPEC.md).
+
+## Summary
+
+Current compatibility stance:
+
+- `compat_upstream` is the primary compatibility authority
+- `compat_local` remains a fast supplemental regression suite
+- One True Awk is the primary upstream source for core POSIX-style coverage
+- gawk is a secondary source used to add fixture-backed POSIX coverage and to catch disagreements
+
+Explicit non-goal:
+
+- do not try to run every upstream test in either tree
+
+That is the correct scope because:
+
+- One True Awk's `testdir` includes broad historical regression, systematic
+  feature tests, and timing tests; upstream's own
+  [README.TESTS](/Users/fred/dev/quawk/third_party/onetrueawk/testdir/README.TESTS)
+  describes roughly 60 `p.*`, 160 `t.*`, about 20 `T.*`, and timing-oriented
+  `tt.*` files
+- gawk's `test/` tree is much larger and includes substantial GNU-specific,
+  shell-driven, platform-sensitive, and non-POSIX behavior
+- `quawk` is still a POSIX-first implementation, not a GNU awk clone
 
 ## Goal
 
-Move `quawk` compatibility work from:
+Grow the upstream compatibility suite until:
 
-- a hand-authored local corpus
-- a differential runner that treats host `awk` as `one-true-awk`
+- every feature family currently marked `implemented` in [SPEC.md](../SPEC.md)
+  has upstream coverage in the checked-in selection manifest
+- active failures are fixed or explicitly classified
+- the repo-owned local corpus is no longer the only compatibility evidence for
+  any implemented POSIX family
 
-to:
-
-- pinned upstream source trees under `third_party/`
-- repo-managed local builds of One True Awk and gawk
-- compatibility runs derived from the respective upstream test suites
-- explicit evaluation of failures that are not immediate fix targets
-
-## End State
-
-The target steady state is:
-
-- `third_party/onetrueawk` and `third_party/gawk` are pinned submodules
-- one repo-managed bootstrap command builds local reference binaries into ignored paths under `build/`
-- required compatibility runs do not depend on whatever `awk` is on `PATH`
-- the upstream-suite-derived compatibility surface is the primary compatibility gate
-- the current repo-owned corpus remains as a fast supplemental regression suite
-- every observed compatibility failure is either fixed or explicitly evaluated in checked-in metadata and companion docs
+The target is not exhaustive upstream ingestion. The target is an honest,
+reviewable, POSIX-first compatibility contract.
 
 ## Local Workflow
-
-Local compatibility should not require a global install of One True Awk.
-Developers should only need the native build toolchain required to build the
-upstream sources.
 
 Recommended local flow:
 
@@ -47,109 +56,109 @@ uv run pytest -m compat_local
 
 Expected behavior:
 
-- `bootstrap` builds deterministic local reference binaries for One True Awk and gawk under ignored `build/` paths
+- `bootstrap` builds deterministic local reference binaries for One True Awk
+  and gawk under ignored `build/` paths
 - the compatibility harness resolves only those pinned binaries by default
-- optional override env vars may exist for debugging or CI, but the normal local path is repo-managed and deterministic
 - `compat_upstream` is the authoritative compatibility gate
 - `compat_local` remains available as a faster repo-owned regression suite
 
-## Design
+## Selection Policy
 
-### 1. Reframe the local corpus
+The checked-in selection manifest at
+`tests/upstream/selection.toml` is the source of truth for the upstream suite.
 
-Keep the checked-in `tests/corpus/` suite, but change its role:
+Every candidate upstream case must be one of:
 
-- it is a supplemental fast regression and smoke suite
-- it is not the primary compatibility authority
-- it should stop making repo-wide compatibility claims on its own
+- `run`
+- `skip` with an explicit reason
 
-The corpus remains useful for:
+Do not silently omit cases once a case family is under review.
 
-- small end-to-end regressions
-- feature-oriented fixtures that are easy to review in-repo
-- quick local iteration before running the slower upstream-suite-derived coverage
+### Source Priority
 
-### 2. Pin upstream sources
+One True Awk is primary:
 
-Track the upstream projects directly in the repo:
+- first priority: `p.*`
+- second priority: simple `t.*`
+- third priority: selected `T.*` only when they cover an in-scope POSIX family
+  that `p.*` and `t.*` do not cover well
+- never use `tt.*` timing tests for compatibility gating
 
-- `third_party/onetrueawk`
-- `third_party/gawk`
+gawk is secondary:
 
-Policy:
+- first priority: `.awk + .ok`
+- second priority: `.awk + .in + .ok`
+- third priority: selected `.sh` drivers only when they cover an in-scope
+  POSIX family that direct fixtures cannot
 
-- pin explicit commits through Git submodules
-- do not rely on host package-manager versions for required compatibility behavior
-- treat the pinned upstream commits as part of the compatibility contract
+### Default Exclusions
 
-### 3. Build repo-managed reference binaries
+Skip by default:
 
-Add one repo-owned bootstrap/build entrypoint, implemented as a small checked-in
-Python or shell harness, that:
+- GNU-only behavior
+- debugger or profiler features
+- dynamic extension loading, namespaces, or `@load`
+- MPFR or arbitrary-precision behavior
+- locale-heavy or i18n-sensitive tests
+- platform-specific shell or filesystem assumptions
+- timing or performance tests
+- anything already marked `out-of-scope` in [SPEC.md](../SPEC.md)
 
-- initializes expected build directories under ignored `build/` paths
-- builds One True Awk from the pinned source tree
-- builds gawk from the pinned source tree
-- exposes stable wrapper or symlink paths such as `build/upstream/bin/one-true-awk` and `build/upstream/bin/gawk`
-- validates that the expected binaries exist before compatibility tests run
+## Feature-Family Coverage Rule
 
-Reference-engine resolution rules:
+Use [SPEC.md](../SPEC.md) as the coverage contract.
 
-- never use host `awk` as a stand-in for One True Awk
-- never treat a package-manager `gawk` as the required reference by default
-- fail clearly when the repo-managed reference binaries have not been bootstrapped
+Feature families that must each gain upstream coverage:
 
-### 4. Add an upstream suite inventory layer
+- CLI basics: `-f`, `-F`, numeric `-v`, `--`, and `-` stdin operand
+- pattern-action execution: `BEGIN`, record actions, `END`, expression
+  patterns, range patterns, and default-print behavior
+- regex-driven selection
+- fields and field assignment
+- scalars, arrays, `delete`, and `for ... in`
+- control flow: `if`, `while`, `do ... while`, classic `for`, `break`,
+  `continue`
+- record control: `next`, `nextfile`, `exit`
+- expressions and coercions
+- user-defined functions
+- builtin variables: `NR`, `FNR`, `NF`, `FILENAME`
+- implemented builtins only: `length`, `split`, `substr`
+- multi-file input processing
 
-The upstream suites are broader than the initial `quawk` compatibility target,
-so the repo needs an explicit checked-in inventory of what is run and what is
-currently skipped.
+Selection rule per family:
 
-Add machine-readable suite inventory metadata that records, for each upstream
-case:
+- at least one One True Awk case must cover the family
+- at least one gawk case should corroborate the family when a clean
+  fixture-backed case exists
+- if one suite has no reasonable in-scope case for a family, document that in
+  the selection manifest and cover the family from the other suite
 
-- suite name
-- upstream case ID
-- status: `run` or `skip`
-- reason for a skip
-- adapter type or harness shape
-- tags such as `posix`, `gnu-extension`, `platform-specific`, or `unsupported-input-shape`
+## Growth Order
 
-Selection policy:
+Grow the suite in this order:
 
-- start with portable, POSIX-relevant cases from both upstream suites
-- skip cases that are clearly GNU-extension-only, debugger-only, locale-heavy, dynamic-extension-driven, platform-specific, or otherwise outside the first compatibility target
-- keep skipped cases explicit and reviewable rather than silently ignoring them
+1. expand within the current adapters first
+   - `onetrueawk-program-file`
+   - `gawk-awk-ok`
+   - `gawk-awk-in-ok`
+2. add more One True Awk `p.*`
+3. add gawk `.ok` and `.in/.ok` corroborating cases for the same families
+4. fill remaining family gaps with selected One True Awk `t.*`
+5. add selected One True Awk `T.*` and gawk `.sh` cases only when a claimed
+   family still lacks upstream coverage
 
-### 5. Run upstream-suite-derived compatibility checks
+Do not start with shell-driver adapters unless a claimed in-scope feature
+cannot be covered without them.
 
-Add a compatibility harness that:
-
-- discovers the repo-classified upstream cases from the pinned source trees
-- executes the selected cases under `quawk`
-- executes the same cases under the pinned One True Awk and gawk binaries
-- normalizes outputs conservatively for deterministic comparison
-- reports missing references, reference disagreement, `quawk` mismatches, and stale divergence entries clearly
-
-Required pytest surfaces should split into:
-
-- `compat_upstream`
-  - upstream-suite-derived compatibility gate
-- `compat_local`
-  - current small repo-owned corpus
-
-An umbrella `compat` marker may still include both, but the primary gate should
-move to `compat_upstream`.
-
-### 6. Evaluate failures explicitly
+## Failure Policy
 
 Not every compatibility failure should be fixed immediately, but every one
 should be evaluated explicitly.
 
 Keep two checked-in tracking layers:
 
-1. Machine-readable divergence metadata for executed upstream cases in `tests/upstream/divergences.toml`
-2. Human-readable compatibility notes for the active divergence families in `docs/compatibility-evaluations.md`
+1. machine-readable divergence metadata in `tests/upstream/divergences.toml`
+2. reviewed notes in `docs/compatibility-evaluations.md`
 
 Each divergence entry should record:
 
@@ -161,7 +170,7 @@ Each divergence entry should record:
 - last verified upstream commit
 - note reference in the companion doc
 
-Required classifications:
+Allowed classifications:
 
 - `posix-required-fix`
 - `known-gap`
@@ -173,15 +182,14 @@ Required classifications:
 
 Gate policy:
 
-- unclassified failures fail the required suite
-- stale divergence entries fail the required suite
-- `posix-required-fix` remains a hard failure
-- the other classes are allowed only after explicit evaluation and documentation
+- unclassified upstream failures fail
+- unclassified reference disagreements fail
+- stale divergence entries fail
+- `posix-required-fix` remains blocking even when classified
+- non-blocking failures are allowed only when they are documented in both the
+  manifest and the companion notes doc
 
-### 7. Promote CI in phases
-
-The upstream-suite workflow should not become a required CI gate in a single
-step.
+## CI Promotion
 
 Current workflow:
 
@@ -191,68 +199,92 @@ Current workflow:
 - runs `uv run pytest -m compat_upstream`
 - is intentionally optional at the branch-protection level for now
 
-Promotion sequence:
-
-1. land the submodules, bootstrap command, and local harness
-2. add an optional CI job that builds the references and runs the selected upstream compatibility slice
-3. stabilize runtime, flake profile, and divergence workflow
-4. promote the upstream compatibility job to required
-
-During the transition:
-
-- keep the local corpus green
-- keep the upstream gate authoritative once promoted
-- do not regress back to host `awk` aliasing for convenience
-
 Promotion criteria:
 
-- the workflow passes on the default branch for at least 10 consecutive runs without infrastructure-only flakes
-- typical runtime on the default GitHub-hosted runner stays under 15 minutes for the active upstream slice
-- the pinned One True Awk and gawk bootstrap remains deterministic on `ubuntu-latest`
-- active non-fix upstream failures, if any, are classified in `tests/upstream/divergences.toml` and reviewed in `docs/compatibility-evaluations.md`
-- repository maintainers explicitly add `compat-upstream` to required branch protection only after the criteria above are satisfied
+- the workflow passes on the default branch for at least 10 consecutive runs
+  without infrastructure-only flakes
+- typical runtime on the default GitHub-hosted runner stays under 15 minutes
+  for the active upstream slice
+- the pinned One True Awk and gawk bootstrap remains deterministic on
+  `ubuntu-latest`
+- active non-fix upstream failures, if any, are classified in
+  `tests/upstream/divergences.toml` and reviewed in
+  `docs/compatibility-evaluations.md`
+- maintainers explicitly add `compat-upstream` to required branch protection
+  only after the criteria above are satisfied
 
-## Acceptance Criteria
+## Definition Of Done
 
-This transition is complete when:
+The upstream compatibility suite is done when all of the following are true:
 
-- `quawk` compatibility no longer depends on host `awk`
-- One True Awk and gawk are both built from pinned upstream sources in normal local workflow
-- upstream-suite-derived compatibility runs exist for both upstream projects
-- the local corpus is clearly documented as supplemental rather than authoritative
-- executed compatibility failures are either fixed or explicitly evaluated in checked-in metadata and docs
-- CI can run the pinned upstream compatibility workflow end to end
+- every feature family currently marked `implemented` in [SPEC.md](../SPEC.md)
+  has upstream coverage in `tests/upstream/selection.toml`
+- for every implemented family, at least one runnable upstream case exists;
+  skipped cases are allowed only for harness reasons and must not be the only
+  coverage for that family
+- all in-scope, adapter-compatible One True Awk `p.*` cases are either runnable
+  or explicitly skipped with a reviewed reason
+- gawk coverage exists for each major implemented family where a clean
+  `.ok` or `.in/.ok` fixture is available
+- no runnable upstream case fails without either a fix or an evaluated
+  divergence entry plus companion note
+- no `posix-required-fix` entries remain for any feature still claimed as
+  `implemented`
+- the local corpus is no longer the only compatibility evidence for any
+  implemented POSIX family
+
+Not required for done:
+
+- all One True Awk `t.*`
+- all One True Awk `T.*`
+- any `tt.*`
+- all gawk tests
+- GNU-extension parity
 
 ## Implementation Phases
 
-### Phase 1: Policy reset and reproducible references
+### Phase 1: Foundation
 
 Complete when:
 
-- docs stop referring to host `awk` as `one-true-awk`
-- the role of the local corpus is explicitly reduced to supplemental coverage
-- pinned upstream submodules and repo-managed bootstrap expectations are documented
+- pinned upstream sources exist
+- repo-managed local reference builds exist
+- `compat_upstream` runs selected cases under `quawk`, One True Awk, and gawk
+- evaluated divergence metadata and companion notes exist
+- CI can run the upstream slice as an optional job
 
-### Phase 2: Upstream suite ingestion
-
-Complete when:
-
-- pinned upstream trees are discoverable from the repo
-- the repo has a checked-in inventory of selected and skipped upstream cases
-- the initial portable, POSIX-relevant execution slice is defined for both upstream suites
-
-### Phase 3: Upstream compatibility execution and divergence evaluation
+### Phase 2: Feature-Family Matrix
 
 Complete when:
 
-- selected upstream cases run under `quawk`, One True Awk, and gawk
-- failures are reported through the checked-in divergence workflow
-- stale or unclassified divergence states fail visibly
+- `tests/upstream/selection.toml` is organized by implemented feature family
+- each implemented family in [SPEC.md](../SPEC.md) is mapped to upstream cases
+  or explicit `skip` decisions
+- the One True Awk primary and gawk corroboration policy is reflected in the
+  manifest
 
-### Phase 4: CI promotion
+### Phase 3: Direct-File Coverage Expansion
 
 Complete when:
 
-- the upstream compatibility workflow runs in CI
-- the job is promoted from optional to required once stable
-- the local corpus remains available as a fast supplemental suite
+- in-scope One True Awk `p.*` coverage is expanded broadly across implemented
+  families
+- gawk `.awk/.ok` and `.awk/.in/.ok` coverage corroborates those families where
+  clean fixtures exist
+- new failures are fixed or classified as they are added
+
+### Phase 4: Gap Filling
+
+Complete when:
+
+- remaining family gaps are filled with selected One True Awk `t.*`
+- shell-driver adapters are added only for still-uncovered in-scope families
+- no implemented family lacks runnable upstream coverage from at least one suite
+
+### Phase 5: Completion Audit
+
+Complete when:
+
+- the `Definition Of Done` above is satisfied
+- the local corpus is clearly supplemental instead of authoritative
+- the suite can stop expanding without creating compatibility blind spots
