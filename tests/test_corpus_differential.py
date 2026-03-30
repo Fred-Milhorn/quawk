@@ -48,8 +48,9 @@ def make_result(
 def test_build_engine_command_uses_expected_process_prefixes() -> None:
     program_path = Path("/tmp/program.awk")
     input_path = Path("/tmp/input.txt")
+    quawk_executable = corpus.engine_executable("quawk")
 
-    assert corpus.build_engine_command("quawk", program_path) == ["quawk", "-f", str(program_path)]
+    assert corpus.build_engine_command("quawk", program_path) == [quawk_executable, "-f", str(program_path)]
     assert corpus.build_engine_command("one-true-awk", program_path) == [
         str(corpus.upstream_projects()[0].wrapper_path),
         "-f",
@@ -62,7 +63,7 @@ def test_build_engine_command_uses_expected_process_prefixes() -> None:
         str(program_path),
     ]
     assert corpus.build_engine_command("quawk", program_path, cli_args=("-F:",), input_operands=(str(input_path), )) == [
-        "quawk",
+        quawk_executable,
         "-F:",
         "-f",
         str(program_path),
@@ -73,6 +74,7 @@ def test_build_engine_command_uses_expected_process_prefixes() -> None:
 def test_build_engine_command_supports_operand_separator_and_literal_operands() -> None:
     program_path = Path("/tmp/program.awk")
     input_path = Path("/tmp/--records.txt")
+    quawk_executable = corpus.engine_executable("quawk")
 
     assert corpus.build_engine_command(
         "quawk",
@@ -80,7 +82,7 @@ def test_build_engine_command_supports_operand_separator_and_literal_operands() 
         input_operands=("-", str(input_path)),
         operand_separator=True,
     ) == [
-        "quawk",
+        quawk_executable,
         "-f",
         str(program_path),
         "--",
@@ -90,7 +92,8 @@ def test_build_engine_command_supports_operand_separator_and_literal_operands() 
 
 
 def test_engine_executable_uses_pinned_reference_wrappers() -> None:
-    assert corpus.engine_executable("quawk") == "quawk"
+    quawk_executable = corpus.engine_executable("quawk")
+    assert quawk_executable == "quawk" or quawk_executable.endswith(".venv/bin/quawk")
     assert corpus.engine_executable("one-true-awk").endswith("build/upstream/bin/one-true-awk")
     assert corpus.engine_executable("gawk-posix").endswith("build/upstream/bin/gawk")
 
@@ -114,6 +117,19 @@ def test_is_engine_available_checks_quawk_on_path_and_references_on_disk(monkeyp
     assert corpus.is_engine_available("gawk-posix") is True
     assert corpus.is_engine_available("one-true-awk") is False
     assert seen == ["quawk"]
+
+
+def test_is_engine_available_accepts_repo_local_quawk_wrapper(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(corpus.shutil, "which", lambda name: None)
+    monkeypatch.setattr(corpus, "REPO_ROOT", Path("/tmp/repo"))
+
+    def fake_is_file(self: Path) -> bool:
+        return self == Path("/tmp/repo/.venv/bin/quawk")
+
+    monkeypatch.setattr(Path, "is_file", fake_is_file)
+
+    assert corpus.engine_executable("quawk") == "/tmp/repo/.venv/bin/quawk"
+    assert corpus.is_engine_available("quawk") is True
 
 
 def test_missing_engines_reports_engine_names_not_host_commands(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -20,6 +20,7 @@ DifferentialStatus = Literal["PASS", "FAIL", "SKIP", "REF-DISAGREE"]
 DivergenceClassification = Literal["POSIX-specified", "implementation-defined", "unspecified/undefined", "extension"]
 
 DEFAULT_CORPUS_ROOT: Final[Path] = Path(__file__).resolve().parents[2] / "tests" / "corpus"
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 DEFAULT_DIFFERENTIAL_ENGINES: Final[tuple[EngineName, ...]] = ("quawk", "one-true-awk", "gawk-posix")
 DEFAULT_DIVERGENCE_MANIFEST: Final[str] = "divergences.toml"
 DIVERGENCE_CLASSIFICATIONS: Final[tuple[DivergenceClassification, ...]] = (
@@ -455,6 +456,11 @@ def normalize_result(result: CorpusResult) -> NormalizedCorpusResult:
 def engine_executable(engine: EngineName) -> str:
     """Return the executable path or command name for one engine."""
     if engine == "quawk":
+        if shutil.which("quawk") is not None:
+            return "quawk"
+        local_wrapper = REPO_ROOT / ".venv" / "bin" / "quawk"
+        if local_wrapper.is_file():
+            return str(local_wrapper)
         return "quawk"
 
     project_by_name = {project.name: project for project in upstream_projects()}
@@ -467,9 +473,11 @@ def engine_executable(engine: EngineName) -> str:
 
 def is_engine_available(engine: EngineName) -> bool:
     """Report whether the requested engine is available in the current environment."""
-    executable = engine_executable(engine)
     if engine == "quawk":
-        return shutil.which(executable) is not None
+        if shutil.which("quawk") is not None:
+            return True
+        return (REPO_ROOT / ".venv" / "bin" / "quawk").is_file()
+    executable = engine_executable(engine)
     return Path(executable).is_file()
 
 

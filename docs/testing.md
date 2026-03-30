@@ -48,7 +48,13 @@ Reference-engine policy:
 - required compatibility work uses the pinned upstream source trees under `third_party/`
 - One True Awk and gawk are resolved through the repo-managed local wrappers under `build/upstream/bin/`
 - the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
+- the first runnable upstream slice is executed through `quawk.upstream_suite`
 - host `awk` is not a compatibility reference
+
+Current upstream adapter coverage:
+- `onetrueawk-program-file` for `Compare.p`-style program files with their standard shared inputs
+- `gawk-awk-ok` for `.awk` + `.ok` fixtures
+- `gawk-awk-in-ok` for `.awk` + `.in` + `.ok` fixtures
 
 ## Test Corpus Structure
 

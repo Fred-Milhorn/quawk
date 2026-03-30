@@ -4,19 +4,19 @@
 
 [[case]]
 suite = "one-true-awk"
-case_id = "t.split1"
-path = "third_party/onetrueawk/testdir/t.split1"
+case_id = "p.12"
+path = "third_party/onetrueawk/testdir/p.12"
 status = "run"
 adapter = "onetrueawk-program-file"
-tags = ["posix", "split", "records"]
+tags = ["posix", "regex", "records"]
 
 [[case]]
 suite = "one-true-awk"
-case_id = "t.for"
-path = "third_party/onetrueawk/testdir/t.for"
+case_id = "p.13"
+path = "third_party/onetrueawk/testdir/p.13"
 status = "run"
 adapter = "onetrueawk-program-file"
-tags = ["posix", "loops", "records"]
+tags = ["posix", "regex", "records"]
 
 [[case]]
 suite = "one-true-awk"
@@ -37,11 +37,11 @@ tags = ["posix", "fields", "records"]
 
 [[case]]
 suite = "gawk"
-case_id = "posix_compare"
-path = "third_party/gawk/test/posix_compare.awk"
+case_id = "assignnumfield2"
+path = "third_party/gawk/test/assignnumfield2.awk"
 status = "run"
 adapter = "gawk-awk-ok"
-tags = ["posix", "comparison", "strings"]
+tags = ["posix", "fields", "begin"]
 
 [[case]]
 suite = "gawk"

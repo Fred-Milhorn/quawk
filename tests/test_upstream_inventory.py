@@ -10,22 +10,26 @@ from quawk import upstream_inventory
 def test_load_upstream_selection_manifest_reads_checked_in_inventory() -> None:
     selections = upstream_inventory.load_upstream_selection_manifest()
 
-    assert [selection.case_id for selection in selections_with_suite("one-true-awk", selections)] == [
-        "t.split1",
-        "t.for",
-        "T.split",
-    ]
-    assert [selection.case_id for selection in selections_with_suite("gawk", selections)] == [
-        "assignnumfield",
-        "posix_compare",
-        "cmdlinefsbacknl",
-    ]
-    assert [selection.case_id for selection in upstream_inventory.selections_with_status("run", selections)] == [
-        "t.split1",
-        "t.for",
-        "assignnumfield",
-        "posix_compare",
-    ]
+    assert selections
+    assert {selection.suite for selection in selections} == {"one-true-awk", "gawk"}
+    assert {selection.status for selection in selections} == {"run", "skip"}
+
+    for suite in ("one-true-awk", "gawk"):
+        suite_entries = selections_with_suite(suite, selections)
+        assert any(selection.status == "run" for selection in suite_entries)
+        assert any(selection.status == "skip" for selection in suite_entries)
+
+    for selection in selections:
+        assert selection.path.is_file()
+        if selection.status == "skip":
+            assert selection.reason
+        else:
+            assert selection.reason is None
+
+        if selection.suite == "one-true-awk":
+            assert selection.adapter.startswith("onetrueawk-")
+        if selection.suite == "gawk":
+            assert selection.adapter.startswith("gawk-")
 
 
 def test_load_upstream_selection_manifest_requires_reason_for_skips(tmp_path: Path) -> None:
