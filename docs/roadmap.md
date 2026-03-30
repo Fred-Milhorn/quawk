@@ -31,7 +31,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P10 | Grammar Contract and Doc Alignment | Full `grammar.ebnf` implementation and honest design/AST docs |
 | P11 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
-| P13 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `awk`, and `gawk --posix` |
+| P13 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `one-true-awk`, and `gawk --posix` |
 
 ## Phase Entry and Exit Rules
 
@@ -271,25 +271,30 @@ Objective:
 - maximize POSIX compatibility and reduce behavioral gaps after feature completion is already in place
 
 In scope:
-- differential runner against `one-true-awk` and `gawk --posix`
-- divergence classification workflow
-- parser/runtime/regex/io compatibility corpus expansion
+- pinned upstream source trees for One True Awk and gawk
+- repo-managed local builds of the reference engines
+- upstream-suite-derived compatibility execution and classification
+- divergence classification workflow and reviewed compatibility notes
+- supplemental repo-owned regression corpus maintenance
 - regression triage and targeted fixes
 - implementation details for `T-035` live in [compatibility.md](compatibility.md)
 
 Success in this phase looks like:
-- supported parser, semantic, and runtime fixtures run through stable compatibility infrastructure instead of only ad hoc local checks
+- supported parser, semantic, and runtime behavior runs through stable pinned upstream compatibility infrastructure instead of only ad hoc local checks
 - reviewed AST snapshot surfaces are pinned by deterministic golden coverage where they improve coverage and reviewability
 - semantic diagnostics have stable public error codes in addition to source spans and human-readable messages
-- differential runs against `quawk`, `one-true-awk`, and `gawk --posix` produce normalized comparable results for the supported corpus
-- every observed compatibility gap in the compatibility corpus is either fixed or explicitly classified in a checked-in divergence manifest
+- the normal local workflow builds One True Awk and gawk from pinned upstream sources rather than relying on host `awk`
+- upstream-suite-derived compatibility runs against `quawk`, One True Awk, and gawk produce normalized comparable results for the selected portable cases
+- every observed compatibility gap in the active upstream compatibility surface is either fixed or explicitly classified in checked-in divergence metadata and reviewed notes
 
 Exit criteria:
 - selected AST golden fixtures are stable and reviewed
 - semantic errors emit stable public codes without losing source-span precision
-- differential runner executes the supported compatibility corpus across `quawk`, `one-true-awk`, and `gawk --posix`
+- required compatibility runs do not depend on host `awk`
+- the repo builds and resolves pinned local One True Awk and gawk binaries for normal compatibility runs
+- the upstream compatibility harness executes a checked-in selected slice from both upstream suites across `quawk`, One True Awk, and gawk
 - no failing required compatibility tests remain in the active hardening test set
-- known divergences are documented, tagged, and classified in the checked-in manifest
+- known divergences are documented, tagged, and classified in checked-in metadata and companion docs
 - hardening pass closes or explicitly triages all high-severity regressions discovered during the phase
 
 ### P12: Pre-Release Readiness
@@ -331,16 +336,18 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P13 benchmarking baseline
+Next deliverable: P11 upstream compatibility transition
 
 Target outcome:
-- one documented local benchmark command compares `quawk`, `awk`, and `gawk --posix` on representative workloads with timing and memory summaries
+- one documented local workflow builds pinned One True Awk and gawk references, runs the selected upstream-suite-derived compatibility slice, and records evaluated non-fix failures explicitly
 
-1. `T-132` define the benchmark harness interface, workload suite, and measurement contract
-2. `T-133` implement deterministic dataset generation and fixed benchmark workloads
-3. `T-134` implement end-to-end engine measurement and summary reporting
-4. `T-135` add `quawk` split compile-versus-run measurement support
-5. `T-136` add benchmark smoke tests and developer documentation
+1. `T-137` pin upstream sources and define the repo-managed bootstrap workflow
+2. `T-138` remove host-`awk` aliasing and resolve only pinned local reference binaries
+3. `T-139` add the upstream suite inventory and selection manifest
+4. `T-140` implement the first upstream-suite-derived compatibility slice for One True Awk and gawk
+5. `T-141` reclassify the repo-owned corpus as supplemental `compat_local` coverage
+6. `T-142` add the evaluated-divergence metadata and companion compatibility notes
+7. `T-143` add the optional CI job and promotion criteria for the upstream compatibility gate
 
 ## Backlog
 
@@ -448,12 +455,19 @@ Priority values:
 | T-129 | P11 | P0 | Add differential corpus coverage for CLI/runtime option interactions and builtin variables | T-127 | New corpus cases cover `-v`, stdin `-`, `--`, multi-file `FILENAME`, and multi-file builtin-variable behavior; required compatibility suites pass or all new divergences are classified | done |
 | T-130 | P11 | P1 | Add differential corpus coverage for coercions, regex/range boundaries, and builtin boundary behavior | T-127 | New corpus cases cover at least one additional coercion/truthiness case, one regex boundary case, one range boundary case, and boundary cases for the currently claimed builtins; required compatibility suites pass or all new divergences are classified | done |
 | T-131 | P11 | P1 | Rebaseline the compatibility coverage matrix after the expansion wave | T-128, T-129, T-130 | `docs/compatibility.md` reflects the new case inventory, updated coverage levels, and the remaining gaps after the new cases land | done |
+| T-137 | P11 | P0 | Pin One True Awk and gawk upstream sources and define the repo-managed bootstrap workflow | T-131 | `third_party/` holds pinned upstream source trees, the local bootstrap/build flow is documented, and normal compatibility work no longer assumes host-installed reference engines | todo |
+| T-138 | P11 | P0 | Remove host-`awk` aliasing and resolve only pinned local reference binaries | T-137 | Compatibility code fails clearly when the repo-managed reference builds are missing and never treats host `awk` as One True Awk | todo |
+| T-139 | P11 | P0 | Add the upstream suite inventory and checked-in selection manifest | T-137, T-138 | The repo classifies which upstream cases are run or skipped, with explicit reasons and adapter metadata for both upstream suites | todo |
+| T-140 | P11 | P1 | Implement the first upstream-suite-derived compatibility slice for One True Awk and gawk | T-139 | A portable, POSIX-relevant selected slice from both upstream suites executes across `quawk`, One True Awk, and gawk with deterministic reporting | todo |
+| T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | todo |
+| T-142 | P11 | P1 | Add evaluated-divergence metadata and companion compatibility notes for upstream-suite failures | T-140 | Executed upstream failures are either fixed or classified with checked-in metadata plus reviewed human-readable notes, and stale or unclassified entries fail the gate | todo |
+| T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility slice, and the roadmap/docs define when that job becomes required | todo |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
 | T-132 | P13 | P0 | Define the benchmark harness interface, workload suite, and measurement contract | T-042 | `docs/benchmark.md` specifies the command, metrics, workload set, dataset scales, and `quawk` timing model clearly enough to implement without further design work | todo |
 | T-133 | P13 | P0 | Implement deterministic dataset generation and fixed benchmark workloads | T-132 | The benchmark harness can generate the planned workloads and `smoke`/`medium`/`large` datasets reproducibly from a fixed seed | todo |
-| T-134 | P13 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `awk`, and `gawk --posix` and prints stable summary tables | todo |
+| T-134 | P13 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `one-true-awk`, and `gawk --posix` and prints stable summary tables | todo |
 | T-135 | P13 | P1 | Add `quawk` split compile-versus-run measurement support | T-134 | The benchmark reports clearly labeled `quawk` frontend or lowering versus `lli` execution timings for the same workloads without changing the public CLI surface | todo |
 | T-136 | P13 | P1 | Add benchmark smoke tests and developer documentation | T-134, T-135 | Harness tests cover determinism and reporting behavior, and the benchmark workflow is documented for developers | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |

@@ -1,364 +1,238 @@
 # Compatibility Plan
 
-This document is the implementation plan for `T-035`: the differential compatibility runner.
+This document is the implementation plan for the next `P11` compatibility
+transition. The current repo-owned corpus remains useful, but it is no longer
+the primary compatibility authority. The primary compatibility signal should
+come from pinned upstream suites for One True Awk and gawk.
 
 ## Goal
 
-Implement a compatibility runner that executes the checked-in compatibility baseline under:
+Move `quawk` compatibility work from:
 
-- `quawk`
-- `one-true-awk`
-- `gawk --posix`
+- a hand-authored local corpus
+- a differential runner that treats host `awk` as `one-true-awk`
 
-and produces normalized, comparable results for both pytest and CLI use.
+to:
 
-## Scope
+- pinned upstream source trees under `third_party/`
+- repo-managed local builds of One True Awk and gawk
+- compatibility runs derived from the respective upstream test suites
+- explicit evaluation of failures that are not immediate fix targets
 
-`T-035` should:
+## End State
 
-- run the same corpus case under all three engines
-- normalize results enough to compare them deterministically
-- report agreement and disagreement clearly
-- integrate with the existing corpus harness and the `T-047` compatibility baseline
+The target steady state is:
 
-`T-035` should not:
+- `third_party/onetrueawk` and `third_party/gawk` are pinned submodules
+- one repo-managed bootstrap command builds local reference binaries into ignored paths under `build/`
+- required compatibility runs do not depend on whatever `awk` is on `PATH`
+- the upstream-suite-derived compatibility surface is the primary compatibility gate
+- the current repo-owned corpus remains as a fast supplemental regression suite
+- every observed compatibility failure is either fixed or explicitly evaluated in checked-in metadata and companion docs
 
-- classify divergences beyond surfacing reference disagreement
-- massively expand the corpus beyond the existing supported baseline
-- introduce a second metadata system beyond the current corpus manifests
+## Local Workflow
 
-## Design
+Local compatibility should not require a global install of One True Awk.
+Developers should only need the native build toolchain required to build the
+upstream sources.
 
-### 1. Extend the corpus model with differential results
+Recommended local flow:
 
-Add small data structures in [corpus.py](/Users/fred/dev/quawk/src/quawk/corpus.py):
-
-- `NormalizedCorpusResult`
-  - `engine`
-  - `returncode`
-  - `stdout`
-  - `stderr`
-- `DifferentialCaseResult`
-  - `case`
-  - `results_by_engine`
-  - helper methods for agreement checks and display formatting
-
-Keep the existing raw subprocess result type for direct execution.
-
-### 2. Add engine availability detection
-
-Implement helpers such as:
-
-- `is_engine_available("quawk")`
-- `is_engine_available("gawk-posix")`
-- `is_engine_available("one-true-awk")`
+```sh
+git submodule update --init --recursive
+uv run python scripts/upstream_compat.py bootstrap
+uv run pytest -m compat_upstream
+```
 
 Expected behavior:
 
-- `quawk` is required in-repo
-- required pytest differential tests should fail clearly when `gawk` or host `awk` is unavailable
-- the CLI should print a useful message and exit nonzero if asked to run differential mode without the required engines
+- `bootstrap` builds deterministic local reference binaries for One True Awk and gawk under ignored `build/` paths
+- the compatibility harness resolves only those pinned binaries by default
+- optional override env vars may exist for debugging or CI, but the normal local path is repo-managed and deterministic
 
-Missing engines are environment failures for the required compatibility gate.
+## Design
 
-### 3. Normalize outputs conservatively
+### 1. Reframe the local corpus
 
-Add one normalization function for subprocess results.
+Keep the checked-in `tests/corpus/` suite, but change its role:
 
-Normalize:
+- it is a supplemental fast regression and smoke suite
+- it is not the primary compatibility authority
+- it should stop making repo-wide compatibility claims on its own
 
-- line endings: `\r\n` to `\n`
-- `stderr` line endings the same way
+The corpus remains useful for:
 
-Do not normalize aggressively yet:
+- small end-to-end regressions
+- feature-oriented fixtures that are easy to review in-repo
+- quick local iteration before running the slower upstream-suite-derived coverage
 
-- do not trim or invent final newlines
-- do not strip trailing whitespace
-- do not rewrite diagnostics text
-- do not bucket errors by category
+### 2. Pin upstream sources
 
-The first pass should keep mismatches visible.
+Track the upstream projects directly in the repo:
 
-### 4. Add differential execution helpers
+- `third_party/onetrueawk`
+- `third_party/gawk`
 
-Add functions like:
+Policy:
 
-- `run_case_differential(case: CorpusCase) -> DifferentialCaseResult`
-- `run_case_for_engines(case, engines=...)`
+- pin explicit commits through Git submodules
+- do not rely on host package-manager versions for required compatibility behavior
+- treat the pinned upstream commits as part of the compatibility contract
 
-This layer should:
+### 3. Build repo-managed reference binaries
 
-- execute each engine once
-- normalize each result
-- preserve command lines for reporting
-- avoid deciding expected behavior beyond the reference-agreement rule
+Add one repo-owned bootstrap/build entrypoint, implemented as a small checked-in
+Python or shell harness, that:
 
-### 5. Define comparison policy
+- initializes expected build directories under ignored `build/` paths
+- builds One True Awk from the pinned source tree
+- builds gawk from the pinned source tree
+- exposes stable wrapper or symlink paths such as `build/upstream/bin/one-true-awk` and `build/upstream/bin/gawk`
+- validates that the expected binaries exist before compatibility tests run
 
-For `T-035`, use the simplest explicit rule:
+Reference-engine resolution rules:
 
-- if `one-true-awk` and `gawk --posix` agree on exit, `stdout`, and `stderr`, `quawk` must match
-- if the two references disagree, report the case as reference disagreement and do not fail it as a `quawk` incompatibility yet
+- never use host `awk` as a stand-in for One True Awk
+- never treat a package-manager `gawk` as the required reference by default
+- fail clearly when the repo-managed reference binaries have not been bootstrapped
 
-That keeps `T-035` aligned with [testing.md](testing.md) and leaves persistent divergence handling to `T-037`.
+### 4. Add an upstream suite inventory layer
 
-### 6. Convert the `T-047` baseline into real differential tests
+The upstream suites are broader than the initial `quawk` compatibility target,
+so the repo needs an explicit checked-in inventory of what is run and what is
+currently skipped.
 
-Update [test_p10_compat_baselines.py](/Users/fred/dev/quawk/tests/test_p10_compat_baselines.py):
+Add machine-readable suite inventory metadata that records, for each upstream
+case:
 
-- remove the placeholder runner
-- parameterize over `compatibility_baseline_cases()`
-- run differential execution
-- fail clearly when required external engines are unavailable
-- pass when references agree and `quawk` matches
-- pass when references disagree only if the case is classified in `tests/corpus/divergences.toml`
-- fail when references agree and `quawk` differs
+- suite name
+- upstream case ID
+- status: `run` or `skip`
+- reason for a skip
+- adapter type or harness shape
+- tags such as `posix`, `gnu-extension`, `platform-specific`, or `unsupported-input-shape`
 
-This should burn down the current strict `xfail` placeholders added by `T-047`.
+Selection policy:
 
-### 7. Expose differential mode in the corpus CLI
+- start with portable, POSIX-relevant cases from both upstream suites
+- skip cases that are clearly GNU-extension-only, debugger-only, locale-heavy, dynamic-extension-driven, platform-specific, or otherwise outside the first compatibility target
+- keep skipped cases explicit and reviewable rather than silently ignoring them
 
-Extend the `corpus` CLI in [corpus.py](/Users/fred/dev/quawk/src/quawk/corpus.py) with a differential mode.
+### 5. Run upstream-suite-derived compatibility checks
 
-Recommended flags:
+Add a compatibility harness that:
 
-- keep `--engine` for single-engine execution
-- add `--differential`
+- discovers the repo-classified upstream cases from the pinned source trees
+- executes the selected cases under `quawk`
+- executes the same cases under the pinned One True Awk and gawk binaries
+- normalizes outputs conservatively for deterministic comparison
+- reports missing references, reference disagreement, `quawk` mismatches, and stale divergence entries clearly
 
-Example:
+Required pytest surfaces should split into:
 
-```sh
-uv run corpus --differential
-uv run corpus --differential regex_filter
-```
+- `compat_upstream`
+  - upstream-suite-derived compatibility gate
+- `compat_local`
+  - current small repo-owned corpus
 
-CLI output should show one line per case:
+An umbrella `compat` marker may still include both, but the primary gate should
+move to `compat_upstream`.
 
-- `PASS`
-- `FAIL`
-- `SKIP`
-- `REF-DISAGREE`
+### 6. Evaluate failures explicitly
 
-No richer formatting is required for `T-035`.
+Not every compatibility failure should be fixed immediately, but every one
+should be evaluated explicitly.
 
-## Test Plan
+Keep two checked-in tracking layers:
 
-### Unit coverage
+1. Machine-readable divergence metadata for executed upstream cases
+2. Human-readable compatibility notes for the active divergence families
 
-Add focused tests in a file such as [test_corpus_differential.py](/Users/fred/dev/quawk/tests/test_corpus_differential.py) for:
+Each divergence entry should record:
 
-- engine command construction
-- engine availability detection
-- result normalization
-- reference-agreement logic
-- mismatch formatting
+- suite name
+- case ID
+- classification
+- decision
+- short summary
+- last verified upstream commit
 
-Use small synthetic results where possible instead of spawning subprocesses for every unit test.
+Required classifications:
 
-### Integration coverage
+- `posix-required-fix`
+- `known-gap`
+- `intentional-quawk-extension`
+- `gnu-extension-out-of-scope`
+- `platform-specific`
+- `reference-disagreement`
+- `wont-fix`
 
-Update [test_p10_compat_baselines.py](/Users/fred/dev/quawk/tests/test_p10_compat_baselines.py) to become the acceptance test for the differential runner.
+Gate policy:
 
-Expected outcomes:
+- unclassified failures fail the required suite
+- stale divergence entries fail the required suite
+- `posix-required-fix` remains a hard failure
+- the other classes are allowed only after explicit evaluation and documentation
 
-- no placeholder `xfail`s remain for `T-035`
-- cases either pass or fail with concrete diffs
-- missing `gawk` or `awk` yields an environment failure, not a skip
+### 7. Promote CI in phases
 
-### Existing corpus coverage
+The upstream-suite workflow should not become a required CI gate in a single
+step.
 
-Keep [test_corpus.py](/Users/fred/dev/quawk/tests/test_corpus.py) unchanged as the single-engine `quawk` corpus surface.
+Promotion sequence:
+
+1. land the submodules, bootstrap command, and local harness
+2. add an optional CI job that builds the references and runs the selected upstream compatibility slice
+3. stabilize runtime, flake profile, and divergence workflow
+4. promote the upstream compatibility job to required
+
+During the transition:
+
+- keep the local corpus green
+- keep the upstream gate authoritative once promoted
+- do not regress back to host `awk` aliasing for convenience
 
 ## Acceptance Criteria
 
-`T-035` is done when:
+This transition is complete when:
 
-- `tests/test_p10_compat_baselines.py` uses the real differential runner
-- the `T-047` placeholder `xfail`s are removed
-- the runner executes `quawk`, `one-true-awk`, and `gawk --posix`
-- normalized results are compared deterministically
-- missing external interpreters produce clear environment failures in required pytest gates
-- reference disagreement is surfaced distinctly from `quawk` mismatches
-- [roadmap.md](roadmap.md) marks `T-035` done
+- `quawk` compatibility no longer depends on host `awk`
+- One True Awk and gawk are both built from pinned upstream sources in normal local workflow
+- upstream-suite-derived compatibility runs exist for both upstream projects
+- the local corpus is clearly documented as supplemental rather than authoritative
+- executed compatibility failures are either fixed or explicitly evaluated in checked-in metadata and docs
+- CI can run the pinned upstream compatibility workflow end to end
 
-## Recommended Order
+## Implementation Phases
 
-1. Add result and normalization types in `corpus.py`
-2. Add engine availability detection
-3. Add differential runner functions
-4. Add unit tests for normalization and agreement logic
-5. Replace the `T-047` placeholder baseline with real pytest differential tests
-6. Add `corpus --differential`
-7. Update roadmap and testing docs
+### Phase 1: Policy reset and reproducible references
 
-## Key Decisions
+Complete when:
 
-These policy choices are assumed by this plan:
+- docs stop referring to host `awk` as `one-true-awk`
+- the role of the local corpus is explicitly reduced to supplemental coverage
+- pinned upstream submodules and repo-managed bootstrap expectations are documented
 
-- compare `stderr` exactly after newline normalization
-- missing external engines should fail in required pytest suites
-- reference disagreement should be reported but not treated as a failure until `T-037`
-- `T-035` should burn down the `T-047` placeholders rather than creating a second parallel baseline
+### Phase 2: Upstream suite ingestion
 
-## Size
+Complete when:
 
-This is a medium task:
+- pinned upstream trees are discoverable from the repo
+- the repo has a checked-in inventory of selected and skipped upstream cases
+- the initial portable, POSIX-relevant execution slice is defined for both upstream suites
 
-- one moderate expansion of [corpus.py](/Users/fred/dev/quawk/src/quawk/corpus.py)
-- one new unit test file
-- one existing baseline test update
-- small roadmap and testing-doc updates
+### Phase 3: Upstream compatibility execution and divergence evaluation
 
-## Coverage Checklist
+Complete when:
 
-Use this rubric to decide whether the compatibility corpus is comprehensive
-enough for the shipped public surface.
+- selected upstream cases run under `quawk`, One True Awk, and gawk
+- failures are reported through the checked-in divergence workflow
+- stale or unclassified divergence states fail visibly
 
-Coverage levels:
-- `none`: no differential corpus case exists for the feature family
-- `smoke`: one basic happy-path case exists
-- `happy + edge`: one normal case and at least one boundary/default/interaction case exist
-- `happy + edge + divergence`: normal and edge coverage exist, plus any known
-  extension or reference-split case is tagged and classified
+### Phase 4: CI promotion
 
-For each implemented public feature in [SPEC.md](/Users/fred/dev/quawk/SPEC.md),
-the compatibility corpus should answer all of these:
-- is there at least one happy-path case?
-- is there at least one edge/default/interaction case?
-- if `quawk` intentionally differs from the reference awks here, is that case
-  tagged and classified in `tests/corpus/divergences.toml`?
-- can a reviewer point from the case back to a SPEC row, roadmap claim, or
-  known divergence?
+Complete when:
 
-The compatibility corpus is only close to comprehensive when every implemented
-feature family reaches at least `happy + edge`, and every known extension or
-reference split reaches `happy + edge + divergence`.
-
-## Current Coverage Matrix
-
-Current corpus size:
-- 45 checked-in corpus cases under `tests/corpus/`
-
-Current matrix against the shipped surface:
-
-| Feature family | Current level | Target level | Current evidence | Main gaps |
-|---|---|---|---|---|
-| `BEGIN` scalar and expression basics | `happy + edge + divergence` | `happy + edge + divergence` | `begin_print_literal`, `begin_assignment`, `begin_if_less`, `begin_logical_and`, `begin_equality` | Add more arithmetic, ternary, and match-op cases only if they become compatibility-sensitive. |
-| Record actions and mixed programs | `happy + edge` | `happy + edge` | `record_first_field`, `mixed_begin_record_end`, `mixed_begin_record_end_first_field`, `mixed_begin_record_end_custom_fs` | Add more multi-file and empty-input mixed-program cases as depth work, not as the immediate minimum. |
-| Regex and range patterns | `happy + edge` | `happy + edge` | `regex_filter`, `regex_no_match`, `range_default_print`, `range_single_record` | Add more mixed regex/range interaction cases only if compatibility work exposes gaps. |
-| Arrays and iteration | `happy + edge + divergence` | `happy + edge + divergence` | `array_missing_read`, `array_delete_index`, `length_string_and_array`, `split_builtin`, `for_in_plain_array`, `for_expr_list_loop`, `for_in_parenthesized_array` | Add more array key/value interaction cases and more delete/iteration combinations as depth work. |
-| Fields and record mutation | `happy + edge` | `happy + edge` | `record_first_field`, `dynamic_field_assignment` | Add more `$0`, higher-index field, and field-rebuild interaction cases as depth work. |
-| Control flow and record control | `happy + edge` | `happy + edge` | `begin_if_less`, `while_loop_print`, `for_standard_loop`, `break_in_loop`, `continue_in_loop`, `do_while_print`, `next_skip_record`, `nextfile_two_files`, `exit_status_after_output` | Add more nested and multi-file control-flow interactions as depth work. |
-| Builtins | `happy + edge` | `happy + edge` | `printf_formatting`, `length_string_and_array`, `length_empty_string`, `split_builtin`, `split_explicit_separator`, `substr_builtin`, `substr_two_arg` | Add more builtin interaction cases only if compatibility work exposes gaps. |
-| Builtin variables | `happy + edge` | `happy + edge` | `nr_nf_builtin_vars`, `filename_two_files`, `builtin_vars_multi_file_reset` | Add more builtin-variable combinations only if compatibility work exposes gaps. |
-| String/number coercions | `happy + edge` | `happy + edge` | `string_coercion_concat`, `numeric_string_truthiness`, `unset_scalar_coercion` | Add more coercion interactions only if compatibility work exposes gaps. |
-| CLI/runtime option interactions in corpus | `happy + edge` | `happy + edge` | `mixed_begin_record_end_custom_fs`, `v_numeric_begin`, `stdin_dash_operand`, `dash_dash_input_operand` | Add more file-argv permutations only if compatibility work exposes gaps. |
-| User-defined functions | `happy + edge` | `happy + edge` | `function_basic_call`, `function_local_scope` | Add more function-argument and return-shape cases only if compatibility work exposes gaps. |
-| Diagnostics and error-shape compatibility | `none` | `none` | none | Keep most diagnostics in direct pytest coverage; add corpus negatives only where end-to-end compatibility behavior matters more than direct assertions. |
-
-## Current Gap List
-
-The biggest current compatibility gaps are:
-- arrays and iteration still need deeper interaction coverage beyond the current happy-path, default, and extension cases
-- mixed-program coverage could use more multi-file and empty-input boundary cases
-- diagnostics and error-shape compatibility still live almost entirely in direct pytest tests rather than the corpus
-
-## Rebaseline Status
-
-After `T-128` through `T-130`:
-- every implemented feature family with a non-`none` target level now meets that target
-- intentional broader admitted forms remain classified in `tests/corpus/divergences.toml`
-- the remaining follow-on work is depth-oriented, not minimum-coverage work
-- diagnostics remain intentionally outside the current corpus-expansion target because their target level is still `none`
-
-## Recommended Next Additions
-
-If coverage expansion resumes, prioritize these next:
-1. one deeper array iteration interaction case
-2. one additional mixed-program multi-file boundary case
-3. one empty-input mixed-program boundary case
-4. one additional builtin-variable interaction case if compatibility work exposes one
-5. one end-to-end diagnostics corpus case only if a real compatibility question needs it
-
-This keeps corpus growth tied to the real compatibility-risk surface instead of
-adding cases just to increase the raw count.
-
-## Planned Case Inventory
-
-This section is the concrete planning surface for the next `P11` expansion wave
-tracked in [roadmap.md](roadmap.md) as `T-127` through `T-131`.
-
-`T-127` is complete when:
-- every implemented feature family above has an explicit target coverage level
-- every area still at `none` or `smoke` has named next corpus cases below
-- the immediate implementation work is partitioned into `T-128`, `T-129`, and `T-130`
-
-### T-128: Functions and standard loop families
-
-Committed corpus cases:
-- `function_basic_call`
-  - `function f(x) { return x + 1 } BEGIN { print f(2) }`
-- `function_local_scope`
-  - `function f(x) { x = x + 1; return x } BEGIN { x = 10; print f(2); print x }`
-- `while_loop_print`
-  - `BEGIN { x = 0; while (x < 3) { print x; x = x + 1 } }`
-- `for_standard_loop`
-  - `BEGIN { for (i = 0; i < 3; i = i + 1) print i }`
-- `for_in_plain_array`
-  - `BEGIN { a["x"] = 1; for (k in a) print k }`
-- `break_in_loop`
-  - one loop case with early exit through `break`
-- `continue_in_loop`
-  - one loop case that skips exactly one iteration through `continue`
-
-Expected result:
-- functions and standard loop families reach at least `happy + edge`
-
-### T-129: CLI/runtime options and builtin variables
-
-Committed corpus cases:
-- `v_numeric_begin`
-  - `-v x=7` is visible before `BEGIN`
-- `stdin_dash_operand`
-  - `-` stdin operand is processed in file order
-- `dash_dash_input_operand`
-  - `--` preserves an input file operand beginning with `-`
-- `filename_two_files`
-  - explicit `FILENAME` coverage across two file operands
-- `builtin_vars_multi_file_reset`
-  - `NR`, `FNR`, and `NF` behavior across multiple files
-
-Expected result:
-- CLI/runtime option interactions and builtin variables reach at least `happy + edge`
-
-### T-130: Coercions, regex/range boundaries, and builtin edges
-
-Committed corpus cases:
-- `numeric_string_truthiness`
-  - one case that forces both numeric and string truthiness/coercion behavior
-- `unset_scalar_coercion`
-  - one case that reads the same unset scalar in numeric and string contexts
-- `regex_no_match`
-  - regex selection produces no output
-- `range_single_record`
-  - range starts and ends on the same record
-- `substr_two_arg`
-  - two-argument `substr`
-- `split_explicit_separator`
-  - `split` with an explicit separator argument
-- `length_empty_string`
-  - empty-string length boundary case
-
-Expected result:
-- coercions, regex/range boundaries, and the currently claimed builtin tranche move beyond `smoke`
-
-### T-131: Rebaseline
-
-After the new cases land:
-- rerun the required differential suites
-- classify/document any new intentional extensions or reference splits
-- update the coverage matrix above to reflect the new case inventory and the remaining gaps
-
-Implementation rule:
-- if the references agree and `quawk` differs, treat the case as a bug or unsupported gap
-- if `quawk` intentionally differs and that behavior is acceptable, tag the case appropriately and add a checked-in divergence entry
+- the upstream compatibility workflow runs in CI
+- the job is promoted from optional to required once stable
+- the local corpus remains available as a fast supplemental suite
