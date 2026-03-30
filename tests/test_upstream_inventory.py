@@ -9,10 +9,12 @@ from quawk import upstream_inventory
 
 def test_load_upstream_selection_manifest_reads_checked_in_inventory() -> None:
     selections = upstream_inventory.load_upstream_selection_manifest()
+    coverage = upstream_inventory.load_upstream_feature_coverage()
 
     assert selections
     assert {selection.suite for selection in selections} == {"one-true-awk", "gawk"}
     assert {selection.status for selection in selections} == {"run", "skip"}
+    assert set(coverage) == set(upstream_inventory.VALID_FEATURE_FAMILIES)
 
     for suite in ("one-true-awk", "gawk"):
         suite_entries = selections_with_suite(suite, selections)
@@ -30,6 +32,11 @@ def test_load_upstream_selection_manifest_reads_checked_in_inventory() -> None:
             assert selection.adapter.startswith("onetrueawk-")
         if selection.suite == "gawk":
             assert selection.adapter.startswith("gawk-")
+
+    known_selection_keys = {selection.selection_key for selection in selections}
+    for entry in coverage.values():
+        assert entry.selection_keys
+        assert set(entry.selection_keys).issubset(known_selection_keys)
 
 
 def test_load_upstream_selection_manifest_requires_reason_for_skips(tmp_path: Path) -> None:
@@ -83,6 +90,64 @@ def test_load_upstream_selection_manifest_rejects_duplicate_suite_case_ids(tmp_p
 
     with pytest.raises(ValueError, match="duplicate upstream case entry"):
         upstream_inventory.load_upstream_selection_manifest(root=tmp_path, path=manifest_path)
+
+
+def test_load_upstream_feature_coverage_rejects_unknown_selection_keys(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "selection.toml"
+    case_path = tmp_path / "case.awk"
+    case_path.write_text("BEGIN { print 1 }\n", encoding="utf-8")
+    lines = [
+        "[[case]]",
+        'suite = "gawk"',
+        'case_id = "demo"',
+        'path = "case.awk"',
+        'status = "run"',
+        'adapter = "gawk-awk-ok"',
+        "",
+    ]
+    for family in upstream_inventory.VALID_FEATURE_FAMILIES:
+        lines.extend(
+            [
+                "[[coverage]]",
+                f'family = "{family}"',
+                'selection_keys = ["gawk:missing"]' if family == "cli-basics" else 'selection_keys = ["gawk:demo"]',
+                "",
+            ]
+        )
+    manifest_path.write_text(
+        '\n'.join(lines),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown selection key"):
+        upstream_inventory.load_upstream_feature_coverage(root=tmp_path, path=manifest_path)
+
+
+def test_load_upstream_feature_coverage_requires_every_family(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "selection.toml"
+    case_path = tmp_path / "case.awk"
+    case_path.write_text("BEGIN { print 1 }\n", encoding="utf-8")
+    manifest_path.write_text(
+        '\n'.join(
+            [
+                "[[case]]",
+                'suite = "gawk"',
+                'case_id = "demo"',
+                'path = "case.awk"',
+                'status = "run"',
+                'adapter = "gawk-awk-ok"',
+                "",
+                "[[coverage]]",
+                'family = "cli-basics"',
+                'selection_keys = ["gawk:demo"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="missing upstream feature coverage entry"):
+        upstream_inventory.load_upstream_feature_coverage(root=tmp_path, path=manifest_path)
 
 
 def selections_with_suite(

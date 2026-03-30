@@ -16,6 +16,22 @@ UpstreamAdapterName = Literal[
     "gawk-awk-in-ok",
     "gawk-shell-driver",
 ]
+UpstreamFeatureFamilyId = Literal[
+    "cli-basics",
+    "pattern-action-execution",
+    "regex-selection",
+    "default-print-patterns",
+    "scalar-assignment",
+    "associative-arrays",
+    "fields",
+    "control-flow",
+    "record-control",
+    "expressions-and-coercions",
+    "user-defined-functions",
+    "builtin-variables",
+    "implemented-builtins",
+    "multi-file-input-processing",
+]
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 DEFAULT_UPSTREAM_SELECTION_PATH: Final[Path] = REPO_ROOT / "tests" / "upstream" / "selection.toml"
@@ -27,6 +43,22 @@ VALID_ADAPTERS: Final[tuple[UpstreamAdapterName, ...]] = (
     "gawk-awk-ok",
     "gawk-awk-in-ok",
     "gawk-shell-driver",
+)
+VALID_FEATURE_FAMILIES: Final[tuple[UpstreamFeatureFamilyId, ...]] = (
+    "cli-basics",
+    "pattern-action-execution",
+    "regex-selection",
+    "default-print-patterns",
+    "scalar-assignment",
+    "associative-arrays",
+    "fields",
+    "control-flow",
+    "record-control",
+    "expressions-and-coercions",
+    "user-defined-functions",
+    "builtin-variables",
+    "implemented-builtins",
+    "multi-file-input-processing",
 )
 
 
@@ -41,6 +73,20 @@ class UpstreamCaseSelection:
     adapter: UpstreamAdapterName
     tags: tuple[str, ...]
     reason: str | None
+
+    @property
+    def selection_key(self) -> str:
+        """Return the suite-prefixed selection key used by coverage metadata."""
+        return f"{self.suite}:{self.case_id}"
+
+
+@dataclass(frozen=True)
+class UpstreamFeatureCoverageEntry:
+    """One checked-in feature-family mapping into the upstream inventory."""
+
+    family: UpstreamFeatureFamilyId
+    selection_keys: tuple[str, ...]
+    notes: str | None
 
 
 def upstream_selection_path(root: Path | None = None) -> Path:
@@ -113,6 +159,53 @@ def selections_with_status(
     return [selection for selection in selections if selection.status == status]
 
 
+def load_upstream_feature_coverage(
+    root: Path | None = None,
+    path: Path | None = None,
+) -> dict[UpstreamFeatureFamilyId, UpstreamFeatureCoverageEntry]:
+    """Load and validate the checked-in upstream feature-family coverage map."""
+    manifest_path = upstream_selection_path(root) if path is None else path
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    raw_entries = manifest.get("coverage", [])
+    if not isinstance(raw_entries, list):
+        raise ValueError(f"{manifest_path}: invalid upstream feature coverage section")
+
+    selection_entries = load_upstream_selection_manifest(root=root, path=manifest_path)
+    known_selection_keys = {entry.selection_key for entry in selection_entries}
+    entries: dict[UpstreamFeatureFamilyId, UpstreamFeatureCoverageEntry] = {}
+
+    for raw_entry in raw_entries:
+        if not isinstance(raw_entry, dict):
+            raise ValueError(f"{manifest_path}: invalid upstream feature coverage entry")
+
+        family = read_feature_family(raw_entry.get("family"), manifest_path)
+        if family in entries:
+            raise ValueError(f"{manifest_path}: duplicate upstream feature coverage entry for {family!r}")
+
+        selection_keys = tuple(read_string_list(raw_entry.get("selection_keys", []), "selection_keys", manifest_path))
+        if not selection_keys:
+            raise ValueError(f"{manifest_path}: upstream feature coverage entry {family!r} must reference selections")
+        unknown_keys = sorted(selection_key for selection_key in selection_keys if selection_key not in known_selection_keys)
+        if unknown_keys:
+            raise ValueError(
+                f"{manifest_path}: upstream feature coverage entry {family!r} references unknown selection key(s): "
+                f"{', '.join(unknown_keys)}"
+            )
+
+        entries[family] = UpstreamFeatureCoverageEntry(
+            family=family,
+            selection_keys=selection_keys,
+            notes=read_optional_string(raw_entry.get("notes"), "notes", manifest_path),
+        )
+
+    missing_families = sorted(family for family in VALID_FEATURE_FAMILIES if family not in entries)
+    if missing_families:
+        raise ValueError(
+            f"{manifest_path}: missing upstream feature coverage entry for: {', '.join(missing_families)}"
+        )
+    return entries
+
+
 def require_string(data: dict[str, object], key: str, manifest_path: Path) -> str:
     """Return one required string field."""
     value = data.get(key)
@@ -158,4 +251,14 @@ def read_adapter(value: object, manifest_path: Path) -> UpstreamAdapterName:
     if value not in VALID_ADAPTERS:
         allowed = ", ".join(VALID_ADAPTERS)
         raise ValueError(f"{manifest_path}: invalid upstream adapter {value!r}; expected one of: {allowed}")
+    return value
+
+
+def read_feature_family(value: object, manifest_path: Path) -> UpstreamFeatureFamilyId:
+    """Return one valid implemented compatibility feature-family identifier."""
+    if value not in VALID_FEATURE_FAMILIES:
+        allowed = ", ".join(VALID_FEATURE_FAMILIES)
+        raise ValueError(
+            f"{manifest_path}: invalid upstream feature family {value!r}; expected one of: {allowed}"
+        )
     return value

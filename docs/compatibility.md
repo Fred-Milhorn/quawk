@@ -67,6 +67,12 @@ Expected behavior:
 The checked-in selection manifest at
 `tests/upstream/selection.toml` is the source of truth for the upstream suite.
 
+Manifest structure:
+
+- `[[case]]` entries classify individual upstream tests as `run` or `skip`
+- `[[coverage]]` entries map the currently implemented compatibility feature
+  families to those upstream case selections
+
 Every candidate upstream case must be one of:
 
 - `run`
@@ -132,6 +138,30 @@ Selection rule per family:
   fixture-backed case exists
 - if one suite has no reasonable in-scope case for a family, document that in
   the selection manifest and cover the family from the other suite
+
+### Current Family Matrix
+
+The current checked-in matrix is still a seed matrix. Several families are
+anchored partly or entirely by `skip` entries so the inventory is explicit
+before the later expansion tasks promote more of those anchors to runnable
+coverage.
+
+| Family | Current upstream anchors |
+|---|---|
+| `cli-basics` | `one-true-awk:T.-f-f`, `one-true-awk:T.argv`, `gawk:argarray`, `gawk:cmdlinefsbacknl` |
+| `pattern-action-execution` | `one-true-awk:p.12`, `one-true-awk:p.23`, `gawk:assignnumfield2`, `gawk:range1` |
+| `regex-selection` | `one-true-awk:p.12`, `one-true-awk:p.13` |
+| `default-print-patterns` | `one-true-awk:p.23`, `gawk:range1` |
+| `scalar-assignment` | `gawk:assignnumfield`, `gawk:assignnumfield2` |
+| `associative-arrays` | `one-true-awk:t.a` |
+| `fields` | `gawk:assignnumfield`, `one-true-awk:t.set0a`, `one-true-awk:t.NF`, `one-true-awk:T.split`, `gawk:splitvar` |
+| `control-flow` | `one-true-awk:t.if`, `one-true-awk:t.do`, `one-true-awk:t.break` |
+| `record-control` | `one-true-awk:t.next`, `one-true-awk:t.exit`, `one-true-awk:T.nextfile` |
+| `expressions-and-coercions` | `one-true-awk:T.expr`, `one-true-awk:t.substr`, `gawk:getnr2tb` |
+| `user-defined-functions` | `one-true-awk:t.fun`, `one-true-awk:T.func` |
+| `builtin-variables` | `one-true-awk:p.4`, `one-true-awk:p.24`, `one-true-awk:t.NF`, `one-true-awk:T.argv`, `gawk:argarray`, `gawk:getnr2tb` |
+| `implemented-builtins` | `one-true-awk:T.builtin`, `one-true-awk:T.split`, `gawk:splitvar`, `gawk:substr` |
+| `multi-file-input-processing` | `one-true-awk:p.24`, `one-true-awk:T.nextfile`, `gawk:argarray` |
 
 ## Growth Order
 

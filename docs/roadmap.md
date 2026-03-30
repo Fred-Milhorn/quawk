@@ -343,12 +343,11 @@ Target outcome:
   POSIX-first coverage contract tied to implemented feature families in
   `SPEC.md`
 
-1. `T-144` map implemented feature families in `SPEC.md` to upstream case inventory
-2. `T-145` expand in-scope One True Awk `p.*` coverage across implemented families
-3. `T-146` add gawk fixture-backed corroborating coverage for implemented families
-4. `T-147` fill remaining implemented-family gaps with selected One True Awk `t.*`
-5. `T-148` add selected shell-driver adapters only for still-uncovered in-scope families
-6. `T-149` complete the upstream-suite done-line audit and stop criteria
+1. `T-145` expand in-scope One True Awk `p.*` coverage across implemented families
+2. `T-146` add gawk fixture-backed corroborating coverage for implemented families
+3. `T-147` fill remaining implemented-family gaps with selected One True Awk `t.*`
+4. `T-148` add selected shell-driver adapters only for still-uncovered in-scope families
+5. `T-149` complete the upstream-suite done-line audit and stop criteria
 
 ## Backlog
 
@@ -463,7 +462,7 @@ Priority values:
 | T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | done |
 | T-142 | P11 | P1 | Add evaluated-divergence metadata and companion compatibility notes for upstream-suite failures | T-140 | Executed upstream failures are either fixed or classified with checked-in metadata plus reviewed human-readable notes, and stale or unclassified entries fail the gate | done |
 | T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility slice, and the roadmap/docs define when that job becomes required | done |
-| T-144 | P11 | P0 | Map implemented feature families in `SPEC.md` to the upstream case inventory | T-143 | `tests/upstream/selection.toml` and `docs/compatibility.md` make it explicit which upstream cases or skips cover every `implemented` feature family in `SPEC.md` | todo |
+| T-144 | P11 | P0 | Map implemented feature families in `SPEC.md` to the upstream case inventory | T-143 | `tests/upstream/selection.toml` and `docs/compatibility.md` make it explicit which upstream cases or skips cover every `implemented` feature family in `SPEC.md` | done |
 | T-145 | P11 | P0 | Expand in-scope One True Awk `p.*` coverage across implemented POSIX families | T-144 | Adapter-compatible, in-scope One True Awk `p.*` cases are broadly classified `run` or `skip`, and the runnable set expands coverage across the implemented family matrix | todo |
 | T-146 | P11 | P1 | Add gawk fixture-backed corroborating coverage for implemented POSIX families | T-144 | For each major implemented family with clean `.ok` or `.in/.ok` fixtures, the selection manifest includes at least one runnable gawk corroborating case or an explicit reviewed skip | todo |
 | T-147 | P11 | P1 | Fill remaining implemented-family gaps with selected One True Awk `t.*` cases | T-145, T-146 | No `implemented` feature family in `SPEC.md` lacks runnable upstream coverage from at least one suite unless the gap is explicitly deferred in reviewed selection metadata | todo |
