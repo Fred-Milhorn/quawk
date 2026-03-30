@@ -48,6 +48,8 @@ Reference-engine policy:
 - required compatibility work uses the pinned upstream source trees under `third_party/`
 - One True Awk and gawk are resolved through the repo-managed local wrappers under `build/upstream/bin/`
 - the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
+- evaluated upstream divergence metadata lives at `tests/upstream/divergences.toml`
+- reviewed upstream divergence notes live at `docs/compatibility-evaluations.md`
 - the first runnable upstream slice is executed through `quawk.upstream_suite`
 - host `awk` is not a compatibility reference
 
@@ -215,6 +217,41 @@ The differential corpus workflow should fail on:
 - unclassified reference disagreements
 - stale divergence entries whose case no longer disagrees
 
+## Upstream Divergence Classification
+
+Use the upstream divergence workflow for failures in `compat_upstream`.
+
+Machine-readable metadata:
+- `tests/upstream/divergences.toml`
+
+Reviewed notes:
+- `docs/compatibility-evaluations.md`
+
+Each upstream divergence entry records:
+- `suite`
+- `case_id`
+- `classification`
+- `decision`
+- `summary`
+- `last_verified_upstream_commit`
+- `notes_ref`
+
+Allowed classifications:
+- `posix-required-fix`
+- `known-gap`
+- `intentional-quawk-extension`
+- `gnu-extension-out-of-scope`
+- `platform-specific`
+- `reference-disagreement`
+- `wont-fix`
+
+Upstream gate policy:
+- unclassified upstream failures fail
+- unclassified reference disagreements fail
+- stale upstream divergence entries fail
+- `posix-required-fix` stays blocking even when classified
+- non-blocking classified failures are allowed only when they are documented in both the manifest and the companion notes doc
+
 ## Expected Failures
 
 Use `pytest.mark.xfail` when:
@@ -236,6 +273,11 @@ Differential corpus policy:
 - `PASS`: `quawk` matches the agreeing references and has no stale divergence entry
 - `REF-DISAGREE`: allowed only when the case is classified in `tests/corpus/divergences.toml`
 - `FAIL`: `quawk` differs from agreeing references, the references disagree without a classification, or a divergence entry has gone stale
+
+Upstream compatibility policy:
+- `PASS`: `quawk`, One True Awk, and gawk agree with the active upstream oracle and no upstream divergence entry has gone stale
+- `REF-DISAGREE`: allowed only when the case is classified as `reference-disagreement` in `tests/upstream/divergences.toml`
+- `FAIL`: `quawk` differs from the active upstream oracle without classification, a blocking `posix-required-fix` remains open, or an upstream divergence entry has gone stale
 
 Required environment policy:
 - local ad hoc runs may still use the CLI's nonzero missing-engine path for diagnostics

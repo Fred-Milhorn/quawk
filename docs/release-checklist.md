@@ -42,7 +42,8 @@ It does not define:
 7. Review open release blockers.
    - No unexpected failing tests.
    - No stale `xfail` reasons in the release-smoke baseline.
-   - No unclassified compatibility divergences in the checked-in manifest.
+   - No unclassified or stale compatibility divergences in the checked-in manifests.
+   - Any allowed upstream compatibility divergences are still reflected in [docs/compatibility-evaluations.md](/Users/fred/dev/quawk/docs/compatibility-evaluations.md).
 8. Create the release commit and tag.
    - Commit the version/changelog/doc updates.
    - Create an annotated tag for the release version.

@@ -148,8 +148,8 @@ should be evaluated explicitly.
 
 Keep two checked-in tracking layers:
 
-1. Machine-readable divergence metadata for executed upstream cases
-2. Human-readable compatibility notes for the active divergence families
+1. Machine-readable divergence metadata for executed upstream cases in `tests/upstream/divergences.toml`
+2. Human-readable compatibility notes for the active divergence families in `docs/compatibility-evaluations.md`
 
 Each divergence entry should record:
 
@@ -159,6 +159,7 @@ Each divergence entry should record:
 - decision
 - short summary
 - last verified upstream commit
+- note reference in the companion doc
 
 Required classifications:
 

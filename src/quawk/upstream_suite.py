@@ -17,6 +17,7 @@ from quawk.corpus import (
     missing_engines,
     normalize_result,
 )
+from quawk.upstream_divergence import UpstreamDivergenceEntry
 from quawk.upstream_inventory import UpstreamCaseSelection, load_upstream_selection_manifest, selections_with_status
 
 UpstreamOracleKind = Literal["expected-output", "reference-agreement"]
@@ -251,11 +252,31 @@ def run_upstream_case_differential(
     return UpstreamCaseResult(case=case, results_by_engine=run_upstream_case_for_engines(case, engines=engines))
 
 
-def upstream_validation_errors(result: UpstreamCaseResult) -> list[str]:
+def upstream_validation_errors(
+    result: UpstreamCaseResult,
+    divergences: dict[str, UpstreamDivergenceEntry],
+) -> list[str]:
     """Return validation issues for one upstream-selected differential run."""
     status = result.status()
+    divergence_entry = divergences.get(result.case.id)
     if status in ("PASS", "SKIP"):
-        return []
+        if divergence_entry is None:
+            return []
+        return [f"stale divergence manifest entry: {divergence_entry.classification} - {divergence_entry.summary}"]
     if status == "REF-DISAGREE":
-        return ["unclassified reference disagreement", *result.detail_lines()]
-    return result.detail_lines()
+        if divergence_entry is None:
+            return ["unclassified reference disagreement", *result.detail_lines()]
+        if divergence_entry.classification == "reference-disagreement":
+            return []
+        return [f"stale divergence manifest entry: {divergence_entry.classification} - {divergence_entry.summary}"]
+    if divergence_entry is None:
+        return result.detail_lines()
+    if divergence_entry.classification == "posix-required-fix":
+        return [
+            f"classified required upstream failure: {divergence_entry.classification} "
+            f"[{divergence_entry.decision}] - {divergence_entry.summary}",
+            *result.detail_lines(),
+        ]
+    if divergence_entry.classification == "reference-disagreement":
+        return [f"stale divergence manifest entry: {divergence_entry.classification} - {divergence_entry.summary}"]
+    return []
