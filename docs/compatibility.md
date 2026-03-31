@@ -146,8 +146,9 @@ The current checked-in matrix now includes a broader runnable One True Awk
 corroborating fixtures for fields, `exit` in function context, string-field
 coercion, and `substr` coercion. It now also includes a small One True Awk
 `t.*` direct-file expansion for arrays, user-defined functions, and substring
-matching. It still relies on reviewed `skip` anchors for CLI handling,
-multi-file operand handling, shell-driver-only cases, and several richer
+matching, plus focused runnable shell-driver-derived coverage for CLI basics
+and multi-file `nextfile` behavior. It still relies on reviewed `skip` anchors
+for broader `ARGV` handling, gawk shell-driver cases, and several richer
 direct-file families that still expose real quawk gaps.
 
 | Family | Current upstream anchors |
@@ -203,6 +204,26 @@ What remains deferred to `T-148`:
   operand-order handling
 - multi-file input processing, where the remaining anchors still depend on
   shell-driver or CLI-sensitive execution shape
+
+## T-148 Result
+
+`T-148` is now complete.
+
+What landed:
+
+- promoted focused runnable shell-driver-derived coverage for:
+  - CLI basics via the multiple-`-f` subcase selected from `T.-f-f`
+  - multi-file input processing via the first-record `nextfile` subcase
+    selected from `T.nextfile`
+- kept the remaining One True Awk and gawk shell-driver anchors as reviewed
+  skips when the runnable subset no longer needs them
+
+What remains for `T-149`:
+
+- audit the done-line and stop criteria now that every implemented family has
+  at least one runnable upstream anchor
+- decide whether any remaining skipped corroborating anchors should be promoted
+  or explicitly left as permanent reviewed skips
 
 ## Failure Policy
 

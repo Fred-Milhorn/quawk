@@ -22,6 +22,17 @@ from quawk.upstream_divergence import UpstreamDivergenceEntry
 from quawk.upstream_inventory import UpstreamCaseSelection, load_upstream_selection_manifest, selections_with_status
 
 UpstreamOracleKind = Literal["expected-output", "reference-agreement"]
+UpstreamWorkdirFileKind = Literal["text", "symlink"]
+
+
+@dataclass(frozen=True)
+class UpstreamWorkdirFile:
+    """One file materialized inside the per-run upstream workdir."""
+
+    path: Path
+    kind: UpstreamWorkdirFileKind
+    text: str | None = None
+    source_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +58,8 @@ class UpstreamCase:
     input_operands: tuple[str, ...]
     oracle: UpstreamOracleKind
     expectation: UpstreamExpectation | None
+    operand_separator: bool = False
+    workdir_files: tuple[UpstreamWorkdirFile, ...] = ()
 
     @property
     def id(self) -> str:
@@ -134,10 +147,14 @@ def load_upstream_case(selection: UpstreamCaseSelection) -> UpstreamCase:
     match selection.adapter:
         case "onetrueawk-program-file":
             return load_onetrueawk_program_file(selection)
+        case "onetrueawk-shell-driver":
+            return load_onetrueawk_shell_driver(selection)
         case "gawk-awk-ok":
             return load_gawk_awk_ok(selection)
         case "gawk-awk-in-ok":
             return load_gawk_awk_in_ok(selection)
+        case "gawk-shell-driver":
+            return load_gawk_shell_driver(selection)
         case unsupported:
             raise ValueError(f"{selection.case_id}: unsupported upstream adapter for execution slice: {unsupported}")
 
@@ -162,9 +179,49 @@ def load_onetrueawk_program_file(selection: UpstreamCaseSelection) -> UpstreamCa
         program_path=selection.path,
         cli_args=(),
         input_operands=input_operands,
+        operand_separator=False,
         oracle="reference-agreement",
         expectation=None,
     )
+
+
+def load_onetrueawk_shell_driver(selection: UpstreamCaseSelection) -> UpstreamCase:
+    """Adapt one selected One True Awk shell-driver anchor into a runnable focused case."""
+    match selection.case_id:
+        case "T.-f-f":
+            return UpstreamCase(
+                selection=selection,
+                program_path=Path("foo2.awk"),
+                cli_args=("-f", "foo1.awk"),
+                input_operands=(),
+                operand_separator=False,
+                oracle="reference-agreement",
+                expectation=None,
+                workdir_files=(
+                    text_workdir_file("foo1.awk", 'BEGIN { print "begin" }\n'),
+                    text_workdir_file("foo2.awk", 'END { print "end" }\n'),
+                ),
+            )
+        case "T.nextfile":
+            fixture_dir = selection.path.parent
+            input_names = ("T.argv", "T.arnold", "T.beebe")
+            return UpstreamCase(
+                selection=selection,
+                program_path=Path("program.awk"),
+                cli_args=(),
+                input_operands=input_names,
+                operand_separator=False,
+                oracle="reference-agreement",
+                expectation=None,
+                workdir_files=(
+                    text_workdir_file("program.awk", "{ print $0; nextfile }\n"),
+                    *(symlink_workdir_file(name, fixture_dir / name) for name in input_names),
+                ),
+            )
+        case unsupported:
+            raise ValueError(
+                f"{selection.case_id}: unsupported one-true-awk shell-driver selection for execution slice: {unsupported}"
+            )
 
 
 def load_gawk_awk_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
@@ -174,6 +231,7 @@ def load_gawk_awk_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
         program_path=selection.path,
         cli_args=(),
         input_operands=(),
+        operand_separator=False,
         oracle="expected-output",
         expectation=gawk_fixture_expectation(selection.path),
     )
@@ -186,8 +244,16 @@ def load_gawk_awk_in_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
         program_path=selection.path,
         cli_args=(),
         input_operands=(str(require_sibling_file(selection.path, ".in")),),
+        operand_separator=False,
         oracle="expected-output",
         expectation=gawk_fixture_expectation(selection.path),
+    )
+
+
+def load_gawk_shell_driver(selection: UpstreamCaseSelection) -> UpstreamCase:
+    """Reject unsupported gawk shell-driver anchors until they are explicitly adapted."""
+    raise ValueError(
+        f"{selection.case_id}: unsupported gawk shell-driver selection for execution slice: {selection.case_id}"
     )
 
 
@@ -209,21 +275,85 @@ def require_sibling_file(program_path: Path, suffix: str) -> Path:
     return sibling_path
 
 
+def text_workdir_file(path: str, text: str) -> UpstreamWorkdirFile:
+    """Return one generated text file entry for the per-run workdir."""
+    return UpstreamWorkdirFile(path=Path(path), kind="text", text=text)
+
+
+def symlink_workdir_file(path: str, source_path: Path) -> UpstreamWorkdirFile:
+    """Return one symlinked fixture file entry for the per-run workdir."""
+    return UpstreamWorkdirFile(path=Path(path), kind="symlink", source_path=source_path)
+
+
+def materialize_case_workdir(case: UpstreamCase, workdir: Path) -> None:
+    """Create any generated or linked files needed for one upstream case run."""
+    for entry in case.workdir_files:
+        destination = workdir / entry.path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if entry.kind == "text":
+            if entry.text is None:
+                raise ValueError(f"{case.id}: missing text for generated workdir file {entry.path}")
+            destination.write_text(entry.text, encoding="utf-8")
+            continue
+        if entry.source_path is None:
+            raise ValueError(f"{case.id}: missing source path for symlinked workdir file {entry.path}")
+        destination.symlink_to(entry.source_path)
+
+
+def resolve_case_path(path: Path, workdir: Path) -> Path:
+    """Resolve one case path against the per-run workdir when needed."""
+    if path.is_absolute():
+        return path
+    return workdir / path
+
+
+def resolve_case_cli_args(cli_args: tuple[str, ...], workdir: Path) -> list[str]:
+    """Resolve `-f` file operands that are relative to the per-run workdir."""
+    resolved: list[str] = []
+    expect_program_path = False
+    for arg in cli_args:
+        if expect_program_path:
+            resolved.append(str(resolve_case_path(Path(arg), workdir)))
+            expect_program_path = False
+            continue
+        resolved.append(arg)
+        expect_program_path = arg == "-f"
+    return resolved
+
+
+def resolve_case_input_operands(case: UpstreamCase, workdir: Path) -> tuple[str, ...]:
+    """Resolve relative input operands against the per-run workdir when needed."""
+    resolved: list[str] = []
+    for operand in case.input_operands:
+        if operand == "-":
+            resolved.append(operand)
+            continue
+        operand_path = Path(operand)
+        if operand_path.is_absolute():
+            resolved.append(operand)
+            continue
+        resolved.append(str(workdir / operand_path))
+    return tuple(resolved)
+
+
 def run_upstream_case(case: UpstreamCase, engine: EngineName = "quawk") -> NormalizedCorpusResult:
     """Run one upstream-selected case under the selected engine."""
-    command = build_engine_command(
-        engine,
-        case.program_path,
-        cli_args=case.cli_args,
-        input_operands=case.input_operands,
-    )
     with TemporaryDirectory(prefix="quawk-upstream-") as workdir:
+        workdir_path = Path(workdir)
+        materialize_case_workdir(case, workdir_path)
+        command = build_engine_command(
+            engine,
+            resolve_case_path(case.program_path, workdir_path),
+            cli_args=tuple(resolve_case_cli_args(case.cli_args, workdir_path)),
+            input_operands=resolve_case_input_operands(case, workdir_path),
+            operand_separator=case.operand_separator,
+        )
         result = subprocess.run(
             command,
             capture_output=True,
             text=True,
             check=False,
-            cwd=workdir,
+            cwd=workdir_path,
         )
     return normalize_result(
         CorpusResult(

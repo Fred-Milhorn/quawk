@@ -545,9 +545,8 @@ tags = ["posix", "fields", "coercions"]
 suite = "one-true-awk"
 case_id = "T.-f-f"
 path = "third_party/onetrueawk/testdir/T.-f-f"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as a CLI family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
 tags = ["shell-driver", "cli"]
 
 [[case]]
@@ -556,7 +555,7 @@ case_id = "T.argv"
 path = "third_party/onetrueawk/testdir/T.argv"
 status = "skip"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as a CLI and builtin-variable family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
+reason = "No longer needed for the current runnable subset: `T-148` closes CLI coverage with `T.-f-f`, while builtin-variable coverage already has direct-file and gawk anchors."
 tags = ["shell-driver", "cli", "argv"]
 
 [[case]]
@@ -565,7 +564,7 @@ case_id = "T.builtin"
 path = "third_party/onetrueawk/testdir/T.builtin"
 status = "skip"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as a builtin family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
+reason = "Not needed for implemented-builtin coverage after the direct-file and gawk fixture promotions in T-146 and T-147."
 tags = ["shell-driver", "builtins"]
 
 [[case]]
@@ -574,7 +573,7 @@ case_id = "T.expr"
 path = "third_party/onetrueawk/testdir/T.expr"
 status = "skip"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as an expressions-and-coercions family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
+reason = "Not needed for expressions-and-coercions coverage after the runnable direct-file and gawk fixture anchors promoted in T-146 and T-147."
 tags = ["shell-driver", "expressions"]
 
 [[case]]
@@ -583,16 +582,15 @@ case_id = "T.func"
 path = "third_party/onetrueawk/testdir/T.func"
 status = "skip"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as a user-defined-function family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
+reason = "Not needed for user-defined-function coverage after the runnable `t.fun` and gawk `exit2` anchors promoted in T-146 and T-147."
 tags = ["shell-driver", "functions"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "T.nextfile"
 path = "third_party/onetrueawk/testdir/T.nextfile"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-shell-driver"
-reason = "Mapped as a record-control and multi-file family anchor in T-144; shell-driver execution is deferred until shell-driver support is added for still-uncovered in-scope families."
 tags = ["shell-driver", "record-control", "multifile"]
 
 [[case]]
@@ -601,7 +599,7 @@ case_id = "T.split"
 path = "third_party/onetrueawk/testdir/T.split"
 status = "skip"
 adapter = "onetrueawk-shell-driver"
-reason = "Shell-driver adaptation lands after the initial direct-program slice."
+reason = "Not needed for implemented-builtin coverage after the direct-file and gawk `split` anchors already selected for the runnable subset."
 tags = ["shell-driver", "split"]
 
 [[case]]
@@ -717,7 +715,7 @@ case_id = "cmdlinefsbacknl"
 path = "third_party/gawk/test/cmdlinefsbacknl.sh"
 status = "skip"
 adapter = "gawk-shell-driver"
-reason = "Shell-driver and CLI-wrapper adaptation land after the initial awk/in/ok slice."
+reason = "CLI coverage is now closed by the focused One True Awk `T.-f-f` shell-driver subset, so this gawk shell-driver remains unnecessary for the runnable subset."
 tags = ["shell-driver", "cli"]
 
 [[case]]
@@ -766,7 +764,7 @@ selection_keys = [
   "gawk:argarray",
   "gawk:cmdlinefsbacknl",
 ]
-notes = "CLI coverage still depends on shell-driver or operand-sensitive cases; that remaining no-run family is explicitly deferred to T-148."
+notes = "CLI coverage now includes a focused runnable shell-driver-derived subset from `T.-f-f`; broader `ARGV` and gawk shell-driver cases remain reviewed skips."
 
 [[coverage]]
 family = "pattern-action-execution"
@@ -908,4 +906,4 @@ selection_keys = [
   "one-true-awk:T.nextfile",
   "gawk:argarray",
 ]
-notes = "The remaining no-run multi-file family still depends on shell-driver or operand-order handling and is explicitly deferred to T-148."
+notes = "Multi-file input processing now includes a focused runnable shell-driver-derived subset from `T.nextfile`; broader operand-sensitive `ARGV` coverage remains a reviewed skip."
