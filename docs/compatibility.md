@@ -225,6 +225,30 @@ What remains for `T-149`:
 - decide whether any remaining skipped corroborating anchors should be promoted
   or explicitly left as permanent reviewed skips
 
+## T-149 Result
+
+`T-149` is now complete.
+
+What landed:
+
+- added executable audit helpers and tests for the completion line:
+  - every implemented feature family in the checked-in matrix has at least one
+    runnable upstream anchor
+  - no runnable upstream case is still classified as `posix-required-fix`
+- confirmed the checked-in upstream divergence manifest remains empty, so there
+  are no active blocking upstream fixes or stale classified failures
+- closed the `P11` upstream-suite growth track: `compat_upstream` is the
+  compatibility authority, while `compat_local` remains supplemental regression
+  coverage instead of the sole evidence for any implemented POSIX family
+
+Stop condition after `T-149`:
+
+- upstream-suite growth no longer needs backlog work just to avoid blind spots
+- add more upstream cases only when:
+  - a new `implemented` claim in [SPEC.md](../SPEC.md) needs coverage
+  - a reviewed skipped corroborating anchor becomes clean and worth promoting
+  - a new upstream failure needs classification or a fix
+
 ## Failure Policy
 
 Not every compatibility failure should be fixed immediately, but every one

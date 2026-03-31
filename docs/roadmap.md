@@ -336,14 +336,15 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P11 upstream suite growth
+Next deliverable: P13 benchmarking and performance characterization
 
 Target outcome:
-- the upstream compatibility suite grows from a small green subset into a
-  POSIX-first coverage contract tied to implemented feature families in
-  `SPEC.md`
+- one local workflow measures `quawk`, `one-true-awk`, and `gawk --posix`
+  reproducibly enough to characterize startup, runtime, and memory costs
 
-1. `T-149` complete the upstream-suite done-line audit and stop criteria
+1. `T-132` define the benchmark harness interface, workload suite, and measurement contract
+2. `T-133` implement deterministic dataset generation and fixed benchmark workloads
+3. `T-134` implement end-to-end engine measurement and summary reporting
 
 ## Backlog
 
@@ -463,7 +464,7 @@ Priority values:
 | T-146 | P11 | P1 | Add gawk fixture-backed corroborating coverage for implemented POSIX families | T-144 | For each major implemented family with clean `.ok` or `.in/.ok` fixtures, the selection manifest includes at least one runnable gawk corroborating case or an explicit reviewed skip | done |
 | T-147 | P11 | P1 | Fill remaining implemented-family gaps with selected One True Awk `t.*` cases | T-145, T-146 | No `implemented` feature family in `SPEC.md` lacks runnable upstream coverage from at least one suite unless the gap is explicitly deferred in reviewed selection metadata | done |
 | T-148 | P11 | P1 | Add selected shell-driver adapters only for still-uncovered in-scope families | T-147 | One True Awk `T.*` and gawk `.sh` support lands only where direct-file fixtures cannot cover a claimed in-scope family, and shell-driver-only skips remain explicit | done |
-| T-149 | P11 | P0 | Complete the upstream-suite done-line audit and stop criteria | T-147, T-148 | Every `implemented` family in `SPEC.md` has upstream coverage, no blocking `posix-required-fix` entries remain for claimed behavior, and the local corpus is no longer the sole compatibility evidence for any implemented POSIX family | todo |
+| T-149 | P11 | P0 | Complete the upstream-suite done-line audit and stop criteria | T-147, T-148 | Every `implemented` family in `SPEC.md` has upstream coverage, no blocking `posix-required-fix` entries remain for claimed behavior, and the local corpus is no longer the sole compatibility evidence for any implemented POSIX family | done |
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
