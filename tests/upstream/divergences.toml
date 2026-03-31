@@ -1,5 +1,5 @@
-# Evaluated divergences for the runnable upstream compatibility slice.
+# Evaluated divergences for the runnable upstream compatibility subset.
 #
 # Keep this manifest empty until an executed upstream-selected case has been
 # reviewed and intentionally classified. Each entry must also reference a note
-# marker in docs/compatibility-evaluations.md.
+# marker in docs/compatibility.md.

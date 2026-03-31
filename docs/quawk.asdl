@@ -1,17 +1,17 @@
--- quawk future normalized AST
+-- quawk implemented AST
 --
--- This file documents the longer-term normalized AST design target, not the
--- parser AST emitted by `src/quawk/parser.py` today.
+-- This file documents the AST shape emitted by `src/quawk/parser.py` today.
+-- It is the source of truth for the tree shown by `quawk --parse` and
+-- consumed by semantic analysis and normalization.
 --
--- The concrete syntax contract still lives in `docs/grammar.ebnf`.
--- The implemented parser tree now lives in `docs/current-ast.asdl`.
+-- The concrete syntax contract lives in `docs/quawk.ebnf`.
 --
--- This future AST intentionally smooths over parser-oriented representation
--- details where later normalization wants a cleaner shape, for example:
--- - `FieldRef(expr index)` rather than the parser's literal-int-or-expr split
--- - `ArrayRef(..., expr* subscripts)` rather than the parser's first-plus-rest
---   storage layout
--- - a normalized backend-facing view of the current language surface
+-- Notes about Python implementation details that are intentionally smoothed
+-- over here:
+-- - numeric literals carry both a parsed numeric value and the original token text
+-- - field references use either a literal integer index or a dynamic expression
+-- - array refs and lvalues cache the first subscript separately from later ones
+-- - function definitions also cache per-parameter source spans
 
 module Quawk {
     loc = Loc(
@@ -36,37 +36,41 @@ module Quawk {
 
     action = Action(stmt* statements) attributes (loc? loc)
 
-    stmt = Block(action body)
-         | If(expr test, stmt then_branch, stmt? else_branch)
-         | While(expr test, stmt body)
-         | DoWhile(stmt body, expr test)
-         | For(expr* init, expr? test, expr* update, stmt body)
-         | ForIn(identifier name, expr iterable, stmt body)
+    stmt = Print(expr* args)
+         | Printf(expr* args)
+         | Assign(lvalue target, assign_op op, expr value)
+         | Block(stmt* statements)
          | Break
          | Continue
          | Next
          | NextFile
          | Exit(expr? value)
-         | Return(expr? value)
          | Delete(lvalue target)
-         | Print(expr* args)
-         | Printf(expr format, expr* args)
+         | If(expr condition, stmt then_branch, stmt? else_branch)
+         | While(expr condition, stmt body)
+         | DoWhile(stmt body, expr condition)
+         | For(expr* init, expr? condition, expr* update, stmt body)
+         | ForIn(identifier name, expr iterable, stmt body)
          | ExprStmt(expr value)
+         | Return(expr? value)
          attributes (loc? loc)
 
     expr = StringLiteral(string value, string raw_text)
-         | NumberLiteral(string text)
-         | RegexLiteral(string text)
+         | NumberLiteral(string raw_text)
+         | RegexLiteral(string raw_text)
          | Name(identifier id)
-         | ArrayRef(identifier name, expr* subscripts)
-         | FieldRef(expr index)
+         | FieldRef(field_index index)
          | Call(identifier function, expr* args)
-         | Assign(lvalue target, assign_op op, expr value)
-         | Conditional(expr test, expr if_true, expr if_false)
+         | ArrayRef(identifier name, expr* subscripts)
          | Binary(expr left, binary_op op, expr right)
+         | Conditional(expr test, expr if_true, expr if_false)
+         | AssignExpr(lvalue target, assign_op op, expr value)
          | Unary(unary_op op, expr operand)
          | Postfix(expr operand, postfix_op op)
          attributes (loc? loc)
+
+    field_index = StaticField(int index)
+                | DynamicField(expr value)
 
     lvalue = NameLValue(identifier id)
            | ArrayLValue(identifier name, expr* subscripts)
@@ -81,24 +85,24 @@ module Quawk {
               | ModAssign
               | PowAssign
 
-    binary_op = Or
-              | And
-              | Match
-              | NotMatch
-              | In
-              | Eq
-              | Ne
-              | Lt
-              | Le
-              | Gt
-              | Ge
-              | Concat
-              | Add
+    binary_op = Add
               | Sub
               | Mul
               | Div
               | Mod
               | Pow
+              | Lt
+              | Le
+              | Gt
+              | Ge
+              | Eq
+              | Ne
+              | And
+              | Or
+              | Match
+              | NotMatch
+              | In
+              | Concat
 
     unary_op = UPlus
              | UMinus

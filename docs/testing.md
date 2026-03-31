@@ -49,7 +49,7 @@ Reference-engine policy:
 - One True Awk and gawk are resolved through the repo-managed local wrappers under `build/upstream/bin/`
 - the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
 - evaluated upstream divergence metadata lives at `tests/upstream/divergences.toml`
-- reviewed upstream divergence notes live at `docs/compatibility-evaluations.md`
+- reviewed upstream divergence notes live at `docs/compatibility.md`
 - the selected runnable upstream subset is executed through `quawk.upstream_suite`
 - host `awk` is not a compatibility reference
 
@@ -233,7 +233,7 @@ Machine-readable metadata:
 - `tests/upstream/divergences.toml`
 
 Reviewed notes:
-- `docs/compatibility-evaluations.md`
+- `docs/compatibility.md`
 
 Each upstream divergence entry records:
 - `suite`

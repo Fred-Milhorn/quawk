@@ -28,7 +28,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P7 | POSIX Core Syntax and AST Completion | Frontend covers the remaining POSIX-core concrete syntax and AST surface |
 | P8 | POSIX Core Runtime and Builtins Completion | Public execution covers POSIX-core semantics, builtins, and builtin variables |
 | P9 | Backend Parity and Inspection Completion | LLVM/reusable backend and inspection modes cover the same POSIX-core surface |
-| P10 | Grammar Contract and Doc Alignment | Full `grammar.ebnf` implementation and honest design/AST docs |
+| P10 | Grammar Contract and Doc Alignment | Full `quawk.ebnf` implementation and honest design/AST docs |
 | P11 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 | P13 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `one-true-awk`, and `gawk --posix` |
@@ -243,26 +243,25 @@ Exit criteria:
 ### P10: Grammar Contract and Doc Alignment
 
 Objective:
-- make `grammar.ebnf` the implemented concrete-syntax contract and align the surrounding design and AST docs with the shipped implementation
+- make `quawk.ebnf` the implemented concrete-syntax contract and align the surrounding design and AST docs with the shipped implementation
 
 In scope:
-- finish parser support for the full `grammar.ebnf` surface
+- finish parser support for the full `quawk.ebnf` surface
 - remove remaining parser, semantic, runtime, and backend narrowing for grammar-admitted forms
 - refresh `design.md` current-state sections so they describe the real implementation
-- reconcile `quawk.asdl` with the current parser AST and normalized future AST
-- implementation details for this phase live in [grammar-alignment.md](grammar-alignment.md)
+- consolidate the AST contract into one implemented `quawk.asdl` schema
 
 Success in this phase looks like:
-- every `grammar.ebnf` production family is intentionally covered by parser conformance tests
+- every `quawk.ebnf` production family is intentionally covered by parser conformance tests
 - no parser-only narrowing remains for valid grammar constructs in the chosen language contract
 - public execution covers the admitted grammar surface instead of failing on grammar-valid forms
 - `design.md` accurately distinguishes parser, public execution, and backend or inspection support
-- `quawk.asdl` is explicitly either the current AST or a future AST with a separate current-AST document
+- `quawk.asdl` is the single documented AST contract for the implemented parser output
 
 Exit criteria:
-- every `grammar.ebnf` production is parseable
+- every `quawk.ebnf` production is parseable
 - the remaining grammar-admitted forms execute through public `quawk` execution
-- `design.md`, `grammar.ebnf`, and the AST docs are internally consistent
+- `design.md`, `quawk.ebnf`, and `quawk.asdl` are internally consistent
 - compatibility work no longer needs to discover missing grammar implementation work
 
 ### P11: Compatibility and Hardening
@@ -437,11 +436,11 @@ Priority values:
 | T-077 | P2 | P0 | Extend runtime state for branching and loop execution | T-076 | Runtime can execute the supported control-flow constructs | done |
 | T-078 | P2 | P0 | Extend LLVM lowering for comparisons and control flow | T-077 | The supported control-flow examples execute through the LLVM-backed path | done |
 | T-079 | P2 | P1 | Add integration tests for stdout/stderr/exit status of the control-flow increment | T-078 | Integration tests run for the control-flow increment in required CI jobs | done |
-| T-122 | P10 | P0 | Author grammar-alignment baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `grammar.ebnf`/design/AST drift explicit before implementation | done |
-| T-123 | P10 | P0 | Implement the remaining `grammar.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `grammar.ebnf` surface with stable AST shapes for the admitted language | done |
+| T-122 | P10 | P0 | Author grammar-contract baselines and a conformance checklist for the remaining doc-vs-implementation gaps | T-114, T-118, T-121 | Tests and checklist make the remaining `quawk.ebnf`/design/AST drift explicit before implementation | done |
+| T-123 | P10 | P0 | Implement the remaining `quawk.ebnf` parser gaps and remove parser-side narrowing | T-122 | The parser accepts the full `quawk.ebnf` surface with stable AST shapes for the admitted language | done |
 | T-124 | P10 | P0 | Remove semantic, runtime, and backend narrowing for grammar-admitted forms | T-123 | Public execution no longer fails on grammar-valid forms, and backend limits are narrowed to explicitly documented non-grammar gaps | done |
-| T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `grammar.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | done |
-| T-126 | P10 | P1 | Split current-vs-future AST docs and align `quawk.asdl` with the chosen contract | T-124 | AST docs clearly distinguish the implemented parser AST from the future normalized AST, or one aligned AST spec replaces both roles | done |
+| T-125 | P10 | P1 | Rewrite `design.md` current-state sections and add explicit `quawk.ebnf` conformance notes | T-124 | Design docs accurately describe the parser, public execution, and backend support model | done |
+| T-126 | P10 | P1 | Consolidate AST docs around the chosen `quawk.asdl` contract | T-124 | AST docs clearly describe the implemented parser output through one aligned schema | done |
 | T-039 | P12 | P1 | Expand CLI behavior only as execution support justifies it | T-026 | Help/version/run-path behavior is stable for supported features | done |
 | T-047 | P11 | P0 | Author compatibility tests as `xfail` baseline for the supported subset | T-028 | Compatibility baseline committed with expected failures | done |
 | T-035 | P11 | P0 | Implement differential test runner (`one-true-awk`, `gawk --posix`, `quawk`) | T-028, T-047 | Runner emits comparable normalized outputs | done |

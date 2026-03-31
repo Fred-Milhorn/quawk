@@ -71,9 +71,8 @@ the same upstream compatibility subset in CI.
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [docs/release-checklist.md](docs/release-checklist.md): versioned release workflow
 - [docs/design.md](docs/design.md): architecture, execution, and CLI design
-- [docs/grammar.ebnf](docs/grammar.ebnf): concrete syntax grammar
-- [docs/current-ast.asdl](docs/current-ast.asdl): implemented parser AST schema
-- [docs/quawk.asdl](docs/quawk.asdl): future normalized AST schema
+- [docs/quawk.ebnf](docs/quawk.ebnf): concrete syntax grammar
+- [docs/quawk.asdl](docs/quawk.asdl): implemented AST schema
 - [docs/testing.md](docs/testing.md): test strategy, workflow, and future release gates
 - [docs/roadmap.md](docs/roadmap.md): phased implementation plan and active backlog
 

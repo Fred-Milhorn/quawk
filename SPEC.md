@@ -40,13 +40,13 @@ Evidence:
 | Record control | implemented | `next`, `nextfile`, `exit`. |
 | Expressions | implemented | Arithmetic, comparisons, equality, logical operators, ternary, match ops, `in`, concatenation, unary and postfix inc/dec. Compatibility-tracked broader admitted forms are recorded in `tests/corpus/divergences.toml`. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
-| POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/grammar.ebnf` surface. |
+| POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 
 Evidence:
 - `tests/test_parser.py`
 - `tests/test_p7_posix_core_frontend.py`
 - `tests/test_p10_grammar_alignment.py`
-- `docs/grammar.ebnf`
+- `docs/quawk.ebnf`
 
 ## Runtime and Builtins
 

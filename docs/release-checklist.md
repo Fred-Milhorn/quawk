@@ -43,7 +43,7 @@ It does not define:
    - No unexpected failing tests.
    - No stale `xfail` reasons in the release-smoke baseline.
    - No unclassified or stale compatibility divergences in the checked-in manifests.
-   - Any allowed upstream compatibility divergences are still reflected in [docs/compatibility-evaluations.md](/Users/fred/dev/quawk/docs/compatibility-evaluations.md).
+   - Any allowed upstream compatibility divergences are still reflected in [docs/compatibility.md](/Users/fred/dev/quawk/docs/compatibility.md).
 8. Create the release commit and tag.
    - Commit the version/changelog/doc updates.
    - Create an annotated tag for the release version.

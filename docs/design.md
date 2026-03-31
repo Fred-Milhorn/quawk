@@ -123,9 +123,9 @@ Front-end pipeline:
 
 1. source normalization: line tracking, newline tokens, comment handling
 2. lexing: emit tokens with source spans and minimal semantic payloads
-3. parsing: build AST from tokens using the concrete grammar in `docs/grammar.ebnf`
+3. parsing: build AST from tokens using the concrete grammar in `docs/quawk.ebnf`
 4. AST validation: enforce grammar-adjacent constraints and improve diagnostics
-5. lowering prep: normalize from the parser AST in `docs/current-ast.asdl` toward the backend-oriented shapes described in `docs/quawk.asdl`
+5. lowering prep: normalize from the implemented AST in `docs/quawk.asdl` toward the backend-oriented shapes needed by lowering
 
 Error handling and diagnostics:
 - keep token spans on all AST nodes
@@ -150,17 +150,14 @@ Milestone order:
 
 ## Syntax and AST Specs
 
-Concrete syntax lives in [grammar.ebnf](/Users/fred/dev/quawk/docs/grammar.ebnf).
+Concrete syntax lives in [quawk.ebnf](/Users/fred/dev/quawk/docs/quawk.ebnf).
 
-Current parser AST lives in [current-ast.asdl](/Users/fred/dev/quawk/docs/current-ast.asdl).
-
-Future normalized AST lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
+Implemented AST lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
 
 These files have distinct roles:
-- `docs/grammar.ebnf` is the source of truth for tokens, precedence, separators, and concrete parsing rules
-- `docs/current-ast.asdl` is the source of truth for the implemented parser AST shape
-- `docs/quawk.asdl` is the source of truth for the longer-term normalized AST target
-- this design document explains how the concrete grammar, current parser AST, and future normalized AST relate
+- `docs/quawk.ebnf` is the source of truth for tokens, precedence, separators, and concrete parsing rules
+- `docs/quawk.asdl` is the source of truth for the implemented AST shape
+- this design document explains how the concrete grammar, implemented AST, public execution, and backend support fit together
 
 ## Execution Model
 
@@ -204,7 +201,7 @@ AOT-oriented design goals:
 - input size should not cause IR size to scale with record count
 
 Current implementation model:
-- the parser and semantic layers target the current `docs/grammar.ebnf` surface rather than an older execution-only subset
+- the parser and semantic layers target the current `docs/quawk.ebnf` surface rather than an older execution-only subset
 - public execution is broader than backend inspection support: some programs execute through the reusable LLVM/runtime path, while others still fall back to the Python host runtime
 - `--ir` and `--asm` describe only the backend-lowered surface; they are not promised for every program that public `quawk` execution can run today
 
@@ -318,6 +315,78 @@ Semantic diagnostic codes:
 Goals:
 - preserve familiar AWK invocation patterns
 - keep POSIX-style options front and center
+
+## Future Work
+
+### Native Executable Emission
+
+`quawk` should eventually gain a direct native executable output mode so users
+can compile an AWK program into a runnable binary instead of only executing it
+immediately or inspecting LLVM artifacts.
+
+Chosen product contract:
+
+- add `--exe PATH` as the executable-emission CLI flag
+- produce a reusable native executable, not a baked one-shot invocation
+- generated executables accept runtime `-F`, numeric `-v`, `--`, and positional
+  input files
+- executable emission supports only the current backend-lowered surface
+
+Compiler usage:
+
+```sh
+quawk --exe PATH -f prog.awk
+quawk --exe PATH 'BEGIN { print "hello" }'
+```
+
+Generated executable usage:
+
+```sh
+PATH [-F fs] [-v name=value ...] [--] [file ...]
+```
+
+Rules:
+
+- `--exe` is mutually exclusive with `--lex`, `--parse`, `--ir`, and `--asm`
+- compile-time `-F`, `-v`, and input-file operands are rejected in `--exe`
+  mode
+- generated executables do not re-expose inspection flags
+- runtime `-v` remains numeric-only in the current subset
+
+Implementation direction:
+
+- reuse the existing LLVM lowering and reusable execution-module pipeline
+- add a native-link path that assembles IR and invokes `clang`
+- keep the current `quawk_main()`-based flow for JIT execution and inspection
+- add a separate native executable entrypoint with `main(int argc, char **argv)`
+
+Runtime argument handling:
+
+- parse generated-executable arguments in the C runtime support layer, not in
+  generated LLVM IR
+- extract runtime file operands, optional `-F`, and numeric `-v` assignments
+- let generated code map runtime `-v` assignments into compiled program-state
+  slots using the known variable-index map
+
+Support boundary:
+
+- programs supported by the LLVM-backed execution and inspection path are
+  eligible for `--exe`
+- host-runtime-only programs fail with a clear user-facing error
+- normal `quawk` execution behavior remains unchanged
+
+Required coverage:
+
+- CLI help includes `--exe`
+- `--exe` is mutually exclusive with `--lex`, `--parse`, `--ir`, and `--asm`
+- compile and run a simple `BEGIN` executable
+- compile and run a record-driven executable with runtime file operands
+- generated executable honors runtime `-F`
+- generated executable honors runtime numeric `-v`
+- generated executable honors `--` and `-` stdin operand behavior
+- `quawk --exe` rejects compile-time `-F`, `-v`, and input-file operands
+- `quawk --exe` rejects host-runtime-only programs with a clear error
+- missing `clang`, `llvm-as`, or `llvm-link` failures are surfaced cleanly
 - keep the initial CLI contract small until real implementation pressure justifies expansion
 
 Program source rules:

@@ -23,7 +23,7 @@ UpstreamDivergenceDecision = Literal["fix-now", "fix-later", "accepted", "out-of
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 DEFAULT_UPSTREAM_DIVERGENCE_PATH: Final[Path] = REPO_ROOT / "tests" / "upstream" / "divergences.toml"
-DEFAULT_UPSTREAM_NOTES_PATH: Final[Path] = REPO_ROOT / "docs" / "compatibility-evaluations.md"
+DEFAULT_UPSTREAM_NOTES_PATH: Final[Path] = REPO_ROOT / "docs" / "compatibility.md"
 VALID_CLASSIFICATIONS: Final[tuple[UpstreamDivergenceClassification, ...]] = (
     "posix-required-fix",
     "known-gap",
@@ -80,7 +80,7 @@ def upstream_divergence_manifest_path(root: Path | None = None) -> Path:
 def upstream_notes_path(root: Path | None = None) -> Path:
     """Return the checked-in upstream compatibility notes path."""
     base = REPO_ROOT if root is None else root
-    return base / "docs" / "compatibility-evaluations.md"
+    return base / "docs" / "compatibility.md"
 
 
 def load_upstream_note_refs(root: Path | None = None, path: Path | None = None) -> set[str]:

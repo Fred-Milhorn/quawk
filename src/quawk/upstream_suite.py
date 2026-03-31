@@ -1,4 +1,4 @@
-"""Adapt and execute the selected upstream compatibility slice."""
+"""Adapt and execute the selected upstream compatibility subset."""
 
 from __future__ import annotations
 
@@ -137,7 +137,7 @@ class UpstreamCaseResult:
 
 
 def selected_upstream_cases() -> list[UpstreamCase]:
-    """Load the checked-in runnable upstream-selected compatibility slice."""
+    """Load the checked-in runnable upstream-selected compatibility subset."""
     selections = load_upstream_selection_manifest()
     return [load_upstream_case(selection) for selection in selections_with_status("run", selections)]
 
@@ -156,7 +156,7 @@ def load_upstream_case(selection: UpstreamCaseSelection) -> UpstreamCase:
         case "gawk-shell-driver":
             return load_gawk_shell_driver(selection)
         case unsupported:
-            raise ValueError(f"{selection.case_id}: unsupported upstream adapter for execution slice: {unsupported}")
+            raise ValueError(f"{selection.case_id}: unsupported upstream adapter for execution subset: {unsupported}")
 
 
 def load_onetrueawk_program_file(selection: UpstreamCaseSelection) -> UpstreamCase:
@@ -220,7 +220,7 @@ def load_onetrueawk_shell_driver(selection: UpstreamCaseSelection) -> UpstreamCa
             )
         case unsupported:
             raise ValueError(
-                f"{selection.case_id}: unsupported one-true-awk shell-driver selection for execution slice: {unsupported}"
+                f"{selection.case_id}: unsupported one-true-awk shell-driver selection for execution subset: {unsupported}"
             )
 
 
@@ -253,7 +253,7 @@ def load_gawk_awk_in_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
 def load_gawk_shell_driver(selection: UpstreamCaseSelection) -> UpstreamCase:
     """Reject unsupported gawk shell-driver anchors until they are explicitly adapted."""
     raise ValueError(
-        f"{selection.case_id}: unsupported gawk shell-driver selection for execution slice: {selection.case_id}"
+        f"{selection.case_id}: unsupported gawk shell-driver selection for execution subset: {selection.case_id}"
     )
 
 

@@ -1,7 +1,7 @@
 (* quawk concrete syntax grammar
  *
- * This file defines the intended concrete syntax for quawk's AWK dialect.
- * It is intentionally broader than the currently implemented subset.
+ * This file defines the implemented concrete syntax contract for quawk's
+ * POSIX-oriented AWK dialect.
  *
  * Notes:
  * - NEWLINE means one physical line-break token.

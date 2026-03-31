@@ -7,7 +7,6 @@ on:
       - ".github/workflows/compat-upstream.yml"
       - "CONTRIBUTING.md"
       - "README.md"
-      - "docs/compatibility-evaluations.md"
       - "docs/compatibility.md"
       - "docs/getting-started.md"
       - "docs/release-checklist.md"
@@ -25,7 +24,6 @@ on:
       - ".github/workflows/compat-upstream.yml"
       - "CONTRIBUTING.md"
       - "README.md"
-      - "docs/compatibility-evaluations.md"
       - "docs/compatibility.md"
       - "docs/getting-started.md"
       - "docs/release-checklist.md"
@@ -85,5 +83,5 @@ jobs:
       - name: Bootstrap pinned upstream references
         run: uv run python scripts/upstream_compat.py bootstrap
 
-      - name: Run upstream compatibility slice
+      - name: Run upstream compatibility subset
         run: uv run pytest -m compat_upstream

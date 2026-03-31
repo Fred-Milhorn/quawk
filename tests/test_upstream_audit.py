@@ -65,11 +65,11 @@ def test_blocking_posix_required_fix_case_ids_reports_classified_fix(tmp_path: P
             ]
         )
     (selection_dir / "selection.toml").write_text('\n'.join(selection_lines), encoding="utf-8")
-    notes_path = root / "docs" / "compatibility-evaluations.md"
+    notes_path = root / "docs" / "compatibility.md"
     notes_path.write_text(
         '\n'.join(
             [
-                "# Compatibility Evaluations",
+                "# Compatibility Plan",
                 "",
                 "<!-- upstream-divergence: demo-fix -->",
                 "## Demo fix",

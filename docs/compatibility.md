@@ -257,7 +257,7 @@ should be evaluated explicitly.
 Keep two checked-in tracking layers:
 
 1. machine-readable divergence metadata in `tests/upstream/divergences.toml`
-2. reviewed notes in `docs/compatibility-evaluations.md`
+2. reviewed notes in this document under `Evaluated Divergences`
 
 Each divergence entry should record:
 
@@ -307,10 +307,27 @@ Promotion criteria:
 - the pinned One True Awk and gawk bootstrap remains deterministic on
   `ubuntu-latest`
 - active non-fix upstream failures, if any, are classified in
-  `tests/upstream/divergences.toml` and reviewed in
-  `docs/compatibility-evaluations.md`
+  `tests/upstream/divergences.toml` and reviewed in this document
 - maintainers explicitly add `compat-upstream` to required branch protection
   only after the criteria above are satisfied
+
+## Evaluated Divergences
+
+This section is the reviewed human-readable companion to
+`tests/upstream/divergences.toml`.
+
+Use it to explain why an executed upstream compatibility failure is currently
+classified instead of fixed. Each active entry in the manifest must reference a
+note marker in this document:
+
+```md
+<!-- upstream-divergence: example-note-id -->
+## Example divergence family
+```
+
+Current state:
+
+- no active evaluated upstream divergences are checked in
 
 ## Definition Of Done
 

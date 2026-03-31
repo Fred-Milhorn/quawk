@@ -93,11 +93,11 @@ def make_root_with_selection(tmp_path: Path) -> tuple[Path, Path, Path]:
         ),
         encoding="utf-8",
     )
-    notes_path = root / "docs" / "compatibility-evaluations.md"
+    notes_path = root / "docs" / "compatibility.md"
     notes_path.write_text(
         '\n'.join(
             [
-                "# Compatibility Evaluations",
+                "# Compatibility Plan",
                 "",
                 "<!-- upstream-divergence: demo-known-gap -->",
                 "## Demo known gap",
@@ -139,7 +139,7 @@ def test_load_upstream_divergence_manifest_rejects_unknown_runnable_cases(tmp_pa
 
 def test_load_upstream_divergence_manifest_requires_matching_note_marker(tmp_path: Path) -> None:
     root, manifest_path, notes_path = make_root_with_selection(tmp_path)
-    notes_path.write_text("# Compatibility Evaluations\n", encoding="utf-8")
+    notes_path.write_text("# Compatibility Plan\n", encoding="utf-8")
     manifest_path.write_text(
         '\n'.join(
             [
