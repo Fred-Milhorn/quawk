@@ -144,9 +144,11 @@ Selection rule per family:
 The current checked-in matrix now includes a broader runnable One True Awk
 `p.*` direct-file tranche plus a first small wave of runnable gawk
 corroborating fixtures for fields, `exit` in function context, string-field
-coercion, and `substr` coercion. It still relies on `skip` anchors for CLI
-handling, arrays, shell-driver-only cases, and several richer gawk fixture
-families that still expose real quawk gaps.
+coercion, and `substr` coercion. It now also includes a small One True Awk
+`t.*` direct-file expansion for arrays, user-defined functions, and substring
+matching. It still relies on reviewed `skip` anchors for CLI handling,
+multi-file operand handling, shell-driver-only cases, and several richer
+direct-file families that still expose real quawk gaps.
 
 | Family | Current upstream anchors |
 |---|---|
@@ -155,7 +157,7 @@ families that still expose real quawk gaps.
 | `regex-selection` | `one-true-awk:p.12`, `one-true-awk:p.13` |
 | `default-print-patterns` | `one-true-awk:p.9`, `one-true-awk:p.11`, `one-true-awk:p.21`, `one-true-awk:p.23`, `gawk:range1` |
 | `scalar-assignment` | `one-true-awk:p.31`, `one-true-awk:p.33`, `gawk:assignnumfield`, `gawk:assignnumfield2` |
-| `associative-arrays` | `one-true-awk:t.a` |
+| `associative-arrays` | `one-true-awk:t.delete1`, `one-true-awk:t.a` |
 | `fields` | `gawk:assignnumfield`, `gawk:strfieldnum`, `one-true-awk:p.10`, `one-true-awk:p.25`, `one-true-awk:p.39`, `one-true-awk:t.set0a`, `gawk:splitvar` |
 | `control-flow` | `one-true-awk:p.39`, `one-true-awk:t.if`, `one-true-awk:t.do`, `one-true-awk:t.break` |
 | `record-control` | `gawk:exit2`, `one-true-awk:t.next`, `one-true-awk:t.exit`, `one-true-awk:T.nextfile` |
@@ -182,55 +184,25 @@ Grow the suite in this order:
 Do not start with shell-driver adapters unless a claimed in-scope feature
 cannot be covered without them.
 
-## T-147 Plan
+## T-147 Result
 
-`T-147` is the next implementation task after the first gawk corroboration
-wave. Its job is to close the remaining implemented-family coverage gaps using
-selected One True Awk `t.*` direct-file cases before any shell-driver work
-lands.
+`T-147` is now complete.
 
-Sub-tasks:
+What landed:
 
-1. Recompute the remaining implemented-family gaps from the checked-in
-   `[[coverage]]` matrix in `tests/upstream/selection.toml`.
-   - Confirm which families still depend only on `skip` anchors or on one suite
-     when a direct-file One True Awk `t.*` candidate should exist.
-2. Audit the existing skipped One True Awk `t.*` anchors already listed in the
-   selection manifest.
-   - Start with `t.a`, `t.if`, `t.do`, `t.break`, `t.next`, `t.exit`, `t.fun`,
-     `t.NF`, `t.set0a`, and `t.substr`.
-   - Add more `t.*` candidates only when the current anchors do not cover a
-     remaining implemented family well.
-3. Run each candidate through the existing `onetrueawk-program-file` adapter in
-   `src/quawk/upstream_suite.py`.
-   - Promote a case to `run` only when `quawk`, One True Awk, and
-     `gawk --posix` agree under the current harness.
-   - Keep a case as `skip` when it still exposes a real quawk gap, and make the
-     skip reason specific to the observed failure.
-4. Update `tests/upstream/selection.toml` so the promoted `t.*` cases close the
-   remaining family gaps deliberately instead of adding redundant coverage.
-   - Prefer the smallest reviewed set of runnable cases that materially reduces
-     the uncovered-family list.
-5. Refresh the checked-in documentation after the manifest changes.
-   - Update the family matrix in this document.
-   - Move the roadmap forward when `T-147` is complete and `T-148` becomes the
-     next task.
-6. Verify the updated upstream subset with focused pytest coverage.
-   - Run `tests/test_upstream_inventory.py`,
-     `tests/test_upstream_suite.py`, and
-     `tests/test_p11_upstream_compatibility_slice.py`.
-   - Add or update narrow unit assertions where new runnable cases should stay
-     pinned in review.
+- promoted runnable One True Awk `t.*` direct-file coverage for:
+  - associative arrays via `t.delete1`
+  - user-defined functions via `t.fun`
+  - substring-driven expressions via `t.substr`
+- rewrote the remaining reviewed `t.*` skip reasons so they describe the actual
+  current quawk gap instead of a generic “deferred” placeholder
 
-Constraints:
+What remains deferred to `T-148`:
 
-- Stay on direct-file `t.*` coverage in this task; do not add `T.*` or gawk
-  `.sh` adapters here.
-- Do not classify new divergences casually. If a promoted runnable case fails,
-  either fix quawk or keep the case as an explicit `skip` until `T-148` or
-  `T-149` gives a better place to handle it.
-- Keep the manifest honest: every reviewed `t.*` candidate should end up as
-  either `run` or `skip` with a reason.
+- CLI basics, where the remaining anchors still depend on shell-driver or exact
+  operand-order handling
+- multi-file input processing, where the remaining anchors still depend on
+  shell-driver or CLI-sensitive execution shape
 
 ## Failure Policy
 

@@ -610,8 +610,16 @@ case_id = "t.NF"
 path = "third_party/onetrueawk/testdir/t.NF"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a fields and builtin-variable family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses bare `print` plus multi-argument `print` after `NF` mutation; quawk still restricts print to one explicit argument."
 tags = ["posix", "fields", "builtin-variables"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "t.delete1"
+path = "third_party/onetrueawk/testdir/t.delete1"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "arrays", "delete"]
 
 [[case]]
 suite = "one-true-awk"
@@ -619,7 +627,7 @@ case_id = "t.a"
 path = "third_party/onetrueawk/testdir/t.a"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as an associative-array family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses multiline associative-array accumulation that still triggers a parser newline-handling gap in quawk."
 tags = ["posix", "arrays"]
 
 [[case]]
@@ -628,7 +636,7 @@ case_id = "t.break"
 path = "third_party/onetrueawk/testdir/t.break"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a control-flow family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses a multiline `for` plus nested `if` body form that the current parser still rejects on newline handling."
 tags = ["posix", "control-flow"]
 
 [[case]]
@@ -637,7 +645,7 @@ case_id = "t.do"
 path = "third_party/onetrueawk/testdir/t.do"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a control-flow family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses multiline `do ... while` control flow and `gsub`; the current parser still rejects this form before builtin coverage is even relevant."
 tags = ["posix", "control-flow"]
 
 [[case]]
@@ -646,16 +654,15 @@ case_id = "t.exit"
 path = "third_party/onetrueawk/testdir/t.exit"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a record-control family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses bare `print` before `exit`; runnable promotion waits on broader bare-print parity."
 tags = ["posix", "record-control"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "t.fun"
 path = "third_party/onetrueawk/testdir/t.fun"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a user-defined-function family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
 tags = ["posix", "functions"]
 
 [[case]]
@@ -664,7 +671,7 @@ case_id = "t.if"
 path = "third_party/onetrueawk/testdir/t.if"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a control-flow family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses bare default `print` in an `if` action; runnable promotion waits on broader bare-print parity."
 tags = ["posix", "control-flow"]
 
 [[case]]
@@ -673,7 +680,7 @@ case_id = "t.next"
 path = "third_party/onetrueawk/testdir/t.next"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a record-control family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses bare `print` after `next`; runnable promotion waits on broader bare-print parity."
 tags = ["posix", "record-control"]
 
 [[case]]
@@ -682,16 +689,15 @@ case_id = "t.set0a"
 path = "third_party/onetrueawk/testdir/t.set0a"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as a fields family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
+reason = "Uses bare `print` and multi-argument `print` after `$0` reassignment; runnable promotion waits on broader print-surface parity."
 tags = ["posix", "fields"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "t.substr"
 path = "third_party/onetrueawk/testdir/t.substr"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Mapped as an expressions-and-coercions family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
 tags = ["posix", "expressions", "builtins"]
 
 # gawk anchors selected for the feature-family matrix.
@@ -702,7 +708,7 @@ case_id = "argarray"
 path = "third_party/gawk/test/argarray.awk"
 status = "skip"
 adapter = "gawk-awk-in-ok"
-reason = "Mapped as a CLI, builtin-variable, and multi-file family anchor in T-144; runnable promotion is deferred to the broader gawk corroboration expansion in T-146."
+reason = "Needs CLI-sensitive operand handling; the direct `.awk/.in/.ok` adapter does not model the expected `ARGV` shape for this fixture."
 tags = ["posix", "cli", "builtin-variables", "multifile"]
 
 [[case]]
@@ -720,7 +726,7 @@ case_id = "getnr2tb"
 path = "third_party/gawk/test/getnr2tb.awk"
 status = "skip"
 adapter = "gawk-awk-in-ok"
-reason = "Mapped as a builtin-variable family anchor in T-144; runnable promotion is deferred to the broader gawk corroboration expansion in T-146."
+reason = "Still exposes a parser gap: quawk rejects the leading `#` comment line before the builtin-variable behavior is even exercised."
 tags = ["posix", "builtin-variables", "expressions"]
 
 [[case]]
@@ -729,7 +735,7 @@ case_id = "range1"
 path = "third_party/gawk/test/range1.awk"
 status = "skip"
 adapter = "gawk-awk-ok"
-reason = "Mapped as a pattern-action and default-print family anchor in T-144; runnable promotion is deferred to the broader gawk corroboration expansion in T-146."
+reason = "Its checked-in `.ok` fixture does not match either pinned reference engine under direct execution, so it is not a clean corroborating case yet."
 tags = ["posix", "range", "patterns"]
 
 [[case]]
@@ -738,7 +744,7 @@ case_id = "splitvar"
 path = "third_party/gawk/test/splitvar.awk"
 status = "skip"
 adapter = "gawk-awk-in-ok"
-reason = "Mapped as an implemented-builtin and fields family anchor in T-144; runnable promotion is deferred to the broader gawk corroboration expansion in T-146."
+reason = "Still exposes a real `split`/target-variable mismatch in quawk: the pinned references return `4`, while quawk currently returns `1`."
 tags = ["posix", "split", "fields", "builtins"]
 
 [[case]]
@@ -747,7 +753,7 @@ case_id = "substr"
 path = "third_party/gawk/test/substr.awk"
 status = "skip"
 adapter = "gawk-awk-ok"
-reason = "Mapped as an implemented-builtin family anchor in T-144; runnable promotion is deferred to the broader gawk corroboration expansion in T-146."
+reason = "Still exposes a parser gap for three-argument `substr(...)` inside `printf`, so the direct fixture is not runnable in quawk yet."
 tags = ["posix", "substr", "builtins"]
 
 # Implemented-family coverage matrix.
@@ -760,7 +766,7 @@ selection_keys = [
   "gawk:argarray",
   "gawk:cmdlinefsbacknl",
 ]
-notes = "CLI coverage is currently anchored mostly by skip entries because shell-driver support and richer operand adaptation land in later P11 tasks."
+notes = "CLI coverage still depends on shell-driver or operand-sensitive cases; that remaining no-run family is explicitly deferred to T-148."
 
 [[coverage]]
 family = "pattern-action-execution"
@@ -770,7 +776,7 @@ selection_keys = [
   "gawk:assignnumfield2",
   "gawk:range1",
 ]
-notes = "The runnable One True Awk direct-file tranche now covers regex-driven record actions and range patterns; gawk corroboration still expands in T-146."
+notes = "The runnable One True Awk direct-file tranche now covers regex-driven record actions and range patterns; the reviewed gawk `range1` fixture remains skipped because its checked-in `.ok` output disagrees with both pinned references under direct execution."
 
 [[coverage]]
 family = "regex-selection"
@@ -810,9 +816,10 @@ selection_keys = [
 [[coverage]]
 family = "associative-arrays"
 selection_keys = [
+  "one-true-awk:t.delete1",
   "one-true-awk:t.a",
 ]
-notes = "The first matrix anchor is One True Awk primary; gawk corroboration lands in the later expansion tasks."
+notes = "Direct-file runnable array coverage now comes from `t.delete1`; the multiline `t.a` variant remains an explicit parser-gap skip."
 
 [[coverage]]
 family = "fields"
@@ -901,3 +908,4 @@ selection_keys = [
   "one-true-awk:T.nextfile",
   "gawk:argarray",
 ]
+notes = "The remaining no-run multi-file family still depends on shell-driver or operand-order handling and is explicitly deferred to T-148."

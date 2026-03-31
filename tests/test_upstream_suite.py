@@ -46,6 +46,9 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.21" in case_ids
     assert "one-true-awk:p.39" in case_ids
     assert "one-true-awk:p.46" in case_ids
+    assert "one-true-awk:t.delete1" in case_ids
+    assert "one-true-awk:t.fun" in case_ids
+    assert "one-true-awk:t.substr" in case_ids
     assert "gawk:assignnumfield" in case_ids
     assert "gawk:assignnumfield2" in case_ids
     assert "gawk:exit2" in case_ids
@@ -53,6 +56,8 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:strfieldnum" in case_ids
     assert "one-true-awk:p.1" not in case_ids
     assert "one-true-awk:p.43" not in case_ids
+    assert "one-true-awk:t.a" not in case_ids
+    assert "one-true-awk:t.NF" not in case_ids
 
 
 def test_run_upstream_case_executes_in_isolated_temp_dir(monkeypatch) -> None:
