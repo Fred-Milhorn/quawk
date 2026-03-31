@@ -216,7 +216,7 @@ Current public execution surface:
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
 - assignment expressions, unary and postfix increment/decrement, and implicit concatenation
 - user-defined functions and returns
-- the current builtin tranche, including `length`, `split`, and `substr`
+- the current builtin subset, including `length`, `split`, and `substr`
 - `-F` field-separator support and numeric `-v` preassignment
 
 Current backend and inspection surface:

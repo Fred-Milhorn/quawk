@@ -56,7 +56,7 @@ Evidence:
 | AWK-style unset scalar/array value rules | implemented | Numeric contexts read as `0`, string/print contexts read as `""`. |
 | AWK string/number coercions | implemented | Includes string truthiness and concatenation behavior. |
 | Builtin variables | implemented | `NR`, `FNR`, `NF`, `FILENAME` |
-| Builtins | partial | Current shipped tranche is `length`, `split`, and `substr`; broader POSIX builtin coverage is not claimed yet. |
+| Builtins | partial | Current shipped subset is `length`, `split`, and `substr`; broader POSIX builtin coverage is not claimed yet. |
 | Multi-file input processing | implemented | Includes `FNR` reset and `FILENAME` updates. |
 
 Evidence:
@@ -90,8 +90,8 @@ Evidence:
 | Divergence manifest workflow | implemented | Classified reference disagreements and intentional extensions live in `tests/corpus/divergences.toml`. |
 | Required compatibility gate environment | implemented | Required pytest compatibility suites expect repo-managed One True Awk and gawk references built from the pinned upstream sources; missing engines are environment failures. |
 | Release smoke baseline | implemented | `tests/test_p12_release_smoke.py` |
-| Versioned release checklist | planned | `T-042` |
-| Versioned changelog artifact | planned | `T-042` |
+| Versioned release checklist | implemented | Checked in at `docs/release-checklist.md`. |
+| Versioned changelog artifact | implemented | Checked in at `CHANGELOG.md`. |
 
 Evidence:
 - `tests/test_corpus.py`
@@ -99,6 +99,8 @@ Evidence:
 - `tests/test_p10_compat_baselines.py`
 - `tests/test_p11_supported_compatibility_corpus.py`
 - `tests/test_p12_release_smoke.py`
+- `docs/release-checklist.md`
+- `CHANGELOG.md`
 
 ## Toolchain and Platforms
 

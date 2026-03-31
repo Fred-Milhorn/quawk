@@ -142,7 +142,7 @@ Selection rule per family:
 ### Current Family Matrix
 
 The current checked-in matrix now includes a broader runnable One True Awk
-`p.*` direct-file tranche plus a first small wave of runnable gawk
+`p.*` direct-file subset plus a first small wave of runnable gawk
 corroborating fixtures for fields, `exit` in function context, string-field
 coercion, and `substr` coercion. It now also includes a small One True Awk
 `t.*` direct-file expansion for arrays, user-defined functions, and substring
@@ -303,7 +303,7 @@ Promotion criteria:
 - the workflow passes on the default branch for at least 10 consecutive runs
   without infrastructure-only flakes
 - typical runtime on the default GitHub-hosted runner stays under 15 minutes
-  for the active upstream slice
+  for the active upstream subset
 - the pinned One True Awk and gawk bootstrap remains deterministic on
   `ubuntu-latest`
 - active non-fix upstream failures, if any, are classified in
@@ -350,7 +350,7 @@ Complete when:
 - repo-managed local reference builds exist
 - `compat_upstream` runs selected cases under `quawk`, One True Awk, and gawk
 - evaluated divergence metadata and companion notes exist
-- CI can run the upstream slice as an optional job
+- CI can run the upstream subset as an optional job
 
 ### Phase 2: Feature-Family Matrix
 

@@ -182,7 +182,7 @@ In scope:
 Implemented in this phase:
 - associative arrays on the executable path, including indexed assignment, indexed reads, and default element behavior
 - array mutation and traversal through `delete`, classic `for`, and `for ... in`
-- the first builtin tranche needed for the active P6 deliverable
+- the first builtin subset needed for the active P6 deliverable
 - normalization/backend support needed to execute the active major language families coherently
 
 Exit criteria:
@@ -292,7 +292,7 @@ Exit criteria:
 - semantic errors emit stable public codes without losing source-span precision
 - required compatibility runs do not depend on host `awk`
 - the repo builds and resolves pinned local One True Awk and gawk binaries for normal compatibility runs
-- the upstream compatibility harness executes a checked-in selected slice from both upstream suites across `quawk`, One True Awk, and gawk
+- the upstream compatibility harness executes a checked-in selected subset from both upstream suites across `quawk`, One True Awk, and gawk
 - no failing required compatibility tests remain in the active hardening test set
 - known divergences are documented, tagged, and classified in checked-in metadata and companion docs
 - hardening pass closes or explicitly triages all high-severity regressions discovered during the phase
@@ -455,10 +455,10 @@ Priority values:
 | T-137 | P11 | P0 | Pin One True Awk and gawk upstream sources and define the repo-managed bootstrap workflow | T-131 | `third_party/` holds pinned upstream source trees, and the local bootstrap/build flow is implemented and documented | done |
 | T-138 | P11 | P0 | Remove host-`awk` aliasing and resolve only pinned local reference binaries | T-137 | Compatibility code fails clearly when the repo-managed reference builds are missing and never treats host `awk` as One True Awk | done |
 | T-139 | P11 | P0 | Add the upstream suite inventory and checked-in selection manifest | T-137, T-138 | The repo classifies which upstream cases are run or skipped, with explicit reasons and adapter metadata for both upstream suites | done |
-| T-140 | P11 | P1 | Implement the first upstream-suite-derived compatibility slice for One True Awk and gawk | T-139 | A portable, POSIX-relevant selected slice from both upstream suites executes across `quawk`, One True Awk, and gawk with deterministic reporting | done |
+| T-140 | P11 | P1 | Implement the first upstream-suite-derived compatibility subset for One True Awk and gawk | T-139 | A portable, POSIX-relevant selected subset from both upstream suites executes across `quawk`, One True Awk, and gawk with deterministic reporting | done |
 | T-141 | P11 | P1 | Reclassify the repo-owned corpus as supplemental `compat_local` coverage | T-140 | The local corpus remains green and fast, but docs and pytest surfaces no longer present it as the primary compatibility authority | done |
 | T-142 | P11 | P1 | Add evaluated-divergence metadata and companion compatibility notes for upstream-suite failures | T-140 | Executed upstream failures are either fixed or classified with checked-in metadata plus reviewed human-readable notes, and stale or unclassified entries fail the gate | done |
-| T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility slice, and the roadmap/docs define when that job becomes required | done |
+| T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility subset, and the roadmap/docs define when that job becomes required | done |
 | T-144 | P11 | P0 | Map implemented feature families in `SPEC.md` to the upstream case inventory | T-143 | `tests/upstream/selection.toml` and `docs/compatibility.md` make it explicit which upstream cases or skips cover every `implemented` feature family in `SPEC.md` | done |
 | T-145 | P11 | P0 | Expand in-scope One True Awk `p.*` coverage across implemented POSIX families | T-144 | Adapter-compatible, in-scope One True Awk `p.*` cases are broadly classified `run` or `skip`, and the runnable set expands coverage across the implemented family matrix | done |
 | T-146 | P11 | P1 | Add gawk fixture-backed corroborating coverage for implemented POSIX families | T-144 | For each major implemented family with clean `.ok` or `.in/.ok` fixtures, the selection manifest includes at least one runnable gawk corroborating case or an explicit reviewed skip | done |

@@ -10,14 +10,15 @@ This repository is in active implementation.
 
 Implemented now:
 - consolidated project documentation
-- lexer, parser, semantic checks, and LLVM-backed execution for the current subset
+- a working `quawk` CLI with lexer, parser, semantic checks, and public execution for the current POSIX-first surface
 - phased implementation roadmap and backlog
-- Python package/bootstrap scaffold with a working end-to-end `quawk` CLI path
-- end-to-end execution for `BEGIN` programs with string/numeric print, scalar assignment, `if`/`while`, and AWK-style default-zero scalar reads
-- mixed `BEGIN` / record / `END` execution, regex-filter record selection, and general `$n` field reads
-- initial user-defined function execution and legality checks
-- numeric `-v name=value` preassignment before execution
-- example program scaffold
+- ordered repeatable `-f`, `-F`, numeric `-v`, `--`, and `-` stdin operand handling
+- mixed `BEGIN` / record / `END` execution, regex and range patterns, and default-print pattern rules
+- scalar variables, associative arrays, `delete`, classic `for`, and `for ... in`
+- field reads and assignment, builtin variables, and multi-file input processing
+- control flow including `if`, `while`, `do ... while`, `break`, `continue`, `next`, `nextfile`, and `exit`
+- user-defined functions plus the current builtin subset: `length`, `split`, and `substr`
+- differential compatibility coverage against pinned `one-true-awk` and `gawk --posix`, with the upstream suite now the primary compatibility authority
 
 Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadmap.md), which is the source of truth for current and next phases.
 
@@ -25,7 +26,7 @@ Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadm
 
 - POSIX-first AWK behavior and compatibility
 - an early end-to-end executable path for a tiny AWK subset
-- incremental expansion driven by the working end-to-end path established in `P1`
+- incremental expansion driven by the working end-to-end path established in `P1`, now followed by compatibility hardening and benchmarking
 
 ## Non-Goals
 
@@ -60,7 +61,7 @@ fresh checkout, initialize them with `git submodule update --init --recursive`.
 When working on the compatibility transition, build the local One True Awk and
 gawk wrappers with `uv run python scripts/upstream_compat.py bootstrap`.
 GitHub Actions now also has an optional `compat-upstream` workflow that runs
-the same upstream compatibility slice in CI.
+the same upstream compatibility subset in CI.
 
 ## Docs Map
 

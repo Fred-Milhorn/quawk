@@ -50,13 +50,17 @@ Reference-engine policy:
 - the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
 - evaluated upstream divergence metadata lives at `tests/upstream/divergences.toml`
 - reviewed upstream divergence notes live at `docs/compatibility-evaluations.md`
-- the first runnable upstream slice is executed through `quawk.upstream_suite`
+- the selected runnable upstream subset is executed through `quawk.upstream_suite`
 - host `awk` is not a compatibility reference
 
-Current upstream adapter coverage:
+Current upstream execution adapter coverage:
 - `onetrueawk-program-file` for `Compare.p`-style program files with their standard shared inputs
+- `onetrueawk-shell-driver` for focused shell-driver-derived subcases selected from `T.-f-f` and `T.nextfile`
 - `gawk-awk-ok` for `.awk` + `.ok` fixtures
 - `gawk-awk-in-ok` for `.awk` + `.in` + `.ok` fixtures
+
+Manifest-only adapter names:
+- `gawk-shell-driver` is classified in `tests/upstream/selection.toml` when useful for coverage bookkeeping, but it is not part of the current runnable upstream subset
 
 ## Compatibility Surfaces
 
