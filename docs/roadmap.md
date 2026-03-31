@@ -339,7 +339,7 @@ Start here unless priorities change:
 Next deliverable: P11 upstream suite growth
 
 Target outcome:
-- the upstream compatibility suite grows from a small green slice into a
+- the upstream compatibility suite grows from a small green subset into a
   POSIX-first coverage contract tied to implemented feature families in
   `SPEC.md`
 

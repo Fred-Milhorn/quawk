@@ -182,6 +182,56 @@ Grow the suite in this order:
 Do not start with shell-driver adapters unless a claimed in-scope feature
 cannot be covered without them.
 
+## T-147 Plan
+
+`T-147` is the next implementation task after the first gawk corroboration
+wave. Its job is to close the remaining implemented-family coverage gaps using
+selected One True Awk `t.*` direct-file cases before any shell-driver work
+lands.
+
+Sub-tasks:
+
+1. Recompute the remaining implemented-family gaps from the checked-in
+   `[[coverage]]` matrix in `tests/upstream/selection.toml`.
+   - Confirm which families still depend only on `skip` anchors or on one suite
+     when a direct-file One True Awk `t.*` candidate should exist.
+2. Audit the existing skipped One True Awk `t.*` anchors already listed in the
+   selection manifest.
+   - Start with `t.a`, `t.if`, `t.do`, `t.break`, `t.next`, `t.exit`, `t.fun`,
+     `t.NF`, `t.set0a`, and `t.substr`.
+   - Add more `t.*` candidates only when the current anchors do not cover a
+     remaining implemented family well.
+3. Run each candidate through the existing `onetrueawk-program-file` adapter in
+   `src/quawk/upstream_suite.py`.
+   - Promote a case to `run` only when `quawk`, One True Awk, and
+     `gawk --posix` agree under the current harness.
+   - Keep a case as `skip` when it still exposes a real quawk gap, and make the
+     skip reason specific to the observed failure.
+4. Update `tests/upstream/selection.toml` so the promoted `t.*` cases close the
+   remaining family gaps deliberately instead of adding redundant coverage.
+   - Prefer the smallest reviewed set of runnable cases that materially reduces
+     the uncovered-family list.
+5. Refresh the checked-in documentation after the manifest changes.
+   - Update the family matrix in this document.
+   - Move the roadmap forward when `T-147` is complete and `T-148` becomes the
+     next task.
+6. Verify the updated upstream subset with focused pytest coverage.
+   - Run `tests/test_upstream_inventory.py`,
+     `tests/test_upstream_suite.py`, and
+     `tests/test_p11_upstream_compatibility_slice.py`.
+   - Add or update narrow unit assertions where new runnable cases should stay
+     pinned in review.
+
+Constraints:
+
+- Stay on direct-file `t.*` coverage in this task; do not add `T.*` or gawk
+  `.sh` adapters here.
+- Do not classify new divergences casually. If a promoted runnable case fails,
+  either fix quawk or keep the case as an explicit `skip` until `T-148` or
+  `T-149` gives a better place to handle it.
+- Keep the manifest honest: every reviewed `t.*` candidate should end up as
+  either `run` or `skip` with a reason.
+
 ## Failure Policy
 
 Not every compatibility failure should be fixed immediately, but every one
