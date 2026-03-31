@@ -46,9 +46,10 @@ def test_uv_run_corpus_list_smoke() -> None:
 
 
 @pytest.mark.smoke
-def test_uv_run_example_program_smoke() -> None:
-    example_path = ROOT / "examples" / "hello.awk"
-    result = run_tool("quawk", "-f", str(example_path))
+def test_uv_run_file_program_smoke(tmp_path: Path) -> None:
+    program_path = tmp_path / "hello.awk"
+    program_path.write_text('BEGIN { print "hello from quawk" }\n')
+    result = run_tool("quawk", "-f", str(program_path))
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "hello from quawk\n"

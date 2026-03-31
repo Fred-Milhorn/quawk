@@ -88,7 +88,6 @@ Current state:
 - committed `src/quawk` package with a working CLI, parser, semantic checks, and execution backends
 - documentation, conformance fixtures, and corpus tests alongside the implementation
 - pinned upstream compatibility source trees under `third_party/`
-- `examples/` is present for manual inspection and smoke programs
 - compatibility coverage is still growing; the roadmap remains the source of truth for next increments
 
 Target implementation layout:
@@ -103,7 +102,6 @@ Target implementation layout:
 ├── src/
 │   └── quawk/
 ├── tests/
-├── examples/
 └── third_party/    # pinned upstream source trees when required by compatibility work
 ```
 

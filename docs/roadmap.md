@@ -54,7 +54,7 @@ Objective:
 - establish Python project scaffolding and enforce reproducible local workflow
 
 In scope:
-- create `src/`, `tests/`, `examples/`, and `scripts/`
+- create `src/`, `tests/`, and `scripts/`
 - add initial package and CLI entrypoint placeholder
 - add `pyproject.toml` and dependency policy
 - add baseline local format/lint/type/test checks
@@ -361,7 +361,7 @@ Priority values:
 | ID | Phase | Priority | Task | Depends On | Acceptance | Status |
 |---|---|---|---|---|---|---|
 | T-000 | P0 | P0 | Rebaseline docs to the Python/LLVM implementation plan | none | Core docs reflect Python 3.14 + `uv` workflow | done |
-| T-001 | P0 | P0 | Create `src/`, `tests/`, `examples/`, and `scripts/` directories | none | Directories exist and are documented | done |
+| T-001 | P0 | P0 | Create `src/`, `tests/`, and `scripts/` directories | none | Directories exist and are documented | done |
 | T-002 | P0 | P0 | Add `pyproject.toml` with package metadata and console entrypoint | T-001 | `quawk --help` entrypoint resolves in the local `.venv` | done |
 | T-003 | P0 | P0 | Add initial `src/quawk/__init__.py` and `src/quawk/cli.py` placeholders | T-002 | Placeholder package imports cleanly | done |
 | T-004 | P0 | P1 | Add `uv` bootstrap instructions for Python `3.14.x` and the project `.venv` | none | Clean checkout setup succeeds with documented `uv` commands | done |
