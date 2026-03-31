@@ -39,6 +39,22 @@ def test_load_upstream_selection_manifest_reads_checked_in_inventory() -> None:
         assert set(entry.selection_keys).issubset(known_selection_keys)
 
 
+def test_selection_manifest_classifies_all_onetrueawk_p_files() -> None:
+    selections = upstream_inventory.load_upstream_selection_manifest()
+    selected_case_ids = {
+        selection.case_id
+        for selection in selections
+        if selection.suite == "one-true-awk" and selection.case_id.startswith("p.")
+    }
+    upstream_case_ids = {
+        path.name
+        for path in (upstream_inventory.REPO_ROOT / "third_party" / "onetrueawk" / "testdir").glob("p.*")
+        if path.name != "p.table"
+    }
+
+    assert selected_case_ids == upstream_case_ids
+
+
 def test_load_upstream_selection_manifest_requires_reason_for_skips(tmp_path: Path) -> None:
     manifest_path = tmp_path / "selection.toml"
     case_path = tmp_path / "case.awk"

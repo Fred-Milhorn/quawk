@@ -24,6 +24,482 @@ adapter = "onetrueawk-program-file"
 tags = ["posix", "regex", "records"]
 
 [[case]]
+suite = "one-true-awk"
+case_id = "p.3"
+path = "third_party/onetrueawk/testdir/p.3"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.9"
+path = "third_party/onetrueawk/testdir/p.9"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.10"
+path = "third_party/onetrueawk/testdir/p.10"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.11"
+path = "third_party/onetrueawk/testdir/p.11"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.14"
+path = "third_party/onetrueawk/testdir/p.14"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.15"
+path = "third_party/onetrueawk/testdir/p.15"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.16"
+path = "third_party/onetrueawk/testdir/p.16"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.17"
+path = "third_party/onetrueawk/testdir/p.17"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.18"
+path = "third_party/onetrueawk/testdir/p.18"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.19"
+path = "third_party/onetrueawk/testdir/p.19"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.20"
+path = "third_party/onetrueawk/testdir/p.20"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.21"
+path = "third_party/onetrueawk/testdir/p.21"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.22"
+path = "third_party/onetrueawk/testdir/p.22"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.23"
+path = "third_party/onetrueawk/testdir/p.23"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.25"
+path = "third_party/onetrueawk/testdir/p.25"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.28"
+path = "third_party/onetrueawk/testdir/p.28"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.31"
+path = "third_party/onetrueawk/testdir/p.31"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.33"
+path = "third_party/onetrueawk/testdir/p.33"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.37"
+path = "third_party/onetrueawk/testdir/p.37"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.39"
+path = "third_party/onetrueawk/testdir/p.39"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.46"
+path = "third_party/onetrueawk/testdir/p.46"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "p-direct-file"]
+
+# One True Awk `p.*` direct-file cases still explicitly skipped after T-145.
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.1"
+path = "third_party/onetrueawk/testdir/p.1"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses bare `print`, which still falls through the current one-argument print restriction in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.2"
+path = "third_party/onetrueawk/testdir/p.2"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `print`, which still falls through the current one-argument print restriction in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.4"
+path = "third_party/onetrueawk/testdir/p.4"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses `NR` with multi-argument `print`; runnable promotion waits on broader builtin-variable and print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.5"
+path = "third_party/onetrueawk/testdir/p.5"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Exposes a `printf` string-width formatting mismatch in `quawk`; keep explicit until that formatting gap is evaluated."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.5a"
+path = "third_party/onetrueawk/testdir/p.5a"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Exposes a `printf` string-width formatting mismatch in `quawk`; keep explicit until that formatting gap is evaluated."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.6"
+path = "third_party/onetrueawk/testdir/p.6"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Currently exposes an `END { print NR }` builtin-variable sequencing mismatch in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.7"
+path = "third_party/onetrueawk/testdir/p.7"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Currently exposes a bare relational default-print mismatch in `quawk`; keep explicit until that pattern gap is evaluated."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.8"
+path = "third_party/onetrueawk/testdir/p.8"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses a non-regex expression pattern; the current reusable backend record-selection path still narrows those patterns."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.21a"
+path = "third_party/onetrueawk/testdir/p.21a"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Currently exposes boolean regex-expression pattern mismatch under default-print in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.24"
+path = "third_party/onetrueawk/testdir/p.24"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-file `FILENAME` output with multi-argument `print`; promotion waits on broader builtin-variable and print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.26"
+path = "third_party/onetrueawk/testdir/p.26"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses backslash-continued multi-line `print`, which still hits a parser continuation gap in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.26a"
+path = "third_party/onetrueawk/testdir/p.26a"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses backslash-continued multi-line `print`, which still hits a parser continuation gap in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.27"
+path = "third_party/onetrueawk/testdir/p.27"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `END` `print`; runnable promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.29"
+path = "third_party/onetrueawk/testdir/p.29"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses `gsub`, which is outside the current shipped builtin tranche."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.30"
+path = "third_party/onetrueawk/testdir/p.30"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses `length` in a multi-argument `print`; the builtin is implemented, but promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.32"
+path = "third_party/onetrueawk/testdir/p.32"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses bare `print` after field mutation; runnable promotion waits on broader bare-print parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.34"
+path = "third_party/onetrueawk/testdir/p.34"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses bare `print` after field arithmetic mutation; runnable promotion waits on broader bare-print parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.35"
+path = "third_party/onetrueawk/testdir/p.35"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses bare `print` after multi-rule field rewrites; runnable promotion waits on broader bare-print parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.36"
+path = "third_party/onetrueawk/testdir/p.36"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `print` after field arithmetic mutation; runnable promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.38"
+path = "third_party/onetrueawk/testdir/p.38"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `END` `print` inside control flow; runnable promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.40"
+path = "third_party/onetrueawk/testdir/p.40"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses a multiline classic `for` body that still triggers a parser newline-handling gap in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.41"
+path = "third_party/onetrueawk/testdir/p.41"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses a multiline `if` inside `END`; the current parser newline handling still rejects this form in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.42"
+path = "third_party/onetrueawk/testdir/p.42"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `END` `print` for array totals; runnable promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.43"
+path = "third_party/onetrueawk/testdir/p.43"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Not suitable as a required differential case yet: the references disagree on `for (name in area)` order and `quawk` still rejects the multiline form."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.44"
+path = "third_party/onetrueawk/testdir/p.44"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multiline function-body control flow that still triggers a parser newline-handling gap in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.45"
+path = "third_party/onetrueawk/testdir/p.45"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multi-argument `print` with `OFS` and `ORS` changes; runnable promotion waits on broader print-surface parity."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.47"
+path = "third_party/onetrueawk/testdir/p.47"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses output redirection with `print > file`, which is outside the current claimed surface."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.48"
+path = "third_party/onetrueawk/testdir/p.48"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses pipe output with `print |`, which is outside the current claimed surface."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.48a"
+path = "third_party/onetrueawk/testdir/p.48a"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses `ARGC` and `ARGV` plus multiline `for`; CLI-variable coverage moves to later shell-driver and corroboration tasks."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.48b"
+path = "third_party/onetrueawk/testdir/p.48b"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Not suitable as a required differential case yet: the references disagree on randomized output and `rand()` is outside the current claimed builtin tranche."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.49"
+path = "third_party/onetrueawk/testdir/p.49"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses `system()`, which is outside the current claimed builtin tranche."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.50"
+path = "third_party/onetrueawk/testdir/p.50"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses pipe output and external sort, which is outside the current claimed surface."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.51"
+path = "third_party/onetrueawk/testdir/p.51"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multiline grouped-report control flow that still triggers parser newline-handling gaps in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "p.52"
+path = "third_party/onetrueawk/testdir/p.52"
+status = "skip"
+adapter = "onetrueawk-program-file"
+reason = "Uses multiline grouped-report control flow that still triggers parser newline-handling gaps in `quawk`."
+tags = ["posix", "p-direct-file"]
+
+[[case]]
 suite = "gawk"
 case_id = "assignnumfield"
 path = "third_party/gawk/test/assignnumfield.awk"
@@ -103,33 +579,6 @@ status = "skip"
 adapter = "onetrueawk-shell-driver"
 reason = "Shell-driver adaptation lands after the initial direct-program slice."
 tags = ["shell-driver", "split"]
-
-[[case]]
-suite = "one-true-awk"
-case_id = "p.4"
-path = "third_party/onetrueawk/testdir/p.4"
-status = "skip"
-adapter = "onetrueawk-program-file"
-reason = "Mapped as a builtin-variable family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
-tags = ["posix", "builtin-variables"]
-
-[[case]]
-suite = "one-true-awk"
-case_id = "p.23"
-path = "third_party/onetrueawk/testdir/p.23"
-status = "skip"
-adapter = "onetrueawk-program-file"
-reason = "Mapped as a pattern-action and default-print family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
-tags = ["posix", "range", "patterns"]
-
-[[case]]
-suite = "one-true-awk"
-case_id = "p.24"
-path = "third_party/onetrueawk/testdir/p.24"
-status = "skip"
-adapter = "onetrueawk-program-file"
-reason = "Mapped as a multi-file and builtin-variable family anchor in T-144; runnable promotion is deferred to the broader One True Awk direct-file expansion tasks."
-tags = ["posix", "multifile", "builtin-variables"]
 
 [[case]]
 suite = "one-true-awk"
@@ -297,7 +746,7 @@ selection_keys = [
   "gawk:assignnumfield2",
   "gawk:range1",
 ]
-notes = "The seed matrix covers BEGIN, record, regex, and range forms; later expansion adds more mixed-program depth."
+notes = "The runnable One True Awk direct-file tranche now covers regex-driven record actions and range patterns; gawk corroboration still expands in T-146."
 
 [[coverage]]
 family = "regex-selection"
@@ -309,6 +758,18 @@ selection_keys = [
 [[coverage]]
 family = "default-print-patterns"
 selection_keys = [
+  "one-true-awk:p.9",
+  "one-true-awk:p.10",
+  "one-true-awk:p.11",
+  "one-true-awk:p.14",
+  "one-true-awk:p.15",
+  "one-true-awk:p.16",
+  "one-true-awk:p.17",
+  "one-true-awk:p.18",
+  "one-true-awk:p.19",
+  "one-true-awk:p.20",
+  "one-true-awk:p.21",
+  "one-true-awk:p.22",
   "one-true-awk:p.23",
   "gawk:range1",
 ]
@@ -316,6 +777,8 @@ selection_keys = [
 [[coverage]]
 family = "scalar-assignment"
 selection_keys = [
+  "one-true-awk:p.31",
+  "one-true-awk:p.33",
   "gawk:assignnumfield",
   "gawk:assignnumfield2",
 ]
@@ -331,6 +794,12 @@ notes = "The first matrix anchor is One True Awk primary; gawk corroboration lan
 family = "fields"
 selection_keys = [
   "gawk:assignnumfield",
+  "one-true-awk:p.10",
+  "one-true-awk:p.17",
+  "one-true-awk:p.20",
+  "one-true-awk:p.25",
+  "one-true-awk:p.39",
+  "one-true-awk:p.46",
   "one-true-awk:t.set0a",
   "one-true-awk:t.NF",
   "one-true-awk:T.split",
@@ -340,6 +809,7 @@ selection_keys = [
 [[coverage]]
 family = "control-flow"
 selection_keys = [
+  "one-true-awk:p.39",
   "one-true-awk:t.if",
   "one-true-awk:t.do",
   "one-true-awk:t.break",
@@ -356,9 +826,12 @@ selection_keys = [
 [[coverage]]
 family = "expressions-and-coercions"
 selection_keys = [
-  "one-true-awk:T.expr",
-  "one-true-awk:t.substr",
+  "one-true-awk:p.20",
+  "one-true-awk:p.25",
+  "one-true-awk:p.37",
   "gawk:getnr2tb",
+  "one-true-awk:t.substr",
+  "one-true-awk:T.expr",
 ]
 
 [[coverage]]
@@ -371,6 +844,7 @@ selection_keys = [
 [[coverage]]
 family = "builtin-variables"
 selection_keys = [
+  "one-true-awk:p.28",
   "one-true-awk:p.4",
   "one-true-awk:p.24",
   "one-true-awk:t.NF",
@@ -382,6 +856,8 @@ selection_keys = [
 [[coverage]]
 family = "implemented-builtins"
 selection_keys = [
+  "one-true-awk:p.31",
+  "one-true-awk:p.33",
   "one-true-awk:T.builtin",
   "one-true-awk:T.split",
   "gawk:splitvar",

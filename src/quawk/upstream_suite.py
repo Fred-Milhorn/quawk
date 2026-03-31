@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Literal
 
 from quawk.corpus import (
@@ -216,12 +217,14 @@ def run_upstream_case(case: UpstreamCase, engine: EngineName = "quawk") -> Norma
         cli_args=case.cli_args,
         input_operands=case.input_operands,
     )
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    with TemporaryDirectory(prefix="quawk-upstream-") as workdir:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=workdir,
+        )
     return normalize_result(
         CorpusResult(
             engine=engine,

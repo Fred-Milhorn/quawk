@@ -141,26 +141,26 @@ Selection rule per family:
 
 ### Current Family Matrix
 
-The current checked-in matrix is still a seed matrix. Several families are
-anchored partly or entirely by `skip` entries so the inventory is explicit
-before the later expansion tasks promote more of those anchors to runnable
-coverage.
+The current checked-in matrix now includes a broader runnable One True Awk
+`p.*` direct-file tranche. It still relies on `skip` anchors for CLI handling,
+arrays, functions, record-control shell drivers, and multi-file cases that are
+reserved for the later expansion tasks.
 
 | Family | Current upstream anchors |
 |---|---|
 | `cli-basics` | `one-true-awk:T.-f-f`, `one-true-awk:T.argv`, `gawk:argarray`, `gawk:cmdlinefsbacknl` |
 | `pattern-action-execution` | `one-true-awk:p.12`, `one-true-awk:p.23`, `gawk:assignnumfield2`, `gawk:range1` |
 | `regex-selection` | `one-true-awk:p.12`, `one-true-awk:p.13` |
-| `default-print-patterns` | `one-true-awk:p.23`, `gawk:range1` |
-| `scalar-assignment` | `gawk:assignnumfield`, `gawk:assignnumfield2` |
+| `default-print-patterns` | `one-true-awk:p.9`, `one-true-awk:p.11`, `one-true-awk:p.21`, `one-true-awk:p.23`, `gawk:range1` |
+| `scalar-assignment` | `one-true-awk:p.31`, `one-true-awk:p.33`, `gawk:assignnumfield`, `gawk:assignnumfield2` |
 | `associative-arrays` | `one-true-awk:t.a` |
-| `fields` | `gawk:assignnumfield`, `one-true-awk:t.set0a`, `one-true-awk:t.NF`, `one-true-awk:T.split`, `gawk:splitvar` |
-| `control-flow` | `one-true-awk:t.if`, `one-true-awk:t.do`, `one-true-awk:t.break` |
+| `fields` | `gawk:assignnumfield`, `one-true-awk:p.10`, `one-true-awk:p.25`, `one-true-awk:p.39`, `one-true-awk:t.set0a`, `gawk:splitvar` |
+| `control-flow` | `one-true-awk:p.39`, `one-true-awk:t.if`, `one-true-awk:t.do`, `one-true-awk:t.break` |
 | `record-control` | `one-true-awk:t.next`, `one-true-awk:t.exit`, `one-true-awk:T.nextfile` |
-| `expressions-and-coercions` | `one-true-awk:T.expr`, `one-true-awk:t.substr`, `gawk:getnr2tb` |
+| `expressions-and-coercions` | `one-true-awk:p.20`, `one-true-awk:p.25`, `one-true-awk:p.37`, `one-true-awk:t.substr`, `gawk:getnr2tb` |
 | `user-defined-functions` | `one-true-awk:t.fun`, `one-true-awk:T.func` |
-| `builtin-variables` | `one-true-awk:p.4`, `one-true-awk:p.24`, `one-true-awk:t.NF`, `one-true-awk:T.argv`, `gawk:argarray`, `gawk:getnr2tb` |
-| `implemented-builtins` | `one-true-awk:T.builtin`, `one-true-awk:T.split`, `gawk:splitvar`, `gawk:substr` |
+| `builtin-variables` | `one-true-awk:p.28`, `one-true-awk:p.4`, `one-true-awk:p.24`, `one-true-awk:t.NF`, `one-true-awk:T.argv`, `gawk:argarray` |
+| `implemented-builtins` | `one-true-awk:p.31`, `one-true-awk:p.33`, `one-true-awk:T.builtin`, `gawk:splitvar`, `gawk:substr` |
 | `multi-file-input-processing` | `one-true-awk:p.24`, `one-true-awk:T.nextfile`, `gawk:argarray` |
 
 ## Growth Order
