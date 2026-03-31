@@ -343,10 +343,9 @@ Target outcome:
   POSIX-first coverage contract tied to implemented feature families in
   `SPEC.md`
 
-1. `T-146` add gawk fixture-backed corroborating coverage for implemented families
-2. `T-147` fill remaining implemented-family gaps with selected One True Awk `t.*`
-3. `T-148` add selected shell-driver adapters only for still-uncovered in-scope families
-4. `T-149` complete the upstream-suite done-line audit and stop criteria
+1. `T-147` fill remaining implemented-family gaps with selected One True Awk `t.*`
+2. `T-148` add selected shell-driver adapters only for still-uncovered in-scope families
+3. `T-149` complete the upstream-suite done-line audit and stop criteria
 
 ## Backlog
 
@@ -463,7 +462,7 @@ Priority values:
 | T-143 | P11 | P2 | Add the optional CI job and promotion criteria for the upstream compatibility gate | T-140, T-141, T-142 | CI can build the pinned references and run the selected upstream compatibility slice, and the roadmap/docs define when that job becomes required | done |
 | T-144 | P11 | P0 | Map implemented feature families in `SPEC.md` to the upstream case inventory | T-143 | `tests/upstream/selection.toml` and `docs/compatibility.md` make it explicit which upstream cases or skips cover every `implemented` feature family in `SPEC.md` | done |
 | T-145 | P11 | P0 | Expand in-scope One True Awk `p.*` coverage across implemented POSIX families | T-144 | Adapter-compatible, in-scope One True Awk `p.*` cases are broadly classified `run` or `skip`, and the runnable set expands coverage across the implemented family matrix | done |
-| T-146 | P11 | P1 | Add gawk fixture-backed corroborating coverage for implemented POSIX families | T-144 | For each major implemented family with clean `.ok` or `.in/.ok` fixtures, the selection manifest includes at least one runnable gawk corroborating case or an explicit reviewed skip | todo |
+| T-146 | P11 | P1 | Add gawk fixture-backed corroborating coverage for implemented POSIX families | T-144 | For each major implemented family with clean `.ok` or `.in/.ok` fixtures, the selection manifest includes at least one runnable gawk corroborating case or an explicit reviewed skip | done |
 | T-147 | P11 | P1 | Fill remaining implemented-family gaps with selected One True Awk `t.*` cases | T-145, T-146 | No `implemented` feature family in `SPEC.md` lacks runnable upstream coverage from at least one suite unless the gap is explicitly deferred in reviewed selection metadata | todo |
 | T-148 | P11 | P1 | Add selected shell-driver adapters only for still-uncovered in-scope families | T-147 | One True Awk `T.*` and gawk `.sh` support lands only where direct-file fixtures cannot cover a claimed in-scope family, and shell-driver-only skips remain explicit | todo |
 | T-149 | P11 | P0 | Complete the upstream-suite done-line audit and stop criteria | T-147, T-148 | Every `implemented` family in `SPEC.md` has upstream coverage, no blocking `posix-required-fix` entries remain for claimed behavior, and the local corpus is no longer the sole compatibility evidence for any implemented POSIX family | todo |

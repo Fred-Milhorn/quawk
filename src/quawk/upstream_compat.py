@@ -86,9 +86,39 @@ def build_commands(project: UpstreamProject) -> list[tuple[str, ...]]:
                 "--disable-nls",
                 "--without-readline",
             ),
-            ("make",),
+            ("make", "-C", "support", "libsupport.a"),
+            ("make", "gawk"),
         ]
     raise AssertionError(f"unsupported upstream project: {project.name}")
+
+
+def prepare_work_tree(project: UpstreamProject) -> None:
+    """Normalize copied upstream trees before running their build steps."""
+    if project.name != "gawk":
+        return
+    stabilize_gawk_generated_files(project.work_dir)
+
+
+def stabilize_gawk_generated_files(work_dir: Path) -> None:
+    """Keep gawk's checked-in generated files newer than their git checkout deps.
+
+    The pinned gawk submodule is a git checkout, not a release tarball. In that
+    layout some checked-in `m4/*.m4` inputs can be slightly newer than the
+    generated `aclocal.m4`/`configure`/`Makefile.in` files, which makes plain
+    `make` try to rerun autotools utilities that are not otherwise required for
+    the compatibility bootstrap.
+    """
+    generated_paths = (
+        work_dir / "aclocal.m4",
+        work_dir / "configure",
+        work_dir / "Makefile.in",
+        work_dir / "configh.in",
+        work_dir / "extension" / "aclocal.m4",
+        work_dir / "extension" / "configure",
+        work_dir / "extension" / "Makefile.in",
+    )
+    for path in generated_paths:
+        path.touch()
 
 
 def bootstrap(root: Path | None = None) -> None:
@@ -102,6 +132,7 @@ def bootstrap(root: Path | None = None) -> None:
     projects[0].wrapper_path.parent.mkdir(parents=True, exist_ok=True)
     for project in projects:
         copy_source_tree(project.source_dir, project.work_dir)
+        prepare_work_tree(project)
         for command in build_commands(project):
             run_command(command, cwd=project.work_dir)
 

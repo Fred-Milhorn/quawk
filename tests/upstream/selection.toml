@@ -515,6 +515,30 @@ status = "run"
 adapter = "gawk-awk-ok"
 tags = ["posix", "fields", "begin"]
 
+[[case]]
+suite = "gawk"
+case_id = "exit2"
+path = "third_party/gawk/test/exit2.awk"
+status = "run"
+adapter = "gawk-awk-ok"
+tags = ["posix", "record-control", "functions"]
+
+[[case]]
+suite = "gawk"
+case_id = "numsubstr"
+path = "third_party/gawk/test/numsubstr.awk"
+status = "run"
+adapter = "gawk-awk-in-ok"
+tags = ["posix", "substr", "coercions"]
+
+[[case]]
+suite = "gawk"
+case_id = "strfieldnum"
+path = "third_party/gawk/test/strfieldnum.awk"
+status = "run"
+adapter = "gawk-awk-in-ok"
+tags = ["posix", "fields", "coercions"]
+
 # One True Awk anchors selected for the feature-family matrix.
 
 [[case]]
@@ -794,6 +818,7 @@ notes = "The first matrix anchor is One True Awk primary; gawk corroboration lan
 family = "fields"
 selection_keys = [
   "gawk:assignnumfield",
+  "gawk:strfieldnum",
   "one-true-awk:p.10",
   "one-true-awk:p.17",
   "one-true-awk:p.20",
@@ -818,6 +843,7 @@ selection_keys = [
 [[coverage]]
 family = "record-control"
 selection_keys = [
+  "gawk:exit2",
   "one-true-awk:t.next",
   "one-true-awk:t.exit",
   "one-true-awk:T.nextfile",
@@ -826,6 +852,8 @@ selection_keys = [
 [[coverage]]
 family = "expressions-and-coercions"
 selection_keys = [
+  "gawk:numsubstr",
+  "gawk:strfieldnum",
   "one-true-awk:p.20",
   "one-true-awk:p.25",
   "one-true-awk:p.37",
@@ -837,6 +865,7 @@ selection_keys = [
 [[coverage]]
 family = "user-defined-functions"
 selection_keys = [
+  "gawk:exit2",
   "one-true-awk:t.fun",
   "one-true-awk:T.func",
 ]
@@ -856,6 +885,7 @@ selection_keys = [
 [[coverage]]
 family = "implemented-builtins"
 selection_keys = [
+  "gawk:numsubstr",
   "one-true-awk:p.31",
   "one-true-awk:p.33",
   "one-true-awk:T.builtin",

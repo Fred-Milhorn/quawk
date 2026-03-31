@@ -45,5 +45,31 @@ def test_build_commands_match_expected_bootstrap_steps(tmp_path: Path) -> None:
             "--disable-nls",
             "--without-readline",
         ),
-        ("make",),
+        ("make", "-C", "support", "libsupport.a"),
+        ("make", "gawk"),
     ]
+
+
+def test_stabilize_gawk_generated_files_touches_checked_in_generated_artifacts(tmp_path: Path) -> None:
+    work_dir = tmp_path / "gawk"
+    (work_dir / "extension").mkdir(parents=True)
+
+    generated_paths = (
+        work_dir / "aclocal.m4",
+        work_dir / "configure",
+        work_dir / "Makefile.in",
+        work_dir / "configh.in",
+        work_dir / "extension" / "aclocal.m4",
+        work_dir / "extension" / "configure",
+        work_dir / "extension" / "Makefile.in",
+    )
+    for path in generated_paths:
+        path.write_text("generated\n", encoding="utf-8")
+
+    before = {path: path.stat().st_mtime_ns for path in generated_paths}
+
+    upstream_compat.stabilize_gawk_generated_files(work_dir)
+
+    after = {path: path.stat().st_mtime_ns for path in generated_paths}
+    for path in generated_paths:
+        assert after[path] >= before[path]
