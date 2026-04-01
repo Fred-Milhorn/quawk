@@ -100,10 +100,11 @@ uv run python scripts/upstream_compat.py bootstrap
 uv run pytest -m compat_upstream
 ```
 
-The matching GitHub Actions workflow lives at
-`.github/workflows/compat-upstream.yml`. It is intentionally non-required until
-the promotion criteria in [docs/compatibility.md](docs/compatibility.md) are
-met.
+GitHub Actions runs the fast non-compatibility pytest gate in
+`.github/workflows/ci-fast.yml` and keeps the upstream differential gate in
+`.github/workflows/compat-upstream.yml`. The upstream workflow remains
+intentionally non-required until the promotion criteria in
+[docs/compatibility.md](docs/compatibility.md) are met.
 
 ## Pull Request Checklist
 

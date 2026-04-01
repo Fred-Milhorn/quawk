@@ -290,13 +290,19 @@ Gate policy:
 
 ## CI Promotion
 
-Current workflow:
+Current upstream workflow:
 
 - `.github/workflows/compat-upstream.yml`
 - runs on pull requests, pushes to `main`, and manual `workflow_dispatch`
 - builds the pinned references with the same repo-managed bootstrap used locally
 - runs `uv run pytest -m compat_upstream`
 - is intentionally optional at the branch-protection level for now
+
+Separate fast CI:
+
+- `.github/workflows/ci-fast.yml`
+- runs on pushes, pull requests, and manual `workflow_dispatch`
+- covers the non-compatibility pytest suite without bootstrapping pinned reference engines
 
 Promotion criteria:
 

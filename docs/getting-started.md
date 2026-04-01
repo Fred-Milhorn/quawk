@@ -56,8 +56,9 @@ uv run python scripts/upstream_compat.py bootstrap
 uv run pytest -m compat_upstream
 ```
 
-The same `compat_upstream` command now runs in the optional GitHub Actions
-workflow at `.github/workflows/compat-upstream.yml`.
+GitHub Actions runs the fast non-compatibility pytest suite in
+`.github/workflows/ci-fast.yml` and the heavier upstream differential command in
+`.github/workflows/compat-upstream.yml`.
 
 ## Common Commands
 

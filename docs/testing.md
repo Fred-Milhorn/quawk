@@ -70,12 +70,15 @@ Compatibility pytest surfaces are split intentionally:
 - `compat` remains the umbrella marker for both surfaces
 
 Recommended commands:
+- `uv run pytest -q -m "not compat"`
 - `uv run pytest -m compat_upstream`
 - `uv run pytest -m compat_local`
 
 CI parity:
-- `.github/workflows/compat-upstream.yml` runs the same `uv run pytest -m compat_upstream` command after bootstrapping the pinned references on `ubuntu-latest`
-- the workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
+- `.github/workflows/ci-fast.yml` runs `uv run pytest -q -m "not compat"` on pushes and pull requests
+- `.github/workflows/compat-upstream.yml` runs `uv run pytest -m compat_upstream` after bootstrapping the pinned references on `ubuntu-latest`
+- static lint, type, and formatting checks remain part of the local and release validation workflow, not the current branch-push CI gate
+- the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
 
 ## Test Corpus Structure
 
