@@ -270,6 +270,10 @@ class Lexer:
             end = self.cursor.point()
             return self.finish_token(Token(TokenKind.NEWLINE, self.source.span(start, end)))
 
+        if char == "#":
+            self.skip_comment()
+            return None
+
         if char == "/":
             return self.scan_slash_or_regex(start)
 
@@ -296,6 +300,11 @@ class Lexer:
     def skip_horizontal_whitespace(self) -> None:
         """Consume non-newline whitespace."""
         while (char := self.cursor.peek()) is not None and char in " \t\r\f\v":
+            self.cursor.advance()
+
+    def skip_comment(self) -> None:
+        """Consume one POSIX AWK `# ...` comment without eating the newline."""
+        while (char := self.cursor.peek()) is not None and char != "\n":
             self.cursor.advance()
 
     def scan_multi_char_operator(self, start: SourcePoint) -> Token | None:

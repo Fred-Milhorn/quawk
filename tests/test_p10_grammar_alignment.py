@@ -72,3 +72,13 @@ def test_public_execution_accepts_grammar_valid_for_expr_lists() -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == "0\n1\n2\n"
     assert result.stderr == ""
+
+
+def test_public_execution_accepts_posix_hash_comments() -> None:
+    result = run_quawk(
+        'BEGIN {\n# comment-only line\nprint 1 # trailing comment\n}\n',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n"
+    assert result.stderr == ""

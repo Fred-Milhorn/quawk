@@ -5,6 +5,9 @@
  *
  * Notes:
  * - NEWLINE means one physical line-break token.
+ * - `#` starts a comment outside strings and regex literals and runs to the
+ *   end of the physical line. The terminating newline, if present, still
+ *   produces a NEWLINE token.
  * - sep is statement separation (semicolon or one/more newlines).
  * - expression precedence is encoded by nonterminal layering.
  * - concat_expr uses adjacency, so pure CFG is supplemented by the

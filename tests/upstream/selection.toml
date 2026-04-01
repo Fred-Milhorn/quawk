@@ -517,6 +517,14 @@ tags = ["posix", "fields", "begin"]
 
 [[case]]
 suite = "gawk"
+case_id = "divzero2"
+path = "third_party/gawk/test/divzero2.awk"
+status = "run"
+adapter = "gawk-awk-ok"
+tags = ["posix", "expressions", "comments"]
+
+[[case]]
+suite = "gawk"
 case_id = "exit2"
 path = "third_party/gawk/test/exit2.awk"
 status = "run"

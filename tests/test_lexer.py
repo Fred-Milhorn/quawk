@@ -60,6 +60,43 @@ def test_lexes_newlines_and_escaped_quotes() -> None:
     assert tokens[7].span.format_start() == "<inline>:2:29"
 
 
+def test_lexes_posix_comments_as_trivia_and_preserves_newlines() -> None:
+    tokens = lex('# first line\nBEGIN { print 1 # trailing comment\n}\n')
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.NEWLINE,
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.NUMBER,
+        TokenKind.NEWLINE,
+        TokenKind.RBRACE,
+        TokenKind.NEWLINE,
+        TokenKind.EOF,
+    ]
+    assert tokens[0].span.format_start() == "<inline>:1:13"
+    assert tokens[5].span.format_start() == "<inline>:2:35"
+
+
+def test_lexes_hash_inside_string_and_regex_as_data() -> None:
+    tokens = lex('BEGIN { print "#"; print /#/ }\n')
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.STRING,
+        TokenKind.SEMICOLON,
+        TokenKind.PRINT,
+        TokenKind.REGEX,
+        TokenKind.RBRACE,
+        TokenKind.NEWLINE,
+        TokenKind.EOF,
+    ]
+    assert tokens[3].text == '"#"'
+    assert tokens[6].text == "/#/"
+
+
 def test_lexes_general_identifiers_and_numbers() -> None:
     tokens = lex("foo 123 4.5")
 
