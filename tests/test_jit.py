@@ -297,6 +297,30 @@ def test_execute_routes_array_programs_through_backend(monkeypatch) -> None:
     assert captured_ir["module"] == "; linked array backend module"
 
 
+def test_execute_routes_supported_function_programs_through_backend(monkeypatch) -> None:
+    program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("supported function programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; function backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; function backend module"
+
+
 def test_execute_routes_for_loop_programs_through_backend(monkeypatch) -> None:
     program = parse_program("BEGIN { for (i = 0; i < 2; i = i + 1) print i }")
     captured_ir: dict[str, str] = {}

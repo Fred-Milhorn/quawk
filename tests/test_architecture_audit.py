@@ -15,7 +15,6 @@ def test_families_lacking_full_backend_support_match_checked_in_baseline() -> No
     entries = architecture_audit.load_architecture_audit_manifest()
 
     assert architecture_audit.families_lacking_full_backend_support(entries) == [
-        "user-defined-functions",
         "record-control-next",
         "record-control-nextfile",
         "record-control-exit",
@@ -49,8 +48,8 @@ function f(x) { return x + 1 }
 BEGIN { print f(2) }
 '''
 expected_uses_host_runtime = false
-expected_supports_public_backend_execution = true
-expected_supports_ir_asm = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
 
 [[case]]
 family = "record-control-next"
@@ -149,7 +148,6 @@ expected_supports_ir_asm = false
     mismatches = architecture_audit.manifest_mismatches(entries)
 
     assert mismatches == [
-        "user-defined-functions: expected uses_host_runtime=False, observed True",
-        "user-defined-functions: expected supports_public_backend_execution=True, observed False",
-        "user-defined-functions: expected supports_ir_asm=True, observed False",
+        "user-defined-functions: expected supports_public_backend_execution=False, observed True",
+        "user-defined-functions: expected supports_ir_asm=False, observed True",
     ]

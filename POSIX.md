@@ -310,7 +310,6 @@ or `--ir` / `--asm` support:
 
 | Family | Representative program | Current audited gap |
 |---|---|---|
-| `user-defined-functions` | `function f(x) { return x + 1 } BEGIN { print f(2) }` | public execution still uses the host runtime and inspection rejects function lowering |
 | `record-control-next` | `/skip/ { next } { print $0 }` | simple `next`-driven record control still falls back and has no inspection support |
 | `record-control-nextfile` | `/stop/ { nextfile } { print $0 }` | simple `nextfile`-driven record control still falls back and has no inspection support |
 | `record-control-exit` | `BEGIN { print "before"; exit 7 }` | `exit` still falls back and has no inspection support |
@@ -319,6 +318,19 @@ or `--ir` / `--asm` support:
 | `control-flow-loop-break-continue` | `BEGIN { for (i = 0; i < 5; i = i + 1) { if (i == 2) break; else continue } }` | representative loop-control programs still do not stay on the compiled backend path |
 | `expression-pattern-actions` | `1 { print $0 }` | expression-pattern selection is claimed, but the backend only lowers regex expression patterns today |
 | `default-print-expression-patterns` | `1` | bare expression-pattern default-print behavior still lacks full backend execution and inspection support |
+
+### T-151 Function Backend Result
+
+`T-151` is now complete for the first representative direct-BEGIN function
+slice.
+
+What landed:
+
+- representative user-defined function programs no longer route through the
+  Python host runtime when they fit the direct numeric backend subset
+- `--ir` and `--asm` now work for that same function slice
+- the checked-in architecture audit now treats `user-defined-functions` as
+  backend-supported instead of still blocking the AOT contract
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

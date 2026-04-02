@@ -5,10 +5,10 @@ program = '''
 function f(x) { return x + 1 }
 BEGIN { print f(2) }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Claimed function execution still routes through the host runtime, and backend inspection rejects user-defined functions."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative direct-BEGIN function programs now lower through the backend and support inspection output."
 
 [[case]]
 family = "record-control-next"

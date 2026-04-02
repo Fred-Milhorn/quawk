@@ -576,7 +576,24 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
 
 
 def test_quawk_reports_runtime_failures_with_exit_code_four() -> None:
-    result = run_quawk("--ir", "function f(x) { return x }\nBEGIN { print f(1) }")
+    result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
     assert result.returncode == 4
-    assert result.stderr == "quawk: user-defined functions are not supported by the LLVM-backed backend\n"
+    assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_function_programs() -> None:
+    result = run_quawk("--ir", "function f(x) { return x + 1 }\nBEGIN { print f(2) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define double @qk_fn_f(" in result.stdout
+    assert "call double @qk_fn_f(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_function_program_with_local_parameter_scope() -> None:
+    result = run_quawk("function f(x) { x = x + 1; return x }\nBEGIN { x = 10; print f(2); print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n10\n"
+    assert result.stderr == ""

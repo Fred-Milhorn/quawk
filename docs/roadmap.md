@@ -383,10 +383,10 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-151` lower user-defined functions through the compiled backend/runtime
-2. `T-152` lower `exit` and `nextfile` through the compiled backend/runtime
-3. `T-153` lower the remaining claimed scalar-string/coercion execution paths through the backend/runtime
-4. `T-154` remove Python-side semantic fallback from the public execution path for claimed behavior
+1. `T-152` lower `exit` and `nextfile` through the compiled backend/runtime
+2. `T-153` lower the remaining claimed scalar-string/coercion execution paths through the backend/runtime
+3. `T-154` remove Python-side semantic fallback from the public execution path for claimed behavior
+4. `T-155` close `--ir` / `--asm` parity gaps across the full claimed execution surface
 
 ## Backlog
 
@@ -511,7 +511,7 @@ Priority values:
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
 | T-150 | P13 | P0 | Author the architecture-audit baseline for claimed backend execution | T-149, T-042 | Tests and docs enumerate every currently claimed feature family that still lacks full backend/runtime execution or `--ir` / `--asm` support | done |
-| T-151 | P13 | P0 | Lower user-defined functions through the compiled backend/runtime path | T-150 | Representative claimed function programs execute without Python-side semantic fallback, and `--ir` / `--asm` support those programs | todo |
+| T-151 | P13 | P0 | Lower user-defined functions through the compiled backend/runtime path | T-150 | Representative claimed function programs execute without Python-side semantic fallback, and `--ir` / `--asm` support those programs | done |
 | T-152 | P13 | P0 | Lower `exit` and `nextfile` through the compiled backend/runtime path | T-150 | Representative claimed `exit` and `nextfile` programs execute through the backend/runtime path and support inspection output | todo |
 | T-153 | P13 | P0 | Lower the remaining claimed scalar-string and coercion families through the backend/runtime path | T-150 | Claimed concatenation/coercion-heavy execution paths no longer require Python-side semantic fallback, and their backend tests are explicit | todo |
 | T-154 | P13 | P1 | Remove Python-side semantic fallback from the public execution path for claimed behavior | T-151, T-152, T-153 | Public `quawk` execution no longer routes claimed AWK semantics through Python fallback; any still-unlowered behavior fails explicitly until claimed support is updated | todo |

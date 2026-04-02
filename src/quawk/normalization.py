@@ -13,6 +13,7 @@ from .parser import (
     BeginPattern,
     BinaryExpr,
     BlockStmt,
+    CallExpr,
     ConditionalExpr,
     DeleteStmt,
     DoWhileStmt,
@@ -34,6 +35,7 @@ from .parser import (
     PrintStmt,
     Program,
     RangePattern,
+    ReturnStmt,
     Stmt,
     UnaryExpr,
     WhileStmt,
@@ -113,9 +115,10 @@ def normalize_program_for_lowering(program: Program) -> NormalizedLoweringProgra
 
 def collect_direct_begin_statements(program: Program) -> tuple[Stmt, ...] | None:
     """Return the direct-BEGIN lowering form when the program exactly matches it."""
-    if len(program.items) != 1:
+    non_function_items = [item for item in program.items if not isinstance(item, FunctionDef)]
+    if len(non_function_items) != 1:
         return None
-    item = program.items[0]
+    item = non_function_items[0]
     if not isinstance(item, PatternAction):
         return None
     if not isinstance(item.pattern, BeginPattern):
@@ -136,82 +139,96 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
         seen.add(name)
         names.append(name)
 
-    def visit_expression(expression: Expr) -> None:
+    def visit_expression(expression: Expr, local_names: frozenset[str] = frozenset()) -> None:
         match expression:
             case NameExpr(name=name):
+                if name in local_names:
+                    return
                 note_name(name)
             case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
-                note_name(array_name)
-                visit_expression(index)
+                if array_name not in local_names:
+                    note_name(array_name)
+                visit_expression(index, local_names)
                 for extra_index in extra_indexes:
-                    visit_expression(extra_index)
+                    visit_expression(extra_index, local_names)
             case BinaryExpr(left=left, right=right):
-                visit_expression(left)
-                visit_expression(right)
+                visit_expression(left, local_names)
+                visit_expression(right, local_names)
             case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                visit_expression(test)
-                visit_expression(if_true)
-                visit_expression(if_false)
+                visit_expression(test, local_names)
+                visit_expression(if_true, local_names)
+                visit_expression(if_false, local_names)
             case AssignExpr(target=target, value=value):
-                visit_lvalue(target)
-                visit_expression(value)
+                visit_lvalue(target, local_names)
+                visit_expression(value, local_names)
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
-                visit_expression(operand)
+                visit_expression(operand, local_names)
             case FieldExpr(index=index):
                 if not isinstance(index, int):
-                    visit_expression(index)
+                    visit_expression(index, local_names)
+            case CallExpr(args=args):
+                for argument in args:
+                    visit_expression(argument, local_names)
             case _:
                 return
 
-    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue) -> None:
+    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue, local_names: frozenset[str] = frozenset()) -> None:
         match target:
             case NameLValue(name=name):
+                if name in local_names:
+                    return
                 note_name(name)
             case ArrayLValue(name=name, subscripts=subscripts):
-                note_name(name)
+                if name not in local_names:
+                    note_name(name)
                 for subscript in subscripts:
-                    visit_expression(subscript)
+                    visit_expression(subscript, local_names)
             case FieldLValue(index=index):
-                visit_expression(index)
+                visit_expression(index, local_names)
 
-    def visit_statement(statement: Stmt) -> None:
+    def visit_statement(statement: Stmt, local_names: frozenset[str] = frozenset()) -> None:
         match statement:
             case AssignStmt(target=target, value=value):
-                visit_lvalue(target)
-                visit_expression(value)
+                visit_lvalue(target, local_names)
+                visit_expression(value, local_names)
             case ExprStmt(value=value):
-                visit_expression(value)
+                visit_expression(value, local_names)
             case BlockStmt(statements=statements):
                 for nested in statements:
-                    visit_statement(nested)
+                    visit_statement(nested, local_names)
             case DeleteStmt(target=target):
-                visit_lvalue(target)
+                visit_lvalue(target, local_names)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-                visit_expression(condition)
-                visit_statement(then_branch)
+                visit_expression(condition, local_names)
+                visit_statement(then_branch, local_names)
                 if else_branch is not None:
-                    visit_statement(else_branch)
+                    visit_statement(else_branch, local_names)
             case WhileStmt(condition=condition, body=body):
-                visit_expression(condition)
-                visit_statement(body)
+                visit_expression(condition, local_names)
+                visit_statement(body, local_names)
             case DoWhileStmt(body=body, condition=condition):
-                visit_statement(body)
-                visit_expression(condition)
+                visit_statement(body, local_names)
+                visit_expression(condition, local_names)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 for expression in init:
-                    visit_expression(expression)
+                    visit_expression(expression, local_names)
                 if condition is not None:
-                    visit_expression(condition)
+                    visit_expression(condition, local_names)
                 for expression in update:
-                    visit_expression(expression)
-                visit_statement(body)
+                    visit_expression(expression, local_names)
+                visit_statement(body, local_names)
             case ForInStmt(name=name, iterable=iterable, body=body):
-                note_name(name)
-                visit_expression(iterable)
-                visit_statement(body)
+                loop_locals = local_names | frozenset({name})
+                if name not in local_names:
+                    note_name(name)
+                visit_expression(iterable, local_names)
+                visit_statement(body, loop_locals)
             case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
                 for argument in arguments:
-                    visit_expression(argument)
+                    visit_expression(argument, local_names)
+            case ReturnStmt(value=value):
+                if value is not None:
+                    visit_expression(value, local_names)
             case _:
                 return
 
@@ -228,6 +245,11 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
                 visit_pattern(right)
 
     for item in program.items:
+        if isinstance(item, FunctionDef):
+            local_names = frozenset(item.params)
+            for statement in item.body.statements:
+                visit_statement(statement, local_names)
+            continue
         if not isinstance(item, PatternAction) or not isinstance(item.action, Action):
             continue
         if isinstance(item.pattern, ExprPattern):
@@ -247,85 +269,101 @@ def collect_array_names(program: Program) -> frozenset[str]:
     """Collect names used as associative arrays in the currently supported surface."""
     names: set[str] = set()
 
-    def visit_expression(expression: Expr) -> None:
+    def visit_expression(expression: Expr, local_names: frozenset[str] = frozenset()) -> None:
         match expression:
             case ArrayIndexExpr(array_name=array_name):
+                if array_name in local_names:
+                    return
                 names.add(array_name)
                 for subscript in expression.subscripts:
-                    visit_expression(subscript)
+                    visit_expression(subscript, local_names)
             case BinaryExpr(left=left, right=right):
-                visit_expression(left)
-                visit_expression(right)
+                visit_expression(left, local_names)
+                visit_expression(right, local_names)
             case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                visit_expression(test)
-                visit_expression(if_true)
-                visit_expression(if_false)
+                visit_expression(test, local_names)
+                visit_expression(if_true, local_names)
+                visit_expression(if_false, local_names)
             case AssignExpr(target=target, value=value):
-                visit_lvalue(target)
-                visit_expression(value)
+                visit_lvalue(target, local_names)
+                visit_expression(value, local_names)
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
-                visit_expression(operand)
+                visit_expression(operand, local_names)
             case FieldExpr(index=index):
                 if not isinstance(index, int):
-                    visit_expression(index)
+                    visit_expression(index, local_names)
+            case CallExpr(args=args):
+                for argument in args:
+                    visit_expression(argument, local_names)
             case _:
                 return
 
-    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue) -> None:
+    def visit_lvalue(target: NameLValue | ArrayLValue | FieldLValue, local_names: frozenset[str] = frozenset()) -> None:
         match target:
             case ArrayLValue(name=name, subscripts=subscripts):
+                if name in local_names:
+                    return
                 names.add(name)
                 for subscript in subscripts:
-                    visit_expression(subscript)
+                    visit_expression(subscript, local_names)
             case FieldLValue(index=index):
-                visit_expression(index)
+                visit_expression(index, local_names)
             case _:
                 return
 
-    def visit_statement(statement: Stmt) -> None:
+    def visit_statement(statement: Stmt, local_names: frozenset[str] = frozenset()) -> None:
         match statement:
             case AssignStmt(target=target, value=value):
-                visit_lvalue(target)
-                visit_expression(value)
+                visit_lvalue(target, local_names)
+                visit_expression(value, local_names)
             case ExprStmt(value=value):
-                visit_expression(value)
+                visit_expression(value, local_names)
             case BlockStmt(statements=statements):
                 for nested in statements:
-                    visit_statement(nested)
+                    visit_statement(nested, local_names)
             case DeleteStmt(target=target):
-                visit_lvalue(target)
+                visit_lvalue(target, local_names)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-                visit_expression(condition)
-                visit_statement(then_branch)
+                visit_expression(condition, local_names)
+                visit_statement(then_branch, local_names)
                 if else_branch is not None:
-                    visit_statement(else_branch)
+                    visit_statement(else_branch, local_names)
             case WhileStmt(condition=condition, body=body):
-                visit_expression(condition)
-                visit_statement(body)
+                visit_expression(condition, local_names)
+                visit_statement(body, local_names)
             case DoWhileStmt(body=body, condition=condition):
-                visit_statement(body)
-                visit_expression(condition)
+                visit_statement(body, local_names)
+                visit_expression(condition, local_names)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 for expression in init:
-                    visit_expression(expression)
+                    visit_expression(expression, local_names)
                 if condition is not None:
-                    visit_expression(condition)
+                    visit_expression(condition, local_names)
                 for expression in update:
-                    visit_expression(expression)
-                visit_statement(body)
+                    visit_expression(expression, local_names)
+                visit_statement(body, local_names)
             case ForInStmt(iterable=iterable, body=body):
                 if isinstance(iterable, NameExpr):
-                    names.add(iterable.name)
+                    if iterable.name not in local_names:
+                        names.add(iterable.name)
                 else:
-                    visit_expression(iterable)
-                visit_statement(body)
+                    visit_expression(iterable, local_names)
+                visit_statement(body, local_names)
             case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
                 for argument in arguments:
-                    visit_expression(argument)
+                    visit_expression(argument, local_names)
+            case ReturnStmt(value=value):
+                if value is not None:
+                    visit_expression(value, local_names)
             case _:
                 return
 
     for item in program.items:
+        if isinstance(item, FunctionDef):
+            local_names = frozenset(item.params)
+            for statement in item.body.statements:
+                visit_statement(statement, local_names)
+            continue
         if not isinstance(item, PatternAction) or item.action is None:
             continue
         if isinstance(item.pattern, ExprPattern):
