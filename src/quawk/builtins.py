@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-BUILTIN_FUNCTION_NAMES = frozenset({"length", "split", "substr"})
-BUILTIN_VARIABLE_NAMES = frozenset({"NR", "FNR", "NF", "FILENAME", "OFS", "ORS"})
+BUILTIN_FUNCTION_NAMES = frozenset({"close", "length", "split", "substr"})
+BUILTIN_VARIABLE_NAMES = frozenset({"NR", "FNR", "NF", "FILENAME", "OFS", "ORS", "OFMT", "CONVFMT"})
 
 BUILTIN_ARITY_RULES: dict[str, tuple[int, ...]] = {
+    "close": (1,),
     "length": (0, 1),
     "split": (2, 3),
     "substr": (2, 3),

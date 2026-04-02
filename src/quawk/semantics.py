@@ -269,12 +269,16 @@ def validate_statement(
                 in_record_action=in_record_action,
                 loop_depth=loop_depth + 1,
             )
-        case PrintStmt(arguments=arguments):
+        case PrintStmt(arguments=arguments, redirect=redirect):
             for argument in arguments:
                 validate_expression(argument, functions, scope=scope)
-        case PrintfStmt(arguments=arguments):
+            if redirect is not None:
+                validate_expression(redirect.target, functions, scope=scope)
+        case PrintfStmt(arguments=arguments, redirect=redirect):
             for argument in arguments:
                 validate_expression(argument, functions, scope=scope)
+            if redirect is not None:
+                validate_expression(redirect.target, functions, scope=scope)
         case ExprStmt(value=value):
             validate_expression(value, functions, scope=scope)
         case ExitStmt(value=value):
@@ -320,6 +324,12 @@ def validate_expression(
                     case "length":
                         raise SemanticError(
                             "builtin length expects zero or one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "close":
+                        raise SemanticError(
+                            "builtin close expects one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )

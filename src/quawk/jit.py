@@ -50,6 +50,8 @@ from .parser import (
     NextFileStmt,
     NextStmt,
     NumericLiteralExpr,
+    OutputRedirect,
+    OutputRedirectKind,
     PostfixOp,
     PatternAction,
     PostfixExpr,
@@ -69,6 +71,9 @@ from .parser import (
 
 DEFAULT_OFMT = "%.6g"
 DEFAULT_CONVFMT = "%.6g"
+OUTPUT_REDIRECT_WRITE = 1
+OUTPUT_REDIRECT_APPEND = 2
+OUTPUT_REDIRECT_PIPE = 3
 
 
 @dataclass
@@ -121,6 +126,8 @@ class RuntimeState:
     functions: dict[str, FunctionDef] = field(default_factory=dict)
     field_separator: str | None = None
     current_filename: str = "-"
+    output_streams: dict[tuple[str, OutputRedirectKind], TextIO] = field(default_factory=dict)
+    output_processes: dict[tuple[str, OutputRedirectKind], subprocess.Popen[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -450,6 +457,12 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare void @qk_print_number_fragment(ptr, double)",
         "declare void @qk_print_output_separator(ptr)",
         "declare void @qk_print_output_record_separator(ptr)",
+        "declare ptr @qk_open_output(ptr, ptr, i32)",
+        "declare double @qk_close_output(ptr, ptr)",
+        "declare void @qk_write_output_string(ptr, ptr)",
+        "declare void @qk_write_output_number(ptr, ptr, double)",
+        "declare void @qk_write_output_separator(ptr, ptr)",
+        "declare void @qk_write_output_record_separator(ptr, ptr)",
         "declare void @qk_nextfile(ptr)",
         "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
@@ -476,6 +489,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_substr2(ptr, ptr, i64)",
         "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
         "declare i64 @strlen(ptr)",
+        "declare i32 @fprintf(ptr, ptr, ...)",
         "declare i32 @printf(ptr, ...)",
     ]
     if state_type is not None:
@@ -1187,10 +1201,65 @@ def lower_runtime_print_fragment(expression: Expr, state: LoweringState) -> None
     state.instructions.append(f"  call void @qk_print_number_fragment(ptr {state.runtime_param}, double {numeric_value})")
 
 
+def output_redirect_mode_value(kind: OutputRedirectKind) -> int:
+    """Map one redirect kind to the runtime ABI mode integer."""
+    match kind:
+        case OutputRedirectKind.WRITE:
+            return OUTPUT_REDIRECT_WRITE
+        case OutputRedirectKind.APPEND:
+            return OUTPUT_REDIRECT_APPEND
+        case OutputRedirectKind.PIPE:
+            return OUTPUT_REDIRECT_PIPE
+    raise AssertionError(f"unhandled redirect kind: {kind!r}")
+
+
+def lower_runtime_output_target(redirect: OutputRedirect, state: LoweringState) -> str:
+    """Lower one redirect target expression to the runtime string ABI."""
+    if runtime_expression_has_string_result(redirect.target, state):
+        return lower_runtime_string_expression(redirect.target, state)
+    return lower_runtime_string_expression(redirect.target, state)
+
+
 def lower_runtime_print_statement(statement: PrintStmt, state: LoweringState) -> None:
     """Lower one `print` statement against the reusable runtime ABI."""
     assert state.runtime_param is not None
     arguments = statement.arguments
+    redirect = statement.redirect
+    if redirect is not None:
+        target_ptr = lower_runtime_output_target(redirect, state)
+        output_handle = state.next_temp("print.output")
+        state.instructions.append(
+            f"  {output_handle} = call ptr @qk_open_output(ptr {state.runtime_param}, ptr {target_ptr}, i32 {output_redirect_mode_value(redirect.kind)})"
+        )
+        if not arguments:
+            field_ptr = state.next_temp("print.field0")
+            state.instructions.extend(
+                [
+                    f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                    f"  call void @qk_write_output_string(ptr {output_handle}, ptr {field_ptr})",
+                    f"  call void @qk_write_output_record_separator(ptr {state.runtime_param}, ptr {output_handle})",
+                ]
+            )
+            return
+
+        for index, argument in enumerate(arguments):
+            if index > 0:
+                state.instructions.append(
+                    f"  call void @qk_write_output_separator(ptr {state.runtime_param}, ptr {output_handle})"
+                )
+            if runtime_expression_has_string_result(argument, state):
+                string_value = lower_runtime_string_expression(argument, state)
+                state.instructions.append(f"  call void @qk_write_output_string(ptr {output_handle}, ptr {string_value})")
+            else:
+                numeric_value = lower_runtime_numeric_expression(argument, state)
+                state.instructions.append(
+                    f"  call void @qk_write_output_number(ptr {state.runtime_param}, ptr {output_handle}, double {numeric_value})"
+                )
+        state.instructions.append(
+            f"  call void @qk_write_output_record_separator(ptr {state.runtime_param}, ptr {output_handle})"
+        )
+        return
+
     if not arguments:
         field_ptr = state.next_temp("print.field0")
         state.instructions.extend(
@@ -1238,11 +1307,20 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
             continue
         operands.append(f"double {lower_runtime_numeric_expression(argument, state)}")
 
-    call_args = ", ".join([f"ptr {format_ptr}", *operands])
+    redirect = statement.redirect
+    state.instructions.append(emit_gep(format_ptr, format_length, format_name))
+    if redirect is None:
+        call_args = ", ".join([f"ptr {format_ptr}", *operands])
+        state.instructions.append(f"  call i32 (ptr, ...) @printf({call_args})")
+        return
+
+    target_ptr = lower_runtime_output_target(redirect, state)
+    output_handle = state.next_temp("printf.output")
+    call_args = ", ".join([f"ptr {output_handle}", f"ptr {format_ptr}", *operands])
     state.instructions.extend(
         [
-            emit_gep(format_ptr, format_length, format_name),
-            f"  call i32 (ptr, ...) @printf({call_args})",
+            f"  {output_handle} = call ptr @qk_open_output(ptr {state.runtime_param}, ptr {target_ptr}, i32 {output_redirect_mode_value(redirect.kind)})",
+            f"  call i32 (ptr, ptr, ...) @fprintf({call_args})",
         ]
     )
 
@@ -1365,6 +1443,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_increment_expression(name, -1.0, return_old=True, state=state)
         case CallExpr(function="split"):
             return lower_runtime_split_builtin(expression, state)
+        case CallExpr(function="close"):
+            return lower_runtime_close_builtin(expression, state)
         case CallExpr(function="length"):
             return lower_runtime_length_builtin(expression, state)
         case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
@@ -1593,6 +1673,17 @@ def lower_runtime_split_builtin(expression: CallExpr, state: LoweringState) -> s
         )
     )
     return temp
+
+
+def lower_runtime_close_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `close` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) != 1:
+        raise RuntimeError("builtin close expects one argument")
+    target_ptr = lower_runtime_string_expression(expression.args[0], state)
+    result = state.next_temp("close")
+    state.instructions.append(f"  {result} = call double @qk_close_output(ptr {state.runtime_param}, ptr {target_ptr})")
+    return result
 
 
 def lower_runtime_substr_builtin(expression: CallExpr, state: LoweringState) -> str:
@@ -2124,7 +2215,6 @@ def execute_host_runtime(
     initialize_builtin_variables(state)
     exit_status = 0
     terminated = False
-
     try:
         for action in begin_actions:
             execute_action(action, state, record=None, locals_scope=None)
@@ -2132,42 +2222,45 @@ def execute_host_runtime(
         exit_status = signal.status
         terminated = True
 
-    if not terminated and record_items:
-        for filename, input_records in iter_input_files(input_files):
-            skip_remaining_file = False
-            state.current_filename = filename
-            state.variables["FNR"] = make_numeric_value(0.0)
-            for line in input_records:
-                record_text = line.rstrip("\n")
-                record = RecordContext(
-                    field0=record_text,
-                    fields=split_fields(record_text, field_separator),
-                )
-                update_record_builtin_variables(state, record)
-                try:
-                    for item in record_items:
-                        if record_item_matches(item, state, record):
-                            execute_record_item(item, state, record)
-                except NextSignal:
+    try:
+        if not terminated and record_items:
+            for filename, input_records in iter_input_files(input_files):
+                skip_remaining_file = False
+                state.current_filename = filename
+                state.variables["FNR"] = make_numeric_value(0.0)
+                for line in input_records:
+                    record_text = line.rstrip("\n")
+                    record = RecordContext(
+                        field0=record_text,
+                        fields=split_fields(record_text, field_separator),
+                    )
+                    update_record_builtin_variables(state, record)
+                    try:
+                        for item in record_items:
+                            if record_item_matches(item, state, record):
+                                execute_record_item(item, state, record)
+                    except NextSignal:
+                        continue
+                    except NextFileSignal:
+                        skip_remaining_file = True
+                        break
+                    except ExitSignal as signal:
+                        exit_status = signal.status
+                        terminated = True
+                        break
+                if terminated:
+                    break
+                if skip_remaining_file:
                     continue
-                except NextFileSignal:
-                    skip_remaining_file = True
-                    break
-                except ExitSignal as signal:
-                    exit_status = signal.status
-                    terminated = True
-                    break
-            if terminated:
-                break
-            if skip_remaining_file:
-                continue
 
-    for action in end_actions:
-        try:
-            execute_action(action, state, record=None, locals_scope=None)
-        except ExitSignal as signal:
-            return signal.status
-    return exit_status
+        for action in end_actions:
+            try:
+                execute_action(action, state, record=None, locals_scope=None)
+            except ExitSignal as signal:
+                return signal.status
+        return exit_status
+    finally:
+        close_all_outputs(state)
 
 
 def collect_record_contexts(
@@ -2475,12 +2568,24 @@ def execute_statement(
             if value is None:
                 raise ReturnSignal(UNINITIALIZED_VALUE)
             raise ReturnSignal(evaluate_value_expression(value, state, record, locals_scope))
-        case PrintStmt(arguments=arguments):
-            sys.stdout.write(render_print_output(arguments, state, record, locals_scope))
-        case PrintfStmt(arguments=arguments):
+        case PrintStmt(arguments=arguments, redirect=redirect):
+            rendered = render_print_output(arguments, state, record, locals_scope)
+            if redirect is None:
+                sys.stdout.write(rendered)
+            else:
+                stream = open_output_stream(redirect, state, record, locals_scope)
+                stream.write(rendered)
+                stream.flush()
+        case PrintfStmt(arguments=arguments, redirect=redirect):
             if not arguments:
                 raise RuntimeError("printf requires at least a format string")
-            print(render_printf_output(arguments, state, record, locals_scope), end="")
+            rendered = render_printf_output(arguments, state, record, locals_scope)
+            if redirect is None:
+                print(rendered, end="")
+            else:
+                stream = open_output_stream(redirect, state, record, locals_scope)
+                stream.write(rendered)
+                stream.flush()
         case ExprStmt(value=value):
             evaluate_value_expression(value, state, record, locals_scope)
         case NextStmt():
@@ -2683,6 +2788,8 @@ def call_builtin_function(
 ) -> AwkValue:
     """Execute one supported builtin function call in the current host runtime."""
     match expression.function:
+        case "close":
+            return call_close_builtin(expression, state, record, locals_scope)
         case "length":
             return call_length_builtin(expression, state, record, locals_scope)
         case "split":
@@ -2691,6 +2798,19 @@ def call_builtin_function(
             return call_substr_builtin(expression, state, record, locals_scope)
         case _:
             raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
+
+
+def call_close_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the current subset's `close` builtin."""
+    if len(expression.args) != 1:
+        raise RuntimeError("builtin close expects one argument")
+    target = evaluate_string_expression(expression.args[0], state, record, locals_scope)
+    return make_numeric_value(close_output_target(state, target))
 
 
 def call_length_builtin(
@@ -2998,6 +3118,74 @@ def coerce_print_value_to_string(value: AwkValue, state: RuntimeState | None = N
             return format_numeric_value(value.number, numeric_format_text(state, "OFMT", DEFAULT_OFMT))
         case ValueKind.STRING:
             return value.string
+
+
+def output_redirect_target_text(
+    redirect: OutputRedirect,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> str:
+    """Render one output redirect target using AWK string coercions."""
+    return evaluate_string_expression(redirect.target, state, record, locals_scope)
+
+
+def open_output_stream(
+    redirect: OutputRedirect,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> TextIO:
+    """Open or reuse one redirected output stream."""
+    target = output_redirect_target_text(redirect, state, record, locals_scope)
+    key = (target, redirect.kind)
+    existing = state.output_streams.get(key)
+    if existing is not None:
+        return existing
+
+    if redirect.kind is OutputRedirectKind.PIPE:
+        process = subprocess.Popen(target, shell=True, text=True, stdin=subprocess.PIPE)
+        if process.stdin is None:
+            raise RuntimeError(f"failed to open pipe output: {target}")
+        state.output_processes[key] = process
+        state.output_streams[key] = process.stdin
+        return process.stdin
+
+    mode = "w" if redirect.kind is OutputRedirectKind.WRITE else "a"
+    stream = open(target, mode, encoding="utf-8")
+    state.output_streams[key] = stream
+    return stream
+
+
+def close_output_key(state: RuntimeState, key: tuple[str, OutputRedirectKind]) -> float:
+    """Close one cached output stream and return its close status."""
+    stream = state.output_streams.pop(key, None)
+    process = state.output_processes.pop(key, None)
+    if stream is None:
+        return -1.0
+
+    stream.close()
+    if process is None:
+        return 0.0
+    return float(process.wait())
+
+
+def close_output_target(state: RuntimeState, target: str) -> float:
+    """Close every cached output bound to one AWK redirection string."""
+    result = -1.0
+    matched = False
+    for key in tuple(state.output_streams):
+        if key[0] != target:
+            continue
+        matched = True
+        result = close_output_key(state, key)
+    return result if matched else -1.0
+
+
+def close_all_outputs(state: RuntimeState) -> None:
+    """Best-effort close of all cached redirected outputs."""
+    for key in tuple(state.output_streams):
+        _ = close_output_key(state, key)
 
 
 def render_print_output(
@@ -3468,6 +3656,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 if not isinstance(args[1], NameExpr):
                     return False
                 return len(args) == 2 or supports_string_expression(args[2])
+            case CallExpr(function="close", args=args):
+                return len(args) == 1 and (supports_string_expression(args[0]) or supports_numeric_expression(args[0]))
             case CallExpr(function="length", args=args):
                 if len(args) > 1:
                     return False
@@ -3538,16 +3728,21 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 if statement.array_name is None or statement.array_name not in array_names or statement.extra_indexes:
                     return False
                 return statement.index is None or supports_array_key(statement.index, string_bindings)
-            case PrintStmt(arguments=arguments):
-                if not arguments:
-                    return True
-                return all(
+            case PrintStmt(arguments=arguments, redirect=redirect):
+                arguments_supported = not arguments or all(
                     supports_string_expression(argument, string_bindings)
                     or runtime_expression_has_string_result(argument)
                     or supports_numeric_expression(argument)
                     for argument in arguments
                 )
-            case PrintfStmt(arguments=arguments):
+                if not arguments_supported:
+                    return False
+                if redirect is None:
+                    return True
+                return supports_string_expression(redirect.target, string_bindings) or supports_numeric_expression(
+                    redirect.target
+                )
+            case PrintfStmt(arguments=arguments, redirect=redirect):
                 if not arguments or not isinstance(arguments[0], StringLiteralExpr):
                     return False
                 specifiers = [
@@ -3563,8 +3758,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         continue
                     if not supports_numeric_expression(argument):
                         return False
-                return True
+                if redirect is None:
+                    return True
+                return supports_string_expression(redirect.target, string_bindings) or supports_numeric_expression(
+                    redirect.target
+                )
             case ExprStmt(value=value):
+                if isinstance(value, CallExpr) and value.function == "close":
+                    return supports_numeric_expression(value)
                 return supports_side_effect_expression(value, string_bindings)
             case NextStmt():
                 return True
@@ -3624,7 +3825,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     found_supported_runtime_feature = True
                 if len(statement.arguments) != 1:
                     found_supported_runtime_feature = True
+                if statement.redirect is not None:
+                    found_supported_runtime_feature = True
             if isinstance(statement, PrintStmt) and not statement.arguments:
+                found_supported_runtime_feature = True
+            if isinstance(statement, PrintfStmt) and statement.redirect is not None:
                 found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and isinstance(statement.target, NameLValue):
                 if isinstance(statement.value, StringLiteralExpr):
@@ -3636,6 +3841,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             if isinstance(statement, DoWhileStmt | BreakStmt | ContinueStmt | NextStmt):
                 found_supported_runtime_feature = True
             if isinstance(statement, NextFileStmt | ExitStmt):
+                found_supported_runtime_feature = True
+            if isinstance(statement, ExprStmt) and isinstance(statement.value, CallExpr) and statement.value.function == "close":
                 found_supported_runtime_feature = True
     return found_supported_runtime_feature
 

@@ -223,9 +223,11 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
                     note_name(name)
                 visit_expression(iterable, local_names)
                 visit_statement(body, loop_locals)
-            case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
+            case PrintStmt(arguments=arguments, redirect=redirect) | PrintfStmt(arguments=arguments, redirect=redirect):
                 for argument in arguments:
                     visit_expression(argument, local_names)
+                if redirect is not None:
+                    visit_expression(redirect.target, local_names)
             case ReturnStmt(value=value):
                 if value is not None:
                     visit_expression(value, local_names)
@@ -349,9 +351,11 @@ def collect_array_names(program: Program) -> frozenset[str]:
                 else:
                     visit_expression(iterable, local_names)
                 visit_statement(body, local_names)
-            case PrintStmt(arguments=arguments) | PrintfStmt(arguments=arguments):
+            case PrintStmt(arguments=arguments, redirect=redirect) | PrintfStmt(arguments=arguments, redirect=redirect):
                 for argument in arguments:
                     visit_expression(argument, local_names)
+                if redirect is not None:
+                    visit_expression(redirect.target, local_names)
             case ReturnStmt(value=value):
                 if value is not None:
                     visit_expression(value, local_names)

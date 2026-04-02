@@ -482,6 +482,15 @@ Acceptance:
 - currently reviewed out-of-surface POSIX cases move into claimed support or
   remain explicitly deferred in `SPEC.md`
 
+### T-160 Output Redirection Result
+
+- `print` and literal-format `printf` now support `>`, `>>`, and `|` in both
+  the host runtime and the reusable backend/runtime path
+- `close()` now closes redirected files and pipes by the same AWK string used
+  to open them
+- `SPEC.md` now treats output redirection and pipe output as part of the
+  claimed surface
+
 #### POSIX-012: Close reviewed `printf` parity gaps
 
 Scope:

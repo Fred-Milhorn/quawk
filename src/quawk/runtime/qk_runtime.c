@@ -42,6 +42,7 @@ struct qk_runtime {
     size_t scratch_capacity;
     struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
+    struct qk_output_entry *outputs;
 };
 
 enum qk_scalar_kind {
@@ -70,9 +71,20 @@ struct qk_array {
     struct qk_array *next;
 };
 
+struct qk_output_entry {
+    char *name;
+    int32_t mode;
+    bool is_pipe;
+    FILE *handle;
+    struct qk_output_entry *next;
+};
+
 static const char QK_EMPTY_FIELD[] = "";
 static const char QK_DEFAULT_OFMT[] = "%.6g";
 static const char QK_DEFAULT_CONVFMT[] = "%.6g";
+static const int32_t QK_OUTPUT_WRITE = 1;
+static const int32_t QK_OUTPUT_APPEND = 2;
+static const int32_t QK_OUTPUT_PIPE = 3;
 
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 
@@ -155,6 +167,55 @@ static void qk_free_arrays(struct qk_array *array)
         free(array);
         array = next;
     }
+}
+
+static double qk_close_output_entry(struct qk_output_entry *entry)
+{
+    int close_result;
+
+    if ((entry == NULL) || (entry->handle == NULL)) {
+        return -1.0;
+    }
+
+    if (entry->is_pipe) {
+        close_result = pclose(entry->handle);
+    } else {
+        close_result = fclose(entry->handle);
+    }
+    entry->handle = NULL;
+    if (close_result < 0) {
+        return -1.0;
+    }
+    return (double)close_result;
+}
+
+static void qk_free_outputs(struct qk_output_entry *entry)
+{
+    while (entry != NULL) {
+        struct qk_output_entry *next = entry->next;
+        (void)qk_close_output_entry(entry);
+        free(entry->name);
+        free(entry);
+        entry = next;
+    }
+}
+
+static struct qk_output_entry *qk_find_output(qk_runtime *runtime, const char *name, int32_t mode)
+{
+    struct qk_output_entry *entry;
+
+    if ((runtime == NULL) || (name == NULL)) {
+        return NULL;
+    }
+
+    entry = runtime->outputs;
+    while (entry != NULL) {
+        if ((entry->mode == mode) && (entry->name != NULL) && (strcmp(entry->name, name) == 0)) {
+            return entry;
+        }
+        entry = entry->next;
+    }
+    return NULL;
 }
 
 static struct qk_scalar_entry *qk_find_scalar(qk_runtime *runtime, const char *name, bool create)
@@ -651,6 +712,7 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->scratch_buffer);
     qk_free_scalars(runtime->scalars);
     qk_free_arrays(runtime->arrays);
+    qk_free_outputs(runtime->outputs);
     free(runtime);
 }
 
@@ -786,6 +848,116 @@ void qk_set_field_number(qk_runtime *runtime, int64_t index, double value)
     qk_set_field_string(runtime, index, qk_format_number(runtime, value));
 }
 
+FILE *qk_open_output(qk_runtime *runtime, const char *target, int32_t mode)
+{
+    struct qk_output_entry *entry;
+    const char *file_mode;
+
+    if ((runtime == NULL) || (target == NULL)) {
+        return NULL;
+    }
+
+    entry = qk_find_output(runtime, target, mode);
+    if (entry != NULL) {
+        return entry->handle;
+    }
+
+    entry = calloc(1U, sizeof(*entry));
+    if (entry == NULL) {
+        return NULL;
+    }
+    entry->name = qk_strdup_or_null(target);
+    if (entry->name == NULL) {
+        free(entry);
+        return NULL;
+    }
+    entry->mode = mode;
+    entry->is_pipe = mode == QK_OUTPUT_PIPE;
+
+    if (mode == QK_OUTPUT_PIPE) {
+        entry->handle = popen(target, "w");
+    } else {
+        file_mode = mode == QK_OUTPUT_APPEND ? "a" : (mode == QK_OUTPUT_WRITE ? "w" : "w");
+        entry->handle = fopen(target, file_mode);
+    }
+    if (entry->handle == NULL) {
+        free(entry->name);
+        free(entry);
+        return NULL;
+    }
+
+    entry->next = runtime->outputs;
+    runtime->outputs = entry;
+    return entry->handle;
+}
+
+double qk_close_output(qk_runtime *runtime, const char *target)
+{
+    struct qk_output_entry *entry;
+    struct qk_output_entry *previous;
+    double result = -1.0;
+    bool found = false;
+
+    if ((runtime == NULL) || (target == NULL)) {
+        return -1.0;
+    }
+
+    previous = NULL;
+    entry = runtime->outputs;
+    while (entry != NULL) {
+        struct qk_output_entry *next = entry->next;
+        if ((entry->name != NULL) && (strcmp(entry->name, target) == 0)) {
+            found = true;
+            result = qk_close_output_entry(entry);
+            if (previous == NULL) {
+                runtime->outputs = next;
+            } else {
+                previous->next = next;
+            }
+            free(entry->name);
+            free(entry);
+            entry = next;
+            continue;
+        }
+        previous = entry;
+        entry = next;
+    }
+
+    return found ? result : -1.0;
+}
+
+void qk_write_output_string(FILE *handle, const char *value)
+{
+    if (handle == NULL) {
+        return;
+    }
+    fputs(value == NULL ? "" : value, handle);
+}
+
+void qk_write_output_number(qk_runtime *runtime, FILE *handle, double value)
+{
+    if (handle == NULL) {
+        return;
+    }
+    fputs(qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "OFMT", QK_DEFAULT_OFMT)), handle);
+}
+
+void qk_write_output_separator(qk_runtime *runtime, FILE *handle)
+{
+    if (handle == NULL) {
+        return;
+    }
+    fputs(qk_output_variable_text(runtime, "OFS", " "), handle);
+}
+
+void qk_write_output_record_separator(qk_runtime *runtime, FILE *handle)
+{
+    if (handle == NULL) {
+        return;
+    }
+    fputs(qk_output_variable_text(runtime, "ORS", "\n"), handle);
+}
+
 void qk_print_string(qk_runtime *runtime, const char *value)
 {
     qk_print_string_fragment(runtime, value);
@@ -801,22 +973,22 @@ void qk_print_number(qk_runtime *runtime, double value)
 void qk_print_string_fragment(qk_runtime *runtime, const char *value)
 {
     (void)runtime;
-    fputs(value == NULL ? "" : value, stdout);
+    qk_write_output_string(stdout, value);
 }
 
 void qk_print_number_fragment(qk_runtime *runtime, double value)
 {
-    fputs(qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "OFMT", QK_DEFAULT_OFMT)), stdout);
+    qk_write_output_number(runtime, stdout, value);
 }
 
 void qk_print_output_separator(qk_runtime *runtime)
 {
-    fputs(qk_output_variable_text(runtime, "OFS", " "), stdout);
+    qk_write_output_separator(runtime, stdout);
 }
 
 void qk_print_output_record_separator(qk_runtime *runtime)
 {
-    fputs(qk_output_variable_text(runtime, "ORS", "\n"), stdout);
+    qk_write_output_record_separator(runtime, stdout);
 }
 
 void qk_nextfile(qk_runtime *runtime)

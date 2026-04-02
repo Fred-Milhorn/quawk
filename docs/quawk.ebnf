@@ -58,8 +58,11 @@ simple_stmt         ::= print_stmt
                       | printf_stmt
                       | expr
 
-print_stmt          ::= "print" expr_list?
-printf_stmt         ::= "printf" expr ("," expr)*
+print_stmt          ::= "print" expr_list? output_redirect?
+printf_stmt         ::= "printf" expr ("," expr)* output_redirect?
+output_redirect     ::= ">" expr
+                      | ">>" expr
+                      | "|" expr
 
 subscript_list      ::= expr ("," expr)*
 lvalue              ::= IDENT

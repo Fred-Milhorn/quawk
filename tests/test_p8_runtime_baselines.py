@@ -114,6 +114,34 @@ def test_concatenation_honors_convfmt_for_numeric_to_string_coercion() -> None:
     assert result.stderr == ""
 
 
+def test_print_file_redirection_append_and_close(tmp_path: Path) -> None:
+    output_path = tmp_path / "out.txt"
+
+    result = run_quawk(
+        (
+            f'BEGIN {{ print "x" > "{output_path}"; close("{output_path}"); '
+            f'print "y" >> "{output_path}"; close("{output_path}") }}'
+        )
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert output_path.read_text(encoding="utf-8") == "x\ny\n"
+
+
+def test_print_pipe_output_and_close(tmp_path: Path) -> None:
+    output_path = tmp_path / "pipe.txt"
+    command = f"cat > {output_path}"
+
+    result = run_quawk(f'BEGIN {{ print "x" | "{command}"; close("{command}") }}')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert output_path.read_text(encoding="utf-8") == "x\n"
+
+
 def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
     result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
 

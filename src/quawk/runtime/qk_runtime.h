@@ -9,6 +9,7 @@
 #ifndef QUAWK_RUNTIME_QK_RUNTIME_H
 #define QUAWK_RUNTIME_QK_RUNTIME_H
 
+#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -45,6 +46,12 @@ void qk_print_string_fragment(qk_runtime *runtime, const char *value);
 void qk_print_number_fragment(qk_runtime *runtime, double value);
 void qk_print_output_separator(qk_runtime *runtime);
 void qk_print_output_record_separator(qk_runtime *runtime);
+FILE *qk_open_output(qk_runtime *runtime, const char *target, int32_t mode);
+double qk_close_output(qk_runtime *runtime, const char *target);
+void qk_write_output_string(FILE *handle, const char *value);
+void qk_write_output_number(qk_runtime *runtime, FILE *handle, double value);
+void qk_write_output_separator(qk_runtime *runtime, FILE *handle);
+void qk_write_output_record_separator(qk_runtime *runtime, FILE *handle);
 
 /* Record-control support for the reusable backend/runtime path. */
 void qk_nextfile(qk_runtime *runtime);

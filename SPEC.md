@@ -62,7 +62,7 @@ Evidence:
 | `OFS` / `ORS` driven print behavior | implemented | Output-field and output-record separator behavior is part of the current claimed surface. |
 | `printf` basic execution | implemented | Literal-format `printf` is part of the current claimed AOT-backed surface. |
 | Full POSIX `printf` parity | partial | Reviewed formatting and expression-combination gaps remain. |
-| Output redirection and pipe output | planned | `print` / `printf` redirection and `close()` are not part of the current claimed surface yet. |
+| Output redirection and pipe output | implemented | `print` / `printf` now support `>`, `>>`, `|`, and `close()` for the current claimed literal-format output surface. |
 | Multi-file input processing | implemented | Includes `FNR` reset and `FILENAME` updates. |
 
 ## Builtin Variables and Builtins
@@ -73,7 +73,7 @@ Evidence:
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
 | Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and related POSIX variables are not implemented yet. |
-| Current builtin subset | implemented | `length`, `split`, and `substr` are part of the current claimed surface. |
+| Current builtin subset | implemented | `close`, `length`, `split`, and `substr` are part of the current claimed surface. |
 | POSIX string and regex builtins | planned | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` are not claimed yet. |
 | POSIX numeric and system builtins | planned | `int`, `rand`, `srand`, `system`, and remaining POSIX math builtins are not claimed yet. |
 | `getline` | planned | POSIX `getline` support is not claimed yet. |

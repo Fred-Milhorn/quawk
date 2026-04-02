@@ -647,6 +647,16 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_formatting_variable_progr
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs() -> None:
+    result = run_quawk('--ir', 'BEGIN { print "x" > "out"; printf "%s", "y" >> "out"; close("out") }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_open_output(" in result.stdout
+    assert "@qk_close_output(" in result.stdout
+    assert "@fprintf(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
@@ -693,6 +703,22 @@ def test_quawk_executes_supported_nextfile_program_through_backend(tmp_path: Pat
     assert result.returncode == 0, result.stderr
     assert result.stdout == "a\nc\n"
     assert result.stderr == ""
+
+
+def test_quawk_executes_supported_output_redirect_program_through_backend(tmp_path: Path) -> None:
+    output_path = tmp_path / "out.txt"
+
+    result = run_quawk(
+        (
+            f'BEGIN {{ print "x" > "{output_path}"; close("{output_path}"); '
+            f'printf "%s", "y" >> "{output_path}"; close("{output_path}") }}'
+        )
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == ""
+    assert output_path.read_text(encoding="utf-8") == "x\ny"
 
 
 def test_quawk_executes_supported_exit_program_with_end() -> None:

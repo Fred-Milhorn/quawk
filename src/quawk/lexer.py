@@ -39,9 +39,11 @@ class TokenKind(Enum):
     LESS_EQUAL = auto()
     GREATER = auto()
     GREATER_EQUAL = auto()
+    GREATER_GREATER = auto()
     EQUAL_EQUAL = auto()
     NOT_EQUAL = auto()
     OR_OR = auto()
+    PIPE = auto()
     AND_AND = auto()
     MATCH = auto()
     NOT_MATCH = auto()
@@ -120,9 +122,11 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
     TokenKind.LESS_EQUAL: "<=",
     TokenKind.GREATER: ">",
     TokenKind.GREATER_EQUAL: ">=",
+    TokenKind.GREATER_GREATER: ">>",
     TokenKind.EQUAL_EQUAL: "==",
     TokenKind.NOT_EQUAL: "!=",
     TokenKind.OR_OR: "||",
+    TokenKind.PIPE: "|",
     TokenKind.AND_AND: "&&",
     TokenKind.MATCH: "~",
     TokenKind.NOT_MATCH: "!~",
@@ -159,6 +163,7 @@ FIXED_TOKEN_TEXT: dict[TokenKind, str] = {
 PUNCTUATION_KINDS: dict[str, TokenKind] = {
     "<": TokenKind.LESS,
     ">": TokenKind.GREATER,
+    "|": TokenKind.PIPE,
     "+": TokenKind.PLUS,
     "-": TokenKind.MINUS,
     "*": TokenKind.STAR,
@@ -183,6 +188,7 @@ PUNCTUATION_KINDS: dict[str, TokenKind] = {
 MULTI_CHAR_TOKEN_KINDS: dict[str, TokenKind] = {
     "<=": TokenKind.LESS_EQUAL,
     ">=": TokenKind.GREATER_EQUAL,
+    ">>": TokenKind.GREATER_GREATER,
     "==": TokenKind.EQUAL_EQUAL,
     "!=": TokenKind.NOT_EQUAL,
     "||": TokenKind.OR_OR,

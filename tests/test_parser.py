@@ -40,6 +40,7 @@ from quawk.parser import (
     NextFileStmt,
     NextStmt,
     NumericLiteralExpr,
+    OutputRedirectKind,
     PatternAction,
     PostfixExpr,
     PostfixOp,
@@ -559,6 +560,34 @@ def test_parses_printf_expr_stmt_and_assignment_forms() -> None:
     update_stmt = action.statements[2]
     assert isinstance(update_stmt, AssignStmt)
     assert update_stmt.op is AssignOp.ADD
+
+
+def test_parses_print_and_printf_output_redirects() -> None:
+    program = parse(lex('BEGIN { print "x" > "out"; printf "%s", "y" >> "out"; print "z" | "cat"; close("out") }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    print_stmt = action.statements[0]
+    assert isinstance(print_stmt, PrintStmt)
+    assert print_stmt.redirect is not None
+    assert print_stmt.redirect.kind is OutputRedirectKind.WRITE
+    assert isinstance(print_stmt.redirect.target, StringLiteralExpr)
+
+    printf_stmt = action.statements[1]
+    assert isinstance(printf_stmt, PrintfStmt)
+    assert printf_stmt.redirect is not None
+    assert printf_stmt.redirect.kind is OutputRedirectKind.APPEND
+
+    pipe_stmt = action.statements[2]
+    assert isinstance(pipe_stmt, PrintStmt)
+    assert pipe_stmt.redirect is not None
+    assert pipe_stmt.redirect.kind is OutputRedirectKind.PIPE
+
+    close_stmt = action.statements[3]
+    assert isinstance(close_stmt, ExprStmt)
+    assert isinstance(close_stmt.value, CallExpr)
+    assert close_stmt.value.function == "close"
 
 
 def test_parses_dynamic_fields_multi_subscripts_and_delete_name() -> None:

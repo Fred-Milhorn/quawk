@@ -144,6 +144,12 @@ class BinaryOp(Enum):
     CONCAT = auto()
 
 
+class OutputRedirectKind(Enum):
+    WRITE = auto()
+    APPEND = auto()
+    PIPE = auto()
+
+
 @dataclass(frozen=True)
 class BinaryExpr:
     left: Expr
@@ -212,15 +218,24 @@ Expr: TypeAlias = (
 
 
 @dataclass(frozen=True)
+class OutputRedirect:
+    kind: OutputRedirectKind
+    target: Expr
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class PrintStmt:
     arguments: tuple[Expr, ...]
     span: SourceSpan
+    redirect: OutputRedirect | None = None
 
 
 @dataclass(frozen=True)
 class PrintfStmt:
     arguments: tuple[Expr, ...]
     span: SourceSpan
+    redirect: OutputRedirect | None = None
 
 
 @dataclass(frozen=True)
@@ -524,11 +539,17 @@ def format_statement(statement: Stmt, indent: str) -> list[str]:
             lines = [f"{indent}PrintStmt span={statement.span.format_start()}"]
             for argument in statement.arguments:
                 lines.extend(format_expression(argument, indent + "  "))
+            if statement.redirect is not None:
+                lines.append(f"{indent}  Redirect kind={statement.redirect.kind.name}")
+                lines.extend(format_expression(statement.redirect.target, indent + "    "))
             return lines
         case PrintfStmt():
             lines = [f"{indent}PrintfStmt span={statement.span.format_start()}"]
             for argument in statement.arguments:
                 lines.extend(format_expression(argument, indent + "  "))
+            if statement.redirect is not None:
+                lines.append(f"{indent}  Redirect kind={statement.redirect.kind.name}")
+                lines.extend(format_expression(statement.redirect.target, indent + "    "))
             return lines
         case AssignStmt():
             lines = [
@@ -942,14 +963,28 @@ class Parser:
         print_token = self.expect(TokenKind.PRINT)
         if self.is_statement_terminator():
             return PrintStmt(arguments=(), span=print_token.span)
-        arguments = self.parse_expression_list()
-        return PrintStmt(arguments=tuple(arguments), span=combine_spans(print_token.span, arguments[-1].span))
+        arguments: list[Expr] = []
+        if not self.is_output_redirect_start():
+            arguments = self.parse_expression_list(PRINT_REDIRECT_START_KINDS)
+        redirect = self.parse_output_redirect() if self.is_output_redirect_start() else None
+        statement_end = redirect.span if redirect is not None else arguments[-1].span
+        return PrintStmt(
+            arguments=tuple(arguments),
+            redirect=redirect,
+            span=combine_spans(print_token.span, statement_end),
+        )
 
     def parse_printf_statement(self) -> PrintfStmt:
         """Parse a `printf` statement."""
         printf_token = self.expect(TokenKind.PRINTF)
-        arguments = self.parse_expression_list()
-        return PrintfStmt(arguments=tuple(arguments), span=combine_spans(printf_token.span, arguments[-1].span))
+        arguments = self.parse_expression_list(PRINT_REDIRECT_START_KINDS)
+        redirect = self.parse_output_redirect() if self.is_output_redirect_start() else None
+        statement_end = redirect.span if redirect is not None else arguments[-1].span
+        return PrintfStmt(
+            arguments=tuple(arguments),
+            redirect=redirect,
+            span=combine_spans(printf_token.span, statement_end),
+        )
 
     def parse_assignment_statement(self) -> AssignStmt:
         """Parse an assignment statement in the current statement position."""
@@ -999,9 +1034,9 @@ class Parser:
         value = self.parse_expression()
         return ReturnStmt(value=value, span=combine_spans(return_token.span, value.span))
 
-    def parse_expression(self) -> Expr:
+    def parse_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse an expression with the current precedence rules."""
-        return self.parse_assignment_expression()
+        return self.parse_assignment_expression(stop_kinds)
 
     def parse_parenthesized_expression(self) -> Expr:
         """Parse a parenthesized expression used by control-flow statements."""
@@ -1010,9 +1045,9 @@ class Parser:
         self.expect(TokenKind.RPAREN)
         return expression
 
-    def parse_assignment_expression(self) -> Expr:
+    def parse_assignment_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse assignment expressions with right associativity."""
-        expression = self.parse_conditional_expression()
+        expression = self.parse_conditional_expression(stop_kinds)
         if self.current().kind in ASSIGNMENT_TOKEN_KINDS:
             target = expression_to_lvalue(expression)
             if target is None:
@@ -1027,9 +1062,9 @@ class Parser:
             )
         return expression
 
-    def parse_conditional_expression(self) -> Expr:
+    def parse_conditional_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse ternary conditional expressions."""
-        expression = self.parse_logical_or_expression()
+        expression = self.parse_logical_or_expression(stop_kinds)
         if not self.check(TokenKind.QUESTION):
             return expression
         self.advance()
@@ -1043,12 +1078,12 @@ class Parser:
             span=combine_spans(expression.span, if_false.span),
         )
 
-    def parse_logical_or_expression(self) -> Expr:
+    def parse_logical_or_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse logical-OR expressions."""
-        expression = self.parse_logical_and_expression()
+        expression = self.parse_logical_and_expression(stop_kinds)
         while self.check(TokenKind.OR_OR):
             self.advance()
-            right = self.parse_logical_and_expression()
+            right = self.parse_logical_and_expression(stop_kinds)
             expression = BinaryExpr(
                 left=expression,
                 op=BinaryOp.LOGICAL_OR,
@@ -1057,12 +1092,12 @@ class Parser:
             )
         return expression
 
-    def parse_logical_and_expression(self) -> Expr:
+    def parse_logical_and_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse logical-AND expressions."""
-        expression = self.parse_comparison_expression()
+        expression = self.parse_comparison_expression(stop_kinds)
         while self.check(TokenKind.AND_AND):
             self.advance()
-            right = self.parse_comparison_expression()
+            right = self.parse_comparison_expression(stop_kinds)
             expression = BinaryExpr(
                 left=expression,
                 op=BinaryOp.LOGICAL_AND,
@@ -1071,10 +1106,12 @@ class Parser:
             )
         return expression
 
-    def parse_comparison_expression(self) -> Expr:
+    def parse_comparison_expression(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> Expr:
         """Parse equality and relational comparisons."""
         expression = self.parse_match_expression()
         while True:
+            if self.current().kind in stop_kinds:
+                return expression
             op = comparison_op_from_token(self.current().kind)
             if op is None:
                 return expression
@@ -1261,13 +1298,28 @@ class Parser:
             span=combine_spans(name_token.span, rbracket_token.span),
         )
 
-    def parse_expression_list(self) -> list[Expr]:
+    def parse_expression_list(self, stop_kinds: frozenset[TokenKind] = frozenset()) -> list[Expr]:
         """Parse a comma-separated expression list."""
-        expressions = [self.parse_expression()]
+        expressions = [self.parse_expression(stop_kinds)]
         while self.check(TokenKind.COMMA):
             self.advance()
-            expressions.append(self.parse_expression())
+            expressions.append(self.parse_expression(stop_kinds))
         return expressions
+
+    def parse_output_redirect(self) -> OutputRedirect:
+        """Parse one `print`/`printf` redirect tail."""
+        token = self.advance()
+        match token.kind:
+            case TokenKind.GREATER:
+                kind = OutputRedirectKind.WRITE
+            case TokenKind.GREATER_GREATER:
+                kind = OutputRedirectKind.APPEND
+            case TokenKind.PIPE:
+                kind = OutputRedirectKind.PIPE
+            case _:
+                raise ParseError(f"expected output redirect, got {token.kind.name}", token.span)
+        target = self.parse_expression()
+        return OutputRedirect(kind=kind, target=target, span=combine_spans(token.span, target.span))
 
     def parse_lvalue(self) -> LValue:
         """Parse one lvalue in expression or statement position."""
@@ -1340,6 +1392,10 @@ class Parser:
         """Report whether the current token ends the active simple statement."""
         return self.check(TokenKind.RBRACE) or self.check(TokenKind.NEWLINE) or self.check(TokenKind.SEMICOLON)
 
+    def is_output_redirect_start(self) -> bool:
+        """Report whether the current token starts a print/printf redirect tail."""
+        return self.current().kind in PRINT_REDIRECT_START_KINDS
+
 
 ASSIGNMENT_TOKEN_KINDS = {
     TokenKind.EQUAL,
@@ -1350,6 +1406,8 @@ ASSIGNMENT_TOKEN_KINDS = {
     TokenKind.PERCENT_EQUAL,
     TokenKind.CARET_EQUAL,
 }
+
+PRINT_REDIRECT_START_KINDS = frozenset({TokenKind.GREATER, TokenKind.GREATER_GREATER, TokenKind.PIPE})
 
 
 def assignment_op_from_token(kind: TokenKind) -> AssignOp:
