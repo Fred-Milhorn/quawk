@@ -562,6 +562,18 @@ def test_parses_printf_expr_stmt_and_assignment_forms() -> None:
     assert update_stmt.op is AssignOp.ADD
 
 
+def test_parses_parenthesized_printf_with_substr_argument() -> None:
+    program = parse(lex('BEGIN { printf("%-39s\\n", substr(x, 1, 39)) }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    printf_stmt = action.statements[0]
+    assert isinstance(printf_stmt, PrintfStmt)
+    assert isinstance(printf_stmt.arguments[0], StringLiteralExpr)
+    assert isinstance(printf_stmt.arguments[1], CallExpr)
+    assert printf_stmt.arguments[1].function == "substr"
+
+
 def test_parses_print_and_printf_output_redirects() -> None:
     program = parse(lex('BEGIN { print "x" > "out"; printf "%s", "y" >> "out"; print "z" | "cat"; close("out") }'))
 

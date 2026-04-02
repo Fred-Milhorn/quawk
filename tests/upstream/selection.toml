@@ -226,7 +226,7 @@ case_id = "p.5"
 path = "third_party/onetrueawk/testdir/p.5"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Exposes a `printf` string-width formatting mismatch in `quawk`; keep explicit until that formatting gap is evaluated."
+reason = "Depends on `FS = \"\\t\"` field splitting, which quawk still does not implement; keep explicit until the remaining builtin-variable gap closes."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -235,7 +235,7 @@ case_id = "p.5a"
 path = "third_party/onetrueawk/testdir/p.5a"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Exposes a `printf` string-width formatting mismatch in `quawk`; keep explicit until that formatting gap is evaluated."
+reason = "Depends on `FS = \"\\t\"` field splitting, which quawk still does not implement; keep explicit until the remaining builtin-variable gap closes."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -757,9 +757,8 @@ tags = ["posix", "split", "fields", "builtins"]
 suite = "gawk"
 case_id = "substr"
 path = "third_party/gawk/test/substr.awk"
-status = "skip"
+status = "run"
 adapter = "gawk-awk-ok"
-reason = "Still exposes a parser gap for three-argument `substr(...)` inside `printf`, so the direct fixture is not runnable in quawk yet."
 tags = ["posix", "substr", "builtins"]
 
 # Implemented-family coverage matrix.

@@ -657,6 +657,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs(
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_parenthesized_printf_with_substr() -> None:
+    result = run_quawk('--ir', 'BEGIN { x = "A"; printf("%-39s\\n", substr(x, 1, 39)) }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_substr3(" in result.stdout
+    assert "call i32 (ptr, ...) @printf(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 

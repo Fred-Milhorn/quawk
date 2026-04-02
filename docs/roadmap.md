@@ -383,8 +383,8 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-161` close the reviewed `printf` parity gaps
-2. `T-162` implement the missing POSIX string and regex builtins
+1. `T-162` implement the missing POSIX string and regex builtins
+2. `T-163` implement the missing POSIX numeric and system builtins
 
 ## Backlog
 
@@ -519,7 +519,7 @@ Priority values:
 | T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | done |
 | T-159 | P14 | P0 | Implement POSIX formatting variables | T-158 | `OFMT` and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | done |
 | T-160 | P14 | P1 | Implement POSIX output redirection and pipe output | T-158 | `print` / `printf` support `>`, `>>`, `|`, and `close()` for the forms claimed in `SPEC.md` | done |
-| T-161 | P14 | P0 | Close the reviewed `printf` parity gaps | T-158, T-159 | The reviewed formatting and `substr(..., ..., ...)`-inside-`printf` mismatches are fixed or replaced with narrower classified gaps | todo |
+| T-161 | P14 | P0 | Close the reviewed `printf` parity gaps | T-158, T-159 | The reviewed formatting and `substr(..., ..., ...)`-inside-`printf` mismatches are fixed or replaced with narrower classified gaps | done |
 | T-162 | P14 | P0 | Implement the missing POSIX string and regex builtins | T-157 | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` have parser, runtime, and compatibility coverage | todo |
 | T-163 | P14 | P1 | Implement the missing POSIX numeric and system builtins | T-157 | `int`, `rand`, `srand`, `system`, and any remaining required POSIX math builtins are covered by direct and compatibility tests | todo |
 | T-164 | P14 | P0 | Implement `getline`, the remaining builtin variables, and CLI or environment preassignment behavior | T-157 | `getline`, `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and string-valued `-v` behave as claimed and are covered by tests | todo |

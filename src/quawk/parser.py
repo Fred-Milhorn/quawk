@@ -977,9 +977,16 @@ class Parser:
     def parse_printf_statement(self) -> PrintfStmt:
         """Parse a `printf` statement."""
         printf_token = self.expect(TokenKind.PRINTF)
-        arguments = self.parse_expression_list(PRINT_REDIRECT_START_KINDS)
+        if self.check(TokenKind.LPAREN):
+            self.advance()
+            arguments = self.parse_expression_list(frozenset({TokenKind.RPAREN}))
+            rparen_token = self.expect(TokenKind.RPAREN)
+            statement_end_span = rparen_token.span
+        else:
+            arguments = self.parse_expression_list(PRINT_REDIRECT_START_KINDS)
+            statement_end_span = arguments[-1].span
         redirect = self.parse_output_redirect() if self.is_output_redirect_start() else None
-        statement_end = redirect.span if redirect is not None else arguments[-1].span
+        statement_end = redirect.span if redirect is not None else statement_end_span
         return PrintfStmt(
             arguments=tuple(arguments),
             redirect=redirect,

@@ -93,6 +93,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:divzero2" in case_ids
     assert "gawk:exit2" in case_ids
     assert "gawk:numsubstr" in case_ids
+    assert "gawk:substr" in case_ids
     assert "gawk:strfieldnum" in case_ids
     assert "one-true-awk:p.1" not in case_ids
     assert "one-true-awk:p.43" not in case_ids

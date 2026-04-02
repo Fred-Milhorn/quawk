@@ -504,6 +504,15 @@ Acceptance:
 - the reviewed `p.5` / `p.5a` class of upstream skips is either promoted or
   replaced by more specific classified gaps
 
+### T-161 Printf Parity Result
+
+- parenthesized `printf(...)` now parses and executes through both the host
+  runtime and the reusable backend/runtime path
+- the reviewed `gawk:substr` case is now runnable because three-argument
+  `substr(...)` inside `printf` is no longer blocked by the parser
+- the older `p.5` / `p.5a` skips were narrowed to the real remaining gap:
+  `FS = "\t"` field splitting, not `printf` string-width formatting
+
 ### Builtin Function Tasks
 
 #### POSIX-020: Enumerate the full POSIX builtin-function contract
