@@ -16,7 +16,8 @@ Status values:
 | Inline program text | implemented | `quawk 'BEGIN { print "hello" }'` |
 | `-f progfile` | implemented | Repeatable and ordered. |
 | `-F fs` | implemented | Field separator support is part of the public execution surface. |
-| `-v name=value` | partial | Numeric scalar values only. String-valued `-v` is not supported yet. |
+| `-v` numeric scalar preassignment | implemented | Numeric scalar preassignment is part of the current AOT-backed contract. |
+| `-v` string scalar preassignment | partial | String-valued `-v` is not supported yet. |
 | `--lex` / `--parse` | implemented | Stable human-readable inspection output. |
 | `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but not yet claimed POSIX forms can still fail inspection until the `P14` completion work lands. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
@@ -48,16 +49,33 @@ Evidence:
 - `tests/test_p10_grammar_alignment.py`
 - `docs/quawk.ebnf`
 
-## Runtime and Builtins
+## Runtime and Output
 
 | Area | Status | Notes |
 |---|---|---|
 | Mixed `BEGIN` / record / `END` sequencing | implemented | Includes empty-input behavior. |
 | AWK-style unset scalar/array value rules | implemented | Numeric contexts read as `0`, string/print contexts read as `""`. |
 | AWK string/number coercions | implemented | Includes string truthiness and concatenation behavior. |
-| Builtin variables | implemented | `NR`, `FNR`, `NF`, `FILENAME` |
-| Builtins | partial | Current shipped subset is `length`, `split`, and `substr`; broader POSIX builtin coverage is not claimed yet. |
+| Single-argument `print expr` | implemented | The current claimed output surface is one explicit `print` argument. |
+| Bare `print` / implicit `$0` | partial | POSIX bare `print` is not implemented yet. |
+| Multi-argument `print` | partial | POSIX multi-argument `print` is not implemented yet. |
+| `OFS` / `ORS` driven print behavior | partial | Output-field and output-record separator behavior is not implemented yet. |
+| `printf` basic execution | implemented | Literal-format `printf` is part of the current claimed AOT-backed surface. |
+| Full POSIX `printf` parity | partial | Reviewed formatting and expression-combination gaps remain. |
+| Output redirection and pipe output | planned | `print` / `printf` redirection and `close()` are not part of the current claimed surface yet. |
 | Multi-file input processing | implemented | Includes `FNR` reset and `FILENAME` updates. |
+
+## Builtin Variables and Builtins
+
+| Area | Status | Notes |
+|---|---|---|
+| Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
+| Output and formatting builtin variables | partial | `OFS`, `ORS`, `OFMT`, and `CONVFMT` are not implemented yet. |
+| Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and related POSIX variables are not implemented yet. |
+| Current builtin subset | implemented | `length`, `split`, and `substr` are part of the current claimed surface. |
+| POSIX string and regex builtins | planned | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` are not claimed yet. |
+| POSIX numeric and system builtins | planned | `int`, `rand`, `srand`, `system`, and remaining POSIX math builtins are not claimed yet. |
+| `getline` | planned | POSIX `getline` support is not claimed yet. |
 
 Evidence:
 - `tests/test_p3_mixed_programs.py`
@@ -73,6 +91,7 @@ Evidence:
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
 | Backend parity for every claimed execution path | implemented | The checked-in architecture audit and focused CLI/JIT parity tests now require every currently claimed execution family to stay on the compiled backend/runtime path. |
+| Backend parity for broader frontend-admitted POSIX forms | partial | Frontend-admitted but unclaimed POSIX forms such as `-`, `*`, `/`, `%`, `^`, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in` are still outside the current AOT-backed contract. |
 | Representative user-defined functions through `--ir` / `--asm` | implemented | The direct-BEGIN numeric function subset now supports inspection output. |
 | Representative `nextfile`, `exit`, and scalar-string families through `--ir` / `--asm` | implemented | Inspection now works for the representative completed control and coercion families covered by the architecture audit. |
 

@@ -383,8 +383,8 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-157` align `SPEC.md` with expected POSIX behavior before feature-gap closure work continues
-2. `T-158` implement full POSIX `print` behavior
+1. `T-158` implement full POSIX `print` behavior
+2. `T-159` implement POSIX output and formatting variables
 
 ## Backlog
 
@@ -515,7 +515,7 @@ Priority values:
 | T-154 | P13 | P1 | Fold Python-fallback removal into the remaining backend-parity wave instead of landing it as a standalone regression step | T-153 | Roadmap, POSIX plan, and follow-on tasks treat fallback removal as part of the same implementation wave that closes the remaining claimed backend gaps | done |
 | T-155 | P13 | P1 | Close the remaining audited claimed backend-execution and `--ir` / `--asm` parity gaps as one implementation wave | T-151, T-152, T-153 | The remaining audited claimed families gain compiled execution plus inspection support, leaving `T-156` to rebaseline the broader AOT-only contract docs and fallback story | done |
 | T-156 | P13 | P1 | Add the architecture audit gate and rebaseline the docs for the AOT-only contract | T-155 | Tests, `SPEC.md`, and `docs/design.md` all prove that Python is compile/orchestration only for claimed AWK semantics | done |
-| T-157 | P14 | P0 | Audit and split `SPEC.md` rows for POSIX-facing feature families | T-156 | `SPEC.md` no longer hides known POSIX gaps behind broad rows for `print`, builtins, builtin variables, CLI variables, or backend parity | todo |
+| T-157 | P14 | P0 | Audit and split `SPEC.md` rows for POSIX-facing feature families | T-156 | `SPEC.md` no longer hides known POSIX gaps behind broad rows for `print`, builtins, builtin variables, CLI variables, or backend parity | done |
 | T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | todo |
 | T-159 | P14 | P0 | Implement POSIX output and formatting variables | T-158 | `OFS`, `ORS`, `OFMT`, and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | todo |
 | T-160 | P14 | P1 | Implement POSIX output redirection and pipe output | T-158 | `print` / `printf` support `>`, `>>`, `|`, and `close()` for the forms claimed in `SPEC.md` | todo |

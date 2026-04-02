@@ -385,6 +385,21 @@ What landed:
 - the roadmap now treats `P13` as complete and advances the next deliverable to
   `P14` POSIX compatibility completion
 
+### T-157 SPEC Posix-Facing Split Result
+
+`T-157` is now complete.
+
+What landed:
+
+- `SPEC.md` now splits the old broad CLI-variable row into numeric and string
+  `-v` behavior so the unsupported string-preassignment gap is explicit
+- the old output/builtin compression is now split into single-argument
+  `print`, bare `print`, multi-argument `print`, separator-variable behavior,
+  `printf` parity, output redirection, builtin-variable families, builtin
+  families, and `getline`
+- backend parity now distinguishes the claimed AOT-backed surface from broader
+  frontend-admitted POSIX forms that are still outside the current contract
+
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 
 Task IDs below are proposed planning IDs for POSIX work. They do not replace
