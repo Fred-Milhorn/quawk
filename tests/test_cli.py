@@ -426,7 +426,7 @@ def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "declare i32 @printf(ptr, ...)" in result.stdout
-    assert "@.fmt.num = private unnamed_addr constant [4 x i8] c\"\\25\\67\\0A\\00\"" in result.stdout
+    assert "@.fmt.num = private unnamed_addr constant [6 x i8] c\"\\25\\2E\\36\\67\\0A\\00\"" in result.stdout
     assert "fadd double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
     assert "call i32 (ptr, ...) @printf(ptr %fmtptr.0, double %add.1)" in result.stdout
     assert result.stderr == ""
@@ -638,6 +638,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_print_surface_programs() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_formatting_variable_programs() -> None:
+    result = run_quawk("--ir", 'BEGIN { OFMT = "%.2f"; CONVFMT = "%.3f"; print 1.2345; print 1.2345 "" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_print_number_fragment(" in result.stdout
+    assert "@qk_format_number(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
@@ -707,6 +716,14 @@ def test_quawk_executes_supported_print_surface_program_through_backend() -> Non
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "1,2!!"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_formatting_variable_program_through_backend() -> None:
+    result = run_quawk('BEGIN { OFMT = "%.2f"; CONVFMT = "%.3f"; print 1.2345; print 1.2345 "" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1.23\n1.234\n"
     assert result.stderr == ""
 
 

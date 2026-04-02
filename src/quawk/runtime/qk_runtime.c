@@ -71,6 +71,10 @@ struct qk_array {
 };
 
 static const char QK_EMPTY_FIELD[] = "";
+static const char QK_DEFAULT_OFMT[] = "%.6g";
+static const char QK_DEFAULT_CONVFMT[] = "%.6g";
+
+static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 
 static char *qk_strdup_or_null(const char *text)
 {
@@ -121,6 +125,24 @@ static void qk_free_scalars(struct qk_scalar_entry *entry)
         free(entry->string);
         free(entry);
         entry = next;
+    }
+}
+
+static void qk_invalidate_numeric_string_cache(qk_runtime *runtime)
+{
+    struct qk_scalar_entry *entry;
+
+    if (runtime == NULL) {
+        return;
+    }
+
+    entry = runtime->scalars;
+    while (entry != NULL) {
+        if (entry->kind == QK_SCALAR_NUMBER) {
+            free(entry->string);
+            entry->string = NULL;
+        }
+        entry = entry->next;
     }
 }
 
@@ -193,6 +215,9 @@ static bool qk_scalar_set_string_value(qk_runtime *runtime, const char *name, co
     entry->string = copy;
     entry->number = 0.0;
     entry->kind = QK_SCALAR_STRING;
+    if (strcmp(name, "CONVFMT") == 0) {
+        qk_invalidate_numeric_string_cache(runtime);
+    }
     return true;
 }
 
@@ -207,6 +232,9 @@ static bool qk_scalar_set_number_value(qk_runtime *runtime, const char *name, do
     entry->string = NULL;
     entry->number = value;
     entry->kind = QK_SCALAR_NUMBER;
+    if (strcmp(name, "CONVFMT") == 0) {
+        qk_invalidate_numeric_string_cache(runtime);
+    }
     return true;
 }
 
@@ -380,7 +408,6 @@ static bool qk_pointer_aliases_scratch(const qk_runtime *runtime, const char *te
 
 static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_entry *entry)
 {
-    char buffer[64];
     char *copy;
 
     if ((runtime == NULL) || (entry == NULL)) {
@@ -398,8 +425,7 @@ static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_e
         return entry->string;
     }
 
-    snprintf(buffer, sizeof(buffer), "%g", entry->number);
-    copy = qk_strdup_or_null(buffer);
+    copy = qk_strdup_or_null(qk_format_number(runtime, entry->number));
     if (copy == NULL) {
         return QK_EMPTY_FIELD;
     }
@@ -419,7 +445,34 @@ static const char *qk_output_variable_text(qk_runtime *runtime, const char *name
     if (entry == NULL) {
         return fallback == NULL ? QK_EMPTY_FIELD : fallback;
     }
-    return qk_scalar_string_view(runtime, entry);
+    if (entry->kind == QK_SCALAR_STRING) {
+        return entry->string == NULL ? QK_EMPTY_FIELD : entry->string;
+    }
+    return fallback == NULL ? QK_EMPTY_FIELD : fallback;
+}
+
+static const char *qk_format_number_with_text(qk_runtime *runtime, double value, const char *format_text)
+{
+    char buffer[256];
+    const char *effective_format = format_text;
+
+    if (runtime == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+    if ((effective_format == NULL) || (*effective_format == '\0')) {
+        effective_format = QK_DEFAULT_CONVFMT;
+    }
+
+    if (snprintf(buffer, sizeof(buffer), effective_format, value) < 0) {
+        if (strcmp(effective_format, QK_DEFAULT_CONVFMT) != 0) {
+            return qk_format_number_with_text(runtime, value, QK_DEFAULT_CONVFMT);
+        }
+        return QK_EMPTY_FIELD;
+    }
+    if (!qk_store_scratch(runtime, buffer, strlen(buffer))) {
+        return QK_EMPTY_FIELD;
+    }
+    return runtime->scratch_buffer;
 }
 
 static bool qk_push_field(qk_runtime *runtime, char *field_text)
@@ -568,6 +621,14 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
         return NULL;
     }
     if (!qk_scalar_set_string_value(runtime, "ORS", "\n")) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "OFMT", QK_DEFAULT_OFMT)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "CONVFMT", QK_DEFAULT_CONVFMT)) {
         qk_runtime_destroy(runtime);
         return NULL;
     }
@@ -722,9 +783,7 @@ void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value)
 
 void qk_set_field_number(qk_runtime *runtime, int64_t index, double value)
 {
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%g", value);
-    qk_set_field_string(runtime, index, buffer);
+    qk_set_field_string(runtime, index, qk_format_number(runtime, value));
 }
 
 void qk_print_string(qk_runtime *runtime, const char *value)
@@ -747,11 +806,7 @@ void qk_print_string_fragment(qk_runtime *runtime, const char *value)
 
 void qk_print_number_fragment(qk_runtime *runtime, double value)
 {
-    char buffer[64];
-
-    (void)runtime;
-    snprintf(buffer, sizeof(buffer), "%g", value);
-    fputs(buffer, stdout);
+    fputs(qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "OFMT", QK_DEFAULT_OFMT)), stdout);
 }
 
 void qk_print_output_separator(qk_runtime *runtime)
@@ -878,15 +933,7 @@ void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *so
 
 const char *qk_format_number(qk_runtime *runtime, double value)
 {
-    char buffer[64];
-    if (runtime == NULL) {
-        return QK_EMPTY_FIELD;
-    }
-    snprintf(buffer, sizeof(buffer), "%g", value);
-    if (!qk_store_scratch(runtime, buffer, strlen(buffer))) {
-        return QK_EMPTY_FIELD;
-    }
-    return runtime->scratch_buffer;
+    return qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "CONVFMT", QK_DEFAULT_CONVFMT));
 }
 
 const char *qk_concat(qk_runtime *runtime, const char *left, const char *right)
@@ -1071,12 +1118,10 @@ const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char
 
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value)
 {
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%g", value);
     if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
         return;
     }
-    (void)qk_array_set(runtime, array_name, key, buffer);
+    (void)qk_array_set(runtime, array_name, key, qk_format_number(runtime, value));
 }
 
 void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key)

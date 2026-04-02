@@ -199,8 +199,8 @@ upstream skips.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L6),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
-- standard variables such as `OFMT`, `CONVFMT`, `ARGC`, `ARGV`, `ENVIRON`,
-  `RSTART`, `RLENGTH`, and `SUBSEP` should be treated as missing
+- standard variables such as `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`,
+  and `SUBSEP` should be treated as missing
   until implemented and tested.
 - there is at least one reviewed builtin-variable sequencing mismatch:
   `END { print NR }`.
@@ -398,6 +398,19 @@ What landed:
 - the reusable backend/runtime path and the host runtime now share the same
   print-surface behavior, with focused CLI, JIT, runtime, and runtime-support
   tests covering the result
+
+### T-159 Formatting Variable Result
+
+`T-159` is now complete.
+
+What landed:
+
+- `OFMT` now controls numeric `print` formatting
+- `CONVFMT` now controls ordinary numeric-to-string coercion such as
+  concatenation and other string-oriented conversions
+- the host runtime and reusable backend/runtime path now share that formatting
+  behavior, including runtime-side formatting for array-key coercion and scalar
+  string views
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

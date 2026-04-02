@@ -30,7 +30,7 @@ def test_t157_spec_splits_builtin_and_backend_rows() -> None:
 
     assert "| Core builtin variables | implemented |" in spec_text
     assert "| Output separator builtin variables | implemented |" in spec_text
-    assert "| Formatting builtin variables | partial |" in spec_text
+    assert "| Formatting builtin variables | implemented |" in spec_text
     assert "| Remaining POSIX builtin variables | partial |" in spec_text
     assert "| Current builtin subset | implemented |" in spec_text
     assert "| POSIX string and regex builtins | planned |" in spec_text

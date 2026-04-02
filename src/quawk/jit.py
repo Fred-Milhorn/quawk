@@ -67,6 +67,9 @@ from .parser import (
     expression_to_lvalue,
 )
 
+DEFAULT_OFMT = "%.6g"
+DEFAULT_CONVFMT = "%.6g"
+
 
 @dataclass
 class LoweringState:
@@ -1692,7 +1695,11 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
         case NameExpr(name=name) if name in state.loop_string_bindings:
             return state.loop_string_bindings[name]
         case NumericLiteralExpr(value=value):
-            return lower_runtime_constant_string(format_numeric_value(value), state)
+            temp = state.next_temp("array.key.num")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {format_double_literal(value)})"
+            )
+            return temp
         case StringLiteralExpr(value=value):
             return lower_runtime_constant_string(value, state)
         case _:
@@ -2596,8 +2603,8 @@ def evaluate_value_expression(
                     return make_numeric_value(1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0)
                 case BinaryOp.CONCAT:
                     return make_string_value(
-                        coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope))
-                        + coerce_scalar_to_string(evaluate_value_expression(right, state, record, locals_scope))
+                        coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope), state)
+                        + coerce_scalar_to_string(evaluate_value_expression(right, state, record, locals_scope), state)
                     )
                 case BinaryOp.MATCH:
                     return make_numeric_value(
@@ -2769,7 +2776,7 @@ def evaluate_array_index(
             else evaluate_field_index(expression.index, state, record, locals_scope)
         )
         return resolve_field_value(field_index, record)
-    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope))
+    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope), state)
 
 
 def evaluate_string_expression(
@@ -2779,7 +2786,7 @@ def evaluate_string_expression(
     locals_scope: LocalScope | None,
 ) -> str:
     """Evaluate an expression into the string view needed by string-oriented builtins."""
-    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope))
+    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope), state)
 
 
 def read_scalar_value(
@@ -2930,13 +2937,33 @@ def coerce_scalar_to_number(value: AwkValue) -> float:
             return parse_awk_numeric_prefix(value.string)
 
 
-def coerce_scalar_to_string(value: AwkValue) -> str:
+def numeric_format_text(state: RuntimeState | None, variable_name: str, default: str) -> str:
+    """Return one numeric-format control variable, falling back to the default."""
+    if state is None:
+        return default
+    value = state.variables.get(variable_name)
+    if value is None or value.kind is not ValueKind.STRING:
+        return default
+    return value.string
+
+
+def format_numeric_value(value: float, format_text: str = DEFAULT_CONVFMT) -> str:
+    """Render one numeric value using the supplied AWK format string."""
+    try:
+        return format_text % value
+    except (TypeError, ValueError):
+        if format_text != DEFAULT_CONVFMT:
+            return format_numeric_value(value, DEFAULT_CONVFMT)
+        return f"{value:.6g}"
+
+
+def coerce_scalar_to_string(value: AwkValue, state: RuntimeState | None = None) -> str:
     """Coerce one runtime value into its string view."""
     match value.kind:
         case ValueKind.UNINITIALIZED:
             return ""
         case ValueKind.NUMBER:
-            return format_numeric_value(value.number)
+            return format_numeric_value(value.number, numeric_format_text(state, "CONVFMT", DEFAULT_CONVFMT))
         case ValueKind.STRING:
             return value.string
 
@@ -2957,7 +2984,20 @@ def output_variable_text(state: RuntimeState, name: str, default: str) -> str:
     value = state.variables.get(name)
     if value is None:
         return default
-    return coerce_scalar_to_string(value)
+    if value.kind is ValueKind.NUMBER and name in {"OFMT", "CONVFMT"}:
+        return default
+    return coerce_scalar_to_string(value, state)
+
+
+def coerce_print_value_to_string(value: AwkValue, state: RuntimeState | None = None) -> str:
+    """Coerce one runtime value to the text used by `print`."""
+    match value.kind:
+        case ValueKind.UNINITIALIZED:
+            return ""
+        case ValueKind.NUMBER:
+            return format_numeric_value(value.number, numeric_format_text(state, "OFMT", DEFAULT_OFMT))
+        case ValueKind.STRING:
+            return value.string
 
 
 def render_print_output(
@@ -2973,7 +3013,7 @@ def render_print_output(
 
     ofs = output_variable_text(state, "OFS", " ")
     rendered = [
-        coerce_scalar_to_string(evaluate_value_expression(argument, state, record, locals_scope))
+        coerce_print_value_to_string(evaluate_value_expression(argument, state, record, locals_scope), state)
         for argument in arguments
     ]
     return ofs.join(rendered) + ors
@@ -2987,6 +3027,8 @@ def initialize_builtin_variables(state: RuntimeState) -> None:
     state.variables["FILENAME"] = make_string_value(state.current_filename)
     state.variables["OFS"] = make_string_value(" ")
     state.variables["ORS"] = make_string_value("\n")
+    state.variables["OFMT"] = make_string_value(DEFAULT_OFMT)
+    state.variables["CONVFMT"] = make_string_value(DEFAULT_CONVFMT)
 
 
 def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
@@ -3030,8 +3072,8 @@ def compare_values(
     right_value = evaluate_value_expression(right, state, record, locals_scope)
 
     if left_value.kind is ValueKind.STRING or right_value.kind is ValueKind.STRING:
-        left_string = coerce_scalar_to_string(left_value)
-        right_string = coerce_scalar_to_string(right_value)
+        left_string = coerce_scalar_to_string(left_value, state)
+        right_string = coerce_scalar_to_string(right_value, state)
         match op:
             case BinaryOp.LESS:
                 return left_string < right_string
@@ -3077,7 +3119,7 @@ def evaluate_match_expression(
     """Evaluate one string/regex match expression in the host runtime."""
     left_string = evaluate_string_expression(left, state, record, locals_scope)
     right_value = evaluate_value_expression(right, state, record, locals_scope)
-    pattern_text = coerce_scalar_to_string(right_value)
+    pattern_text = coerce_scalar_to_string(right_value, state)
     if isinstance(right, RegexLiteralExpr):
         pattern_text = right.raw_text[1:-1]
     return re.search(pattern_text, left_string) is not None
@@ -3093,7 +3135,7 @@ def evaluate_in_expression(
     """Evaluate the current subset's array-membership operator."""
     if not isinstance(right, NameExpr):
         raise RuntimeError("the current runtime only supports `in` against a named array")
-    key = coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope))
+    key = coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope), state)
     return key in state.arrays.get(right.name, {})
 
 
@@ -3116,7 +3158,7 @@ def assign_field_value(
 ) -> None:
     """Assign one value through a field lvalue and update `$0`/field views."""
     field_index = evaluate_field_index(index_expression, state, record, locals_scope)
-    string_value = coerce_scalar_to_string(value)
+    string_value = coerce_scalar_to_string(value, state)
     if field_index == 0:
         record.field0 = string_value
         record.fields = split_fields(string_value, state.field_separator)
@@ -3146,7 +3188,7 @@ def render_printf_output(
     for specifier, argument in zip(specifiers, arguments[1:], strict=True):
         value = evaluate_value_expression(argument, state, record, locals_scope)
         if specifier in {"s"}:
-            formatted_args.append(coerce_scalar_to_string(value))
+            formatted_args.append(coerce_scalar_to_string(value, state))
             continue
         if specifier in {"d", "i", "o", "u", "x", "X"}:
             formatted_args.append(int(coerce_scalar_to_number(value)))
@@ -3158,12 +3200,6 @@ def render_printf_output(
     if len(formatted_args) == 1:
         return format_text % formatted_args[0]
     return format_text % tuple(formatted_args)
-
-
-def format_numeric_value(value: float) -> str:
-    """Render one numeric value using the current `%g`-style output shape."""
-    return f"{value:g}"
-
 
 def resolve_field_value(index: int, record: RecordContext) -> str:
     """Resolve the value of a supported field expression."""
@@ -3776,7 +3812,7 @@ def declare_string(state: LoweringState, literal: str) -> tuple[str, int]:
 def ensure_numeric_format(state: LoweringState) -> tuple[str, int]:
     """Declare the shared numeric print format if it is needed."""
     global_name = "@.fmt.num"
-    data = b"%g\n\x00"
+    data = b"%.6g\n\x00"
     if not state.numeric_format_declared:
         state.globals.append(declare_bytes(global_name, data))
         state.numeric_format_declared = True

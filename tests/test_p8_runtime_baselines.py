@@ -98,6 +98,22 @@ def test_print_honors_ofs_and_ors() -> None:
     assert result.stderr == ""
 
 
+def test_print_honors_ofmt_for_numeric_output() -> None:
+    result = run_quawk('BEGIN { OFMT = "%.2f"; print 1.2345 }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1.23\n"
+    assert result.stderr == ""
+
+
+def test_concatenation_honors_convfmt_for_numeric_to_string_coercion() -> None:
+    result = run_quawk('BEGIN { CONVFMT = "%.2f"; x = 1.2345; print x "" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1.23\n"
+    assert result.stderr == ""
+
+
 def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
     result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
 

@@ -71,7 +71,7 @@ Evidence:
 |---|---|---|
 | Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
-| Formatting builtin variables | partial | `OFMT` and `CONVFMT` are not implemented yet. |
+| Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
 | Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and related POSIX variables are not implemented yet. |
 | Current builtin subset | implemented | `length`, `split`, and `substr` are part of the current claimed surface. |
 | POSIX string and regex builtins | planned | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` are not claimed yet. |
