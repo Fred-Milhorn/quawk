@@ -267,10 +267,13 @@ upstream skips.
   Evidence:
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L75),
   [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L203)
-- documented backend-only fallback families still include user-defined
-  functions, `exit`, `nextfile`, and richer scalar-string paths.
+- the checked-in `T-150` audit expands that list into explicit claimed-family
+  anchors, including expression-pattern selection, default-print expression
+  patterns, `do ... while`, loop `break` or `continue`, `next`, `nextfile`,
+  `exit`, user-defined functions, and richer scalar-string coercion paths.
   Evidence:
-  [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L223)
+  [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml#L1),
+  [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py#L1)
 
 #### Architecture Gaps
 
@@ -288,8 +291,34 @@ upstream skips.
 
 - keep the verified list above current as gaps are fixed or reclassified
 - add any missing POSIX-required areas not yet represented by upstream review
-- add a machine-readable cross-reference later if the markdown inventory becomes
-  hard to maintain
+- keep the checked-in architecture cross-reference in
+  [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml)
+  aligned with the code and docs
+
+### T-150 Backend Gap Baseline
+
+`T-150` is now complete.
+
+The checked-in architecture audit baseline lives in:
+
+- [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml)
+- [src/quawk/architecture_audit.py](/Users/fred/dev/quawk/src/quawk/architecture_audit.py)
+- [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py)
+
+Current audited claimed families that still lack full backend/runtime execution
+or `--ir` / `--asm` support:
+
+| Family | Representative program | Current audited gap |
+|---|---|---|
+| `user-defined-functions` | `function f(x) { return x + 1 } BEGIN { print f(2) }` | public execution still uses the host runtime and inspection rejects function lowering |
+| `record-control-next` | `/skip/ { next } { print $0 }` | simple `next`-driven record control still falls back and has no inspection support |
+| `record-control-nextfile` | `/stop/ { nextfile } { print $0 }` | simple `nextfile`-driven record control still falls back and has no inspection support |
+| `record-control-exit` | `BEGIN { print "before"; exit 7 }` | `exit` still falls back and has no inspection support |
+| `scalar-string-coercions` | `BEGIN { x = "12"; print x + 1; print x "a" }` | richer scalar-string and concatenation paths still depend on host-side execution |
+| `control-flow-do-while` | `BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }` | `do ... while` is claimed publicly but still lacks full backend execution and inspection support |
+| `control-flow-loop-break-continue` | `BEGIN { for (i = 0; i < 5; i = i + 1) { if (i == 2) break; else continue } }` | representative loop-control programs still do not stay on the compiled backend path |
+| `expression-pattern-actions` | `1 { print $0 }` | expression-pattern selection is claimed, but the backend only lowers regex expression patterns today |
+| `default-print-expression-patterns` | `1` | bare expression-pattern default-print behavior still lacks full backend execution and inspection support |
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

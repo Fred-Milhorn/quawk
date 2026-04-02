@@ -1,0 +1,109 @@
+[[case]]
+family = "user-defined-functions"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+function f(x) { return x + 1 }
+BEGIN { print f(2) }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Claimed function execution still routes through the host runtime, and backend inspection rejects user-defined functions."
+
+[[case]]
+family = "record-control-next"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+/skip/ { next }
+{ print $0 }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Simple next-driven record control still falls back instead of running through the compiled backend path."
+
+[[case]]
+family = "record-control-nextfile"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+/stop/ { nextfile }
+{ print $0 }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Simple nextfile-driven record control still falls back instead of running through the compiled backend path."
+
+[[case]]
+family = "record-control-exit"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+BEGIN { print "before"; exit 7 }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Exit status control is claimed publicly, but backend execution and inspection still reject it."
+
+[[case]]
+family = "scalar-string-coercions"
+spec_area = "Runtime and Builtins / Backend and Inspection"
+program = '''
+BEGIN { x = "12"; print x + 1; print x "a" }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Richer scalar-string and concatenation paths still depend on host-side semantic execution."
+
+[[case]]
+family = "control-flow-do-while"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Do-while is claimed in the public surface, but the backend path is still incomplete."
+
+[[case]]
+family = "control-flow-loop-break-continue"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+BEGIN {
+    for (i = 0; i < 5; i = i + 1) {
+        if (i == 2) {
+            break
+        } else {
+            continue
+        }
+    }
+}
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Loop-control statements are claimed, but representative break/continue programs still do not stay on the compiled backend path."
+
+[[case]]
+family = "expression-pattern-actions"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+1 { print $0 }
+'''
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Expression-pattern selection is claimed, but the backend only lowers regex expression patterns today."
+
+[[case]]
+family = "default-print-expression-patterns"
+spec_area = "Language Surface / Backend and Inspection"
+program = '''
+1
+'''
+expected_uses_host_runtime = true
+expected_supports_public_backend_execution = false
+expected_supports_ir_asm = false
+notes = "Bare expression-pattern default-print behavior still lacks full backend execution and inspection support."
