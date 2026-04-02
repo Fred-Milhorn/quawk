@@ -383,8 +383,8 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-158` implement full POSIX `print` behavior
-2. `T-159` implement POSIX output and formatting variables
+1. `T-159` implement POSIX formatting variables
+2. `T-160` implement POSIX output redirection and pipe output
 
 ## Backlog
 
@@ -516,8 +516,8 @@ Priority values:
 | T-155 | P13 | P1 | Close the remaining audited claimed backend-execution and `--ir` / `--asm` parity gaps as one implementation wave | T-151, T-152, T-153 | The remaining audited claimed families gain compiled execution plus inspection support, leaving `T-156` to rebaseline the broader AOT-only contract docs and fallback story | done |
 | T-156 | P13 | P1 | Add the architecture audit gate and rebaseline the docs for the AOT-only contract | T-155 | Tests, `SPEC.md`, and `docs/design.md` all prove that Python is compile/orchestration only for claimed AWK semantics | done |
 | T-157 | P14 | P0 | Audit and split `SPEC.md` rows for POSIX-facing feature families | T-156 | `SPEC.md` no longer hides known POSIX gaps behind broad rows for `print`, builtins, builtin variables, CLI variables, or backend parity | done |
-| T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | todo |
-| T-159 | P14 | P0 | Implement POSIX output and formatting variables | T-158 | `OFS`, `ORS`, `OFMT`, and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | todo |
+| T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | done |
+| T-159 | P14 | P0 | Implement POSIX formatting variables | T-158 | `OFMT` and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | todo |
 | T-160 | P14 | P1 | Implement POSIX output redirection and pipe output | T-158 | `print` / `printf` support `>`, `>>`, `|`, and `close()` for the forms claimed in `SPEC.md` | todo |
 | T-161 | P14 | P0 | Close the reviewed `printf` parity gaps | T-158, T-159 | The reviewed formatting and `substr(..., ..., ...)`-inside-`printf` mismatches are fixed or replaced with narrower classified gaps | todo |
 | T-162 | P14 | P0 | Implement the missing POSIX string and regex builtins | T-157 | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` have parser, runtime, and compatibility coverage | todo |

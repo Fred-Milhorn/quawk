@@ -56,10 +56,10 @@ Evidence:
 | Mixed `BEGIN` / record / `END` sequencing | implemented | Includes empty-input behavior. |
 | AWK-style unset scalar/array value rules | implemented | Numeric contexts read as `0`, string/print contexts read as `""`. |
 | AWK string/number coercions | implemented | Includes string truthiness and concatenation behavior. |
-| Single-argument `print expr` | implemented | The current claimed output surface is one explicit `print` argument. |
-| Bare `print` / implicit `$0` | partial | POSIX bare `print` is not implemented yet. |
-| Multi-argument `print` | partial | POSIX multi-argument `print` is not implemented yet. |
-| `OFS` / `ORS` driven print behavior | partial | Output-field and output-record separator behavior is not implemented yet. |
+| Single-argument `print expr` | implemented | Standard one-argument `print` is part of the current claimed output surface. |
+| Bare `print` / implicit `$0` | implemented | Bare `print` now follows POSIX `$0` defaulting, including the empty-record case in `BEGIN`/`END`. |
+| Multi-argument `print` | implemented | Explicit `print a, b, c` now joins arguments with `OFS`. |
+| `OFS` / `ORS` driven print behavior | implemented | Output-field and output-record separator behavior is part of the current claimed surface. |
 | `printf` basic execution | implemented | Literal-format `printf` is part of the current claimed AOT-backed surface. |
 | Full POSIX `printf` parity | partial | Reviewed formatting and expression-combination gaps remain. |
 | Output redirection and pipe output | planned | `print` / `printf` redirection and `close()` are not part of the current claimed surface yet. |
@@ -70,7 +70,8 @@ Evidence:
 | Area | Status | Notes |
 |---|---|---|
 | Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
-| Output and formatting builtin variables | partial | `OFS`, `ORS`, `OFMT`, and `CONVFMT` are not implemented yet. |
+| Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
+| Formatting builtin variables | partial | `OFMT` and `CONVFMT` are not implemented yet. |
 | Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and related POSIX variables are not implemented yet. |
 | Current builtin subset | implemented | `length`, `split`, and `substr` are part of the current claimed surface. |
 | POSIX string and regex builtins | planned | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` are not claimed yet. |

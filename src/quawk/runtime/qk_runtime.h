@@ -41,6 +41,10 @@ void qk_set_field_number(qk_runtime *runtime, int64_t index, double value);
 /* Print a string or number using the same newline-terminated formatting as AWK print. */
 void qk_print_string(qk_runtime *runtime, const char *value);
 void qk_print_number(qk_runtime *runtime, double value);
+void qk_print_string_fragment(qk_runtime *runtime, const char *value);
+void qk_print_number_fragment(qk_runtime *runtime, double value);
+void qk_print_output_separator(qk_runtime *runtime);
+void qk_print_output_record_separator(qk_runtime *runtime);
 
 /* Record-control support for the reusable backend/runtime path. */
 void qk_nextfile(qk_runtime *runtime);

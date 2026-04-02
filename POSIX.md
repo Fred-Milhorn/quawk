@@ -160,22 +160,6 @@ upstream skips.
 
 #### Output and Print Surface
 
-- `print` only supports one explicit argument in both the host runtime and the
-  backend-lowered path.
-  Evidence:
-  [src/quawk/jit.py](/Users/fred/dev/quawk/src/quawk/jit.py#L1994),
-  [src/quawk/jit.py](/Users/fred/dev/quawk/src/quawk/jit.py#L508)
-- bare `print` remains unsupported as a normal POSIX form.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L176),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L617)
-- multi-argument `print` remains unsupported.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L194),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L220)
-- `OFS` and `ORS` driven `print` behavior is missing.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L424)
 - output redirection and pipe output for `print` are outside the current claimed
   surface.
   Evidence:
@@ -210,13 +194,13 @@ upstream skips.
 
 #### Builtin Variables
 
-- the supported builtin-variable set is still only `NR`, `FNR`, `NF`, and
-  `FILENAME`.
+- the implemented builtin-variable set now includes `NR`, `FNR`, `NF`,
+  `FILENAME`, `OFS`, and `ORS`.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L6),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
-- standard variables such as `OFS`, `ORS`, `OFMT`, `CONVFMT`, `ARGC`, `ARGV`,
-  `ENVIRON`, `RSTART`, `RLENGTH`, and `SUBSEP` should be treated as missing
+- standard variables such as `OFMT`, `CONVFMT`, `ARGC`, `ARGV`, `ENVIRON`,
+  `RSTART`, `RLENGTH`, and `SUBSEP` should be treated as missing
   until implemented and tested.
 - there is at least one reviewed builtin-variable sequencing mismatch:
   `END { print NR }`.
@@ -399,6 +383,21 @@ What landed:
   families, and `getline`
 - backend parity now distinguishes the claimed AOT-backed surface from broader
   frontend-admitted POSIX forms that are still outside the current contract
+
+### T-158 Print Surface Result
+
+`T-158` is now complete.
+
+What landed:
+
+- bare `print` now follows POSIX `$0` defaulting instead of failing outside the
+  one-argument path
+- multi-argument `print` now joins arguments with `OFS`
+- `ORS` now controls the output terminator for explicit and implicit `print`
+  paths
+- the reusable backend/runtime path and the host runtime now share the same
+  print-surface behavior, with focused CLI, JIT, runtime, and runtime-support
+  tests covering the result
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

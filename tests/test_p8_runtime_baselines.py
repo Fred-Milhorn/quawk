@@ -74,6 +74,30 @@ def test_printf_does_not_append_an_implicit_newline() -> None:
     assert result.stderr == ""
 
 
+def test_bare_print_uses_the_current_record() -> None:
+    result = run_quawk("{ print }", stdin="a b\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "a b\n"
+    assert result.stderr == ""
+
+
+def test_multi_argument_print_uses_default_ofs() -> None:
+    result = run_quawk('BEGIN { print 1, "x", 2 }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1 x 2\n"
+    assert result.stderr == ""
+
+
+def test_print_honors_ofs_and_ors() -> None:
+    result = run_quawk('BEGIN { OFS = ","; ORS = "!"; print 1, 2; print "x" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1,2!x!"
+    assert result.stderr == ""
+
+
 def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
     result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
 

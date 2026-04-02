@@ -628,6 +628,16 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_print_surface_programs() -> None:
+    result = run_quawk("--ir", 'BEGIN { OFS = ","; ORS = "!"; print 1, 2; print }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_print_number_fragment(" in result.stdout
+    assert "@qk_print_output_separator(" in result.stdout
+    assert "@qk_print_output_record_separator(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 
@@ -689,6 +699,14 @@ def test_quawk_executes_supported_scalar_string_program_through_backend() -> Non
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "13\n12a\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_print_surface_program_through_backend() -> None:
+    result = run_quawk('BEGIN { OFS = ","; ORS = "!"; print 1, 2; print }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1,2!!"
     assert result.stderr == ""
 
 

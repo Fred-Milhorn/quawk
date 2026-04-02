@@ -443,6 +443,10 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare void @qk_set_field_number(ptr, i64, double)",
         "declare void @qk_print_string(ptr, ptr)",
         "declare void @qk_print_number(ptr, double)",
+        "declare void @qk_print_string_fragment(ptr, ptr)",
+        "declare void @qk_print_number_fragment(ptr, double)",
+        "declare void @qk_print_output_separator(ptr)",
+        "declare void @qk_print_output_record_separator(ptr)",
         "declare void @qk_nextfile(ptr)",
         "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
@@ -664,9 +668,12 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 ]
             )
         case PrintStmt(arguments=arguments):
-            if len(arguments) != 1:
-                raise RuntimeError("the current backend only supports print with one argument")
-            lower_print_expression(arguments[0], state)
+            if state.runtime_param is not None:
+                lower_runtime_print_statement(statement, state)
+            else:
+                if len(arguments) != 1:
+                    raise RuntimeError("the direct LLVM-backed backend only supports print with one argument")
+                lower_print_expression(arguments[0], state)
         case PrintfStmt():
             if state.runtime_param is None:
                 raise RuntimeError("printf statements are not supported by the direct LLVM-backed backend")
@@ -1122,10 +1129,6 @@ def variable_address(name: str, state: LoweringState) -> str:
 
 def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one supported `print` expression into side-effecting IR."""
-    if state.runtime_param is not None:
-        lower_runtime_print_expression(expression, state)
-        return
-
     if isinstance(expression, StringLiteralExpr):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, expression.value)
@@ -1169,16 +1172,37 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     )
 
 
-def lower_runtime_print_expression(expression: Expr, state: LoweringState) -> None:
-    """Lower one print expression against the reusable runtime ABI."""
+def lower_runtime_print_fragment(expression: Expr, state: LoweringState) -> None:
+    """Lower one runtime-backed print argument without separators or terminator."""
     assert state.runtime_param is not None
     if runtime_expression_has_string_result(expression, state):
         string_value = lower_runtime_string_expression(expression, state)
-        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
+        state.instructions.append(f"  call void @qk_print_string_fragment(ptr {state.runtime_param}, ptr {string_value})")
         return
 
     numeric_value = lower_runtime_numeric_expression(expression, state)
-    state.instructions.append(f"  call void @qk_print_number(ptr {state.runtime_param}, double {numeric_value})")
+    state.instructions.append(f"  call void @qk_print_number_fragment(ptr {state.runtime_param}, double {numeric_value})")
+
+
+def lower_runtime_print_statement(statement: PrintStmt, state: LoweringState) -> None:
+    """Lower one `print` statement against the reusable runtime ABI."""
+    assert state.runtime_param is not None
+    arguments = statement.arguments
+    if not arguments:
+        field_ptr = state.next_temp("print.field0")
+        state.instructions.extend(
+            [
+                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
+            ]
+        )
+        return
+
+    for index, argument in enumerate(arguments):
+        if index > 0:
+            state.instructions.append(f"  call void @qk_print_output_separator(ptr {state.runtime_param})")
+        lower_runtime_print_fragment(argument, state)
+    state.instructions.append(f"  call void @qk_print_output_record_separator(ptr {state.runtime_param})")
 
 
 def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) -> None:
@@ -2326,7 +2350,7 @@ def execute_record_item(
 ) -> None:
     """Execute one record item, applying AWK's default print when no action is present."""
     if item.action is None:
-        print_value(make_string_value(record.field0))
+        sys.stdout.write(render_print_output((), state, record, locals_scope=None))
         return
     execute_action(item.action, state, record=record, locals_scope=None)
 
@@ -2445,9 +2469,7 @@ def execute_statement(
                 raise ReturnSignal(UNINITIALIZED_VALUE)
             raise ReturnSignal(evaluate_value_expression(value, state, record, locals_scope))
         case PrintStmt(arguments=arguments):
-            if len(arguments) != 1:
-                raise RuntimeError("the current runtime only supports print with one argument")
-            print_value(evaluate_value_expression(arguments[0], state, record, locals_scope))
+            sys.stdout.write(render_print_output(arguments, state, record, locals_scope))
         case PrintfStmt(arguments=arguments):
             if not arguments:
                 raise RuntimeError("printf requires at least a format string")
@@ -2930,9 +2952,31 @@ def coerce_scalar_to_truthy(value: AwkValue) -> bool:
             return value.string != ""
 
 
-def print_value(value: AwkValue) -> None:
-    """Print one runtime value with the same formatting the LLVM path uses today."""
-    print(coerce_scalar_to_string(value))
+def output_variable_text(state: RuntimeState, name: str, default: str) -> str:
+    """Return the current string view of one output-affecting runtime variable."""
+    value = state.variables.get(name)
+    if value is None:
+        return default
+    return coerce_scalar_to_string(value)
+
+
+def render_print_output(
+    arguments: tuple[Expr, ...],
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> str:
+    """Render one `print` statement using the current output-separator variables."""
+    ors = output_variable_text(state, "ORS", "\n")
+    if not arguments:
+        return (record.field0 if record is not None else "") + ors
+
+    ofs = output_variable_text(state, "OFS", " ")
+    rendered = [
+        coerce_scalar_to_string(evaluate_value_expression(argument, state, record, locals_scope))
+        for argument in arguments
+    ]
+    return ofs.join(rendered) + ors
 
 
 def initialize_builtin_variables(state: RuntimeState) -> None:
@@ -2941,6 +2985,8 @@ def initialize_builtin_variables(state: RuntimeState) -> None:
     state.variables["FNR"] = make_numeric_value(0.0)
     state.variables["NF"] = make_numeric_value(0.0)
     state.variables["FILENAME"] = make_string_value(state.current_filename)
+    state.variables["OFS"] = make_string_value(" ")
+    state.variables["ORS"] = make_string_value("\n")
 
 
 def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
@@ -3457,13 +3503,13 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     return False
                 return statement.index is None or supports_array_key(statement.index, string_bindings)
             case PrintStmt(arguments=arguments):
-                if len(arguments) != 1:
-                    return False
-                argument = arguments[0]
-                return (
+                if not arguments:
+                    return True
+                return all(
                     supports_string_expression(argument, string_bindings)
                     or runtime_expression_has_string_result(argument)
                     or supports_numeric_expression(argument)
+                    for argument in arguments
                 )
             case PrintfStmt(arguments=arguments):
                 if not arguments or not isinstance(arguments[0], StringLiteralExpr):
@@ -3540,6 +3586,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     found_supported_runtime_feature = True
                 if isinstance(argument, BinaryExpr) and argument.op is BinaryOp.CONCAT:
                     found_supported_runtime_feature = True
+                if len(statement.arguments) != 1:
+                    found_supported_runtime_feature = True
+            if isinstance(statement, PrintStmt) and not statement.arguments:
+                found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and isinstance(statement.target, NameLValue):
                 if isinstance(statement.value, StringLiteralExpr):
                     found_supported_runtime_feature = True

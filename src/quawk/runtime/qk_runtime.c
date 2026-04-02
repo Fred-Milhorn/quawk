@@ -407,6 +407,21 @@ static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_e
     return entry->string;
 }
 
+static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback)
+{
+    struct qk_scalar_entry *entry;
+
+    if ((runtime == NULL) || (name == NULL)) {
+        return fallback == NULL ? QK_EMPTY_FIELD : fallback;
+    }
+
+    entry = qk_find_scalar(runtime, name, false);
+    if (entry == NULL) {
+        return fallback == NULL ? QK_EMPTY_FIELD : fallback;
+    }
+    return qk_scalar_string_view(runtime, entry);
+}
+
 static bool qk_push_field(qk_runtime *runtime, char *field_text)
 {
     if (runtime->field_count == runtime->field_capacity) {
@@ -545,6 +560,15 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
     runtime->field_separator = qk_strdup_or_null(field_separator);
     if ((field_separator != NULL) && (runtime->field_separator == NULL)) {
         free(runtime);
+        return NULL;
+    }
+
+    if (!qk_scalar_set_string_value(runtime, "OFS", " ")) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "ORS", "\n")) {
+        qk_runtime_destroy(runtime);
         return NULL;
     }
 
@@ -705,14 +729,39 @@ void qk_set_field_number(qk_runtime *runtime, int64_t index, double value)
 
 void qk_print_string(qk_runtime *runtime, const char *value)
 {
-    (void)runtime;
-    puts(value == NULL ? "" : value);
+    qk_print_string_fragment(runtime, value);
+    qk_print_output_record_separator(runtime);
 }
 
 void qk_print_number(qk_runtime *runtime, double value)
 {
+    qk_print_number_fragment(runtime, value);
+    qk_print_output_record_separator(runtime);
+}
+
+void qk_print_string_fragment(qk_runtime *runtime, const char *value)
+{
     (void)runtime;
-    printf("%g\n", value);
+    fputs(value == NULL ? "" : value, stdout);
+}
+
+void qk_print_number_fragment(qk_runtime *runtime, double value)
+{
+    char buffer[64];
+
+    (void)runtime;
+    snprintf(buffer, sizeof(buffer), "%g", value);
+    fputs(buffer, stdout);
+}
+
+void qk_print_output_separator(qk_runtime *runtime)
+{
+    fputs(qk_output_variable_text(runtime, "OFS", " "), stdout);
+}
+
+void qk_print_output_record_separator(qk_runtime *runtime)
+{
+    fputs(qk_output_variable_text(runtime, "ORS", "\n"), stdout);
 }
 
 void qk_nextfile(qk_runtime *runtime)
