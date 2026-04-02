@@ -17,10 +17,10 @@ program = '''
 /skip/ { next }
 { print $0 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Simple next-driven record control still falls back instead of running through the compiled backend path."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Simple next-driven record control now lowers through the reusable backend/runtime path and supports inspection output."
 
 [[case]]
 family = "record-control-nextfile"
@@ -62,10 +62,10 @@ spec_area = "Language Surface / Backend and Inspection"
 program = '''
 BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Do-while is claimed in the public surface, but the backend path is still incomplete."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative do-while programs now lower through the reusable backend/runtime path and support inspection output."
 
 [[case]]
 family = "control-flow-loop-break-continue"
@@ -81,10 +81,10 @@ BEGIN {
     }
 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Loop-control statements are claimed, but representative break/continue programs still do not stay on the compiled backend path."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative break/continue loop-control programs now lower through the reusable backend/runtime path and support inspection output."
 
 [[case]]
 family = "expression-pattern-actions"
@@ -93,9 +93,9 @@ program = '''
 1 { print $0 }
 '''
 expected_uses_host_runtime = false
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Expression-pattern selection is claimed, but the backend only lowers regex expression patterns today."
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Expression-pattern selection now lowers through the reusable backend/runtime path and supports inspection output."
 
 [[case]]
 family = "default-print-expression-patterns"
@@ -103,7 +103,7 @@ spec_area = "Language Surface / Backend and Inspection"
 program = '''
 1
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Bare expression-pattern default-print behavior still lacks full backend execution and inspection support."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Bare expression-pattern default-print behavior now lowers through the reusable backend/runtime path and supports inspection output."

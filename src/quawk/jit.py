@@ -1773,7 +1773,7 @@ def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
             ]
         )
         return match_result
-    raise RuntimeError("the reusable backend only supports regex expression patterns for record selection")
+    return lower_condition_expression(pattern.test, state)
 
 
 def execute_with_inputs(
@@ -3402,7 +3402,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
         if pattern is None or isinstance(pattern, BeginPattern | EndPattern):
             return True
         if isinstance(pattern, ExprPattern):
-            return isinstance(pattern.test, RegexLiteralExpr)
+            return isinstance(pattern.test, RegexLiteralExpr) or supports_condition_expression(pattern.test)
         if isinstance(pattern, RangePattern):
             return supports_pattern(pattern.left) and supports_pattern(pattern.right)
         return False
@@ -3446,6 +3446,12 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 )
             case WhileStmt(condition=condition, body=body):
                 return supports_condition_expression(condition, string_bindings) and supports_statement(body, string_bindings)
+            case DoWhileStmt(body=body, condition=condition):
+                return supports_statement(body, string_bindings) and supports_condition_expression(
+                    condition, string_bindings
+                )
+            case BreakStmt() | ContinueStmt():
+                return True
             case DeleteStmt():
                 if statement.array_name is None or statement.array_name not in array_names or statement.extra_indexes:
                     return False
@@ -3515,6 +3521,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             return False
         if isinstance(item.pattern, RangePattern):
             found_supported_runtime_feature = True
+        if isinstance(item.pattern, ExprPattern) and not isinstance(item.pattern.test, RegexLiteralExpr):
+            found_supported_runtime_feature = True
         for statement in item.action.statements:
             if isinstance(statement, PrintfStmt):
                 found_supported_runtime_feature = True
@@ -3539,6 +3547,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     found_supported_runtime_feature = True
                 if isinstance(statement.value, BinaryExpr) and statement.value.op is BinaryOp.CONCAT:
                     found_supported_runtime_feature = True
+            if isinstance(statement, DoWhileStmt | BreakStmt | ContinueStmt | NextStmt):
+                found_supported_runtime_feature = True
             if isinstance(statement, NextFileStmt | ExitStmt):
                 found_supported_runtime_feature = True
     return found_supported_runtime_feature

@@ -305,16 +305,8 @@ The checked-in architecture audit baseline lives in:
 - [src/quawk/architecture_audit.py](/Users/fred/dev/quawk/src/quawk/architecture_audit.py)
 - [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py)
 
-Current audited claimed families that still lack full backend/runtime execution
-or `--ir` / `--asm` support:
-
-| Family | Representative program | Current audited gap |
-|---|---|---|
-| `record-control-next` | `/skip/ { next } { print $0 }` | simple `next`-driven record control still falls back and has no inspection support |
-| `control-flow-do-while` | `BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }` | `do ... while` is claimed publicly but still lacks full backend execution and inspection support |
-| `control-flow-loop-break-continue` | `BEGIN { for (i = 0; i < 5; i = i + 1) { if (i == 2) break; else continue } }` | representative loop-control programs still do not stay on the compiled backend path |
-| `expression-pattern-actions` | `1 { print $0 }` | expression-pattern selection is claimed, but the backend only lowers regex expression patterns today |
-| `default-print-expression-patterns` | `1` | bare expression-pattern default-print behavior still lacks full backend execution and inspection support |
+There are no remaining audited claimed families lacking full backend/runtime
+execution or `--ir` / `--asm` support.
 
 ### T-151 Function Backend Result
 
@@ -360,6 +352,22 @@ What landed:
   programs such as `BEGIN { x = "12"; print x + 1; print x "a" }`
 - the checked-in architecture audit no longer treats
   `scalar-string-coercions` as a blocking backend gap
+
+### T-155 Audited Backend Parity Result
+
+`T-155` is now complete for the remaining audited backend-parity families.
+
+What landed:
+
+- reusable backend lowering now supports non-regex expression-pattern record
+  selection instead of limiting record matching to regex-only predicates
+- representative `next`, `do ... while`, loop `break` or `continue`, and bare
+  expression-pattern default-print programs now execute through the compiled
+  backend/runtime path and support `--ir` / `--asm`
+- the checked-in architecture audit is now clean: every audited claimed family
+  has compiled execution plus inspection support
+- `T-156` remains responsible for rebaselining the broader AOT-only contract
+  docs and any remaining fallback-story cleanup around the full claimed surface
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 
@@ -623,6 +631,15 @@ Acceptance:
   layer
 - the design docs no longer list host-runtime semantic families as an accepted
   steady state
+
+Planning note:
+
+- do not land this as a standalone public regression step for still-claimed
+  behavior
+- remove fallback only in the same implementation wave that closes the
+  remaining claimed backend-execution and inspection gaps
+- in roadmap terms, the fallback-removal intent is now folded into the
+  remaining parity wave rather than treated as a separate post-`T-153` step
 
 ## Recommended Execution Order
 

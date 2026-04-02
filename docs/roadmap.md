@@ -8,7 +8,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - implementation language is Python `3.14.x`
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - current LLVM-backed execution uses local LLVM tools (`lli`)
-- remaining execution-model work removes the last Python-side semantic fallback so the reusable AOT-oriented program/runtime split is the only public execution path
+- remaining execution-model work closes the last claimed backend gaps and removes the last Python-side semantic fallback as part of the same implementation wave, so the reusable AOT-oriented program/runtime split is the only public execution path
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows from an initial end-to-end JIT path
 - phase delivery uses TDD for the next capability increment
@@ -321,8 +321,8 @@ Objective:
 In scope:
 - inventory and test baselines for every claimed feature family that still depends on Python-side semantic execution
 - backend lowering and runtime-ABI expansion for the remaining claimed host-runtime families, with representative user-defined functions, `exit`, `nextfile`, and scalar-string/coercion paths already completed
-- removal of Python-side semantic fallback from the public execution path for claimed behavior
-- `--ir` / `--asm` parity across the full claimed execution surface
+- removal of Python-side semantic fallback from the public execution path only when the remaining claimed families already have compiled execution and `--ir` / `--asm` parity
+- one combined implementation wave for the remaining claimed backend families plus full `--ir` / `--asm` parity
 - architecture audits and doc updates that prove Python is compile/orchestration only for claimed AWK semantics
 - implementation details for this phase live in [POSIX.md](../POSIX.md)
 
@@ -383,9 +383,8 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-154` remove Python-side semantic fallback from the public execution path for claimed behavior
-2. `T-155` close `--ir` / `--asm` parity gaps across the full claimed execution surface
-3. `T-156` add the architecture audit gate and rebaseline the docs for the AOT-only contract
+1. `T-156` rebaseline the AOT-only contract docs and fallback story against the now-clean architecture audit
+2. `T-157` align `SPEC.md` with expected POSIX behavior before feature-gap closure work continues
 
 ## Backlog
 
@@ -513,9 +512,9 @@ Priority values:
 | T-151 | P13 | P0 | Lower user-defined functions through the compiled backend/runtime path | T-150 | Representative claimed function programs execute without Python-side semantic fallback, and `--ir` / `--asm` support those programs | done |
 | T-152 | P13 | P0 | Lower `exit` and `nextfile` through the compiled backend/runtime path | T-150 | Representative claimed `exit` and `nextfile` programs execute through the backend/runtime path and support inspection output | done |
 | T-153 | P13 | P0 | Lower the remaining claimed scalar-string and coercion families through the backend/runtime path | T-150 | Claimed concatenation/coercion-heavy execution paths no longer require Python-side semantic fallback, and their backend tests are explicit | done |
-| T-154 | P13 | P1 | Remove Python-side semantic fallback from the public execution path for claimed behavior | T-151, T-152, T-153 | Public `quawk` execution no longer routes claimed AWK semantics through Python fallback; any still-unlowered behavior fails explicitly until claimed support is updated | todo |
-| T-155 | P13 | P1 | Close `--ir` / `--asm` parity gaps across the full claimed execution surface | T-151, T-152, T-153 | Inspection succeeds for every feature family still marked `implemented` in `SPEC.md`, or the claim is narrowed before the phase closes | todo |
-| T-156 | P13 | P1 | Add the architecture audit gate and rebaseline the docs for the AOT-only contract | T-154, T-155 | Tests, `SPEC.md`, and `docs/design.md` all prove that Python is compile/orchestration only for claimed AWK semantics | todo |
+| T-154 | P13 | P1 | Fold Python-fallback removal into the remaining backend-parity wave instead of landing it as a standalone regression step | T-153 | Roadmap, POSIX plan, and follow-on tasks treat fallback removal as part of the same implementation wave that closes the remaining claimed backend gaps | done |
+| T-155 | P13 | P1 | Close the remaining audited claimed backend-execution and `--ir` / `--asm` parity gaps as one implementation wave | T-151, T-152, T-153 | The remaining audited claimed families gain compiled execution plus inspection support, leaving `T-156` to rebaseline the broader AOT-only contract docs and fallback story | done |
+| T-156 | P13 | P1 | Add the architecture audit gate and rebaseline the docs for the AOT-only contract | T-155 | Tests, `SPEC.md`, and `docs/design.md` all prove that Python is compile/orchestration only for claimed AWK semantics | todo |
 | T-157 | P14 | P0 | Audit and split `SPEC.md` rows for POSIX-facing feature families | T-156 | `SPEC.md` no longer hides known POSIX gaps behind broad rows for `print`, builtins, builtin variables, CLI variables, or backend parity | todo |
 | T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | todo |
 | T-159 | P14 | P0 | Implement POSIX output and formatting variables | T-158 | `OFS`, `ORS`, `OFMT`, and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | todo |

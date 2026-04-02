@@ -14,13 +14,7 @@ def test_architecture_audit_manifest_matches_checked_in_backend_state() -> None:
 def test_families_lacking_full_backend_support_match_checked_in_baseline() -> None:
     entries = architecture_audit.load_architecture_audit_manifest()
 
-    assert architecture_audit.families_lacking_full_backend_support(entries) == [
-        "record-control-next",
-        "control-flow-do-while",
-        "control-flow-loop-break-continue",
-        "expression-pattern-actions",
-        "default-print-expression-patterns",
-    ]
+    assert architecture_audit.families_lacking_full_backend_support(entries) == []
 
 
 def test_observe_backend_support_reports_completed_backend_family() -> None:
@@ -55,9 +49,9 @@ program = '''
 /skip/ { next }
 { print $0 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 
 [[case]]
 family = "record-control-nextfile"
@@ -96,9 +90,9 @@ spec_area = "demo"
 program = '''
 BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 
 [[case]]
 family = "control-flow-loop-break-continue"
@@ -114,9 +108,9 @@ BEGIN {
     }
 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 
 [[case]]
 family = "expression-pattern-actions"
@@ -125,8 +119,8 @@ program = '''
 1 { print $0 }
 '''
 expected_uses_host_runtime = false
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 
 [[case]]
 family = "default-print-expression-patterns"
@@ -134,9 +128,9 @@ spec_area = "demo"
 program = '''
 1
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 """.strip(),
         encoding="utf-8",
     )

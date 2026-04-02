@@ -576,7 +576,7 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
 
 
 def test_quawk_reports_runtime_failures_with_exit_code_four() -> None:
-    result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
+    result = run_quawk("--ir", "BEGIN { print 1 || 0 }")
 
     assert result.returncode == 4
     assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
@@ -628,6 +628,41 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
+    result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_begin(" in result.stdout
+    assert "dowhile.body" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_next_programs() -> None:
+    result = run_quawk("--ir", "/skip/ { next }\n{ print $0 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert "phase.exit" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_expression_pattern_programs() -> None:
+    result = run_quawk("--ir", "1 { print $0 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_default_print_expression_patterns() -> None:
+    result = run_quawk("--ir", "1")
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert "call void @qk_print_string(ptr %rt, ptr %field" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_executes_supported_nextfile_program_through_backend(tmp_path: Path) -> None:
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"
@@ -654,4 +689,36 @@ def test_quawk_executes_supported_scalar_string_program_through_backend() -> Non
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "13\n12a\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_do_while_program_through_backend() -> None:
+    result = run_quawk("BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n1\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_next_program_through_backend() -> None:
+    result = run_quawk("/skip/ { next }\n{ print $0 }", stdin="skip\nkeep\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "keep\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_expression_pattern_program_through_backend() -> None:
+    result = run_quawk("1 { print $0 }", stdin="keep\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "keep\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_default_print_expression_pattern_through_backend() -> None:
+    result = run_quawk("1", stdin="keep\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "keep\n"
     assert result.stderr == ""
