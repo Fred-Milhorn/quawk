@@ -18,7 +18,7 @@ Status values:
 | `-F fs` | implemented | Field separator support is part of the public execution surface. |
 | `-v name=value` | partial | Numeric scalar values only. String-valued `-v` is not supported yet. |
 | `--lex` / `--parse` | implemented | Stable human-readable inspection output. |
-| `--ir` / `--asm` | partial | Intended to cover the full AOT-backed execution surface, but some claimed language families are not lowered yet. Python-side semantic execution remains transition debt, not the target contract. |
+| `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but not yet claimed POSIX forms can still fail inspection until the `P14` completion work lands. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
 | `-` stdin operand | implemented | Reads standard input at that operand position. |
 
@@ -30,15 +30,15 @@ Evidence:
 
 | Area | Status | Notes |
 |---|---|---|
-| Pattern-action programs | implemented | `BEGIN`, record actions, `END`, expression patterns, range patterns. |
+| Pattern-action programs | implemented | `BEGIN`, record actions, `END`, range patterns, and expression-pattern/default-print behavior within the currently claimed expression subset. |
 | Regex-driven selection | implemented | Public execution and parser support are present. |
-| Default-print pattern rules | implemented | Bare range/expression patterns print matching records. |
-| Scalar variables and assignment | implemented | Includes assignment expressions and compound assignment parsing. |
+| Default-print pattern rules | implemented | Bare range/expression patterns print matching records within the currently claimed expression subset. |
+| Scalar variables and assignment | implemented | Plain scalar assignment and assignment expressions are part of the current AOT-backed contract. Broader compound-assignment parsing exists, but full backended execution for those forms is not yet claimed. |
 | Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also documents a parenthesized `for ... in` iterable extension in the compatibility corpus. |
 | Fields | implemented | `$0`, `$n`, dynamic field reads and assignment. |
-| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue`. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
+| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | implemented | Arithmetic, comparisons, equality, logical operators, ternary, match ops, `in`, concatenation, unary and postfix inc/dec. Compatibility-tracked broader admitted forms are recorded in `tests/corpus/divergences.toml`. |
+| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain outside the current claimed AOT contract and are tracked for `P14`. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 
@@ -72,7 +72,7 @@ Evidence:
 | Reusable LLVM lowering for representative `BEGIN` programs | implemented | |
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
-| Backend parity for every claimed execution path | partial | The intended product is backend execution for all claimed behavior, but some families still rely on temporary host-runtime execution. |
+| Backend parity for every claimed execution path | implemented | The checked-in architecture audit and focused CLI/JIT parity tests now require every currently claimed execution family to stay on the compiled backend/runtime path. |
 | Representative user-defined functions through `--ir` / `--asm` | implemented | The direct-BEGIN numeric function subset now supports inspection output. |
 | Representative `nextfile`, `exit`, and scalar-string families through `--ir` / `--asm` | implemented | Inspection now works for the representative completed control and coercion families covered by the architecture audit. |
 

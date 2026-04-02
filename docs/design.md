@@ -203,8 +203,8 @@ AOT-oriented design goals:
 Current implementation model:
 - the parser and semantic layers target the current `docs/quawk.ebnf` surface rather than an older execution-only subset
 - the intended public execution model is AOT compilation plus backend/runtime execution; Python should compile, link, and invoke the generated program rather than interpret AWK semantics
-- some claimed language families still rely on temporary Python-side semantic execution; that is transition debt to remove, not a stable product boundary
-- `--ir` and `--asm` are intended to describe the full compiled execution surface, but they are still incomplete where backend lowering has not caught up
+- all currently claimed language families now execute through the compiled backend/runtime path, as enforced by the checked-in architecture audit plus focused CLI/JIT parity tests
+- broader frontend-admitted but not yet claimed POSIX forms still exist outside that contract and remain transition debt for the `P14` completion work
 
 Current public execution surface:
 - mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules
@@ -212,19 +212,19 @@ Current public execution surface:
 - `print` and `printf`
 - field reads, dynamic field assignment, and builtin variables such as `NR`, `FNR`, `NF`, and `FILENAME`
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
-- assignment expressions, unary and postfix increment/decrement, and implicit concatenation
+- the currently claimed expression subset: `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
 - user-defined functions and returns
 - the current builtin subset, including `length`, `split`, and `substr`
 - `-F` field-separator support and numeric `-v` preassignment
 
 Current backend and inspection surface:
-- the reusable LLVM/runtime path covers representative record-driven and richer `BEGIN` programs, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, and `next`
-- backend parity is still incomplete for some claimed language families, so `--ir` and `--asm` do not yet cover the whole intended execution surface
+- the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md`, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
+- `--ir` and `--asm` now cover that same claimed surface; broader frontend-admitted but unclaimed POSIX forms can still fail inspection until the remaining `P14` work lands
 
 Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
-- temporary host-runtime execution remains in a few language families not yet lowered through LLVM, notably simple `next`, `do ... while`, loop `break` or `continue`, and non-regex expression-pattern/default-print paths
-- POSIX-hardening and backend-parity work should remove those remaining host-runtime families rather than normalize them as a permanent split execution model
+- broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
+- `P14` is responsible for either lowering those broader POSIX forms through the backend/runtime path or narrowing/reclassifying them explicitly during the POSIX-hardening pass
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes

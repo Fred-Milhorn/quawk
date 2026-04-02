@@ -369,6 +369,22 @@ What landed:
 - `T-156` remains responsible for rebaselining the broader AOT-only contract
   docs and any remaining fallback-story cleanup around the full claimed surface
 
+### T-156 AOT Contract Rebaseline Result
+
+`T-156` is now complete.
+
+What landed:
+
+- `SPEC.md` now distinguishes the currently claimed AOT-backed expression subset
+  from broader frontend-admitted POSIX forms that still remain outside the
+  claimed contract
+- `docs/design.md` now states that all currently claimed language families
+  execute through the compiled backend/runtime path, with broader unclaimed
+  POSIX forms explicitly called out as `P14` work instead of being described as
+  claimed fallback families
+- the roadmap now treats `P13` as complete and advances the next deliverable to
+  `P14` POSIX compatibility completion
+
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 
 Task IDs below are proposed planning IDs for POSIX work. They do not replace
