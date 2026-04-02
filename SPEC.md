@@ -18,7 +18,7 @@ Status values:
 | `-F fs` | implemented | Field separator support is part of the public execution surface. |
 | `-v name=value` | partial | Numeric scalar values only. String-valued `-v` is not supported yet. |
 | `--lex` / `--parse` | implemented | Stable human-readable inspection output. |
-| `--ir` / `--asm` | partial | Supported for the backend-lowered surface only; public execution is broader. |
+| `--ir` / `--asm` | partial | Intended to cover the full AOT-backed execution surface, but some claimed language families are not lowered yet. Python-side semantic execution remains transition debt, not the target contract. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
 | `-` stdin operand | implemented | Reads standard input at that operand position. |
 
@@ -72,9 +72,9 @@ Evidence:
 | Reusable LLVM lowering for representative `BEGIN` programs | implemented | |
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
-| Backend parity for every public execution path | partial | Some programs still execute only through the host-runtime fallback. |
-| User-defined functions through `--ir` / `--asm` | planned | Public execution works; backend inspection still rejects this family. |
-| `nextfile`, `exit`, and richer scalar-string fallback families through `--ir` / `--asm` | planned | Public execution works today; lowering is not yet the public contract here. |
+| Backend parity for every claimed execution path | partial | The intended product is backend execution for all claimed behavior, but some families still rely on temporary host-runtime execution. |
+| User-defined functions through `--ir` / `--asm` | planned | Claimed execution support is ahead of full backend lowering; inspection and backend-only execution remain incomplete here. |
+| `nextfile`, `exit`, and richer scalar-string families through `--ir` / `--asm` | planned | These families still need backend lowering to meet the intended AOT-only execution model. |
 
 Evidence:
 - `tests/test_p9_backend_parity.py`

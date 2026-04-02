@@ -8,7 +8,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - implementation language is Python `3.14.x`
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - current LLVM-backed execution uses local LLVM tools (`lli`)
-- the next backend refactor replaces input-specialized lowering with a reusable AOT-oriented program/runtime split
+- remaining execution-model work removes the last Python-side semantic fallback so the reusable AOT-oriented program/runtime split is the only public execution path
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows from an initial end-to-end JIT path
 - phase delivery uses TDD for the next capability increment
@@ -31,7 +31,9 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P10 | Grammar Contract and Doc Alignment | Full `quawk.ebnf` implementation and honest design/AST docs |
 | P11 | Compatibility and Hardening | Differential compatibility gates and regression control |
 | P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
-| P13 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `one-true-awk`, and `gawk --posix` |
+| P13 | AOT Contract Completion | Every currently claimed behavior executes through the compiled backend/runtime path |
+| P14 | POSIX Compatibility Completion | Remaining in-scope POSIX feature and behavior gaps are closed and corroborated |
+| P15 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `one-true-awk`, and `gawk --posix` |
 
 ## Phase Entry and Exit Rules
 
@@ -311,7 +313,46 @@ Exit criteria:
 - smoke test matrix passes on declared environments
 - documentation is internally consistent and accurate
 
-### P13: Benchmarking and Performance Characterization
+### P13: AOT Contract Completion
+
+Objective:
+- make AOT compilation plus backend/runtime execution the real product contract for every behavior currently claimed as implemented
+
+In scope:
+- inventory and test baselines for every claimed feature family that still depends on Python-side semantic execution
+- backend lowering and runtime-ABI expansion for the remaining claimed host-runtime families, including user-defined functions, `exit`, `nextfile`, and richer scalar-string/coercion paths
+- removal of Python-side semantic fallback from the public execution path for claimed behavior
+- `--ir` / `--asm` parity across the full claimed execution surface
+- architecture audits and doc updates that prove Python is compile/orchestration only for claimed AWK semantics
+- implementation details for this phase live in [POSIX.md](../POSIX.md)
+
+Exit criteria:
+- every behavior marked `implemented` in `SPEC.md` executes through the compiled backend/runtime path
+- public `quawk` execution no longer depends on Python-side semantic execution for claimed behavior
+- `--ir` and `--asm` succeed for all claimed execution families, or `SPEC.md` is narrowed before the phase closes
+- `SPEC.md` and `docs/design.md` describe one execution model rather than a split Python/backend execution story
+
+### P14: POSIX Compatibility Completion
+
+Objective:
+- close the remaining in-scope POSIX feature and behavior gaps once the execution model is honest
+
+In scope:
+- split and align `SPEC.md` rows so POSIX-facing claims are granular enough to expose real gaps
+- full POSIX `print` behavior, output variables, output redirection, and `printf` parity
+- missing POSIX builtins, `getline`, and builtin variables
+- remaining parser continuation/newline gaps and reviewed runtime sequencing mismatches
+- CLI preassignment and environment-sensitive behavior needed for ordinary POSIX `awk` usage
+- upstream corroboration expansion and a final POSIX gap audit
+- implementation details for this phase live in [POSIX.md](../POSIX.md)
+
+Exit criteria:
+- `SPEC.md` matches the current POSIX claim set at feature-family granularity
+- all known in-scope POSIX gaps tracked in `POSIX.md` are fixed or explicitly documented as out-of-scope
+- local and upstream-backed tests corroborate every claimed POSIX family
+- remaining divergences are limited to documented extensions or explicitly deferred non-POSIX behavior
+
+### P15: Benchmarking and Performance Characterization
 
 Objective:
 - add a repeatable local benchmark that characterizes `quawk` against `one-true-awk` and `gawk --posix`
@@ -335,15 +376,17 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P13 benchmarking and performance characterization
+Next deliverable: P13 AOT contract completion
 
 Target outcome:
-- one local workflow measures `quawk`, `one-true-awk`, and `gawk --posix`
-  reproducibly enough to characterize startup, runtime, and memory costs
+- every behavior currently marked `implemented` in `SPEC.md` executes through
+  the compiled backend/runtime path, and Python no longer serves as a semantic
+  fallback for claimed execution
 
-1. `T-132` define the benchmark harness interface, workload suite, and measurement contract
-2. `T-133` implement deterministic dataset generation and fixed benchmark workloads
-3. `T-134` implement end-to-end engine measurement and summary reporting
+1. `T-150` author the architecture-audit baseline for claimed backend execution
+2. `T-151` lower user-defined functions through the compiled backend/runtime
+3. `T-152` lower `exit` and `nextfile` through the compiled backend/runtime
+4. `T-153` lower the remaining claimed scalar-string/coercion execution paths through the backend/runtime
 
 ## Backlog
 
@@ -467,11 +510,29 @@ Priority values:
 | T-048 | P12 | P0 | Author release-readiness smoke tests as `xfail` baseline | T-036, T-037 | Release-readiness baseline committed with expected failures | done |
 | T-040 | P12 | P1 | Add `SPEC.md` feature matrix (implemented/planned/out-of-scope) | T-036 | Feature matrix aligns with tests and docs | done |
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
-| T-132 | P13 | P0 | Define the benchmark harness interface, workload suite, and measurement contract | T-042 | `docs/benchmark.md` specifies the command, metrics, workload set, dataset scales, and `quawk` timing model clearly enough to implement without further design work | todo |
-| T-133 | P13 | P0 | Implement deterministic dataset generation and fixed benchmark workloads | T-132 | The benchmark harness can generate the planned workloads and `smoke`/`medium`/`large` datasets reproducibly from a fixed seed | todo |
-| T-134 | P13 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `one-true-awk`, and `gawk --posix` and prints stable summary tables | todo |
-| T-135 | P13 | P1 | Add `quawk` split compile-versus-run measurement support | T-134 | The benchmark reports clearly labeled `quawk` frontend or lowering versus `lli` execution timings for the same workloads without changing the public CLI surface | todo |
-| T-136 | P13 | P1 | Add benchmark smoke tests and developer documentation | T-134, T-135 | Harness tests cover determinism and reporting behavior, and the benchmark workflow is documented for developers | todo |
+| T-150 | P13 | P0 | Author the architecture-audit baseline for claimed backend execution | T-149, T-042 | Tests and docs enumerate every currently claimed feature family that still lacks full backend/runtime execution or `--ir` / `--asm` support | todo |
+| T-151 | P13 | P0 | Lower user-defined functions through the compiled backend/runtime path | T-150 | Representative claimed function programs execute without Python-side semantic fallback, and `--ir` / `--asm` support those programs | todo |
+| T-152 | P13 | P0 | Lower `exit` and `nextfile` through the compiled backend/runtime path | T-150 | Representative claimed `exit` and `nextfile` programs execute through the backend/runtime path and support inspection output | todo |
+| T-153 | P13 | P0 | Lower the remaining claimed scalar-string and coercion families through the backend/runtime path | T-150 | Claimed concatenation/coercion-heavy execution paths no longer require Python-side semantic fallback, and their backend tests are explicit | todo |
+| T-154 | P13 | P1 | Remove Python-side semantic fallback from the public execution path for claimed behavior | T-151, T-152, T-153 | Public `quawk` execution no longer routes claimed AWK semantics through Python fallback; any still-unlowered behavior fails explicitly until claimed support is updated | todo |
+| T-155 | P13 | P1 | Close `--ir` / `--asm` parity gaps across the full claimed execution surface | T-151, T-152, T-153 | Inspection succeeds for every feature family still marked `implemented` in `SPEC.md`, or the claim is narrowed before the phase closes | todo |
+| T-156 | P13 | P1 | Add the architecture audit gate and rebaseline the docs for the AOT-only contract | T-154, T-155 | Tests, `SPEC.md`, and `docs/design.md` all prove that Python is compile/orchestration only for claimed AWK semantics | todo |
+| T-157 | P14 | P0 | Audit and split `SPEC.md` rows for POSIX-facing feature families | T-156 | `SPEC.md` no longer hides known POSIX gaps behind broad rows for `print`, builtins, builtin variables, CLI variables, or backend parity | todo |
+| T-158 | P14 | P0 | Implement full POSIX `print` behavior | T-157 | Bare `print`, multi-argument `print`, `OFS`, and `ORS` behave correctly under direct CLI tests and can be corroborated by promoted upstream cases | todo |
+| T-159 | P14 | P0 | Implement POSIX output and formatting variables | T-158 | `OFS`, `ORS`, `OFMT`, and `CONVFMT` influence output and formatting as claimed by `SPEC.md` | todo |
+| T-160 | P14 | P1 | Implement POSIX output redirection and pipe output | T-158 | `print` / `printf` support `>`, `>>`, `|`, and `close()` for the forms claimed in `SPEC.md` | todo |
+| T-161 | P14 | P0 | Close the reviewed `printf` parity gaps | T-158, T-159 | The reviewed formatting and `substr(..., ..., ...)`-inside-`printf` mismatches are fixed or replaced with narrower classified gaps | todo |
+| T-162 | P14 | P0 | Implement the missing POSIX string and regex builtins | T-157 | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` have parser, runtime, and compatibility coverage | todo |
+| T-163 | P14 | P1 | Implement the missing POSIX numeric and system builtins | T-157 | `int`, `rand`, `srand`, `system`, and any remaining required POSIX math builtins are covered by direct and compatibility tests | todo |
+| T-164 | P14 | P0 | Implement `getline`, the remaining builtin variables, and CLI or environment preassignment behavior | T-157 | `getline`, `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and string-valued `-v` behave as claimed and are covered by tests | todo |
+| T-165 | P14 | P0 | Close the remaining POSIX parser-continuation and runtime-sequencing gaps | T-158, T-159, T-164 | Reviewed multiline/parser cases, default-print expression-pattern mismatches, and cases like `END { print NR }` are fixed or reclassified precisely | todo |
+| T-166 | P14 | P1 | Re-audit the upstream manifest and promote corroborating POSIX cases | T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165 | Clean upstream cases are promoted for every major fixed POSIX family, and no stale skip reason remains after a semantic fix lands | todo |
+| T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | todo |
+| T-132 | P15 | P0 | Define the benchmark harness interface, workload suite, and measurement contract | T-167 | `docs/benchmark.md` specifies the command, metrics, workload set, dataset scales, and `quawk` timing model clearly enough to implement without further design work | todo |
+| T-133 | P15 | P0 | Implement deterministic dataset generation and fixed benchmark workloads | T-132 | The benchmark harness can generate the planned workloads and `smoke`/`medium`/`large` datasets reproducibly from a fixed seed | todo |
+| T-134 | P15 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `one-true-awk`, and `gawk --posix` and prints stable summary tables | todo |
+| T-135 | P15 | P1 | Add `quawk` split compile-versus-run measurement support | T-134 | The benchmark reports clearly labeled `quawk` frontend or lowering versus `lli` execution timings for the same workloads without changing the public CLI surface | todo |
+| T-136 | P15 | P1 | Add benchmark smoke tests and developer documentation | T-134, T-135 | Harness tests cover determinism and reporting behavior, and the benchmark workflow is documented for developers | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

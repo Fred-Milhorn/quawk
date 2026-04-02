@@ -202,8 +202,9 @@ AOT-oriented design goals:
 
 Current implementation model:
 - the parser and semantic layers target the current `docs/quawk.ebnf` surface rather than an older execution-only subset
-- public execution is broader than backend inspection support: some programs execute through the reusable LLVM/runtime path, while others still fall back to the Python host runtime
-- `--ir` and `--asm` describe only the backend-lowered surface; they are not promised for every program that public `quawk` execution can run today
+- the intended public execution model is AOT compilation plus backend/runtime execution; Python should compile, link, and invoke the generated program rather than interpret AWK semantics
+- some claimed language families still rely on temporary Python-side semantic execution; that is transition debt to remove, not a stable product boundary
+- `--ir` and `--asm` are intended to describe the full compiled execution surface, but they are still incomplete where backend lowering has not caught up
 
 Current public execution surface:
 - mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules
@@ -218,12 +219,12 @@ Current public execution surface:
 
 Current backend and inspection surface:
 - the reusable LLVM/runtime path covers representative record-driven and richer `BEGIN` programs, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, and `next`
-- backend parity is intentionally narrower than public execution: programs that still require the host runtime do not have guaranteed `--ir` or `--asm` support
+- backend parity is still incomplete for some claimed language families, so `--ir` and `--asm` do not yet cover the whole intended execution surface
 
 Current architectural caveat:
-- the preferred public path is the reusable program/runtime split above, not Python-side whole-input materialization
-- the host runtime remains the fallback for the language families not yet lowered through LLVM, notably user-defined functions, `exit`, `nextfile`, and richer scalar-string execution paths such as concatenation through scalar reads
-- compatibility work should drive whether the remaining host-runtime fallback families are lowered further or explicitly scoped
+- the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
+- temporary host-runtime execution remains in a few language families not yet lowered through LLVM, notably user-defined functions, `exit`, `nextfile`, and richer scalar-string execution paths such as concatenation through scalar reads
+- POSIX-hardening and backend-parity work should remove those remaining host-runtime families rather than normalize them as a permanent split execution model
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes
@@ -435,6 +436,6 @@ Target baseline:
 
 Current limitations:
 - string-valued `-v` assignments are not supported yet
-- `--ir` and `--asm` only cover programs that fit the current backend-lowered surface; public execution is broader
+- `--ir` and `--asm` do not yet cover every claimed execution family because backend lowering is still incomplete
 - assembly inspection output is backend- and platform-dependent
 - the repo-owned compatibility corpus is now supplemental to the upstream compatibility gate, and broader POSIX hardening is still ongoing
