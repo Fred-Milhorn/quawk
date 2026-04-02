@@ -40,7 +40,22 @@ struct qk_runtime {
     char *current_filename;
     char *scratch_buffer;
     size_t scratch_capacity;
+    struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
+};
+
+enum qk_scalar_kind {
+    QK_SCALAR_UNSET = 0,
+    QK_SCALAR_NUMBER = 1,
+    QK_SCALAR_STRING = 2,
+};
+
+struct qk_scalar_entry {
+    char *name;
+    enum qk_scalar_kind kind;
+    double number;
+    char *string;
+    struct qk_scalar_entry *next;
 };
 
 struct qk_array_entry {
@@ -98,6 +113,17 @@ static void qk_free_array_entries(struct qk_array_entry *entry)
     }
 }
 
+static void qk_free_scalars(struct qk_scalar_entry *entry)
+{
+    while (entry != NULL) {
+        struct qk_scalar_entry *next = entry->next;
+        free(entry->name);
+        free(entry->string);
+        free(entry);
+        entry = next;
+    }
+}
+
 static void qk_free_arrays(struct qk_array *array)
 {
     while (array != NULL) {
@@ -107,6 +133,81 @@ static void qk_free_arrays(struct qk_array *array)
         free(array);
         array = next;
     }
+}
+
+static struct qk_scalar_entry *qk_find_scalar(qk_runtime *runtime, const char *name, bool create)
+{
+    struct qk_scalar_entry *entry = runtime->scalars;
+    while (entry != NULL) {
+        if ((entry->name != NULL) && (name != NULL) && (strcmp(entry->name, name) == 0)) {
+            return entry;
+        }
+        entry = entry->next;
+    }
+
+    if (!create || (name == NULL)) {
+        return NULL;
+    }
+
+    entry = calloc(1U, sizeof(*entry));
+    if (entry == NULL) {
+        return NULL;
+    }
+    entry->name = qk_strdup_or_null(name);
+    if (entry->name == NULL) {
+        free(entry);
+        return NULL;
+    }
+    entry->kind = QK_SCALAR_UNSET;
+    entry->next = runtime->scalars;
+    runtime->scalars = entry;
+    return entry;
+}
+
+static void qk_clear_scalar(struct qk_scalar_entry *entry)
+{
+    if (entry == NULL) {
+        return;
+    }
+    entry->kind = QK_SCALAR_UNSET;
+    entry->number = 0.0;
+    free(entry->string);
+    entry->string = NULL;
+}
+
+static bool qk_scalar_set_string_value(qk_runtime *runtime, const char *name, const char *value)
+{
+    struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, true);
+    char *copy;
+
+    if (entry == NULL) {
+        return false;
+    }
+
+    copy = qk_strdup_or_null(value == NULL ? "" : value);
+    if (copy == NULL) {
+        return false;
+    }
+
+    free(entry->string);
+    entry->string = copy;
+    entry->number = 0.0;
+    entry->kind = QK_SCALAR_STRING;
+    return true;
+}
+
+static bool qk_scalar_set_number_value(qk_runtime *runtime, const char *name, double value)
+{
+    struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, true);
+    if (entry == NULL) {
+        return false;
+    }
+
+    free(entry->string);
+    entry->string = NULL;
+    entry->number = value;
+    entry->kind = QK_SCALAR_NUMBER;
+    return true;
 }
 
 static struct qk_array *qk_find_array(qk_runtime *runtime, const char *name, bool create)
@@ -242,6 +343,68 @@ static bool qk_store_scratch(qk_runtime *runtime, const char *text, size_t lengt
     memcpy(runtime->scratch_buffer, text, length);
     runtime->scratch_buffer[length] = '\0';
     return true;
+}
+
+static double qk_parse_awk_numeric_prefix(const char *text)
+{
+    char *end = NULL;
+    double value;
+
+    if (text == NULL) {
+        return 0.0;
+    }
+
+    errno = 0;
+    value = strtod(text, &end);
+    if (end == text) {
+        return 0.0;
+    }
+    return value;
+}
+
+static bool qk_pointer_aliases_scratch(const qk_runtime *runtime, const char *text)
+{
+    uintptr_t start;
+    uintptr_t end;
+    uintptr_t value;
+
+    if ((runtime == NULL) || (runtime->scratch_buffer == NULL) || (text == NULL)) {
+        return false;
+    }
+
+    start = (uintptr_t)runtime->scratch_buffer;
+    end = start + runtime->scratch_capacity;
+    value = (uintptr_t)text;
+    return (value >= start) && (value < end);
+}
+
+static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_entry *entry)
+{
+    char buffer[64];
+    char *copy;
+
+    if ((runtime == NULL) || (entry == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+
+    if (entry->kind == QK_SCALAR_STRING) {
+        return entry->string == NULL ? QK_EMPTY_FIELD : entry->string;
+    }
+    if (entry->kind != QK_SCALAR_NUMBER) {
+        return QK_EMPTY_FIELD;
+    }
+
+    if (entry->string != NULL) {
+        return entry->string;
+    }
+
+    snprintf(buffer, sizeof(buffer), "%g", entry->number);
+    copy = qk_strdup_or_null(buffer);
+    if (copy == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+    entry->string = copy;
+    return entry->string;
 }
 
 static bool qk_push_field(qk_runtime *runtime, char *field_text)
@@ -401,6 +564,7 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->field_separator);
     free(runtime->current_filename);
     free(runtime->scratch_buffer);
+    qk_free_scalars(runtime->scalars);
     qk_free_arrays(runtime->arrays);
     free(runtime);
 }
@@ -579,6 +743,158 @@ int32_t qk_exit_status(qk_runtime *runtime)
         return 0;
     }
     return runtime->exit_requested ? runtime->exit_status : 0;
+}
+
+const char *qk_scalar_get(qk_runtime *runtime, const char *name)
+{
+    struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
+    return qk_scalar_string_view(runtime, entry);
+}
+
+double qk_scalar_get_number(qk_runtime *runtime, const char *name)
+{
+    struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
+    if (entry == NULL) {
+        return 0.0;
+    }
+    if (entry->kind == QK_SCALAR_NUMBER) {
+        return entry->number;
+    }
+    if (entry->kind == QK_SCALAR_STRING) {
+        return qk_parse_awk_numeric_prefix(entry->string);
+    }
+    return 0.0;
+}
+
+bool qk_scalar_truthy(qk_runtime *runtime, const char *name)
+{
+    struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
+    if (entry == NULL) {
+        return false;
+    }
+    if (entry->kind == QK_SCALAR_NUMBER) {
+        return entry->number != 0.0;
+    }
+    if (entry->kind == QK_SCALAR_STRING) {
+        return (entry->string != NULL) && (entry->string[0] != '\0');
+    }
+    return false;
+}
+
+void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value)
+{
+    if ((runtime == NULL) || (name == NULL)) {
+        return;
+    }
+    (void)qk_scalar_set_string_value(runtime, name, value);
+}
+
+void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
+{
+    if ((runtime == NULL) || (name == NULL)) {
+        return;
+    }
+    (void)qk_scalar_set_number_value(runtime, name, value);
+}
+
+void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name)
+{
+    struct qk_scalar_entry *target;
+    struct qk_scalar_entry *source;
+
+    if ((runtime == NULL) || (target_name == NULL) || (source_name == NULL)) {
+        return;
+    }
+
+    source = qk_find_scalar(runtime, source_name, false);
+    target = qk_find_scalar(runtime, target_name, true);
+    if (target == NULL) {
+        return;
+    }
+    if (source == NULL) {
+        qk_clear_scalar(target);
+        return;
+    }
+
+    if (source->kind == QK_SCALAR_NUMBER) {
+        (void)qk_scalar_set_number_value(runtime, target_name, source->number);
+        return;
+    }
+    if (source->kind == QK_SCALAR_STRING) {
+        (void)qk_scalar_set_string_value(runtime, target_name, source->string);
+        return;
+    }
+    qk_clear_scalar(target);
+}
+
+const char *qk_format_number(qk_runtime *runtime, double value)
+{
+    char buffer[64];
+    if (runtime == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+    snprintf(buffer, sizeof(buffer), "%g", value);
+    if (!qk_store_scratch(runtime, buffer, strlen(buffer))) {
+        return QK_EMPTY_FIELD;
+    }
+    return runtime->scratch_buffer;
+}
+
+const char *qk_concat(qk_runtime *runtime, const char *left, const char *right)
+{
+    char *left_copy = NULL;
+    char *right_copy = NULL;
+    size_t left_length;
+    size_t right_length;
+
+    if (runtime == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+
+    if (left == NULL) {
+        left = "";
+    }
+    if (right == NULL) {
+        right = "";
+    }
+    if (qk_pointer_aliases_scratch(runtime, left)) {
+        left_copy = qk_strdup_or_null(left);
+        if (left_copy == NULL) {
+            return QK_EMPTY_FIELD;
+        }
+        left = left_copy;
+    }
+    if (qk_pointer_aliases_scratch(runtime, right)) {
+        right_copy = qk_strdup_or_null(right);
+        if (right_copy == NULL) {
+            free(left_copy);
+            return QK_EMPTY_FIELD;
+        }
+        right = right_copy;
+    }
+
+    left_length = strlen(left);
+    right_length = strlen(right);
+    if (!qk_store_scratch(runtime, left, left_length)) {
+        free(left_copy);
+        free(right_copy);
+        return QK_EMPTY_FIELD;
+    }
+    if ((left_length + right_length + 1U) > runtime->scratch_capacity) {
+        char *next = realloc(runtime->scratch_buffer, left_length + right_length + 1U);
+        if (next == NULL) {
+            free(left_copy);
+            free(right_copy);
+            return QK_EMPTY_FIELD;
+        }
+        runtime->scratch_buffer = next;
+        runtime->scratch_capacity = left_length + right_length + 1U;
+    }
+    memcpy(runtime->scratch_buffer + left_length, right, right_length);
+    runtime->scratch_buffer[left_length + right_length] = '\0';
+    free(left_copy);
+    free(right_copy);
+    return runtime->scratch_buffer;
 }
 
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern)

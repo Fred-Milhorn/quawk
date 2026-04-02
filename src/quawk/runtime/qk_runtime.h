@@ -52,6 +52,14 @@ int32_t qk_exit_status(qk_runtime *runtime);
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern);
 
 /* Builtin-variable and builtin-function support for backend parity. */
+const char *qk_scalar_get(qk_runtime *runtime, const char *name);
+double qk_scalar_get_number(qk_runtime *runtime, const char *name);
+bool qk_scalar_truthy(qk_runtime *runtime, const char *name);
+void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value);
+void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value);
+void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name);
+const char *qk_format_number(qk_runtime *runtime, double value);
+const char *qk_concat(qk_runtime *runtime, const char *left, const char *right);
 double qk_get_nr(qk_runtime *runtime);
 double qk_get_fnr(qk_runtime *runtime);
 double qk_get_nf(qk_runtime *runtime);

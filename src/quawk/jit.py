@@ -88,6 +88,8 @@ class LoweringState:
     variable_indexes: dict[str, int] = field(default_factory=dict)
     action_exit_label: str | None = None
     phase_exit_label: str | None = None
+    break_label: str | None = None
+    continue_label: str | None = None
     array_names: frozenset[str] = field(default_factory=frozenset)
     loop_string_bindings: dict[str, str] = field(default_factory=dict)
     function_defs: dict[str, FunctionDef] = field(default_factory=dict)
@@ -432,7 +434,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
     begin_actions = normalized_program.begin_actions
     record_items = normalized_program.record_items
     end_actions = normalized_program.end_actions
-    variable_indexes = normalized_program.variable_indexes
+    variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
     array_names = normalized_program.array_names
     state_type = render_state_type(variable_indexes)
 
@@ -444,6 +446,14 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare void @qk_nextfile(ptr)",
         "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
+        "declare ptr @qk_scalar_get(ptr, ptr)",
+        "declare double @qk_scalar_get_number(ptr, ptr)",
+        "declare i1 @qk_scalar_truthy(ptr, ptr)",
+        "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
+        "declare void @qk_scalar_set_number(ptr, ptr, double)",
+        "declare void @qk_scalar_copy(ptr, ptr, ptr)",
+        "declare ptr @qk_format_number(ptr, double)",
+        "declare ptr @qk_concat(ptr, ptr, ptr)",
         "declare double @qk_get_nr(ptr)",
         "declare double @qk_get_fnr(ptr)",
         "declare double @qk_get_nf(ptr)",
@@ -614,15 +624,21 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
             for nested in statements:
                 lower_statement(nested, state)
         case BreakStmt():
-            raise RuntimeError("break statements are not supported by the current backend")
+            if state.break_label is None:
+                raise RuntimeError("break statements are not supported by the current backend")
+            state.instructions.append(f"  br label %{state.break_label}")
         case ContinueStmt():
-            raise RuntimeError("continue statements are not supported by the current backend")
+            if state.continue_label is None:
+                raise RuntimeError("continue statements are not supported by the current backend")
+            state.instructions.append(f"  br label %{state.continue_label}")
         case DeleteStmt():
             if state.runtime_param is None:
                 raise RuntimeError("delete statements are not supported by the direct LLVM-backed backend")
             lower_runtime_delete_statement(statement, state)
         case IfStmt():
             lower_if_statement(statement, state)
+        case DoWhileStmt():
+            lower_do_while_statement(statement, state)
         case WhileStmt():
             lower_while_statement(statement, state)
         case ForStmt():
@@ -760,11 +776,11 @@ def lower_runtime_range_record_item(
     if not isinstance(pattern.left, ExprPattern) or not isinstance(pattern.right, ExprPattern):
         raise RuntimeError("the runtime-backed backend only supports expression endpoints in range patterns")
     slot_name = variable_address(range_state_name, state)
-    active_value = state.next_temp("range.active")
-    active_flag = state.next_temp("range.flag")
-    active_label = state.next_label("range.active")
-    inactive_label = state.next_label("range.inactive")
-    end_label = state.next_label("range.end")
+    active_value = state.next_temp("range.activeval")
+    active_flag = state.next_temp("range.activeflag")
+    active_label = state.next_label("range.active.label")
+    inactive_label = state.next_label("range.inactive.label")
+    end_label = state.next_label("range.end.label")
     state.instructions.extend(
         [
             f"  {active_value} = load double, ptr {slot_name}",
@@ -775,7 +791,7 @@ def lower_runtime_range_record_item(
     )
     lower_runtime_action_or_default(action, state)
     right_matches = lower_record_pattern(pattern.right, state)
-    keep_active = state.next_temp("range.keep")
+    keep_active = state.next_temp("range.keepflag")
     keep_active_num = state.next_temp("range.keepnum")
     state.instructions.extend(
         [
@@ -787,12 +803,12 @@ def lower_runtime_range_record_item(
         ]
     )
     left_matches = lower_record_pattern(pattern.left, state)
-    matched_label = state.next_label("range.matched")
+    matched_label = state.next_label("range.matched.label")
     state.instructions.append(f"  br i1 {left_matches}, label %{matched_label}, label %{end_label}")
     state.instructions.append(f"{matched_label}:")
     lower_runtime_action_or_default(action, state)
     right_after_start = lower_record_pattern(pattern.right, state)
-    start_keep_active = state.next_temp("range.start.keep")
+    start_keep_active = state.next_temp("range.start.keepflag")
     start_keep_active_num = state.next_temp("range.start.keepnum")
     state.instructions.extend(
         [
@@ -831,12 +847,18 @@ def lower_action(action: Action, state: LoweringState, record: RecordContext | N
 def lower_if_statement(statement: IfStmt, state: LoweringState) -> None:
     """Lower an `if` statement with a single then-branch."""
     then_label = state.next_label("if.then")
+    else_label = state.next_label("if.else") if statement.else_branch is not None else None
     end_label = state.next_label("if.end")
     condition = lower_condition_expression(statement.condition, state)
-    state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{end_label}")
+    false_target = end_label if else_label is None else else_label
+    state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{false_target}")
     state.instructions.append(f"{then_label}:")
     lower_statement(statement.then_branch, state)
     state.instructions.append(f"  br label %{end_label}")
+    if statement.else_branch is not None and else_label is not None:
+        state.instructions.append(f"{else_label}:")
+        lower_statement(statement.else_branch, state)
+        state.instructions.append(f"  br label %{end_label}")
     state.instructions.append(f"{end_label}:")
 
 
@@ -850,8 +872,39 @@ def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
     condition = lower_condition_expression(statement.condition, state)
     state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
     state.instructions.append(f"{body_label}:")
-    lower_statement(statement.body, state)
+    previous_break_label = state.break_label
+    previous_continue_label = state.continue_label
+    state.break_label = end_label
+    state.continue_label = cond_label
+    try:
+        lower_statement(statement.body, state)
+    finally:
+        state.break_label = previous_break_label
+        state.continue_label = previous_continue_label
     state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{end_label}:")
+
+
+def lower_do_while_statement(statement: DoWhileStmt, state: LoweringState) -> None:
+    """Lower a `do ... while` loop in the current backend subset."""
+    body_label = state.next_label("dowhile.body")
+    cond_label = state.next_label("dowhile.cond")
+    end_label = state.next_label("dowhile.end")
+    state.instructions.append(f"  br label %{body_label}")
+    state.instructions.append(f"{body_label}:")
+    previous_break_label = state.break_label
+    previous_continue_label = state.continue_label
+    state.break_label = end_label
+    state.continue_label = cond_label
+    try:
+        lower_statement(statement.body, state)
+    finally:
+        state.break_label = previous_break_label
+        state.continue_label = previous_continue_label
+    state.instructions.append(f"  br label %{cond_label}")
+    state.instructions.append(f"{cond_label}:")
+    condition = lower_condition_expression(statement.condition, state)
+    state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
     state.instructions.append(f"{end_label}:")
 
 
@@ -898,9 +951,30 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             )
         )
         return
-    slot_name = variable_address(statement.name, state)
+    if is_reusable_runtime_state_name(statement.name):
+        slot_name = variable_address(statement.name, state)
+        numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+        return
+
+    target_name = lower_runtime_scalar_name(statement.name, state)
+    if isinstance(statement.value, NameExpr) and runtime_name_uses_scalar_runtime(statement.value.name, state):
+        source_name = lower_runtime_scalar_name(statement.value.name, state)
+        state.instructions.append(
+            f"  call void @qk_scalar_copy(ptr {state.runtime_param}, ptr {target_name}, ptr {source_name})"
+        )
+        return
+    if runtime_assignment_preserves_string(statement.value, state):
+        string_value = lower_runtime_string_expression(statement.value, state)
+        state.instructions.append(
+            f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {target_name}, ptr {string_value})"
+        )
+        return
+
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
-    state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+    state.instructions.append(
+        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {target_name}, double {numeric_value})"
+    )
 
 
 def lower_runtime_delete_statement(statement: DeleteStmt, state: LoweringState) -> None:
@@ -939,7 +1013,15 @@ def lower_runtime_for_statement(statement: ForStmt, state: LoweringState) -> Non
         condition = lower_condition_expression(statement.condition, state)
         state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
     state.instructions.append(f"{body_label}:")
-    lower_statement(statement.body, state)
+    previous_break_label = state.break_label
+    previous_continue_label = state.continue_label
+    state.break_label = end_label
+    state.continue_label = update_label
+    try:
+        lower_statement(statement.body, state)
+    finally:
+        state.break_label = previous_break_label
+        state.continue_label = previous_continue_label
     state.instructions.append(f"  br label %{update_label}")
     state.instructions.append(f"{update_label}:")
     for expression in statement.update:
@@ -980,9 +1062,15 @@ def lower_runtime_for_in_statement(statement: ForInStmt, state: LoweringState) -
     )
     previous_binding = state.loop_string_bindings.get(statement.name)
     state.loop_string_bindings[statement.name] = current_key
+    previous_break_label = state.break_label
+    previous_continue_label = state.continue_label
+    state.break_label = end_label
+    state.continue_label = step_label
     try:
         lower_statement(statement.body, state)
     finally:
+        state.break_label = previous_break_label
+        state.continue_label = previous_continue_label
         if previous_binding is None:
             state.loop_string_bindings.pop(statement.name, None)
         else:
@@ -1084,15 +1172,7 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
 def lower_runtime_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one print expression against the reusable runtime ABI."""
     assert state.runtime_param is not None
-    if isinstance(expression, NameExpr) and expression.name in state.loop_string_bindings:
-        string_value = lower_runtime_string_expression(expression, state)
-        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
-        return
-    if isinstance(expression, StringLiteralExpr):
-        string_value = lower_runtime_string_expression(expression, state)
-        state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
-        return
-    if runtime_expression_has_string_result(expression):
+    if runtime_expression_has_string_result(expression, state):
         string_value = lower_runtime_string_expression(expression, state)
         state.instructions.append(f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {string_value})")
         return
@@ -1142,7 +1222,7 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
 
 def lower_runtime_side_effect_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one expression statement for the runtime-backed backend subset."""
-    if runtime_expression_has_string_result(expression):
+    if runtime_expression_has_string_result(expression, state):
         _ = lower_runtime_string_expression(expression, state)
         return
     try:
@@ -1221,9 +1301,16 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             state.instructions.append(f"  {temp} = call double @qk_get_nf(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
-            slot_name = variable_address(name, state)
-            temp = state.next_temp("load")
-            state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
+            if is_reusable_runtime_state_name(name):
+                slot_name = variable_address(name, state)
+                temp = state.next_temp("load")
+                state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
+                return temp
+            scalar_name = lower_runtime_scalar_name(name, state)
+            temp = state.next_temp("scalar.num")
+            state.instructions.append(
+                f"  {temp} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+            )
             return temp
         case AssignExpr():
             return lower_runtime_assignment_expression(expression, state)
@@ -1274,15 +1361,16 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
         raise RuntimeError("compound assignment expressions are not supported by the runtime-backed backend")
 
     target = expression.target
-    numeric_value = lower_runtime_numeric_expression(expression.value, state)
     match target:
         case FieldLValue(index=index):
+            numeric_value = lower_runtime_numeric_expression(expression.value, state)
             index_value = lower_runtime_field_index(index, state)
             assert state.runtime_param is not None
             state.instructions.append(
                 f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
             )
         case ArrayLValue(name=name, subscripts=(subscript,)):
+            numeric_value = lower_runtime_numeric_expression(expression.value, state)
             assert state.runtime_param is not None
             array_name_ptr = lower_runtime_constant_string(name, state)
             key_ptr = lower_runtime_array_key(subscript, state)
@@ -1290,8 +1378,35 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                 f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {numeric_value})"
             )
         case NameLValue(name=name):
-            slot_name = variable_address(name, state)
-            state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+            if is_reusable_runtime_state_name(name):
+                numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                slot_name = variable_address(name, state)
+                state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+            else:
+                scalar_name = lower_runtime_scalar_name(name, state)
+                if isinstance(expression.value, NameExpr) and runtime_name_uses_scalar_runtime(expression.value.name, state):
+                    source_name = lower_runtime_scalar_name(expression.value.name, state)
+                    state.instructions.append(
+                        f"  call void @qk_scalar_copy(ptr {state.runtime_param}, ptr {scalar_name}, ptr {source_name})"
+                    )
+                    numeric_value = state.next_temp("assign.copy.num")
+                    state.instructions.append(
+                        f"  {numeric_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+                    )
+                elif runtime_assignment_preserves_string(expression.value, state):
+                    string_value = lower_runtime_string_expression(expression.value, state)
+                    state.instructions.append(
+                        f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
+                    )
+                    numeric_value = state.next_temp("assign.str.num")
+                    state.instructions.append(
+                        f"  {numeric_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+                    )
+                else:
+                    numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                    state.instructions.append(
+                        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {numeric_value})"
+                    )
         case _:
             raise RuntimeError("unsupported assignment expression in the runtime-backed backend")
     return numeric_value
@@ -1299,14 +1414,27 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
 
 def lower_runtime_increment_expression(name: str, delta: float, *, return_old: bool, state: LoweringState) -> str:
     """Lower one scalar pre/post increment or decrement expression."""
-    slot_name = variable_address(name, state)
+    if is_reusable_runtime_state_name(name):
+        slot_name = variable_address(name, state)
+        old_value = state.next_temp("inc.old")
+        new_value = state.next_temp("inc.new")
+        state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
+        opcode = "fadd" if delta >= 0 else "fsub"
+        amount = format_double_literal(abs(delta))
+        state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+        state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
+        return old_value if return_old else new_value
+
+    scalar_name = lower_runtime_scalar_name(name, state)
     old_value = state.next_temp("inc.old")
     new_value = state.next_temp("inc.new")
-    state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
+    state.instructions.append(f"  {old_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})")
     opcode = "fadd" if delta >= 0 else "fsub"
     amount = format_double_literal(abs(delta))
     state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-    state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
+    state.instructions.append(
+        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {new_value})"
+    )
     return old_value if return_old else new_value
 
 
@@ -1324,6 +1452,20 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
         case NameExpr(name="FILENAME"):
             temp = state.next_temp("filename")
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
+            return temp
+        case NameExpr(name=name):
+            if runtime_name_uses_scalar_runtime(name, state):
+                scalar_name = lower_runtime_scalar_name(name, state)
+                temp = state.next_temp("scalar.str")
+                state.instructions.append(
+                    f"  {temp} = call ptr @qk_scalar_get(ptr {state.runtime_param}, ptr {scalar_name})"
+                )
+                return temp
+            numeric_value = lower_runtime_numeric_expression(expression, state)
+            temp = state.next_temp("numstr")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})"
+            )
             return temp
         case FieldExpr(index=index):
             field_index = lower_runtime_field_index(index, state)
@@ -1346,8 +1488,19 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             return lower_runtime_substr_builtin(expression, state)
         case CallExpr(function="length"):
             raise RuntimeError("length lowers as a numeric expression in the runtime-backed backend")
+        case BinaryExpr(op=BinaryOp.CONCAT, left=left, right=right):
+            left_value = lower_runtime_string_expression(left, state)
+            right_value = lower_runtime_string_expression(right, state)
+            temp = state.next_temp("concat")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {left_value}, ptr {right_value})"
+            )
+            return temp
         case _:
-            raise RuntimeError("unsupported string expression in runtime-backed backend")
+            numeric_value = lower_runtime_numeric_expression(expression, state)
+            temp = state.next_temp("numstr")
+            state.instructions.append(f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})")
+            return temp
 
 
 def lower_runtime_length_builtin(expression: CallExpr, state: LoweringState) -> str:
@@ -1455,6 +1608,60 @@ def lower_runtime_constant_string(value: str, state: LoweringState) -> str:
     return string_ptr
 
 
+def lower_runtime_scalar_name(name: str, state: LoweringState) -> str:
+    """Lower one scalar variable name to a runtime string pointer."""
+    return lower_runtime_constant_string(name, state)
+
+
+def runtime_name_uses_scalar_runtime(name: str, state: LoweringState) -> bool:
+    """Report whether one `NameExpr` should route through the runtime scalar ABI."""
+    return name not in {"NR", "FNR", "NF", "FILENAME"} and name not in state.loop_string_bindings and not is_reusable_runtime_state_name(name)
+
+
+def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -> bool:
+    """Report whether one runtime-backed expression has string truthiness semantics."""
+    match expression:
+        case StringLiteralExpr() | FieldExpr() | ArrayIndexExpr():
+            return True
+        case NameExpr(name="FILENAME"):
+            return True
+        case NameExpr(name=name):
+            return name in state.loop_string_bindings
+        case CallExpr(function="substr"):
+            return True
+        case BinaryExpr(op=BinaryOp.CONCAT):
+            return True
+        case _:
+            return False
+
+
+def lower_runtime_string_truthiness(expression: Expr, state: LoweringState) -> str:
+    """Lower AWK string truthiness for one runtime-backed string expression."""
+    string_value = lower_runtime_string_expression(expression, state)
+    first_char = state.next_temp("strtruth.char")
+    truthy = state.next_temp("strtruth")
+    state.instructions.extend(
+        [
+            f"  {first_char} = load i8, ptr {string_value}",
+            f"  {truthy} = icmp ne i8 {first_char}, 0",
+        ]
+    )
+    return truthy
+
+
+def runtime_assignment_preserves_string(expression: Expr, state: LoweringState) -> bool:
+    """Report whether a scalar assignment should keep the runtime string view."""
+    match expression:
+        case NameExpr(name="FILENAME"):
+            return True
+        case NameExpr(name=name) if name in state.loop_string_bindings:
+            return True
+        case NameExpr(name=name):
+            return runtime_name_uses_scalar_runtime(name, state)
+        case _:
+            return runtime_expression_is_known_string(expression, state)
+
+
 def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
     """Lower one array key expression to a string pointer."""
     match expression:
@@ -1478,14 +1685,18 @@ def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
     return integer_value
 
 
-def runtime_expression_has_string_result(expression: Expr) -> bool:
+def runtime_expression_has_string_result(expression: Expr, state: LoweringState | None = None) -> bool:
     """Report whether one runtime-backed expression lowers as a string result."""
     match expression:
         case StringLiteralExpr() | FieldExpr() | ArrayIndexExpr():
             return True
         case NameExpr(name="FILENAME"):
             return True
+        case NameExpr(name=name):
+            return state is not None and runtime_name_uses_scalar_runtime(name, state)
         case CallExpr(function="substr"):
+            return True
+        case BinaryExpr(op=BinaryOp.CONCAT):
             return True
         case _:
             return False
@@ -1493,6 +1704,18 @@ def runtime_expression_has_string_result(expression: Expr) -> bool:
 
 def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     """Lower a supported condition expression to an LLVM `i1` value."""
+    if state.runtime_param is not None:
+        match expression:
+            case NameExpr(name=name) if runtime_name_uses_scalar_runtime(name, state):
+                scalar_name = lower_runtime_scalar_name(name, state)
+                temp = state.next_temp("scalar.truthy")
+                state.instructions.append(
+                    f"  {temp} = call i1 @qk_scalar_truthy(ptr {state.runtime_param}, ptr {scalar_name})"
+                )
+                return temp
+            case _ if runtime_expression_is_known_string(expression, state):
+                return lower_runtime_string_truthiness(expression, state)
+
     numeric_lowerer = lower_runtime_numeric_expression if state.runtime_param is not None else lower_numeric_expression
     if isinstance(expression, BinaryExpr):
         if expression.op is BinaryOp.LESS:
@@ -1638,10 +1861,11 @@ def build_execution_driver_llvm_ir(
     normalized_program = normalize_program_for_lowering(program)
     has_record_phase = bool(normalized_program.record_items)
     state_type = extract_state_type_declaration(program_llvm_ir)
-    variable_indexes = normalized_program.variable_indexes
+    variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
 
-    globals_block = render_driver_globals(input_files, field_separator)
+    globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
     state_setup = render_driver_state_setup(variable_indexes, initial_variables or [])
+    scalar_preassignments = render_driver_scalar_preassignments(variable_indexes, initial_variables or [])
     record_loop = render_driver_record_loop(has_record_phase)
 
     return "\n".join(
@@ -1651,6 +1875,7 @@ def build_execution_driver_llvm_ir(
             "declare i1 @qk_next_record(ptr)",
             "declare i1 @qk_should_exit(ptr)",
             "declare i32 @qk_exit_status(ptr)",
+            "declare void @qk_scalar_set_number(ptr, ptr, double)",
             "declare void @quawk_begin(ptr, ptr)",
             "declare void @quawk_record(ptr, ptr)",
             "declare void @quawk_end(ptr, ptr)",
@@ -1663,6 +1888,7 @@ def build_execution_driver_llvm_ir(
             "entry:",
             *state_setup,
             *render_driver_runtime_create(input_files, field_separator),
+            *scalar_preassignments,
             "  call void @quawk_begin(ptr %rt, ptr %state)",
             *record_loop,
             "  call void @quawk_end(ptr %rt, ptr %state)",
@@ -1675,7 +1901,11 @@ def build_execution_driver_llvm_ir(
     )
 
 
-def render_driver_globals(input_files: list[str], field_separator: str | None) -> list[str]:
+def render_driver_globals(
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables,
+) -> list[str]:
     """Render driver globals for input-file operands and field-separator text."""
     globals_block: list[str] = []
 
@@ -1698,7 +1928,20 @@ def render_driver_globals(input_files: list[str], field_separator: str | None) -
         data = field_separator.encode("utf-8") + b"\x00"
         globals_block.append(declare_bytes("@.driver.fs", data))
 
+    seen_scalars: set[str] = set()
+    for name, _ in initial_variables:
+        if name in seen_scalars:
+            continue
+        seen_scalars.add(name)
+        global_name, _ = driver_scalar_name_global(name)
+        globals_block.append(declare_bytes(global_name, name.encode("utf-8") + b"\x00"))
+
     return globals_block
+
+
+def driver_scalar_name_global(name: str) -> tuple[str, int]:
+    """Return the global name and byte length for one driver scalar preassignment name."""
+    return f"@.driver.scalar.{name}", len(name.encode("utf-8")) + 1
 
 
 def render_driver_state_setup(
@@ -1734,6 +1977,28 @@ def render_driver_state_setup(
                     f"i32 0, i32 {variable_index}"
                 ),
                 f"  store double {format_double_literal(value)}, ptr {slot_name}",
+            ]
+        )
+    return setup
+
+
+def render_driver_scalar_preassignments(
+    variable_indexes: dict[str, int],
+    initial_variables: InitialVariables,
+) -> list[str]:
+    """Render runtime scalar preassignments for names not stored in `%quawk.state`."""
+    setup: list[str] = []
+    for index, (name, value) in enumerate(initial_variables):
+        if name in variable_indexes:
+            continue
+        scalar_name, scalar_length = driver_scalar_name_global(name)
+        setup.extend(
+            [
+                f"  %preassign.name.{index} = {emit_gep_inline(scalar_length, scalar_name)}",
+                (
+                    f"  call void @qk_scalar_set_number("
+                    f"ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
+                ),
             ]
         )
     return setup
@@ -3057,7 +3322,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case StringLiteralExpr():
                 return True
             case NameExpr(name=name):
-                return name == "FILENAME" or name in string_bindings
+                return True
             case NameExpr(name="FILENAME"):
                 return True
             case FieldExpr():
@@ -3067,6 +3332,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case CallExpr(function="substr", args=args):
                 return len(args) in {2, 3} and supports_string_expression(args[0], string_bindings) and all(
                     supports_numeric_expression(argument) for argument in args[1:]
+                )
+            case BinaryExpr(op=BinaryOp.CONCAT, left=left, right=right):
+                return (
+                    (supports_string_expression(left, string_bindings) or supports_numeric_expression(left))
+                    and (supports_string_expression(right, string_bindings) or supports_numeric_expression(right))
                 )
             case _:
                 return False
@@ -3091,7 +3361,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case AssignExpr(op=AssignOp.PLAIN, target=target, value=value):
                 match target:
                     case NameLValue() | FieldLValue():
-                        return supports_numeric_expression(value)
+                        return supports_numeric_expression(value) or supports_string_expression(value)
                     case ArrayLValue(subscripts=subscripts):
                         return len(subscripts) == 1 and supports_array_key(subscripts[0]) and supports_numeric_expression(value)
                     case _:
@@ -3144,6 +3414,9 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             or (isinstance(expression, CallExpr) and expression.function == "split" and supports_numeric_expression(expression))
         )
 
+    def supports_condition_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
+        return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
+
     def supports_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
             case AssignStmt(op=op, target=target, value=value):
@@ -3151,7 +3424,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     return False
                 match target:
                     case NameLValue():
-                        return supports_numeric_expression(value)
+                        return supports_numeric_expression(value) or supports_string_expression(value)
                     case ArrayLValue(name=name, subscripts=subscripts):
                         return (
                             name in array_names
@@ -3165,6 +3438,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         return False
             case BlockStmt(statements=statements):
                 return all(supports_statement(nested, string_bindings) for nested in statements)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                return supports_condition_expression(condition, string_bindings) and supports_statement(
+                    then_branch, string_bindings
+                ) and (
+                    else_branch is None or supports_statement(else_branch, string_bindings)
+                )
+            case WhileStmt(condition=condition, body=body):
+                return supports_condition_expression(condition, string_bindings) and supports_statement(body, string_bindings)
             case DeleteStmt():
                 if statement.array_name is None or statement.array_name not in array_names or statement.extra_indexes:
                     return False
@@ -3248,6 +3529,15 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             if isinstance(statement, PrintStmt) and statement.arguments:
                 argument = statement.arguments[0]
                 if isinstance(argument, CallExpr) and argument.function == "length":
+                    found_supported_runtime_feature = True
+                if isinstance(argument, BinaryExpr) and argument.op is BinaryOp.CONCAT:
+                    found_supported_runtime_feature = True
+            if isinstance(statement, AssignStmt) and isinstance(statement.target, NameLValue):
+                if isinstance(statement.value, StringLiteralExpr):
+                    found_supported_runtime_feature = True
+                if isinstance(statement.value, NameExpr) and statement.value.name == "FILENAME":
+                    found_supported_runtime_feature = True
+                if isinstance(statement.value, BinaryExpr) and statement.value.op is BinaryOp.CONCAT:
                     found_supported_runtime_feature = True
             if isinstance(statement, NextFileStmt | ExitStmt):
                 found_supported_runtime_feature = True
@@ -3357,6 +3647,21 @@ def field_parameter_name(index: int) -> str:
     if index == 1:
         return "%field1"
     raise RuntimeError("the record-loop increment only supports $0 and $1")
+
+
+def is_reusable_runtime_state_name(name: str) -> bool:
+    """Report whether one lowering-only name should stay in `%quawk.state`."""
+    return name.startswith("__range.")
+
+
+def reusable_runtime_state_indexes(variable_indexes: dict[str, int]) -> dict[str, int]:
+    """Return the contiguous `%quawk.state` layout for reusable runtime-only slots."""
+    names = [
+        name
+        for name, _ in sorted(variable_indexes.items(), key=lambda item: item[1])
+        if is_reusable_runtime_state_name(name)
+    ]
+    return {name: index for index, name in enumerate(names)}
 
 
 def render_state_type(variable_indexes: dict[str, int]) -> str | None:

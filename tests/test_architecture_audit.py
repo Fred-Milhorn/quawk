@@ -16,7 +16,6 @@ def test_families_lacking_full_backend_support_match_checked_in_baseline() -> No
 
     assert architecture_audit.families_lacking_full_backend_support(entries) == [
         "record-control-next",
-        "scalar-string-coercions",
         "control-flow-do-while",
         "control-flow-loop-break-continue",
         "expression-pattern-actions",
@@ -87,9 +86,9 @@ spec_area = "demo"
 program = '''
 BEGIN { x = "12"; print x + 1; print x "a" }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
 
 [[case]]
 family = "control-flow-do-while"

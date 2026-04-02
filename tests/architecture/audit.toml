@@ -51,10 +51,10 @@ spec_area = "Runtime and Builtins / Backend and Inspection"
 program = '''
 BEGIN { x = "12"; print x + 1; print x "a" }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Richer scalar-string and concatenation paths still depend on host-side semantic execution."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative scalar-string coercion and concatenation programs now lower through the reusable backend/runtime path and support inspection output."
 
 [[case]]
 family = "control-flow-do-while"

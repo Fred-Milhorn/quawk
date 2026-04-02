@@ -270,7 +270,7 @@ upstream skips.
 - the checked-in `T-150` audit expands that list into explicit claimed-family
   anchors, including expression-pattern selection, default-print expression
   patterns, `do ... while`, loop `break` or `continue`, `next`, `nextfile`,
-  `exit`, user-defined functions, and richer scalar-string coercion paths.
+  `exit`, user-defined functions, and scalar-string coercion paths.
   Evidence:
   [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml#L1),
   [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py#L1)
@@ -284,8 +284,8 @@ upstream skips.
   [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L223)
 - if the intended product is AOT-only execution, every remaining host-runtime
   family is an architecture gap in addition to any POSIX gap.
-- the current documented host-runtime families include user-defined functions,
-  `exit`, `nextfile`, and richer scalar-string execution paths.
+- the remaining documented host-runtime families should be kept current as
+  backend parity work lands; stale examples weaken the AOT-only contract.
 
 ### Inventory Tasks
 
@@ -311,7 +311,6 @@ or `--ir` / `--asm` support:
 | Family | Representative program | Current audited gap |
 |---|---|---|
 | `record-control-next` | `/skip/ { next } { print $0 }` | simple `next`-driven record control still falls back and has no inspection support |
-| `scalar-string-coercions` | `BEGIN { x = "12"; print x + 1; print x "a" }` | richer scalar-string and concatenation paths still depend on host-side execution |
 | `control-flow-do-while` | `BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }` | `do ... while` is claimed publicly but still lacks full backend execution and inspection support |
 | `control-flow-loop-break-continue` | `BEGIN { for (i = 0; i < 5; i = i + 1) { if (i == 2) break; else continue } }` | representative loop-control programs still do not stay on the compiled backend path |
 | `expression-pattern-actions` | `1 { print $0 }` | expression-pattern selection is claimed, but the backend only lowers regex expression patterns today |
@@ -345,6 +344,22 @@ What landed:
   `nextfile` programs
 - the checked-in architecture audit no longer treats `record-control-exit` or
   `record-control-nextfile` as blocking backend gaps
+
+### T-153 Scalar-String Backend Result
+
+`T-153` is now complete for the representative scalar-string coercion family.
+
+What landed:
+
+- reusable backend lowering now routes representative scalar variables through a
+  typed runtime scalar ABI instead of depending on Python-side value execution
+- compiled execution now preserves AWK-style string-to-number coercion,
+  concatenation, and unset-scalar string behavior for the representative
+  claimed family
+- `--ir` and normal execution now work for representative scalar-string
+  programs such as `BEGIN { x = "12"; print x + 1; print x "a" }`
+- the checked-in architecture audit no longer treats
+  `scalar-string-coercions` as a blocking backend gap
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

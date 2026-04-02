@@ -73,8 +73,8 @@ Evidence:
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
 | Backend parity for every claimed execution path | partial | The intended product is backend execution for all claimed behavior, but some families still rely on temporary host-runtime execution. |
-| User-defined functions through `--ir` / `--asm` | planned | Claimed execution support is ahead of full backend lowering; inspection and backend-only execution remain incomplete here. |
-| `nextfile`, `exit`, and richer scalar-string families through `--ir` / `--asm` | planned | These families still need backend lowering to meet the intended AOT-only execution model. |
+| Representative user-defined functions through `--ir` / `--asm` | implemented | The direct-BEGIN numeric function subset now supports inspection output. |
+| Representative `nextfile`, `exit`, and scalar-string families through `--ir` / `--asm` | implemented | Inspection now works for the representative completed control and coercion families covered by the architecture audit. |
 
 Evidence:
 - `tests/test_p9_backend_parity.py`

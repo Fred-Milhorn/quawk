@@ -223,7 +223,7 @@ Current backend and inspection surface:
 
 Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
-- temporary host-runtime execution remains in a few language families not yet lowered through LLVM, notably user-defined functions, `exit`, `nextfile`, and richer scalar-string execution paths such as concatenation through scalar reads
+- temporary host-runtime execution remains in a few language families not yet lowered through LLVM, notably simple `next`, `do ... while`, loop `break` or `continue`, and non-regex expression-pattern/default-print paths
 - POSIX-hardening and backend-parity work should remove those remaining host-runtime families rather than normalize them as a permanent split execution model
 
 Acceptance scenarios:

@@ -618,6 +618,16 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_exit_programs() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() -> None:
+    result = run_quawk("--ir", 'BEGIN { x = "12"; print x + 1; print x "a" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_scalar_set_string(" in result.stdout
+    assert "@qk_scalar_get_number(" in result.stdout
+    assert "@qk_concat(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_executes_supported_nextfile_program_through_backend(tmp_path: Path) -> None:
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"
@@ -636,4 +646,12 @@ def test_quawk_executes_supported_exit_program_with_end() -> None:
 
     assert result.returncode == 7, result.stderr
     assert result.stdout == "before\ndone\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_scalar_string_program_through_backend() -> None:
+    result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "13\n12a\n"
     assert result.stderr == ""
