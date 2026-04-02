@@ -87,6 +87,7 @@ class LoweringState:
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
     action_exit_label: str | None = None
+    phase_exit_label: str | None = None
     array_names: frozenset[str] = field(default_factory=frozenset)
     loop_string_bindings: dict[str, str] = field(default_factory=dict)
     function_defs: dict[str, FunctionDef] = field(default_factory=dict)
@@ -440,6 +441,8 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare void @qk_set_field_number(ptr, i64, double)",
         "declare void @qk_print_string(ptr, ptr)",
         "declare void @qk_print_number(ptr, double)",
+        "declare void @qk_nextfile(ptr)",
+        "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
         "declare double @qk_get_nr(ptr)",
         "declare double @qk_get_fnr(ptr)",
@@ -467,6 +470,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         variable_indexes=variable_indexes,
         array_names=array_names,
     )
+    begin_state.phase_exit_label = begin_state.next_label("phase.exit")
     for action in begin_actions:
         lower_action(action, begin_state, record=None)
 
@@ -477,6 +481,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         string_index=begin_state.string_index,
         array_names=array_names,
     )
+    record_state.phase_exit_label = record_state.next_label("phase.exit")
     for record_item in record_items:
         lower_runtime_record_item(record_item.pattern, record_item.action, record_state, record_item.range_state_name)
 
@@ -487,6 +492,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         string_index=record_state.string_index,
         array_names=array_names,
     )
+    end_state.phase_exit_label = end_state.next_label("phase.exit")
     for action in end_actions:
         lower_action(action, end_state, record=None)
 
@@ -654,9 +660,33 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 raise RuntimeError("expression statements are not supported by the direct LLVM-backed backend")
             lower_runtime_side_effect_expression(value, state)
         case NextStmt():
-            if state.runtime_param is None or state.action_exit_label is None:
+            if state.runtime_param is None or state.phase_exit_label is None:
                 raise RuntimeError("next is not supported by the direct LLVM-backed backend")
-            state.instructions.append(f"  br label %{state.action_exit_label}")
+            state.instructions.append(f"  br label %{state.phase_exit_label}")
+        case NextFileStmt():
+            if state.runtime_param is None or state.phase_exit_label is None:
+                raise RuntimeError("nextfile is not supported by the direct LLVM-backed backend")
+            state.instructions.extend(
+                [
+                    f"  call void @qk_nextfile(ptr {state.runtime_param})",
+                    f"  br label %{state.phase_exit_label}",
+                ]
+            )
+        case ExitStmt(value=value):
+            if state.runtime_param is None or state.phase_exit_label is None:
+                raise RuntimeError("exit is not supported by the direct LLVM-backed backend")
+            status_value = "0"
+            if value is not None:
+                numeric_value = lower_runtime_numeric_expression(value, state)
+                status_temp = state.next_temp("exit.status")
+                state.instructions.append(f"  {status_temp} = fptosi double {numeric_value} to i32")
+                status_value = status_temp
+            state.instructions.extend(
+                [
+                    f"  call void @qk_request_exit(ptr {state.runtime_param}, i32 {status_value})",
+                    f"  br label %{state.phase_exit_label}",
+                ]
+            )
         case _:
             raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
 
@@ -786,7 +816,7 @@ def lower_action(action: Action, state: LoweringState, record: RecordContext | N
         terminated = False
         for statement in action.statements:
             lower_statement(statement, state)
-            if state.runtime_param is not None and isinstance(statement, NextStmt):
+            if state.runtime_param is not None and isinstance(statement, NextStmt | NextFileStmt | ExitStmt):
                 terminated = True
                 break
         if state.runtime_param is not None and state.action_exit_label is not None:
@@ -1619,6 +1649,8 @@ def build_execution_driver_llvm_ir(
             "declare ptr @qk_runtime_create(i32, ptr, ptr)",
             "declare void @qk_runtime_destroy(ptr)",
             "declare i1 @qk_next_record(ptr)",
+            "declare i1 @qk_should_exit(ptr)",
+            "declare i32 @qk_exit_status(ptr)",
             "declare void @quawk_begin(ptr, ptr)",
             "declare void @quawk_record(ptr, ptr)",
             "declare void @quawk_end(ptr, ptr)",
@@ -1634,8 +1666,9 @@ def build_execution_driver_llvm_ir(
             "  call void @quawk_begin(ptr %rt, ptr %state)",
             *record_loop,
             "  call void @quawk_end(ptr %rt, ptr %state)",
+            "  %exit.status = call i32 @qk_exit_status(ptr %rt)",
             "  call void @qk_runtime_destroy(ptr %rt)",
-            "  ret i32 0",
+            "  ret i32 %exit.status",
             "}",
             "",
         ]
@@ -1735,13 +1768,15 @@ def render_driver_record_loop(has_record_phase: bool) -> list[str]:
     if not has_record_phase:
         return []
     return [
-        "  br label %record.cond",
+        "  %should.exit.begin = call i1 @qk_should_exit(ptr %rt)",
+        "  br i1 %should.exit.begin, label %record.done, label %record.cond",
         "record.cond:",
         "  %has.record = call i1 @qk_next_record(ptr %rt)",
         "  br i1 %has.record, label %record.body, label %record.done",
         "record.body:",
         "  call void @quawk_record(ptr %rt, ptr %state)",
-        "  br label %record.cond",
+        "  %should.exit.record = call i1 @qk_should_exit(ptr %rt)",
+        "  br i1 %should.exit.record, label %record.done, label %record.cond",
         "record.done:",
     ]
 
@@ -3164,6 +3199,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return supports_side_effect_expression(value, string_bindings)
             case NextStmt():
                 return True
+            case NextFileStmt():
+                return True
+            case ExitStmt(value=value):
+                return value is None or supports_numeric_expression(value)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
                     all(supports_side_effect_expression(expression, string_bindings) for expression in init)
@@ -3210,6 +3249,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 argument = statement.arguments[0]
                 if isinstance(argument, CallExpr) and argument.function == "length":
                     found_supported_runtime_feature = True
+            if isinstance(statement, NextFileStmt | ExitStmt):
+                found_supported_runtime_feature = True
     return found_supported_runtime_feature
 
 
@@ -3328,12 +3369,16 @@ def render_state_type(variable_indexes: dict[str, int]) -> str | None:
 
 def render_reusable_function(name: str, state: LoweringState) -> str:
     """Render one reusable BEGIN/record/END function body."""
+    if state.phase_exit_label is None:
+        raise RuntimeError("reusable lowering requires a precomputed phase exit label")
     return "\n".join(
         [
             f"define void @{name}(ptr %rt, ptr %state) {{",
             "entry:",
             *state.allocas,
             *state.instructions,
+            f"  br label %{state.phase_exit_label}",
+            f"{state.phase_exit_label}:",
             "  ret void",
             "}",
         ]

@@ -42,6 +42,12 @@ void qk_set_field_number(qk_runtime *runtime, int64_t index, double value);
 void qk_print_string(qk_runtime *runtime, const char *value);
 void qk_print_number(qk_runtime *runtime, double value);
 
+/* Record-control support for the reusable backend/runtime path. */
+void qk_nextfile(qk_runtime *runtime);
+void qk_request_exit(qk_runtime *runtime, int32_t status);
+bool qk_should_exit(qk_runtime *runtime);
+int32_t qk_exit_status(qk_runtime *runtime);
+
 /* Match one regular expression pattern against the current record text. */
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern);
 

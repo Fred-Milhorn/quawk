@@ -311,8 +311,6 @@ or `--ir` / `--asm` support:
 | Family | Representative program | Current audited gap |
 |---|---|---|
 | `record-control-next` | `/skip/ { next } { print $0 }` | simple `next`-driven record control still falls back and has no inspection support |
-| `record-control-nextfile` | `/stop/ { nextfile } { print $0 }` | simple `nextfile`-driven record control still falls back and has no inspection support |
-| `record-control-exit` | `BEGIN { print "before"; exit 7 }` | `exit` still falls back and has no inspection support |
 | `scalar-string-coercions` | `BEGIN { x = "12"; print x + 1; print x "a" }` | richer scalar-string and concatenation paths still depend on host-side execution |
 | `control-flow-do-while` | `BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }` | `do ... while` is claimed publicly but still lacks full backend execution and inspection support |
 | `control-flow-loop-break-continue` | `BEGIN { for (i = 0; i < 5; i = i + 1) { if (i == 2) break; else continue } }` | representative loop-control programs still do not stay on the compiled backend path |
@@ -331,6 +329,22 @@ What landed:
 - `--ir` and `--asm` now work for that same function slice
 - the checked-in architecture audit now treats `user-defined-functions` as
   backend-supported instead of still blocking the AOT contract
+
+### T-152 Exit And Nextfile Backend Result
+
+`T-152` is now complete for the representative `exit` and `nextfile` control
+paths.
+
+What landed:
+
+- reusable backend lowering now supports `nextfile` by advancing the runtime to
+  the next input file instead of falling back to Python
+- reusable backend lowering now supports `exit` by recording runtime exit state
+  that the execution driver honors while still running `END`
+- `--ir` and normal execution now work for representative claimed `exit` and
+  `nextfile` programs
+- the checked-in architecture audit no longer treats `record-control-exit` or
+  `record-control-nextfile` as blocking backend gaps
 
 ## Phase 3: Task Backlog To Reach POSIX Compatibility
 

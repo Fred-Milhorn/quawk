@@ -29,10 +29,10 @@ program = '''
 /stop/ { nextfile }
 { print $0 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Simple nextfile-driven record control still falls back instead of running through the compiled backend path."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative nextfile-driven record control now lowers through the reusable backend/runtime path and supports inspection output."
 
 [[case]]
 family = "record-control-exit"
@@ -40,10 +40,10 @@ spec_area = "Language Surface / Backend and Inspection"
 program = '''
 BEGIN { print "before"; exit 7 }
 '''
-expected_uses_host_runtime = true
-expected_supports_public_backend_execution = false
-expected_supports_ir_asm = false
-notes = "Exit status control is claimed publicly, but backend execution and inspection still reject it."
+expected_uses_host_runtime = false
+expected_supports_public_backend_execution = true
+expected_supports_ir_asm = true
+notes = "Representative exit-driven control flow now lowers through the reusable backend/runtime path and supports inspection output."
 
 [[case]]
 family = "scalar-string-coercions"

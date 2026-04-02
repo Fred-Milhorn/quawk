@@ -597,3 +597,43 @@ def test_quawk_executes_supported_function_program_with_local_parameter_scope() 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "3\n10\n"
     assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_nextfile_programs() -> None:
+    result = run_quawk("--ir", "/stop/ { nextfile }\n{ print $0 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_nextfile(" in result.stdout
+    assert "call void @qk_nextfile(ptr %rt)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_exit_programs() -> None:
+    result = run_quawk("--ir", 'BEGIN { print "before"; exit 7 }\nEND { print "done" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_request_exit(" in result.stdout
+    assert "@qk_exit_status(" in result.stdout
+    assert "call void @qk_request_exit(ptr %rt, i32 %exit.status" in result.stdout or "call void @qk_request_exit(ptr %rt, i32 7)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_nextfile_program_through_backend(tmp_path: Path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("a\nstop\nb\n", encoding="utf-8")
+    second.write_text("c\n", encoding="utf-8")
+
+    result = run_quawk('/stop/ { nextfile }\n{ print $0 }', str(first), str(second))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "a\nc\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_supported_exit_program_with_end() -> None:
+    result = run_quawk('BEGIN { print "before"; exit 7 }\nEND { print "done" }')
+
+    assert result.returncode == 7, result.stderr
+    assert result.stdout == "before\ndone\n"
+    assert result.stderr == ""

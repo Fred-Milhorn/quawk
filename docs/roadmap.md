@@ -383,10 +383,10 @@ Target outcome:
   the compiled backend/runtime path, and Python no longer serves as a semantic
   fallback for claimed execution
 
-1. `T-152` lower `exit` and `nextfile` through the compiled backend/runtime
-2. `T-153` lower the remaining claimed scalar-string/coercion execution paths through the backend/runtime
-3. `T-154` remove Python-side semantic fallback from the public execution path for claimed behavior
-4. `T-155` close `--ir` / `--asm` parity gaps across the full claimed execution surface
+1. `T-153` lower the remaining claimed scalar-string/coercion execution paths through the backend/runtime
+2. `T-154` remove Python-side semantic fallback from the public execution path for claimed behavior
+3. `T-155` close `--ir` / `--asm` parity gaps across the full claimed execution surface
+4. `T-156` add the architecture audit gate and rebaseline the docs for the AOT-only contract
 
 ## Backlog
 
@@ -512,7 +512,7 @@ Priority values:
 | T-042 | P12 | P1 | Finalize release checklist and changelog workflow | T-039, T-040 | Checklist is complete and versioned | done |
 | T-150 | P13 | P0 | Author the architecture-audit baseline for claimed backend execution | T-149, T-042 | Tests and docs enumerate every currently claimed feature family that still lacks full backend/runtime execution or `--ir` / `--asm` support | done |
 | T-151 | P13 | P0 | Lower user-defined functions through the compiled backend/runtime path | T-150 | Representative claimed function programs execute without Python-side semantic fallback, and `--ir` / `--asm` support those programs | done |
-| T-152 | P13 | P0 | Lower `exit` and `nextfile` through the compiled backend/runtime path | T-150 | Representative claimed `exit` and `nextfile` programs execute through the backend/runtime path and support inspection output | todo |
+| T-152 | P13 | P0 | Lower `exit` and `nextfile` through the compiled backend/runtime path | T-150 | Representative claimed `exit` and `nextfile` programs execute through the backend/runtime path and support inspection output | done |
 | T-153 | P13 | P0 | Lower the remaining claimed scalar-string and coercion families through the backend/runtime path | T-150 | Claimed concatenation/coercion-heavy execution paths no longer require Python-side semantic fallback, and their backend tests are explicit | todo |
 | T-154 | P13 | P1 | Remove Python-side semantic fallback from the public execution path for claimed behavior | T-151, T-152, T-153 | Public `quawk` execution no longer routes claimed AWK semantics through Python fallback; any still-unlowered behavior fails explicitly until claimed support is updated | todo |
 | T-155 | P13 | P1 | Close `--ir` / `--asm` parity gaps across the full claimed execution surface | T-151, T-152, T-153 | Inspection succeeds for every feature family still marked `implemented` in `SPEC.md`, or the claim is narrowed before the phase closes | todo |

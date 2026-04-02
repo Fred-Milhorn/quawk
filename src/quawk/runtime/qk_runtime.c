@@ -26,6 +26,8 @@ struct qk_runtime {
     bool current_handle_is_stdin;
     bool stdin_consumed;
     bool had_error;
+    bool exit_requested;
+    int32_t exit_status;
     char *current_record;
     size_t current_record_capacity;
     char *field_buffer;
@@ -547,6 +549,36 @@ void qk_print_number(qk_runtime *runtime, double value)
 {
     (void)runtime;
     printf("%g\n", value);
+}
+
+void qk_nextfile(qk_runtime *runtime)
+{
+    if (runtime == NULL) {
+        return;
+    }
+    qk_close_current_handle(runtime);
+}
+
+void qk_request_exit(qk_runtime *runtime, int32_t status)
+{
+    if (runtime == NULL) {
+        return;
+    }
+    runtime->exit_requested = true;
+    runtime->exit_status = status;
+}
+
+bool qk_should_exit(qk_runtime *runtime)
+{
+    return (runtime != NULL) && runtime->exit_requested;
+}
+
+int32_t qk_exit_status(qk_runtime *runtime)
+{
+    if (runtime == NULL) {
+        return 0;
+    }
+    return runtime->exit_requested ? runtime->exit_status : 0;
 }
 
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern)
