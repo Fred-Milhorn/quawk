@@ -211,12 +211,10 @@ upstream skips.
 
 - string-valued `-v` assignments are now implemented and part of the claimed
   CLI surface.
-- upstream corroboration for CLI-sensitive `ARGV` / `ARGC` cases is still
-  incomplete; `T-166` should promote clean operand-sensitive anchors now that
-  the direct behavior exists.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L451),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L702)
+- upstream corroboration for CLI-sensitive `ARGV` / `ARGC` behavior now
+  includes the runnable direct-file case `one-true-awk:p.48a`; broader gawk
+  operand-shape cases remain reviewed skips because their direct fixture
+  adapters are not yet clean corroborating anchors.
 
 #### Parser and Syntax Gaps
 
@@ -292,13 +290,13 @@ execution or `--ir` / `--asm` support.
 ### T-151 Function Backend Result
 
 `T-151` is now complete for the first representative direct-BEGIN function
-slice.
+subset.
 
 What landed:
 
 - representative user-defined function programs no longer route through the
   Python host runtime when they fit the direct numeric backend subset
-- `--ir` and `--asm` now work for that same function slice
+- `--ir` and `--asm` now work for that same function subset
 - the checked-in architecture audit now treats `user-defined-functions` as
   backend-supported instead of still blocking the AOT contract
 
@@ -694,15 +692,29 @@ Acceptance:
 
 - no stale skip reason remains after the underlying gap is fixed
 
+### T-166 Upstream Manifest Re-Audit Result
+
+- the runnable upstream subset now includes corroborating direct-file cases for
+  bare and multi-argument `print`, `NR` / `FILENAME`, `OFS` / `ORS`, output
+  redirection, `ARGC` / `ARGV`, and the multiline/parser forms fixed in `T-165`
+- newly promoted runnable cases include `p.1`, `p.2`, `p.4`, `p.24`, `p.27`,
+  `p.34`, `p.38`, `p.40`, `p.41`, `p.42`, `p.44`, `p.45`, `p.47`, `p.48a`,
+  `t.exit`, and `t.if`
+- remaining reviewed skips now carry narrower current reasons such as missing
+  `FS` assignment support, a bare-`length` mismatch, non-UTF-8 fixture input,
+  numeric comparison mismatches under pattern selection or `next`, and a small
+  set of reusable-backend crashes
+
 #### POSIX-051: Promote upstream cases that directly corroborate fixed gaps
 
-Priority promotion targets after comment support:
+Remaining priority promotion targets after `T-166`:
 
 - `getnr2tb`
 - `splitvar`
-- `substr`
-- the print-surface `p.*` and `t.*` cases currently blocked only by print
-  semantics
+- any remaining clean `FS`-sensitive direct-file anchors once field-separator
+  assignment is implemented
+- any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
+  reviewed numeric-comparison and backend-crash gaps are fixed
 
 Acceptance:
 
@@ -754,14 +766,13 @@ Planning note:
 
 The implementation backlog is now down to evidence and final contract cleanup:
 
-1. `POSIX-050` and `POSIX-051`
-2. `POSIX-052`
-3. `POSIX-060` through `POSIX-062` only if a new POSIX claim exposes a backend-only gap
+1. `POSIX-052`
+2. `POSIX-060` through `POSIX-062` only if a new POSIX claim exposes a backend-only gap
 
 Why this order:
 
-- the highest-value remaining work is to re-audit the upstream subset after the
-  recent parser, print, builtin, and `getline` fixes
+- the highest-value remaining work is to make `SPEC.md`, this plan, and the
+  reviewed manifest agree on the narrowed remaining POSIX surface
 - `SPEC.md`, this plan, and the reviewed manifest should converge before any
   further claim expansion
 - backend-only follow-up should happen only when the public POSIX contract
@@ -771,12 +782,10 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. execute `POSIX-050` / `T-166` to re-audit the reviewed upstream subset after
-   the recent semantic fixes
-2. promote clean corroborating cases for parser/sequencing, print/output,
-   builtin, builtin-variable, and `getline` work
-3. execute `POSIX-052` / `T-167` so `SPEC.md`, `POSIX.md`, and the manifest
+1. execute `POSIX-052` / `T-167` so `SPEC.md`, `POSIX.md`, and the manifest
    agree on the remaining in-scope POSIX surface
+2. decide whether any remaining backend-only mismatches deserve new public POSIX
+   claims or should stay explicitly out of scope
 
 ## Notes
 
