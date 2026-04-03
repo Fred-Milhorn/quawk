@@ -26,7 +26,7 @@ Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadm
 
 - POSIX-first AWK behavior and compatibility
 - an early end-to-end executable path for a tiny AWK subset
-- incremental expansion driven by the working end-to-end path established in `P1`, now followed by compatibility hardening and benchmarking
+- incremental expansion driven by the working end-to-end path established in `P1`, now followed by compatibility hardening and explicit remaining POSIX gap closure
 
 ## Non-Goals
 

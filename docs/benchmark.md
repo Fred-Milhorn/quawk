@@ -1,6 +1,8 @@
-# Benchmarking Plan
+# Optional Benchmark Notes
 
-This document defines the first performance-benchmarking pass for `quawk`.
+This document captures optional performance-benchmark ideas for `quawk`.
+
+It is not part of the active roadmap or required implementation plan.
 
 ## Goal
 

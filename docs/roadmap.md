@@ -33,7 +33,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P12 | Pre-Release Readiness | Documentation completion, release checklist, and polish |
 | P13 | AOT Contract Completion | Every currently claimed behavior executes through the compiled backend/runtime path |
 | P14 | POSIX Compatibility Completion | Remaining in-scope POSIX feature and behavior gaps are closed and corroborated |
-| P15 | Benchmarking and Performance Characterization | Repeatable local benchmark harness for `quawk`, `one-true-awk`, and `gawk --posix` |
+| P15 | Remaining POSIX Gap Closure | Explicitly tracked post-`P14` POSIX gaps are closed or intentionally left as permanent reviewed skips |
 
 ## Phase Entry and Exit Rules
 
@@ -352,38 +352,42 @@ Exit criteria:
 - local and upstream-backed tests corroborate every claimed POSIX family
 - remaining divergences are limited to documented extensions or explicitly deferred non-POSIX behavior
 
-### P15: Benchmarking and Performance Characterization
+### P15: Remaining POSIX Gap Closure
 
 Objective:
-- add a repeatable local benchmark that characterizes `quawk` against `one-true-awk` and `gawk --posix`
+- close the explicitly tracked post-`P14` POSIX gaps that were narrowed in
+  `SPEC.md` rather than treated as silently complete
 
 In scope:
-- repo-owned benchmark harness and workload definitions
-- deterministic large dataset generation
-- end-to-end timing and peak-memory measurement
-- `quawk`-only compile-versus-run breakdown for the LLVM-backed subset
-- developer documentation for running and interpreting the benchmark
-- implementation details for this phase live in [benchmark.md](benchmark.md)
+- in-program `FS` / `RS` assignment and the downstream field-splitting cases it unlocks
+- bare `length` parity with POSIX `length($0)`
+- remaining numeric comparison and expression-pattern selection mismatches
+- the reviewed reusable-backend crashes in `gsub`, field-mutation, `$0` rebuild, and numeric-expression paths
+- explicit policy for non-UTF-8 input in reviewed corpus and upstream cases
+- remaining corroboration gaps such as `splitvar` and CLI-sensitive `argarray`
+- final public-claim expansion only after the fixed families are corroborated
+- implementation details for this phase live in [POSIX.md](../POSIX.md)
 
 Exit criteria:
-- one documented command runs the full benchmark suite locally
-- the benchmark covers a small fixed workload suite with generated `smoke`, `medium`, and `large` datasets
-- output includes end-to-end timing and peak RSS for all engines
-- output includes a clearly labeled `quawk` split breakdown in addition to end-to-end results
-- harness tests cover determinism, engine command construction, and summary/reporting behavior
+- every remaining in-scope POSIX gap from the `T-167` audit is either fixed or
+  explicitly moved to a permanent reviewed skip or out-of-scope claim
+- `SPEC.md`, `POSIX.md`, and the upstream manifest agree on any widened POSIX
+  claim set after the fixes land
+- unsuitable corroborating anchors remain explicit reviewed skips rather than
+  implicit backlog debt
 
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-Next deliverable: P15 benchmark harness definition
+Next deliverable: P15 remaining POSIX gap closure
 
 Target outcome:
-- the repo has a concrete, testable benchmarking contract now that the `P14`
-  POSIX audit and evidence pass are complete
+- the next work burns down the explicit post-`P14` POSIX gap buckets instead of
+  introducing a new optional benchmark track
 
-1. `T-132` define the benchmark harness interface, workload suite, and measurement contract
-2. `T-133` implement deterministic dataset generation and fixed benchmark workloads
+1. `T-168` implement in-program `FS` / `RS` assignment for the current record surface
+2. `T-169` re-audit and promote `FS`-sensitive upstream direct-file cases
 
 ## Backlog
 
@@ -525,11 +529,16 @@ Priority values:
 | T-165 | P14 | P0 | Close the remaining POSIX parser-continuation and runtime-sequencing gaps | T-158, T-159, T-164 | Reviewed multiline/parser cases, default-print expression-pattern mismatches, and cases like `END { print NR }` are fixed or reclassified precisely | done |
 | T-166 | P14 | P1 | Re-audit the upstream manifest and promote corroborating POSIX cases | T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165 | Clean upstream cases are promoted for every major fixed POSIX family, and no stale skip reason remains after a semantic fix lands | done |
 | T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | done |
-| T-132 | P15 | P0 | Define the benchmark harness interface, workload suite, and measurement contract | T-167 | `docs/benchmark.md` specifies the command, metrics, workload set, dataset scales, and `quawk` timing model clearly enough to implement without further design work | todo |
-| T-133 | P15 | P0 | Implement deterministic dataset generation and fixed benchmark workloads | T-132 | The benchmark harness can generate the planned workloads and `smoke`/`medium`/`large` datasets reproducibly from a fixed seed | todo |
-| T-134 | P15 | P0 | Implement end-to-end engine measurement and summary reporting | T-133 | One local command measures wall time and peak RSS for `quawk`, `one-true-awk`, and `gawk --posix` and prints stable summary tables | todo |
-| T-135 | P15 | P1 | Add `quawk` split compile-versus-run measurement support | T-134 | The benchmark reports clearly labeled `quawk` frontend or lowering versus `lli` execution timings for the same workloads without changing the public CLI surface | todo |
-| T-136 | P15 | P1 | Add benchmark smoke tests and developer documentation | T-134, T-135 | Harness tests cover determinism and reporting behavior, and the benchmark workflow is documented for developers | todo |
+| T-168 | P15 | P0 | Implement in-program `FS` / `RS` assignment for the current record surface | T-167 | Direct CLI tests and reviewed upstream `p.5` / `p.5a` style cases show runtime separator changes affect record and field splitting as in POSIX | todo |
+| T-169 | P15 | P1 | Re-audit and promote `FS`-sensitive upstream direct-file cases | T-168 | Clean `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, and `p.52` cases move to `run` or to narrower residual reasons | todo |
+| T-170 | P15 | P0 | Fix bare `length` POSIX semantics and re-expand the builtin claim | T-167 | Bare `length` behaves as `length($0)` and the reviewed `p.30` anchor becomes clean | todo |
+| T-171 | P15 | P0 | Fix remaining numeric comparison and expression-pattern mismatches | T-167 | `p.7`, `p.8`, `p.21a`, and `t.next` become clean or are narrowed to one smaller remaining operator family | todo |
+| T-172 | P15 | P0 | Fix the runtime-backed numeric-expression lowering gap | T-167 | The reviewed `getnr2tb` anchor becomes clean and no longer fails on `NR " " 10/NR` in compiled execution | todo |
+| T-173 | P15 | P0 | Eliminate reviewed reusable-backend crashes in field and record rebuild paths | T-167 | `p.29`, `p.32`, and `t.set0a` run clean without `lli` aborts | todo |
+| T-174 | P15 | P1 | Decide and implement the non-UTF-8 input policy | T-167 | Reviewed cases such as `t.NF` either run under a documented byte-oriented policy or are explicitly marked out-of-scope in the public contract | todo |
+| T-175 | P15 | P1 | Fix the remaining `split` target-variable mismatch and re-audit corroboration | T-167 | `splitvar` becomes clean or is replaced by a narrower classified skip backed by direct repo-owned tests | todo |
+| T-176 | P15 | P1 | Improve CLI-sensitive corroboration coverage | T-167 | `argarray` is either runnable with a clean adapter or superseded by an equivalent corroborating anchor for `ARGV` / multifile behavior | todo |
+| T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

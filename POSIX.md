@@ -715,8 +715,71 @@ Acceptance:
   same remaining in-scope gap classes: `FS` / `RS` assignment, bare `length`,
   non-UTF-8 fixture input, numeric comparison mismatches, a few reusable-backend
   crashes, and a small set of corroborating-adapter gaps such as `argarray`
-- with the remaining POSIX surface explicitly tracked, the roadmap can move on
-  to `P15` benchmarking work instead of carrying another open `P14` audit task
+- with the remaining POSIX surface explicitly tracked, the roadmap can move
+  directly into the explicit post-`P14` gap-closure wave instead of carrying
+  another open `P14` audit task
+
+## Post-P14 Remaining Gap Plan
+
+The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
+
+These are the real remaining product gaps:
+
+- `FS` / `RS` assignment and field-splitting behavior
+  Cases:
+  `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, `p.52`
+- bare `length` semantics
+  Case:
+  `p.30`
+- numeric comparison and expression-pattern selection
+  Cases:
+  `p.7`, `p.8`, `p.21a`, `t.next`
+- reviewed backend/runtime crashes or lowering gaps
+  Cases:
+  `p.29`, `p.32`, `t.set0a`, `getnr2tb`
+- non-UTF-8 input policy
+  Case:
+  `t.NF`
+- remaining corroboration-sensitive gaps
+  Cases:
+  `splitvar`, `argarray`
+
+These are not product gaps and should stay reviewed as such unless better
+anchors appear:
+
+- reference-disagreement or unsuitable-corroboration cases
+  Cases:
+  `p.43`, `p.48b`, `range1`
+- reviewed but unnecessary anchors for the current runnable subset
+  Cases:
+  `T.argv`, `T.builtin`, `T.expr`, `T.func`, `T.split`, `cmdlinefsbacknl`
+
+Recommended execution order for the post-`P14` gap-closure wave:
+
+1. implement in-program `FS` / `RS` assignment first because it burns down the
+   largest remaining skip bucket and unlocks the most corroborating anchors
+2. fix bare `length` next because it is a small isolated semantic mismatch with
+   a direct corroborating anchor (`p.30`)
+3. fix the remaining numeric comparison and expression-pattern selection
+   mismatches (`p.7`, `p.8`, `p.21a`, `t.next`)
+4. close the reviewed backend/runtime crashes and lowering gaps
+   (`p.29`, `p.32`, `t.set0a`, `getnr2tb`)
+5. decide the non-UTF-8 input policy explicitly before widening any claim that
+   depends on text-decoding behavior (`t.NF`)
+6. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+   once the semantic work is done
+7. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+
+Roadmap mapping:
+
+- `T-168` through `T-169`: `FS` / `RS` assignment plus the eight blocked
+  direct-file corroborating cases
+- `T-170`: bare `length`
+- `T-171`: numeric comparison and expression-pattern fixes
+- `T-172` through `T-173`: backend/lowering gap and crash cleanup
+- `T-174`: non-UTF-8 input policy
+- `T-175` through `T-176`: remaining corroboration-sensitive gaps
+- `T-177`: final claim expansion and post-gap audit
 
 #### POSIX-051: Promote upstream cases that directly corroborate fixed gaps
 
@@ -797,7 +860,7 @@ The next concrete follow-up after this document should be:
 
 1. decide whether any remaining backend-only mismatches deserve new public POSIX
    claims or should stay explicitly out of scope
-2. otherwise, continue with `P15` benchmarking work
+2. then start the post-`P14` gap wave at `T-168`
 
 ## Notes
 
