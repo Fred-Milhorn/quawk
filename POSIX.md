@@ -705,6 +705,19 @@ Acceptance:
   numeric comparison mismatches under pattern selection or `next`, and a small
   set of reusable-backend crashes
 
+### T-167 POSIX Done-Line Result
+
+- `SPEC.md` now narrows the remaining public POSIX gaps instead of leaving them
+  implicit: input-separator builtin variables (`FS` / `RS`) are partial, bare
+  `length` remains partial, and repeated `$0` reassignment plus field rebuild is
+  no longer overclaimed as fully complete
+- `POSIX.md`, `SPEC.md`, and the reviewed upstream manifest now point at the
+  same remaining in-scope gap classes: `FS` / `RS` assignment, bare `length`,
+  non-UTF-8 fixture input, numeric comparison mismatches, a few reusable-backend
+  crashes, and a small set of corroborating-adapter gaps such as `argarray`
+- with the remaining POSIX surface explicitly tracked, the roadmap can move on
+  to `P15` benchmarking work instead of carrying another open `P14` audit task
+
 #### POSIX-051: Promote upstream cases that directly corroborate fixed gaps
 
 Remaining priority promotion targets after `T-166`:
@@ -766,15 +779,15 @@ Planning note:
 
 The implementation backlog is now down to evidence and final contract cleanup:
 
-1. `POSIX-052`
-2. `POSIX-060` through `POSIX-062` only if a new POSIX claim exposes a backend-only gap
+1. `POSIX-060` through `POSIX-062` only if a new POSIX claim exposes a backend-only gap
+2. otherwise, move to post-`P14` work
 
 Why this order:
 
-- the highest-value remaining work is to make `SPEC.md`, this plan, and the
+- the highest-value remaining work was to make `SPEC.md`, this plan, and the
   reviewed manifest agree on the narrowed remaining POSIX surface
-- `SPEC.md`, this plan, and the reviewed manifest should converge before any
-  further claim expansion
+- that contract audit is now complete, so any new POSIX work should start from
+  explicit public claim changes instead of implicit backlog debt
 - backend-only follow-up should happen only when the public POSIX contract
   actually requires it
 
@@ -782,10 +795,9 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. execute `POSIX-052` / `T-167` so `SPEC.md`, `POSIX.md`, and the manifest
-   agree on the remaining in-scope POSIX surface
-2. decide whether any remaining backend-only mismatches deserve new public POSIX
+1. decide whether any remaining backend-only mismatches deserve new public POSIX
    claims or should stay explicitly out of scope
+2. otherwise, continue with `P15` benchmarking work
 
 ## Notes
 

@@ -36,7 +36,8 @@ Evidence:
 | Default-print pattern rules | implemented | Bare range/expression patterns print matching records within the currently claimed expression subset. |
 | Scalar variables and assignment | implemented | Plain scalar assignment and assignment expressions are part of the current AOT-backed contract. Broader compound-assignment parsing exists, but full backended execution for those forms is not yet claimed. |
 | Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also documents a parenthesized `for ... in` iterable extension in the compatibility corpus. |
-| Fields | implemented | `$0`, `$n`, dynamic field reads and assignment. |
+| Fields | implemented | Basic `$0`, `$n`, and dynamic field reads and assignment are part of the current claimed surface. |
+| Repeated `$0` reassignment and field rebuild | partial | The reviewed `t.set0a` class still exposes a reusable-backend crash after repeated `$0` reassignment. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
 | Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain outside the current claimed AOT contract and are tracked for `P14`. |
@@ -72,8 +73,9 @@ Evidence:
 | Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
-| Remaining POSIX builtin variables | implemented | `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are now part of the current claimed surface; `RSTART` and `RLENGTH` update through `match()`. |
-| Current builtin subset | implemented | `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper` are part of the current claimed surface. |
+| Argument, environment, and match-result builtin variables | implemented | `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are part of the current claimed surface; `RSTART` and `RLENGTH` update through `match()`. |
+| Input separator builtin variables | partial | CLI `-F` works, but in-program `FS` / `RS` assignment is not yet part of the current claimed surface. |
+| Current builtin subset | partial | The named builtins are present in the claimed surface, but bare `length` without parentheses still diverges from POSIX `length($0)`. |
 | POSIX string and regex builtins | implemented | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now have direct execution coverage; upstream corroboration includes runnable `sprintf` coverage, while one record-target `gsub` case remains a narrower reviewed backend skip. |
 | POSIX numeric and system builtins | implemented | `int`, `rand`, `srand`, `system`, `atan2`, `cos`, `sin`, `exp`, `log`, and `sqrt` now have direct execution coverage across host and backend/runtime paths. The upstream subset includes a runnable `system()` anchor; `rand()` remains direct-test-only for now because the pinned references disagree on deterministic seeded output. |
 | `getline` | implemented | The current claimed forms are bare `getline`, `getline var`, `getline < file`, and `getline var < file`. |
