@@ -708,16 +708,25 @@ Acceptance:
 ### T-167 POSIX Done-Line Result
 
 - `SPEC.md` now narrows the remaining public POSIX gaps instead of leaving them
-  implicit: input-separator builtin variables (`FS` / `RS`) are partial, bare
-  `length` remains partial, and repeated `$0` reassignment plus field rebuild is
-  no longer overclaimed as fully complete
+  implicit: bare `length` remains partial, and repeated `$0` reassignment plus
+  field rebuild is no longer overclaimed as fully complete
 - `POSIX.md`, `SPEC.md`, and the reviewed upstream manifest now point at the
-  same remaining in-scope gap classes: `FS` / `RS` assignment, bare `length`,
-  non-UTF-8 fixture input, numeric comparison mismatches, a few reusable-backend
-  crashes, and a small set of corroborating-adapter gaps such as `argarray`
+  same remaining in-scope gap classes: bare `length`, non-UTF-8 fixture input,
+  numeric comparison mismatches, a few reusable-backend crashes, and a small
+  set of corroborating-adapter gaps such as `argarray`
 - with the remaining POSIX surface explicitly tracked, the roadmap can move
   directly into the explicit post-`P14` gap-closure wave instead of carrying
   another open `P14` audit task
+
+### T-168 Input Separator Result
+
+- in-program `FS` assignment now updates field splitting for subsequent records
+  in both the host runtime and the compiled backend/runtime path
+- in-program `RS` assignment now updates current record reads for subsequent
+  input in both execution paths, keeping the current record model aligned with
+  the claimed surface
+- the remaining work after `T-168` is corroboration and narrower semantic
+  cleanup, not a missing input-separator runtime feature
 
 ## Post-P14 Remaining Gap Plan
 
@@ -725,9 +734,6 @@ The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
 
 These are the real remaining product gaps:
 
-- `FS` / `RS` assignment and field-splitting behavior
-  Cases:
-  `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, `p.52`
 - bare `length` semantics
   Case:
   `p.30`
@@ -747,6 +753,9 @@ These are the real remaining product gaps:
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
 
+- `FS`-sensitive corroboration backlog after `T-168`
+  Cases:
+  `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, `p.52`
 - reference-disagreement or unsuitable-corroboration cases
   Cases:
   `p.43`, `p.48b`, `range1`
@@ -756,8 +765,8 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. implement in-program `FS` / `RS` assignment first because it burns down the
-   largest remaining skip bucket and unlocks the most corroborating anchors
+1. re-audit and promote the unlocked `FS`-sensitive direct-file cases next
+   because `T-168` converted that bucket from product work into corroboration work
 2. fix bare `length` next because it is a small isolated semantic mismatch with
    a direct corroborating anchor (`p.30`)
 3. fix the remaining numeric comparison and expression-pattern selection
@@ -772,8 +781,8 @@ Recommended execution order for the post-`P14` gap-closure wave:
 
 Roadmap mapping:
 
-- `T-168` through `T-169`: `FS` / `RS` assignment plus the eight blocked
-  direct-file corroborating cases
+- `T-168`: current record-surface `FS` / `RS` assignment
+- `T-169`: re-audit and promote the eight unlocked `FS`-sensitive direct-file cases
 - `T-170`: bare `length`
 - `T-171`: numeric comparison and expression-pattern fixes
 - `T-172` through `T-173`: backend/lowering gap and crash cleanup
@@ -787,8 +796,7 @@ Remaining priority promotion targets after `T-166`:
 
 - `getnr2tb`
 - `splitvar`
-- any remaining clean `FS`-sensitive direct-file anchors once field-separator
-  assignment is implemented
+- the remaining clean `FS`-sensitive direct-file anchors after `T-168`
 - any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
   reviewed numeric-comparison and backend-crash gaps are fixed
 
@@ -858,9 +866,9 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. decide whether any remaining backend-only mismatches deserve new public POSIX
-   claims or should stay explicitly out of scope
-2. then start the post-`P14` gap wave at `T-168`
+1. re-audit and promote the unlocked `FS`-sensitive corroboration backlog in
+   `T-169`
+2. then continue with the narrower remaining semantic gaps starting at `T-170`
 
 ## Notes
 

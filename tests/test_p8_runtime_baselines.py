@@ -120,6 +120,22 @@ def test_print_honors_ofmt_for_numeric_output() -> None:
     assert result.stderr == ""
 
 
+def test_fs_assignment_changes_field_splitting_for_subsequent_records() -> None:
+    result = run_quawk('BEGIN { FS = "\\t" } { print $1; print $4 }', stdin="Canada\t3852\t24\tNorth America\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "Canada\nNorth America\n"
+    assert result.stderr == ""
+
+
+def test_rs_assignment_changes_record_reads_for_subsequent_input() -> None:
+    result = run_quawk('BEGIN { RS = ";" } { print $1 }', stdin="a b;c d;")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "a\nc\n"
+    assert result.stderr == ""
+
+
 def test_concatenation_honors_convfmt_for_numeric_to_string_coercion() -> None:
     result = run_quawk('BEGIN { CONVFMT = "%.2f"; x = 1.2345; print x "" }')
 

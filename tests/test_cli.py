@@ -655,6 +655,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_formatting_variable_progr
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_supported_input_separator_programs() -> None:
+    result = run_quawk("--ir", 'BEGIN { FS = ":"; RS = ";" } { print $1 }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_scalar_set_string(" in result.stdout
+    assert "@qk_get_field(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs() -> None:
     result = run_quawk('--ir', 'BEGIN { print "x" > "out"; printf "%s", "y" >> "out"; close("out") }')
 

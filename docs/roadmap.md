@@ -386,8 +386,8 @@ Target outcome:
 - the next work burns down the explicit post-`P14` POSIX gap buckets instead of
   introducing a new optional benchmark track
 
-1. `T-168` implement in-program `FS` / `RS` assignment for the current record surface
-2. `T-169` re-audit and promote `FS`-sensitive upstream direct-file cases
+1. `T-169` re-audit and promote the unlocked `FS`-sensitive upstream direct-file cases
+2. `T-170` fix bare `length` POSIX semantics and re-expand the builtin claim
 
 ## Backlog
 
@@ -529,7 +529,7 @@ Priority values:
 | T-165 | P14 | P0 | Close the remaining POSIX parser-continuation and runtime-sequencing gaps | T-158, T-159, T-164 | Reviewed multiline/parser cases, default-print expression-pattern mismatches, and cases like `END { print NR }` are fixed or reclassified precisely | done |
 | T-166 | P14 | P1 | Re-audit the upstream manifest and promote corroborating POSIX cases | T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165 | Clean upstream cases are promoted for every major fixed POSIX family, and no stale skip reason remains after a semantic fix lands | done |
 | T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | done |
-| T-168 | P15 | P0 | Implement in-program `FS` / `RS` assignment for the current record surface | T-167 | Direct CLI tests and reviewed upstream `p.5` / `p.5a` style cases show runtime separator changes affect record and field splitting as in POSIX | todo |
+| T-168 | P15 | P0 | Implement in-program `FS` / `RS` assignment for the current record surface | T-167 | Direct CLI tests and reviewed upstream `p.5` / `p.5a` style cases show runtime separator changes affect record and field splitting as in POSIX | done |
 | T-169 | P15 | P1 | Re-audit and promote `FS`-sensitive upstream direct-file cases | T-168 | Clean `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, and `p.52` cases move to `run` or to narrower residual reasons | todo |
 | T-170 | P15 | P0 | Fix bare `length` POSIX semantics and re-expand the builtin claim | T-167 | Bare `length` behaves as `length($0)` and the reviewed `p.30` anchor becomes clean | todo |
 | T-171 | P15 | P0 | Fix remaining numeric comparison and expression-pattern mismatches | T-167 | `p.7`, `p.8`, `p.21a`, and `t.next` become clean or are narrowed to one smaller remaining operator family | todo |

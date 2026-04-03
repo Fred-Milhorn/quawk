@@ -38,6 +38,7 @@ struct qk_runtime {
     size_t field_count;
     size_t field_capacity;
     char *field_separator;
+    char record_separator[2];
     double nr;
     double fnr;
     char *current_filename;
@@ -108,6 +109,9 @@ static const char QK_DEFAULT_SUBSEP[] = "\034";
 
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 static bool qk_rebuild_fields(qk_runtime *runtime);
+static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_entry *entry);
+static bool qk_update_field_separator(qk_runtime *runtime, const char *text);
+static void qk_update_record_separator(qk_runtime *runtime, const char *text);
 extern char **environ;
 
 static char *qk_strdup_or_null(const char *text)
@@ -376,6 +380,32 @@ static bool qk_scalar_set_number_value(qk_runtime *runtime, const char *name, do
     entry->kind = QK_SCALAR_NUMBER;
     if (strcmp(name, "CONVFMT") == 0) {
         qk_invalidate_numeric_string_cache(runtime);
+    }
+    return true;
+}
+
+static bool qk_apply_scalar_side_effects(qk_runtime *runtime, const char *name)
+{
+    struct qk_scalar_entry *entry;
+    const char *text;
+
+    if ((runtime == NULL) || (name == NULL)) {
+        return false;
+    }
+
+    entry = qk_find_scalar(runtime, name, false);
+    if (entry == NULL) {
+        return false;
+    }
+
+    if (strcmp(name, "FS") == 0) {
+        text = qk_scalar_string_view(runtime, entry);
+        return qk_update_field_separator(runtime, text);
+    }
+    if (strcmp(name, "RS") == 0) {
+        text = qk_scalar_string_view(runtime, entry);
+        qk_update_record_separator(runtime, text);
+        return true;
     }
     return true;
 }
@@ -655,6 +685,39 @@ static const char *qk_output_variable_text(qk_runtime *runtime, const char *name
     return fallback == NULL ? QK_EMPTY_FIELD : fallback;
 }
 
+static bool qk_update_field_separator(qk_runtime *runtime, const char *text)
+{
+    char *copy = NULL;
+
+    if (runtime == NULL) {
+        return false;
+    }
+    if ((text != NULL) && (*text != '\0') && !((text[0] == ' ') && (text[1] == '\0'))) {
+        copy = qk_strdup_or_null(text);
+        if (copy == NULL) {
+            return false;
+        }
+    }
+
+    free(runtime->field_separator);
+    runtime->field_separator = copy;
+    return true;
+}
+
+static void qk_update_record_separator(qk_runtime *runtime, const char *text)
+{
+    char separator = '\n';
+
+    if ((runtime != NULL) && (text != NULL) && (*text != '\0')) {
+        separator = text[0];
+    }
+    if (runtime == NULL) {
+        return;
+    }
+    runtime->record_separator[0] = separator;
+    runtime->record_separator[1] = '\0';
+}
+
 static const char *qk_format_number_with_text(qk_runtime *runtime, double value, const char *format_text)
 {
     char buffer[256];
@@ -805,6 +868,62 @@ static bool qk_open_next_input(qk_runtime *runtime)
     return false;
 }
 
+static ssize_t qk_read_record(
+    qk_runtime *runtime,
+    FILE *handle,
+    char **buffer,
+    size_t *capacity
+)
+{
+    int next_char;
+    size_t length = 0U;
+    char separator;
+
+    if ((runtime == NULL) || (handle == NULL) || (buffer == NULL) || (capacity == NULL)) {
+        return -1;
+    }
+
+    separator = runtime->record_separator[0] == '\0' ? '\n' : runtime->record_separator[0];
+    if ((*buffer == NULL) || (*capacity == 0U)) {
+        *capacity = 128U;
+        *buffer = calloc(*capacity, sizeof(**buffer));
+        if (*buffer == NULL) {
+            *capacity = 0U;
+            return -1;
+        }
+    }
+
+    for (;;) {
+        next_char = fgetc(handle);
+        if (next_char == EOF) {
+            if (ferror(handle) || (length > 0U)) {
+                break;
+            }
+            return -1;
+        }
+        if ((char)next_char == separator) {
+            break;
+        }
+        if ((length + 1U) >= *capacity) {
+            size_t next_capacity = *capacity * 2U;
+            char *next_buffer = realloc(*buffer, next_capacity);
+            if (next_buffer == NULL) {
+                return -1;
+            }
+            *buffer = next_buffer;
+            *capacity = next_capacity;
+        }
+        (*buffer)[length] = (char)next_char;
+        length += 1U;
+    }
+
+    if ((separator == '\n') && (length > 0U) && ((*buffer)[length - 1U] == '\r')) {
+        length -= 1U;
+    }
+    (*buffer)[length] = '\0';
+    return (ssize_t)length;
+}
+
 static double qk_read_main_line(qk_runtime *runtime, bool update_record, const char **result_out)
 {
     ssize_t line_length;
@@ -831,14 +950,8 @@ static double qk_read_main_line(qk_runtime *runtime, bool update_record, const c
             return runtime->had_error ? -1.0 : 0.0;
         }
 
-        line_length = getline(line_buffer, line_capacity, runtime->current_handle);
+        line_length = qk_read_record(runtime, runtime->current_handle, line_buffer, line_capacity);
         if (line_length >= 0) {
-            while ((line_length > 0) &&
-                   (((*line_buffer)[line_length - 1] == '\n') ||
-                    ((*line_buffer)[line_length - 1] == '\r'))) {
-                (*line_buffer)[line_length - 1] = '\0';
-                line_length -= 1;
-            }
             runtime->nr += 1.0;
             runtime->fnr += 1.0;
             if (result_out != NULL) {
@@ -948,23 +1061,17 @@ static double qk_read_file_line(
         return -1.0;
     }
 
-    line_length = getline(
+    line_length = qk_read_record(
+        runtime,
+        handle,
         &runtime->scratch_buffer,
-        &runtime->scratch_capacity,
-        handle
+        &runtime->scratch_capacity
     );
     if (line_length < 0) {
         if (feof(handle)) {
             return 0.0;
         }
         return -1.0;
-    }
-
-    while ((line_length > 0) &&
-           ((runtime->scratch_buffer[line_length - 1] == '\n') ||
-            (runtime->scratch_buffer[line_length - 1] == '\r'))) {
-        runtime->scratch_buffer[line_length - 1] = '\0';
-        line_length -= 1;
     }
 
     if (result_out != NULL) {
@@ -994,11 +1101,7 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
     runtime->argv = argv;
     runtime->random_seed = 1;
     runtime->random_state = 1U;
-    runtime->field_separator = qk_strdup_or_null(field_separator);
-    if ((field_separator != NULL) && (runtime->field_separator == NULL)) {
-        free(runtime);
-        return NULL;
-    }
+    qk_update_record_separator(runtime, "\n");
 
     if (!qk_scalar_set_string_value(runtime, "OFS", " ")) {
         qk_runtime_destroy(runtime);
@@ -1013,6 +1116,18 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
         return NULL;
     }
     if (!qk_scalar_set_string_value(runtime, "CONVFMT", QK_DEFAULT_CONVFMT)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "FS", field_separator == NULL ? " " : field_separator)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_update_field_separator(runtime, field_separator == NULL ? " " : field_separator)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "RS", "\n")) {
         qk_runtime_destroy(runtime);
         return NULL;
     }
@@ -1433,7 +1548,10 @@ void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *val
     if ((runtime == NULL) || (name == NULL)) {
         return;
     }
-    (void)qk_scalar_set_string_value(runtime, name, value);
+    if (!qk_scalar_set_string_value(runtime, name, value)) {
+        return;
+    }
+    (void)qk_apply_scalar_side_effects(runtime, name);
 }
 
 void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
@@ -1441,7 +1559,10 @@ void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
     if ((runtime == NULL) || (name == NULL)) {
         return;
     }
-    (void)qk_scalar_set_number_value(runtime, name, value);
+    if (!qk_scalar_set_number_value(runtime, name, value)) {
+        return;
+    }
+    (void)qk_apply_scalar_side_effects(runtime, name);
 }
 
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name)
@@ -1465,10 +1586,12 @@ void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *so
 
     if (source->kind == QK_SCALAR_NUMBER) {
         (void)qk_scalar_set_number_value(runtime, target_name, source->number);
+        (void)qk_apply_scalar_side_effects(runtime, target_name);
         return;
     }
     if (source->kind == QK_SCALAR_STRING) {
         (void)qk_scalar_set_string_value(runtime, target_name, source->string);
+        (void)qk_apply_scalar_side_effects(runtime, target_name);
         return;
     }
     qk_clear_scalar(target);

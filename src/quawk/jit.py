@@ -133,6 +133,7 @@ class RuntimeState:
     arrays: dict[str, dict[str, AwkValue]] = field(default_factory=dict)
     functions: dict[str, FunctionDef] = field(default_factory=dict)
     field_separator: str | None = None
+    record_separator: str = "\n"
     current_filename: str = "-"
     output_streams: dict[tuple[str, OutputRedirectKind], TextIO] = field(default_factory=dict)
     output_processes: dict[tuple[str, OutputRedirectKind], subprocess.Popen[str]] = field(default_factory=dict)
@@ -140,7 +141,7 @@ class RuntimeState:
     random_state: int = 1
     argv0: str = "quawk"
     input_state: "HostInputState | None" = None
-    input_streams: dict[str, TextIO] = field(default_factory=dict)
+    input_streams: dict[str, "HostGetlineInput"] = field(default_factory=dict)
 
 
 @dataclass
@@ -156,7 +157,7 @@ class HostInputFile:
     """One materialized input operand for host-side streaming."""
 
     filename: str
-    lines: list[str]
+    content: str
     index: int = 0
 
 
@@ -175,6 +176,14 @@ class HostInputState:
 
     files: list[HostInputFile]
     file_index: int = 0
+
+
+@dataclass
+class HostGetlineInput:
+    """One cached file-backed `getline` source for host-side streaming."""
+
+    content: str
+    index: int = 0
 
 
 @dataclass
@@ -268,21 +277,52 @@ def initial_variables_require_string_runtime(initial_variables: InitialVariables
     return any(isinstance(value, str) for _, value in initial_variables)
 
 
+def normalize_field_separator(text: str) -> str | None:
+    """Normalize one AWK `FS` string to the current internal splitter mode."""
+    if text in {"", " "}:
+        return None
+    return text
+
+
+def builtin_field_separator_text(field_separator: str | None) -> str:
+    """Render the AWK-visible `FS` text for the current internal splitter mode."""
+    return " " if field_separator is None else field_separator
+
+
+def normalize_record_separator(text: str) -> str:
+    """Normalize one AWK `RS` string to the current record-separator character."""
+    if text == "":
+        return "\n"
+    return text[0]
+
+
+def next_text_record(text: str, start: int, separator: str) -> tuple[str, int] | None:
+    """Return one logical record plus the next offset under the current separator."""
+    if start >= len(text):
+        return None
+
+    separator_index = text.find(separator, start)
+    if separator_index < 0:
+        return (text[start:], len(text))
+    return (text[start:separator_index], separator_index + len(separator))
+
+
 def build_host_input_state(input_files: list[str]) -> HostInputState:
     """Materialize the ordered main-input operands for host-side streaming."""
-    files = [HostInputFile(filename=filename, lines=lines) for filename, lines in iter_input_files(input_files)]
+    files = [HostInputFile(filename=filename, content=text) for filename, text in read_input_sources(input_files)]
     return HostInputState(files=files)
 
 
-def next_main_input_line(input_state: HostInputState) -> MainInputLine | None:
-    """Return the next line from the main input stream, if any."""
+def next_main_input_line(input_state: HostInputState, record_separator: str) -> MainInputLine | None:
+    """Return the next record from the main input stream, if any."""
     while input_state.file_index < len(input_state.files):
         current = input_state.files[input_state.file_index]
         new_file = current.index == 0
-        if current.index < len(current.lines):
-            line = current.lines[current.index]
-            current.index += 1
-            return MainInputLine(filename=current.filename, text=line.rstrip("\n"), new_file=new_file)
+        record = next_text_record(current.content, current.index, record_separator)
+        if record is not None:
+            line, next_index = record
+            current.index = next_index
+            return MainInputLine(filename=current.filename, text=line, new_file=new_file)
         input_state.file_index += 1
     return None
 
@@ -292,7 +332,7 @@ def skip_remaining_main_input_file(input_state: HostInputState) -> None:
     if input_state.file_index >= len(input_state.files):
         return
     current = input_state.files[input_state.file_index]
-    current.index = len(current.lines)
+    current.index = len(current.content)
     input_state.file_index += 1
 
 
@@ -2711,7 +2751,7 @@ def execute_host_runtime(
         should_consume_main_input = bool(record_items or end_actions)
         if not terminated and should_consume_main_input and state.input_state is not None:
             while True:
-                next_line = next_main_input_line(state.input_state)
+                next_line = next_main_input_line(state.input_state, state.record_separator)
                 if next_line is None:
                     break
                 if next_line.new_file:
@@ -2719,7 +2759,7 @@ def execute_host_runtime(
                 state.current_filename = next_line.filename
                 record = RecordContext(
                     field0=next_line.text,
-                    fields=split_fields(next_line.text, field_separator),
+                    fields=split_fields(next_line.text, state.field_separator),
                 )
                 update_record_builtin_variables(state, record)
                 try:
@@ -2873,6 +2913,27 @@ def iter_input_files(input_files: list[str]) -> list[tuple[str, list[str]]]:
         with Path(path).open("r", encoding="utf-8") as handle:
             grouped_records.append((path, handle.readlines()))
     return grouped_records
+
+
+def read_input_sources(input_files: list[str]) -> list[tuple[str, str]]:
+    """Collect raw input text grouped by input source for record streaming."""
+    if not input_files:
+        try:
+            return [("-", sys.stdin.read())]
+        except OSError:
+            return []
+
+    grouped_sources: list[tuple[str, str]] = []
+    for path in input_files:
+        if path == "-":
+            try:
+                grouped_sources.append(("-", sys.stdin.read()))
+            except OSError:
+                grouped_sources.append(("-", ""))
+            continue
+        with Path(path).open("r", encoding="utf-8") as handle:
+            grouped_sources.append((path, handle.read()))
+    return grouped_sources
 
 
 def iter_input_records(input_files: list[str]) -> list[str]:
@@ -3283,16 +3344,18 @@ def main_getline_line(state: RuntimeState) -> MainInputLine | None:
     """Read one line from the main input stream for host-side `getline`."""
     if state.input_state is None:
         return None
-    return next_main_input_line(state.input_state)
+    return next_main_input_line(state.input_state, state.record_separator)
 
 
 def file_getline_line(state: RuntimeState, target: str) -> str | None:
-    """Read one line from one `getline < file` stream."""
+    """Read one record from one `getline < file` source."""
     stream = getline_input_stream(state, target)
-    line = stream.readline()
-    if line == "":
+    record = next_text_record(stream.content, stream.index, state.record_separator)
+    if record is None:
         return None
-    return line.rstrip("\n")
+    line, next_index = record
+    stream.index = next_index
+    return line
 
 
 def evaluate_getline_expression(
@@ -3779,6 +3842,10 @@ def assign_scalar_value(
     if locals_scope is not None and name in locals_scope:
         locals_scope[name] = value
         return
+    if name == "FS":
+        state.field_separator = normalize_field_separator(coerce_scalar_to_string(value, state))
+    elif name == "RS":
+        state.record_separator = normalize_record_separator(coerce_scalar_to_string(value, state))
     state.variables[name] = value
 
 
@@ -4029,22 +4096,20 @@ def close_output_target(state: RuntimeState, target: str) -> float:
     return result if matched else -1.0
 
 
-def getline_input_stream(state: RuntimeState, target: str) -> TextIO:
-    """Open or reuse one file-backed `getline < file` input stream."""
+def getline_input_stream(state: RuntimeState, target: str) -> HostGetlineInput:
+    """Open or reuse one file-backed `getline < file` input source."""
     existing = state.input_streams.get(target)
     if existing is not None:
         return existing
-    stream = open(target, "r", encoding="utf-8")
+    stream = HostGetlineInput(content=Path(target).read_text(encoding="utf-8"))
     state.input_streams[target] = stream
     return stream
 
 
 def close_input_target(state: RuntimeState, target: str) -> float:
-    """Close one cached `getline` file stream."""
-    stream = state.input_streams.pop(target, None)
-    if stream is None:
+    """Close one cached `getline` file source."""
+    if state.input_streams.pop(target, None) is None:
         return -1.0
-    stream.close()
     return 0.0
 
 
@@ -4091,11 +4156,15 @@ def render_print_output(
 def initialize_builtin_variables(state: RuntimeState) -> None:
     """Seed the builtin variables tracked by the host runtime."""
     argc = 1 + (0 if state.input_state is None else len(state.input_state.files))
+    initial_fs = state.variables.get("FS")
+    initial_rs = state.variables.get("RS")
     state.variables["NR"] = make_numeric_value(0.0)
     state.variables["FNR"] = make_numeric_value(0.0)
     state.variables["NF"] = make_numeric_value(0.0)
     state.variables["ARGC"] = make_numeric_value(float(argc))
     state.variables["FILENAME"] = make_string_value(state.current_filename)
+    state.variables["FS"] = make_string_value(builtin_field_separator_text(state.field_separator))
+    state.variables["RS"] = make_string_value(state.record_separator)
     state.variables["OFS"] = make_string_value(" ")
     state.variables["ORS"] = make_string_value("\n")
     state.variables["OFMT"] = make_string_value(DEFAULT_OFMT)
@@ -4105,6 +4174,10 @@ def initialize_builtin_variables(state: RuntimeState) -> None:
     state.variables["SUBSEP"] = make_string_value("\x1c")
     state.arrays["ARGV"] = build_argv_array(state)
     state.arrays["ENVIRON"] = build_environ_array()
+    if initial_fs is not None:
+        assign_scalar_value("FS", initial_fs, state, locals_scope=None)
+    if initial_rs is not None:
+        assign_scalar_value("RS", initial_rs, state, locals_scope=None)
 
 
 def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:

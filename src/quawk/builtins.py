@@ -31,6 +31,7 @@ BUILTIN_VARIABLE_NAMES = frozenset(
     {
         "ARGC",
         "CONVFMT",
+        "FS",
         "FILENAME",
         "FNR",
         "NF",
@@ -38,6 +39,7 @@ BUILTIN_VARIABLE_NAMES = frozenset(
         "OFMT",
         "OFS",
         "ORS",
+        "RS",
         "RLENGTH",
         "RSTART",
         "SUBSEP",
