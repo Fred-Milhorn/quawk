@@ -46,6 +46,7 @@ from .parser import (
     UnaryExpr,
     UnaryOp,
     WhileStmt,
+    expression_to_lvalue,
 )
 
 
@@ -321,15 +322,39 @@ def validate_expression(
                 )
             if function_def is None and not builtin_accepts_arity(function_name, len(args)):
                 match function_name:
+                    case "close":
+                        raise SemanticError(
+                            "builtin close expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "gsub":
+                        raise SemanticError(
+                            "builtin gsub expects two or three arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "index":
+                        raise SemanticError(
+                            "builtin index expects two arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "length":
                         raise SemanticError(
                             "builtin length expects zero or one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
-                    case "close":
+                    case "match":
                         raise SemanticError(
-                            "builtin close expects one argument",
+                            "builtin match expects two arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "sprintf":
+                        raise SemanticError(
+                            "builtin sprintf expects at least a format argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
@@ -339,9 +364,27 @@ def validate_expression(
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
+                    case "sub":
+                        raise SemanticError(
+                            "builtin sub expects two or three arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "substr":
                         raise SemanticError(
                             "builtin substr expects two or three arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "tolower":
+                        raise SemanticError(
+                            "builtin tolower expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "toupper":
+                        raise SemanticError(
+                            "builtin toupper expects one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
@@ -353,6 +396,12 @@ def validate_expression(
                         )
             for argument in args:
                 validate_expression(argument, functions, scope=scope)
+            if function_def is None and function_name in {"sub", "gsub"} and len(args) == 3 and expression_to_lvalue(args[2]) is None:
+                raise SemanticError(
+                    f"builtin {function_name} requires an assignable third argument",
+                    args[2].span,
+                    SemanticErrorCode.INVALID_BUILTIN_CALL,
+                )
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
             validate_expression(test, functions, scope=scope)
             validate_expression(if_true, functions, scope=scope)

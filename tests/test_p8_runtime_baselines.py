@@ -166,6 +166,33 @@ def test_split_and_substr_builtins_execute() -> None:
     assert result.stderr == ""
 
 
+def test_string_and_regex_builtins_execute() -> None:
+    result = run_quawk(
+        'BEGIN { print index("banana", "na"); print match("banana", /ana/); '
+        'print RSTART; print RLENGTH; print sprintf("%s:%c", tolower("AbC"), 66); print toupper("ab") }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n2\n2\n3\nabc:B\nAB\n"
+    assert result.stderr == ""
+
+
+def test_sub_and_gsub_update_named_targets() -> None:
+    result = run_quawk('BEGIN { x = "bananas"; print sub(/ana/, "[&]", x); print x; print gsub(/a/, "A", x); print x }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\nb[ana]nas\n3\nb[AnA]nAs\n"
+    assert result.stderr == ""
+
+
+def test_two_argument_gsub_updates_the_current_record() -> None:
+    result = run_quawk('{ gsub(/a/, "A"); print }', stdin="banana\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "bAnAnA\n"
+    assert result.stderr == ""
+
+
 def test_dynamic_field_assignment_updates_the_selected_field() -> None:
     result = run_quawk('{ i = 2; $i = 9; print $0 }', stdin="1 2 3\n")
 

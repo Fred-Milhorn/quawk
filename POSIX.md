@@ -175,15 +175,14 @@ upstream skips.
 
 #### Builtin Functions
 
-- the supported builtin-function set is still only `length`, `split`, and
-  `substr`.
+- the current claimed builtin-function set now includes `close`, `index`,
+  `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`,
+  and `toupper`.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L5),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L59)
-- reviewed upstream skips already show missing POSIX builtins such as `gsub`
-  and `system`.
+- reviewed upstream skips still show missing POSIX builtins such as `system`.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L307),
   [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L469)
 - reviewed upstream skips show a real `split` behavior mismatch.
   Evidence:
@@ -195,12 +194,11 @@ upstream skips.
 #### Builtin Variables
 
 - the implemented builtin-variable set now includes `NR`, `FNR`, `NF`,
-  `FILENAME`, `OFS`, and `ORS`.
+  `FILENAME`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L6),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
-- standard variables such as `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`,
-  and `SUBSEP` should be treated as missing
+- standard variables such as `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` should be treated as missing
   until implemented and tested.
 - there is at least one reviewed builtin-variable sequencing mismatch:
   `END { print NR }`.
@@ -513,6 +511,17 @@ Acceptance:
 - the older `p.5` / `p.5a` skips were narrowed to the real remaining gap:
   `FS = "\t"` field splitting, not `printf` string-width formatting
 
+### T-162 String And Regex Builtin Result
+
+- `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now
+  execute through both the host runtime and the reusable backend/runtime path
+- `match()` now updates `RSTART` and `RLENGTH`, and those variables are part of
+  the current claimed builtin-variable surface
+- the upstream compatibility subset now promotes `one-true-awk:t.printf` as
+  corroborating `sprintf` coverage, while `one-true-awk:p.29` stays a narrower
+  reviewed skip because record-target `gsub` still has a cwd-sensitive backend
+  crash under installed-command execution
+
 ### Builtin Function Tasks
 
 #### POSIX-020: Enumerate the full POSIX builtin-function contract
@@ -602,14 +611,12 @@ Acceptance:
 
 Scope:
 
-- `RSTART`
-- `RLENGTH`
 - `SUBSEP`
 
 Acceptance:
 
-- builtin/function semantics that depend on these variables are correctly
-  tested
+- remaining builtin/function semantics that depend on these variables are
+  correctly tested
 
 ### Parser and Runtime Tasks
 

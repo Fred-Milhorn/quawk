@@ -181,6 +181,19 @@ def test_execute_host_runtime_supports_split_and_substr_builtins(capsys) -> None
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_string_and_regex_builtins(capsys) -> None:
+    program = parse_program(
+        'BEGIN { x = "bananas"; print index(x, "na"); print match(x, /ana/); print RSTART; print RLENGTH; '
+        'print sub(/ana/, "[&]", x); print x; print gsub(/a/, "A", x); print x; '
+        'print sprintf("%s:%c", tolower("AbC"), 66); print toupper("ab") }'
+    )
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "3\n2\n2\n3\n1\nb[ana]nas\n3\nb[AnA]nAs\nabc:B\nAB\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_updates_nr_fnr_and_nf(capsys, monkeypatch) -> None:
     program = parse_program("{ print NR; print FNR; print NF }")
 
@@ -514,6 +527,48 @@ def test_execute_routes_parenthesized_printf_with_substr_through_backend(monkeyp
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; linked printf backend module"
+
+
+def test_execute_routes_supported_string_and_regex_builtin_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(
+        'BEGIN { x = "bananas"; print index(x, "na"); print match(x, /ana/); '
+        'print sub(/ana/, "[&]", x); print sprintf("%s:%c", tolower("AbC"), 66); print toupper("ab") }'
+    )
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("supported string and regex builtin programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; string-regex builtin backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; string-regex builtin backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked string-regex builtin backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; linked string-regex builtin backend module"
 
 
 def test_execute_with_inputs_routes_supported_nextfile_programs_through_backend(monkeypatch) -> None:

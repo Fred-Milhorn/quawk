@@ -69,14 +69,30 @@ bool qk_scalar_truthy(qk_runtime *runtime, const char *name);
 void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value);
 void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value);
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name);
+const char *qk_capture_string_arg(qk_runtime *runtime, const char *text);
+double qk_parse_number_text(const char *text);
 const char *qk_format_number(qk_runtime *runtime, double value);
 const char *qk_concat(qk_runtime *runtime, const char *left, const char *right);
+double qk_index(qk_runtime *runtime, const char *text, const char *search);
+double qk_match(qk_runtime *runtime, const char *text, const char *pattern);
+double qk_substitute(
+    qk_runtime *runtime,
+    const char *pattern,
+    const char *replacement,
+    const char *text,
+    bool global,
+    const char **result_out
+);
+const char *qk_sprintf(qk_runtime *runtime, const char *format, int32_t argc, const double *numbers, const char *const *strings);
+const char *qk_tolower(qk_runtime *runtime, const char *text);
+const char *qk_toupper(qk_runtime *runtime, const char *text);
 double qk_get_nr(qk_runtime *runtime);
 double qk_get_fnr(qk_runtime *runtime);
 double qk_get_nf(qk_runtime *runtime);
 const char *qk_get_filename(qk_runtime *runtime);
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator);
 const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key);
+void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char *key, const char *value);
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value);
 void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key);
 void qk_array_clear(qk_runtime *runtime, const char *array_name);

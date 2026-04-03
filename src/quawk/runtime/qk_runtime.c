@@ -40,6 +40,9 @@ struct qk_runtime {
     char *current_filename;
     char *scratch_buffer;
     size_t scratch_capacity;
+    char **temp_strings;
+    size_t temp_string_count;
+    size_t temp_string_capacity;
     struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
     struct qk_output_entry *outputs;
@@ -138,6 +141,20 @@ static void qk_free_scalars(struct qk_scalar_entry *entry)
         free(entry);
         entry = next;
     }
+}
+
+static void qk_clear_temp_strings(qk_runtime *runtime)
+{
+    size_t index;
+
+    if (runtime == NULL) {
+        return;
+    }
+
+    for (index = 0U; index < runtime->temp_string_count; index += 1U) {
+        free(runtime->temp_strings[index]);
+    }
+    runtime->temp_string_count = 0U;
 }
 
 static void qk_invalidate_numeric_string_cache(qk_runtime *runtime)
@@ -434,6 +451,58 @@ static bool qk_store_scratch(qk_runtime *runtime, const char *text, size_t lengt
     return true;
 }
 
+static bool qk_reserve_scratch(qk_runtime *runtime, size_t length)
+{
+    size_t required;
+    char *next;
+
+    if (runtime == NULL) {
+        return false;
+    }
+
+    required = length + 1U;
+    if (required <= runtime->scratch_capacity) {
+        return true;
+    }
+
+    next = realloc(runtime->scratch_buffer, required);
+    if (next == NULL) {
+        return false;
+    }
+    runtime->scratch_buffer = next;
+    runtime->scratch_capacity = required;
+    return true;
+}
+
+static bool qk_append_scratch(qk_runtime *runtime, size_t *offset, const char *text, size_t length)
+{
+    size_t start;
+
+    if ((runtime == NULL) || (offset == NULL)) {
+        return false;
+    }
+    if ((text == NULL) && (length != 0U)) {
+        return false;
+    }
+
+    start = *offset;
+    if (!qk_reserve_scratch(runtime, start + length)) {
+        return false;
+    }
+    if (length != 0U) {
+        memcpy(runtime->scratch_buffer + start, text, length);
+    }
+    start += length;
+    runtime->scratch_buffer[start] = '\0';
+    *offset = start;
+    return true;
+}
+
+static bool qk_append_char_scratch(qk_runtime *runtime, size_t *offset, char value)
+{
+    return qk_append_scratch(runtime, offset, &value, 1U);
+}
+
 static double qk_parse_awk_numeric_prefix(const char *text)
 {
     char *end = NULL;
@@ -693,6 +762,14 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
         qk_runtime_destroy(runtime);
         return NULL;
     }
+    if (!qk_scalar_set_number_value(runtime, "RSTART", 0.0)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_number_value(runtime, "RLENGTH", -1.0)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
 
     return runtime;
 }
@@ -710,6 +787,8 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->field_separator);
     free(runtime->current_filename);
     free(runtime->scratch_buffer);
+    qk_clear_temp_strings(runtime);
+    free(runtime->temp_strings);
     qk_free_scalars(runtime->scalars);
     qk_free_arrays(runtime->arrays);
     qk_free_outputs(runtime->outputs);
@@ -1103,6 +1182,41 @@ void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *so
     qk_clear_scalar(target);
 }
 
+const char *qk_capture_string_arg(qk_runtime *runtime, const char *text)
+{
+    char *copy;
+    char **next_strings;
+
+    if (runtime == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+
+    copy = qk_strdup_or_null(text == NULL ? "" : text);
+    if (copy == NULL) {
+        return QK_EMPTY_FIELD;
+    }
+
+    if (runtime->temp_string_count == runtime->temp_string_capacity) {
+        size_t next_capacity = runtime->temp_string_capacity == 0U ? 8U : runtime->temp_string_capacity * 2U;
+        next_strings = realloc(runtime->temp_strings, next_capacity * sizeof(*next_strings));
+        if (next_strings == NULL) {
+            free(copy);
+            return QK_EMPTY_FIELD;
+        }
+        runtime->temp_strings = next_strings;
+        runtime->temp_string_capacity = next_capacity;
+    }
+
+    runtime->temp_strings[runtime->temp_string_count] = copy;
+    runtime->temp_string_count += 1U;
+    return copy;
+}
+
+double qk_parse_number_text(const char *text)
+{
+    return qk_parse_awk_numeric_prefix(text);
+}
+
 const char *qk_format_number(qk_runtime *runtime, double value)
 {
     return qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "CONVFMT", QK_DEFAULT_CONVFMT));
@@ -1162,6 +1276,354 @@ const char *qk_concat(qk_runtime *runtime, const char *left, const char *right)
     runtime->scratch_buffer[left_length + right_length] = '\0';
     free(left_copy);
     free(right_copy);
+    return runtime->scratch_buffer;
+}
+
+double qk_index(qk_runtime *runtime, const char *text, const char *search)
+{
+    const char *match;
+
+    (void)runtime;
+    if ((text == NULL) || (search == NULL)) {
+        return 0.0;
+    }
+    if (*search == '\0') {
+        return 1.0;
+    }
+
+    match = strstr(text, search);
+    if (match == NULL) {
+        return 0.0;
+    }
+    return (double)((match - text) + 1);
+}
+
+double qk_match(qk_runtime *runtime, const char *text, const char *pattern)
+{
+    regex_t regex;
+    regmatch_t match;
+    int result;
+
+    if (runtime == NULL) {
+        return 0.0;
+    }
+
+    (void)qk_scalar_set_number_value(runtime, "RSTART", 0.0);
+    (void)qk_scalar_set_number_value(runtime, "RLENGTH", -1.0);
+    if ((text == NULL) || (pattern == NULL)) {
+        return 0.0;
+    }
+    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
+        return 0.0;
+    }
+
+    result = regexec(&regex, text, 1, &match, 0);
+    regfree(&regex);
+    if (result != 0) {
+        return 0.0;
+    }
+
+    (void)qk_scalar_set_number_value(runtime, "RSTART", (double)(match.rm_so + 1));
+    (void)qk_scalar_set_number_value(runtime, "RLENGTH", (double)(match.rm_eo - match.rm_so));
+    return (double)(match.rm_so + 1);
+}
+
+static bool qk_append_substitute_replacement(
+    qk_runtime *runtime,
+    size_t *offset,
+    const char *replacement,
+    const char *match_start,
+    size_t match_length
+)
+{
+    size_t index = 0U;
+
+    while ((replacement != NULL) && (replacement[index] != '\0')) {
+        char current = replacement[index];
+        if (current == '&') {
+            if (!qk_append_scratch(runtime, offset, match_start, match_length)) {
+                return false;
+            }
+            index += 1U;
+            continue;
+        }
+        if (current == '\\') {
+            char escaped = replacement[index + 1U];
+            if (escaped == '&' || escaped == '\\') {
+                if (!qk_append_char_scratch(runtime, offset, escaped)) {
+                    return false;
+                }
+                index += 2U;
+                continue;
+            }
+        }
+        if (!qk_append_char_scratch(runtime, offset, current)) {
+            return false;
+        }
+        index += 1U;
+    }
+    return true;
+}
+
+double qk_substitute(
+    qk_runtime *runtime,
+    const char *pattern,
+    const char *replacement,
+    const char *text,
+    bool global,
+    const char **result_out
+)
+{
+    regex_t regex;
+    regmatch_t match;
+    int result;
+    double count = 0.0;
+    size_t offset = 0U;
+    const char *cursor;
+
+    if (result_out != NULL) {
+        *result_out = QK_EMPTY_FIELD;
+    }
+    if (runtime == NULL) {
+        return 0.0;
+    }
+    if ((pattern == NULL) || (replacement == NULL) || (text == NULL)) {
+        return 0.0;
+    }
+    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
+        return 0.0;
+    }
+
+    cursor = text;
+    if (!qk_store_scratch(runtime, "", 0U)) {
+        regfree(&regex);
+        return 0.0;
+    }
+
+    while ((result = regexec(&regex, cursor, 1, &match, 0)) == 0) {
+        size_t match_start = (size_t)match.rm_so;
+        size_t match_length = (size_t)(match.rm_eo - match.rm_so);
+
+        if (!qk_append_scratch(runtime, &offset, cursor, match_start)) {
+            regfree(&regex);
+            return 0.0;
+        }
+        if (!qk_append_substitute_replacement(runtime, &offset, replacement, cursor + match_start, match_length)) {
+            regfree(&regex);
+            return 0.0;
+        }
+        count += 1.0;
+
+        if (!global) {
+            cursor += match.rm_eo;
+            break;
+        }
+
+        if (match.rm_so == match.rm_eo) {
+            if (cursor[match.rm_eo] == '\0') {
+                cursor += match.rm_eo;
+                break;
+            }
+            if (!qk_append_char_scratch(runtime, &offset, cursor[match.rm_eo])) {
+                regfree(&regex);
+                return 0.0;
+            }
+            cursor += match.rm_eo + 1;
+            continue;
+        }
+
+        cursor += match.rm_eo;
+    }
+
+    regfree(&regex);
+    if (!qk_append_scratch(runtime, &offset, cursor, strlen(cursor))) {
+        return 0.0;
+    }
+    if (result_out != NULL) {
+        *result_out = runtime->scratch_buffer == NULL ? QK_EMPTY_FIELD : runtime->scratch_buffer;
+    }
+    return count;
+}
+
+static bool qk_append_sprintf_segment(
+    qk_runtime *runtime,
+    size_t *offset,
+    const char *format_text,
+    char specifier,
+    double number_value,
+    const char *string_value
+)
+{
+    int required;
+    size_t start;
+
+    if ((runtime == NULL) || (offset == NULL) || (format_text == NULL)) {
+        return false;
+    }
+
+    switch (specifier) {
+    case 's':
+        required = snprintf(NULL, 0, format_text, string_value == NULL ? "" : string_value);
+        break;
+    case 'd':
+    case 'i':
+    case 'o':
+    case 'u':
+    case 'x':
+    case 'X':
+    case 'c':
+        required = snprintf(NULL, 0, format_text, (int)number_value);
+        break;
+    default:
+        required = snprintf(NULL, 0, format_text, number_value);
+        break;
+    }
+    if (required < 0) {
+        return false;
+    }
+
+    start = *offset;
+    if (!qk_reserve_scratch(runtime, start + (size_t)required)) {
+        return false;
+    }
+    switch (specifier) {
+    case 's':
+        snprintf(runtime->scratch_buffer + start, (size_t)required + 1U, format_text, string_value == NULL ? "" : string_value);
+        break;
+    case 'd':
+    case 'i':
+    case 'o':
+    case 'u':
+    case 'x':
+    case 'X':
+    case 'c':
+        snprintf(runtime->scratch_buffer + start, (size_t)required + 1U, format_text, (int)number_value);
+        break;
+    default:
+        snprintf(runtime->scratch_buffer + start, (size_t)required + 1U, format_text, number_value);
+        break;
+    }
+    *offset = start + (size_t)required;
+    return true;
+}
+
+const char *qk_sprintf(
+    qk_runtime *runtime,
+    const char *format,
+    int32_t argc,
+    const double *numbers,
+    const char *const *strings
+)
+{
+    size_t index = 0U;
+    size_t offset = 0U;
+    int32_t arg_index = 0;
+
+    if ((runtime == NULL) || (format == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    if (!qk_store_scratch(runtime, "", 0U)) {
+        return QK_EMPTY_FIELD;
+    }
+
+    while (format[index] != '\0') {
+        size_t start;
+        size_t spec_length;
+        char specifier;
+        char *spec_text;
+
+        if (format[index] != '%') {
+            if (!qk_append_char_scratch(runtime, &offset, format[index])) {
+                return QK_EMPTY_FIELD;
+            }
+            index += 1U;
+            continue;
+        }
+        if (format[index + 1U] == '%') {
+            if (!qk_append_char_scratch(runtime, &offset, '%')) {
+                return QK_EMPTY_FIELD;
+            }
+            index += 2U;
+            continue;
+        }
+
+        start = index;
+        index += 1U;
+        while (format[index] != '\0') {
+            char current = format[index];
+            if (strchr("aAcdeEfgGiosuxX", current) != NULL) {
+                break;
+            }
+            index += 1U;
+        }
+        if (format[index] == '\0') {
+            return QK_EMPTY_FIELD;
+        }
+
+        specifier = format[index];
+        spec_length = index - start + 1U;
+        spec_text = malloc(spec_length + 1U);
+        if (spec_text == NULL) {
+            return QK_EMPTY_FIELD;
+        }
+        memcpy(spec_text, format + start, spec_length);
+        spec_text[spec_length] = '\0';
+
+        if (arg_index >= argc) {
+            free(spec_text);
+            return QK_EMPTY_FIELD;
+        }
+        if (!qk_append_sprintf_segment(
+                runtime,
+                &offset,
+                spec_text,
+                specifier,
+                numbers == NULL ? 0.0 : numbers[arg_index],
+                strings == NULL ? QK_EMPTY_FIELD : strings[arg_index])) {
+            free(spec_text);
+            return QK_EMPTY_FIELD;
+        }
+        free(spec_text);
+        arg_index += 1;
+        index += 1U;
+    }
+
+    return runtime->scratch_buffer == NULL ? QK_EMPTY_FIELD : runtime->scratch_buffer;
+}
+
+const char *qk_tolower(qk_runtime *runtime, const char *text)
+{
+    size_t index;
+    size_t length;
+
+    if ((runtime == NULL) || (text == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    length = strlen(text);
+    if (!qk_store_scratch(runtime, text, length)) {
+        return QK_EMPTY_FIELD;
+    }
+    for (index = 0U; index < length; index += 1U) {
+        runtime->scratch_buffer[index] = (char)tolower((unsigned char)runtime->scratch_buffer[index]);
+    }
+    return runtime->scratch_buffer;
+}
+
+const char *qk_toupper(qk_runtime *runtime, const char *text)
+{
+    size_t index;
+    size_t length;
+
+    if ((runtime == NULL) || (text == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    length = strlen(text);
+    if (!qk_store_scratch(runtime, text, length)) {
+        return QK_EMPTY_FIELD;
+    }
+    for (index = 0U; index < length; index += 1U) {
+        runtime->scratch_buffer[index] = (char)toupper((unsigned char)runtime->scratch_buffer[index]);
+    }
     return runtime->scratch_buffer;
 }
 
@@ -1286,6 +1748,14 @@ const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char
         return QK_EMPTY_FIELD;
     }
     return qk_array_get_value(runtime, array_name, key);
+}
+
+void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char *key, const char *value)
+{
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return;
+    }
+    (void)qk_array_set(runtime, array_name, key, value == NULL ? "" : value);
 }
 
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value)

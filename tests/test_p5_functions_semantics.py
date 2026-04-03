@@ -139,6 +139,17 @@ def test_builtin_arity_errors_report_semantic_error_code() -> None:
     )
 
 
+def test_sub_requires_assignable_third_argument() -> None:
+    result = run_quawk('BEGIN { print sub(/a/, "b", 1 + 2) }')
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        '<inline>:1:29: error[SEM011]: builtin sub requires an assignable third argument\n'
+        'BEGIN { print sub(/a/, "b", 1 + 2) }\n'
+        '                            ^\n'
+    )
+
+
 def test_break_and_continue_inside_loop_pass_semantic_checks() -> None:
     result = run_quawk("--parse", "BEGIN { while (1) { break; continue } }")
 

@@ -210,11 +210,11 @@ Current public execution surface:
 - mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules
 - scalar and associative-array execution with AWK-style unset-value behavior and string/number coercions
 - bare `print`, single-argument `print`, multi-argument `print`, `printf`, `OFS` / `ORS`-driven print output, `OFMT` / `CONVFMT` formatting control, and `print` / `printf` output redirection with `close()`
-- field reads, dynamic field assignment, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `OFS`, `ORS`, `OFMT`, and `CONVFMT`
+- field reads, dynamic field assignment, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
 - the currently claimed expression subset: `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
 - user-defined functions and returns
-- the current builtin subset, including `close`, `length`, `split`, and `substr`
+- the current builtin subset, including `close`, `index`, `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`, and `toupper`
 - `-F` field-separator support and numeric `-v` preassignment
 
 Current backend and inspection surface:

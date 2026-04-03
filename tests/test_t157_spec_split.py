@@ -33,7 +33,7 @@ def test_t157_spec_splits_builtin_and_backend_rows() -> None:
     assert "| Formatting builtin variables | implemented |" in spec_text
     assert "| Remaining POSIX builtin variables | partial |" in spec_text
     assert "| Current builtin subset | implemented |" in spec_text
-    assert "| POSIX string and regex builtins | planned |" in spec_text
+    assert "| POSIX string and regex builtins | implemented |" in spec_text
     assert "| POSIX numeric and system builtins | planned |" in spec_text
     assert "| `getline` | planned |" in spec_text
     assert "| Backend parity for broader frontend-admitted POSIX forms | partial |" in spec_text

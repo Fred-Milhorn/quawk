@@ -72,9 +72,9 @@ Evidence:
 | Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
-| Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `RSTART`, `RLENGTH`, `SUBSEP`, and related POSIX variables are not implemented yet. |
-| Current builtin subset | implemented | `close`, `length`, `split`, and `substr` are part of the current claimed surface. |
-| POSIX string and regex builtins | planned | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` are not claimed yet. |
+| Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, and related POSIX variables are still not implemented; `RSTART` and `RLENGTH` now update through `match()`. |
+| Current builtin subset | implemented | `close`, `index`, `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`, and `toupper` are part of the current claimed surface. |
+| POSIX string and regex builtins | implemented | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now have direct execution coverage; upstream corroboration includes runnable `sprintf` coverage, while one record-target `gsub` case remains a narrower reviewed backend skip. |
 | POSIX numeric and system builtins | planned | `int`, `rand`, `srand`, `system`, and remaining POSIX math builtins are not claimed yet. |
 | `getline` | planned | POSIX `getline` support is not claimed yet. |
 

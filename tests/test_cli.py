@@ -666,6 +666,23 @@ def test_quawk_ir_flag_prints_backend_ir_for_parenthesized_printf_with_substr() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_string_and_regex_builtins() -> None:
+    result = run_quawk(
+        "--ir",
+        'BEGIN { x = "bananas"; print index(x, "na"); print match(x, /ana/); '
+        'print sub(/ana/, "[&]", x); print sprintf("%s:%c", tolower("AbC"), 66); print toupper("ab") }',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_index(" in result.stdout
+    assert "@qk_match(" in result.stdout
+    assert "@qk_substitute(" in result.stdout
+    assert "@qk_sprintf(" in result.stdout
+    assert "@qk_tolower(" in result.stdout
+    assert "@qk_toupper(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 

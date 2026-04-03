@@ -87,6 +87,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:T.nextfile" in case_ids
     assert "one-true-awk:t.delete1" in case_ids
     assert "one-true-awk:t.fun" in case_ids
+    assert "one-true-awk:t.printf" in case_ids
     assert "one-true-awk:t.substr" in case_ids
     assert "gawk:assignnumfield" in case_ids
     assert "gawk:assignnumfield2" in case_ids

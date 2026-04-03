@@ -316,7 +316,7 @@ case_id = "p.29"
 path = "third_party/onetrueawk/testdir/p.29"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Uses `gsub`, which is outside the current shipped builtin tranche."
+reason = "Two-argument record-target `gsub` still exposes a cwd-sensitive reusable-backend crash under installed-command execution, so runnable promotion stays blocked pending a narrower backend fix."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -697,6 +697,14 @@ status = "skip"
 adapter = "onetrueawk-program-file"
 reason = "Uses bare `print` and multi-argument `print` after `$0` reassignment; runnable promotion waits on broader print-surface parity."
 tags = ["posix", "fields"]
+
+[[case]]
+suite = "one-true-awk"
+case_id = "t.printf"
+path = "third_party/onetrueawk/testdir/t.printf"
+status = "run"
+adapter = "onetrueawk-program-file"
+tags = ["posix", "builtins", "printf"]
 
 [[case]]
 suite = "one-true-awk"
