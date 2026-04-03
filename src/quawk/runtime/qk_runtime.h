@@ -86,6 +86,17 @@ double qk_substitute(
 const char *qk_sprintf(qk_runtime *runtime, const char *format, int32_t argc, const double *numbers, const char *const *strings);
 const char *qk_tolower(qk_runtime *runtime, const char *text);
 const char *qk_toupper(qk_runtime *runtime, const char *text);
+double qk_atan2(double left, double right);
+double qk_cos(double value);
+double qk_exp(double value);
+double qk_int_builtin(double value);
+double qk_log(double value);
+double qk_rand(qk_runtime *runtime);
+double qk_sin(double value);
+double qk_sqrt(double value);
+double qk_srand0(qk_runtime *runtime);
+double qk_srand1(qk_runtime *runtime, double seed);
+double qk_system(qk_runtime *runtime, const char *command);
 double qk_get_nr(qk_runtime *runtime);
 double qk_get_fnr(qk_runtime *runtime);
 double qk_get_nf(qk_runtime *runtime);

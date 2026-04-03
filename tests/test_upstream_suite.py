@@ -39,6 +39,23 @@ def test_load_upstream_case_for_gawk_ok_fixture_reads_expectation() -> None:
     assert case.expectation.comparable_fields() == (0, "1\n", "")
 
 
+def test_load_upstream_case_for_onetrueawk_program_file_system_focuses_custom_input() -> None:
+    selection = next(
+        selection for selection in upstream_inventory.load_upstream_selection_manifest()
+        if (selection.suite, selection.case_id) == ("one-true-awk", "p.49")
+    )
+
+    case = upstream_suite.load_upstream_case(selection)
+
+    assert case.id == "one-true-awk:p.49"
+    assert case.oracle == "reference-agreement"
+    assert case.input_operands == ("system-input.txt",)
+    assert tuple(entry.path for entry in case.workdir_files) == (
+        Path("system-input.txt"),
+        Path("included.txt"),
+    )
+
+
 def test_load_upstream_case_for_onetrueawk_shell_driver_multiple_f_focuses_cli_subcase() -> None:
     selection = next(
         selection for selection in upstream_inventory.load_upstream_selection_manifest()
@@ -83,6 +100,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.21" in case_ids
     assert "one-true-awk:p.39" in case_ids
     assert "one-true-awk:p.46" in case_ids
+    assert "one-true-awk:p.49" in case_ids
     assert "one-true-awk:T.-f-f" in case_ids
     assert "one-true-awk:T.nextfile" in case_ids
     assert "one-true-awk:t.delete1" in case_ids
@@ -158,3 +176,30 @@ def test_run_upstream_case_materializes_shell_driver_files_in_temp_dir(monkeypat
 
     assert result.returncode == 0
     assert result.stdout == "begin\nend\n"
+
+
+def test_run_upstream_case_materializes_program_file_focus_files_in_temp_dir(monkeypatch) -> None:
+    selection = next(
+        selection for selection in upstream_inventory.load_upstream_selection_manifest()
+        if (selection.suite, selection.case_id) == ("one-true-awk", "p.49")
+    )
+    case = upstream_suite.load_upstream_case(selection)
+
+    def fake_run(command, *, capture_output, text, check, cwd):
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        workdir = Path(cwd)
+        input_path = workdir / "system-input.txt"
+        included_path = workdir / "included.txt"
+        assert input_path.read_text(encoding="utf-8") == "include included.txt\n"
+        assert included_path.read_text(encoding="utf-8") == "included from system\n"
+        assert command == ["quawk", "-f", str(selection.path), str(input_path)]
+        return subprocess.CompletedProcess(command, 0, stdout="included from system\n", stderr="")
+
+    monkeypatch.setattr(upstream_suite.subprocess, "run", fake_run)
+
+    result = upstream_suite.run_upstream_case(case, engine="quawk")
+
+    assert result.returncode == 0
+    assert result.stdout == "included from system\n"

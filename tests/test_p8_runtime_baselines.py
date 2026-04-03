@@ -177,6 +177,36 @@ def test_string_and_regex_builtins_execute() -> None:
     assert result.stderr == ""
 
 
+def test_numeric_and_math_builtins_execute() -> None:
+    result = run_quawk(
+        "BEGIN { print int(3.9); print int(-3.9); print atan2(0, -1); "
+        "print cos(0); print sin(0); print exp(1); print log(exp(1)); print sqrt(9) }"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n-3\n3.14159\n1\n0\n2.71828\n1\n3\n"
+    assert result.stderr == ""
+
+
+def test_rand_and_srand_use_the_package_owned_deterministic_sequence() -> None:
+    result = run_quawk("BEGIN { print srand(1); print rand(); print rand(); print srand(5); print rand() }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n0.51387\n0.175741\n1\n0.569327\n"
+    assert result.stderr == ""
+
+
+def test_system_returns_shell_status_and_allows_side_effects(tmp_path: Path) -> None:
+    output_path = tmp_path / "system.txt"
+
+    result = run_quawk(f"BEGIN {{ print system(\"printf ok > '{output_path}'\"); print system(\"exit 7\") }}")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n7\n"
+    assert result.stderr == ""
+    assert output_path.read_text(encoding="utf-8") == "ok"
+
+
 def test_sub_and_gsub_update_named_targets() -> None:
     result = run_quawk('BEGIN { x = "bananas"; print sub(/ana/, "[&]", x); print x; print gsub(/a/, "A", x); print x }')
 

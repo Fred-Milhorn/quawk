@@ -164,6 +164,21 @@ def load_onetrueawk_program_file(selection: UpstreamCaseSelection) -> UpstreamCa
     fixture_dir = selection.path.parent
     case_name = selection.path.name
 
+    if case_name == "p.49":
+        return UpstreamCase(
+            selection=selection,
+            program_path=selection.path,
+            cli_args=(),
+            input_operands=("system-input.txt",),
+            operand_separator=False,
+            oracle="reference-agreement",
+            expectation=None,
+            workdir_files=(
+                text_workdir_file("system-input.txt", "include included.txt\n"),
+                text_workdir_file("included.txt", "included from system\n"),
+            ),
+        )
+
     if case_name.startswith("p."):
         input_operands = (
             str(fixture_dir / "test.countries"),

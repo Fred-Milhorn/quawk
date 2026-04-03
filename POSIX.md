@@ -175,15 +175,18 @@ upstream skips.
 
 #### Builtin Functions
 
-- the current claimed builtin-function set now includes `close`, `index`,
-  `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`,
-  and `toupper`.
+- the current claimed builtin-function set now includes `atan2`, `close`,
+  `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`,
+  `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`,
+  `tolower`, and `toupper`.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L5),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L59)
-- reviewed upstream skips still show missing POSIX builtins such as `system`.
+- reviewed upstream corroboration for `rand()` is still narrower than the
+  direct coverage because the pinned references disagree on seeded randomized
+  output.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L469)
+  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L459)
 - reviewed upstream skips show a real `split` behavior mismatch.
   Evidence:
   [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L751)
@@ -550,18 +553,25 @@ Acceptance:
 
 #### POSIX-022: Implement the missing numeric and system builtins
 
-Likely scope:
+Completed scope:
 
 - `int`
 - `rand`
 - `srand`
 - `system`
-- any remaining POSIX math builtins required by the standard profile adopted by
-  the repo
+- `atan2`
+- `cos`
+- `sin`
+- `exp`
+- `log`
+- `sqrt`
 
 Acceptance:
 
-- each builtin has parser, semantics, runtime, and compatibility coverage
+- each builtin has direct semantics/runtime/backend coverage
+- the upstream subset includes corroborating `system()` coverage
+- `rand()` remains documented as a narrower direct-only case until the pinned
+  references agree on a stable seeded-output anchor
 
 #### POSIX-023: Implement `getline`
 

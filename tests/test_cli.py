@@ -683,6 +683,26 @@ def test_quawk_ir_flag_prints_backend_ir_for_string_and_regex_builtins() -> None
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_numeric_and_system_builtins() -> None:
+    result = run_quawk(
+        "--ir",
+        'BEGIN { print int(3.9); print atan2(0, -1); print cos(0); print exp(1); '
+        'print log(exp(1)); print sqrt(9); print srand(1); print rand(); print system("exit 7") }',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_int_builtin(" in result.stdout
+    assert "@qk_atan2(" in result.stdout
+    assert "@qk_cos(" in result.stdout
+    assert "@qk_exp(" in result.stdout
+    assert "@qk_log(" in result.stdout
+    assert "@qk_sqrt(" in result.stdout
+    assert "@qk_srand1(" in result.stdout
+    assert "@qk_rand(" in result.stdout
+    assert "@qk_system(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_do_while_programs() -> None:
     result = run_quawk("--ir", "BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
 

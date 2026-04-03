@@ -73,9 +73,9 @@ Evidence:
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
 | Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, and related POSIX variables are still not implemented; `RSTART` and `RLENGTH` now update through `match()`. |
-| Current builtin subset | implemented | `close`, `index`, `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`, and `toupper` are part of the current claimed surface. |
+| Current builtin subset | implemented | `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper` are part of the current claimed surface. |
 | POSIX string and regex builtins | implemented | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now have direct execution coverage; upstream corroboration includes runnable `sprintf` coverage, while one record-target `gsub` case remains a narrower reviewed backend skip. |
-| POSIX numeric and system builtins | planned | `int`, `rand`, `srand`, `system`, and remaining POSIX math builtins are not claimed yet. |
+| POSIX numeric and system builtins | implemented | `int`, `rand`, `srand`, `system`, `atan2`, `cos`, `sin`, `exp`, `log`, and `sqrt` now have direct execution coverage across host and backend/runtime paths. The upstream subset includes a runnable `system()` anchor; `rand()` remains direct-test-only for now because the pinned references disagree on deterministic seeded output. |
 | `getline` | planned | POSIX `getline` support is not claimed yet. |
 
 Evidence:

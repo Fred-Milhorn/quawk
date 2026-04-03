@@ -5,7 +5,7 @@
 # families to the upstream case inventory so growth is tied to the public
 # contract in SPEC.md instead of raw upstream test counts.
 
-# Runnable starter slice.
+# Runnable starter subset.
 
 [[case]]
 suite = "one-true-awk"
@@ -460,16 +460,15 @@ case_id = "p.48b"
 path = "third_party/onetrueawk/testdir/p.48b"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Not suitable as a required differential case yet: the references disagree on randomized output and `rand()` is outside the current claimed builtin tranche."
+reason = "Not suitable as a required differential case yet: the references disagree on randomized output even after `srand`, so it is not stable enough for the runnable subset."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.49"
 path = "third_party/onetrueawk/testdir/p.49"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses `system()`, which is outside the current claimed builtin tranche."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -905,6 +904,7 @@ selection_keys = [
 [[coverage]]
 family = "implemented-builtins"
 selection_keys = [
+  "one-true-awk:p.49",
   "gawk:numsubstr",
   "one-true-awk:p.31",
   "one-true-awk:p.33",

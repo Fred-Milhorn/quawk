@@ -4,15 +4,17 @@
 
 from __future__ import annotations
 
+import math
 import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TextIO
+from typing import Callable, TextIO
 
 from . import runtime_support
 from .builtins import is_builtin_function_name, is_builtin_variable_name
@@ -74,6 +76,10 @@ DEFAULT_CONVFMT = "%.6g"
 OUTPUT_REDIRECT_WRITE = 1
 OUTPUT_REDIRECT_APPEND = 2
 OUTPUT_REDIRECT_PIPE = 3
+RAND_MODULUS = 2_147_483_648.0
+RAND_MASK = 0x7FFFFFFF
+RAND_MULTIPLIER = 1103515245
+RAND_INCREMENT = 12345
 
 
 @dataclass
@@ -128,6 +134,8 @@ class RuntimeState:
     current_filename: str = "-"
     output_streams: dict[tuple[str, OutputRedirectKind], TextIO] = field(default_factory=dict)
     output_processes: dict[tuple[str, OutputRedirectKind], subprocess.Popen[str]] = field(default_factory=dict)
+    random_seed: int = 1
+    random_state: int = 1
 
 
 @dataclass
@@ -204,6 +212,21 @@ NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d
 PRINTF_SPEC_PATTERN = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)([%aAcdeEfgGiosuxX])")
 
 LocalScope = dict[str, AwkValue]
+
+
+def normalize_rand_seed(value: float) -> int:
+    """Normalize one AWK numeric seed into the runtime RNG state domain."""
+    return int(math.trunc(value)) & RAND_MASK
+
+
+def next_rand_state(state: int) -> int:
+    """Advance the package-owned RNG state."""
+    return (RAND_MULTIPLIER * state + RAND_INCREMENT) & RAND_MASK
+
+
+def rand_value_from_state(state: int) -> float:
+    """Map one RNG state to the AWK-visible `[0, 1)` value."""
+    return state / RAND_MODULUS
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -483,6 +506,17 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_sprintf(ptr, ptr, i32, ptr, ptr)",
         "declare ptr @qk_tolower(ptr, ptr)",
         "declare ptr @qk_toupper(ptr, ptr)",
+        "declare double @qk_atan2(double, double)",
+        "declare double @qk_cos(double)",
+        "declare double @qk_exp(double)",
+        "declare double @qk_int_builtin(double)",
+        "declare double @qk_log(double)",
+        "declare double @qk_rand(ptr)",
+        "declare double @qk_sin(double)",
+        "declare double @qk_sqrt(double)",
+        "declare double @qk_srand0(ptr)",
+        "declare double @qk_srand1(ptr, double)",
+        "declare double @qk_system(ptr, ptr)",
         "declare double @qk_get_nr(ptr)",
         "declare double @qk_get_fnr(ptr)",
         "declare double @qk_get_nf(ptr)",
@@ -1474,12 +1508,32 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_substitute_builtin(expression, state, global_replace=True)
         case CallExpr(function="index"):
             return lower_runtime_index_builtin(expression, state)
+        case CallExpr(function="int"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_int_builtin", "int")
         case CallExpr(function="length"):
             return lower_runtime_length_builtin(expression, state)
+        case CallExpr(function="log"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_log", "log")
         case CallExpr(function="match"):
             return lower_runtime_match_builtin(expression, state)
+        case CallExpr(function="rand"):
+            return lower_runtime_rand_builtin(expression, state)
+        case CallExpr(function="sin"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_sin", "sin")
+        case CallExpr(function="sqrt"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_sqrt", "sqrt")
+        case CallExpr(function="srand"):
+            return lower_runtime_srand_builtin(expression, state)
         case CallExpr(function="sub"):
             return lower_runtime_substitute_builtin(expression, state, global_replace=False)
+        case CallExpr(function="system"):
+            return lower_runtime_system_builtin(expression, state)
+        case CallExpr(function="atan2"):
+            return lower_runtime_binary_numeric_builtin(expression, state, "@qk_atan2", "atan2")
+        case CallExpr(function="cos"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_cos", "cos")
+        case CallExpr(function="exp"):
+            return lower_runtime_unary_numeric_builtin(expression, state, "@qk_exp", "exp")
         case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
@@ -1492,6 +1546,11 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
             return temp
         case _:
+            if runtime_expression_has_string_result(expression, state):
+                string_value = lower_runtime_captured_string_expression(expression, state)
+                temp = state.next_temp("num.coerce")
+                state.instructions.append(f"  {temp} = call double @qk_parse_number_text(ptr {string_value})")
+                return temp
             raise RuntimeError("unsupported numeric expression in runtime-backed backend")
 
 
@@ -1650,7 +1709,38 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             numeric_value = lower_runtime_numeric_expression(expression, state)
             temp = state.next_temp("numstr")
             state.instructions.append(f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})")
-            return temp
+    return temp
+
+
+def lower_runtime_unary_numeric_builtin(
+    expression: CallExpr,
+    state: LoweringState,
+    runtime_function: str,
+    builtin_name: str,
+) -> str:
+    """Lower one one-argument numeric builtin in the runtime-backed backend subset."""
+    if len(expression.args) != 1:
+        raise RuntimeError(f"builtin {builtin_name} expects one argument")
+    operand = lower_runtime_numeric_expression(expression.args[0], state)
+    result = state.next_temp(f"{builtin_name}.num")
+    state.instructions.append(f"  {result} = call double {runtime_function}(double {operand})")
+    return result
+
+
+def lower_runtime_binary_numeric_builtin(
+    expression: CallExpr,
+    state: LoweringState,
+    runtime_function: str,
+    builtin_name: str,
+) -> str:
+    """Lower one two-argument numeric builtin in the runtime-backed backend subset."""
+    if len(expression.args) != 2:
+        raise RuntimeError(f"builtin {builtin_name} expects two arguments")
+    left = lower_runtime_numeric_expression(expression.args[0], state)
+    right = lower_runtime_numeric_expression(expression.args[1], state)
+    result = state.next_temp(f"{builtin_name}.num")
+    state.instructions.append(f"  {result} = call double {runtime_function}(double {left}, double {right})")
+    return result
 
 
 def lower_runtime_length_builtin(expression: CallExpr, state: LoweringState) -> str:
@@ -1798,6 +1888,41 @@ def lower_runtime_match_builtin(expression: CallExpr, state: LoweringState) -> s
     pattern_ptr = lower_runtime_regex_pattern(expression.args[1], state)
     result = state.next_temp("match")
     state.instructions.append(f"  {result} = call double @qk_match(ptr {state.runtime_param}, ptr {text_ptr}, ptr {pattern_ptr})")
+    return result
+
+
+def lower_runtime_rand_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `rand` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if expression.args:
+        raise RuntimeError("builtin rand expects zero arguments")
+    result = state.next_temp("rand")
+    state.instructions.append(f"  {result} = call double @qk_rand(ptr {state.runtime_param})")
+    return result
+
+
+def lower_runtime_srand_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `srand` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) > 1:
+        raise RuntimeError("builtin srand expects zero or one argument")
+    result = state.next_temp("srand")
+    if not expression.args:
+        state.instructions.append(f"  {result} = call double @qk_srand0(ptr {state.runtime_param})")
+        return result
+    seed = lower_runtime_numeric_expression(expression.args[0], state)
+    state.instructions.append(f"  {result} = call double @qk_srand1(ptr {state.runtime_param}, double {seed})")
+    return result
+
+
+def lower_runtime_system_builtin(expression: CallExpr, state: LoweringState) -> str:
+    """Lower one `system` builtin call in the runtime-backed backend subset."""
+    assert state.runtime_param is not None
+    if len(expression.args) != 1:
+        raise RuntimeError("builtin system expects one argument")
+    command = lower_runtime_captured_string_expression(expression.args[0], state)
+    result = state.next_temp("system")
+    state.instructions.append(f"  {result} = call double @qk_system(ptr {state.runtime_param}, ptr {command})")
     return result
 
 
@@ -2997,30 +3122,81 @@ def call_builtin_function(
 ) -> AwkValue:
     """Execute one supported builtin function call in the current host runtime."""
     match expression.function:
+        case "atan2":
+            return call_binary_math_builtin(expression, state, record, locals_scope, math.atan2, "atan2")
         case "close":
             return call_close_builtin(expression, state, record, locals_scope)
+        case "cos":
+            return call_unary_math_builtin(expression, state, record, locals_scope, math.cos, "cos")
+        case "exp":
+            return call_unary_math_builtin(expression, state, record, locals_scope, math.exp, "exp")
         case "gsub":
             return call_substitute_builtin(expression, state, record, locals_scope, global_replace=True)
         case "index":
             return call_index_builtin(expression, state, record, locals_scope)
+        case "int":
+            return call_int_builtin(expression, state, record, locals_scope)
         case "length":
             return call_length_builtin(expression, state, record, locals_scope)
+        case "log":
+            return call_unary_math_builtin(expression, state, record, locals_scope, math.log, "log")
         case "match":
             return call_match_builtin(expression, state, record, locals_scope)
+        case "rand":
+            return call_rand_builtin(expression, state, record, locals_scope)
+        case "sin":
+            return call_unary_math_builtin(expression, state, record, locals_scope, math.sin, "sin")
         case "split":
             return call_split_builtin(expression, state, record, locals_scope)
+        case "sqrt":
+            return call_unary_math_builtin(expression, state, record, locals_scope, math.sqrt, "sqrt")
+        case "srand":
+            return call_srand_builtin(expression, state, record, locals_scope)
         case "sprintf":
             return call_sprintf_builtin(expression, state, record, locals_scope)
         case "sub":
             return call_substitute_builtin(expression, state, record, locals_scope, global_replace=False)
         case "substr":
             return call_substr_builtin(expression, state, record, locals_scope)
+        case "system":
+            return call_system_builtin(expression, state, record, locals_scope)
         case "tolower":
             return call_tolower_builtin(expression, state, record, locals_scope)
         case "toupper":
             return call_toupper_builtin(expression, state, record, locals_scope)
         case _:
             raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
+
+
+def call_unary_math_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+    operator: Callable[[float], float],
+    builtin_name: str,
+) -> AwkValue:
+    """Execute one one-argument numeric builtin in the host runtime."""
+    if len(expression.args) != 1:
+        raise RuntimeError(f"builtin {builtin_name} expects one argument")
+    value = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
+    return make_numeric_value(operator(value))
+
+
+def call_binary_math_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+    operator: Callable[[float, float], float],
+    builtin_name: str,
+) -> AwkValue:
+    """Execute one two-argument numeric builtin in the host runtime."""
+    if len(expression.args) != 2:
+        raise RuntimeError(f"builtin {builtin_name} expects two arguments")
+    left = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
+    right = evaluate_numeric_expression(expression.args[1], state, record, locals_scope)
+    return make_numeric_value(operator(left, right))
 
 
 def call_close_builtin(
@@ -3051,6 +3227,19 @@ def call_index_builtin(
         return make_numeric_value(1.0)
     position = source_text.find(search_text)
     return make_numeric_value(0.0 if position < 0 else float(position + 1))
+
+
+def call_int_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the POSIX `int` builtin."""
+    if len(expression.args) != 1:
+        raise RuntimeError("builtin int expects one argument")
+    value = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
+    return make_numeric_value(float(math.trunc(value)))
 
 
 def call_length_builtin(
@@ -3108,6 +3297,39 @@ def call_match_builtin(
     return make_numeric_value(float(match.start() + 1))
 
 
+def call_rand_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the POSIX `rand` builtin with the package-owned RNG state."""
+    del record, locals_scope
+    if expression.args:
+        raise RuntimeError("builtin rand expects zero arguments")
+    state.random_state = next_rand_state(state.random_state)
+    return make_numeric_value(rand_value_from_state(state.random_state))
+
+
+def call_srand_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the POSIX `srand` builtin and return the previous seed."""
+    previous_seed = state.random_seed
+    if len(expression.args) > 1:
+        raise RuntimeError("builtin srand expects zero or one argument")
+    if not expression.args:
+        new_seed = int(time.time())
+    else:
+        new_seed = normalize_rand_seed(evaluate_numeric_expression(expression.args[0], state, record, locals_scope))
+    state.random_seed = new_seed
+    state.random_state = new_seed
+    return make_numeric_value(float(previous_seed))
+
+
 def call_split_builtin(
     expression: CallExpr,
     state: RuntimeState,
@@ -3153,6 +3375,20 @@ def call_substr_builtin(
     if length <= 0:
         return make_string_value("")
     return make_string_value(source_text[start_index : start_index + length])
+
+
+def call_system_builtin(
+    expression: CallExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the POSIX `system` builtin through the host shell."""
+    if len(expression.args) != 1:
+        raise RuntimeError("builtin system expects one argument")
+    command = evaluate_string_expression(expression.args[0], state, record, locals_scope)
+    result = subprocess.run(command, shell=True, check=False)
+    return make_numeric_value(float(result.returncode))
 
 
 def apply_substitution_replacement(replacement: str, matched_text: str) -> str:
@@ -4087,6 +4323,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return len(args) == 2 and all(
                     supports_string_expression(argument) or supports_numeric_expression(argument) for argument in args
                 )
+            case CallExpr(function="int" | "cos" | "exp" | "log" | "sin" | "sqrt", args=args):
+                return len(args) == 1 and supports_numeric_expression(args[0])
             case CallExpr(function="length", args=args):
                 if len(args) > 1:
                     return False
@@ -4104,6 +4342,16 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     or supports_string_expression(args[1])
                     or supports_numeric_expression(args[1])
                 )
+            case CallExpr(function="rand", args=args):
+                return len(args) == 0
+            case CallExpr(function="srand", args=args):
+                return len(args) in {0, 1} and (not args or supports_numeric_expression(args[0]))
+            case CallExpr(function="system", args=args):
+                return len(args) == 1 and (
+                    supports_string_expression(args[0]) or supports_numeric_expression(args[0])
+                )
+            case CallExpr(function="atan2", args=args):
+                return len(args) == 2 and all(supports_numeric_expression(argument) for argument in args)
             case _:
                 return False
 
@@ -4125,6 +4373,84 @@ def supports_runtime_backend_subset(program: Program) -> bool:
 
     def supports_condition_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
+
+    def expression_contains_runtime_builtin(expression: Expr) -> bool:
+        match expression:
+            case CallExpr():
+                return True
+            case BinaryExpr(left=left, right=right):
+                return expression_contains_runtime_builtin(left) or expression_contains_runtime_builtin(right)
+            case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
+                return expression_contains_runtime_builtin(operand)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    expression_contains_runtime_builtin(test)
+                    or expression_contains_runtime_builtin(if_true)
+                    or expression_contains_runtime_builtin(if_false)
+                )
+            case AssignExpr(value=value):
+                return expression_contains_runtime_builtin(value)
+            case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
+                return expression_contains_runtime_builtin(index) or any(
+                    expression_contains_runtime_builtin(extra_index) for extra_index in extra_indexes
+                )
+            case FieldExpr(index=index):
+                return not isinstance(index, int) and expression_contains_runtime_builtin(index)
+            case _:
+                return False
+
+    def statement_contains_runtime_builtin(statement: Stmt) -> bool:
+        match statement:
+            case AssignStmt(target=target, value=value):
+                if expression_contains_runtime_builtin(value):
+                    return True
+                match target:
+                    case ArrayLValue(subscripts=subscripts):
+                        return any(expression_contains_runtime_builtin(subscript) for subscript in subscripts)
+                    case FieldLValue(index=index):
+                        return expression_contains_runtime_builtin(index)
+                    case _:
+                        return False
+            case BlockStmt(statements=statements):
+                return any(statement_contains_runtime_builtin(nested) for nested in statements)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                return (
+                    expression_contains_runtime_builtin(condition)
+                    or statement_contains_runtime_builtin(then_branch)
+                    or (else_branch is not None and statement_contains_runtime_builtin(else_branch))
+                )
+            case WhileStmt(condition=condition, body=body):
+                return expression_contains_runtime_builtin(condition) or statement_contains_runtime_builtin(body)
+            case DoWhileStmt(body=body, condition=condition):
+                return statement_contains_runtime_builtin(body) or expression_contains_runtime_builtin(condition)
+            case PrintStmt(arguments=arguments, redirect=redirect):
+                return any(expression_contains_runtime_builtin(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_runtime_builtin(redirect.target)
+                )
+            case PrintfStmt(arguments=arguments, redirect=redirect):
+                return any(expression_contains_runtime_builtin(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_runtime_builtin(redirect.target)
+                )
+            case ExprStmt(value=value):
+                return expression_contains_runtime_builtin(value)
+            case ExitStmt(value=value) | ReturnStmt(value=value):
+                return value is not None and expression_contains_runtime_builtin(value)
+            case ForStmt(init=init, condition=condition, update=update, body=body):
+                return (
+                    any(expression_contains_runtime_builtin(expression) for expression in init)
+                    or (condition is not None and expression_contains_runtime_builtin(condition))
+                    or any(expression_contains_runtime_builtin(expression) for expression in update)
+                    or statement_contains_runtime_builtin(body)
+                )
+            case ForInStmt(iterable=iterable, body=body):
+                return expression_contains_runtime_builtin(iterable) or statement_contains_runtime_builtin(body)
+            case DeleteStmt(index=index, extra_indexes=extra_indexes):
+                return (
+                    (index is not None and expression_contains_runtime_builtin(index))
+                    or any(expression_contains_runtime_builtin(extra_index) for extra_index in extra_indexes)
+                )
+            case _:
+                return False
 
     def supports_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
@@ -4241,6 +4567,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             continue
         if not all(supports_statement(statement) for statement in item.action.statements):
             return False
+        if any(statement_contains_runtime_builtin(statement) for statement in item.action.statements):
+            found_supported_runtime_feature = True
         if isinstance(item.pattern, RangePattern):
             found_supported_runtime_feature = True
         if isinstance(item.pattern, ExprPattern) and not isinstance(item.pattern.test, RegexLiteralExpr):

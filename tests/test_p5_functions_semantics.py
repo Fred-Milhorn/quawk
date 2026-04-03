@@ -139,6 +139,17 @@ def test_builtin_arity_errors_report_semantic_error_code() -> None:
     )
 
 
+def test_numeric_and_system_builtin_arity_errors_report_semantic_error_code() -> None:
+    result = run_quawk("BEGIN { print rand(1); print system(); print atan2(1); print srand(1, 2) }")
+
+    assert result.returncode == 2
+    assert result.stderr == (
+        "<inline>:1:15: error[SEM011]: builtin rand expects zero arguments\n"
+        "BEGIN { print rand(1); print system(); print atan2(1); print srand(1, 2) }\n"
+        "              ^\n"
+    )
+
+
 def test_sub_requires_assignable_third_argument() -> None:
     result = run_quawk('BEGIN { print sub(/a/, "b", 1 + 2) }')
 

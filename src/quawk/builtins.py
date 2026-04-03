@@ -4,15 +4,25 @@ from __future__ import annotations
 
 BUILTIN_FUNCTION_NAMES = frozenset(
     {
+        "atan2",
         "close",
+        "cos",
+        "exp",
         "gsub",
         "index",
+        "int",
         "length",
+        "log",
         "match",
+        "rand",
+        "sin",
         "split",
+        "sqrt",
+        "srand",
         "sprintf",
         "sub",
         "substr",
+        "system",
         "tolower",
         "toupper",
     }
@@ -22,14 +32,24 @@ BUILTIN_VARIABLE_NAMES = frozenset(
 )
 
 BUILTIN_ARITY_RULES: dict[str, tuple[int, ...]] = {
+    "atan2": (2,),
     "close": (1,),
+    "cos": (1,),
+    "exp": (1,),
     "gsub": (2, 3),
     "index": (2,),
+    "int": (1,),
     "length": (0, 1),
+    "log": (1,),
     "match": (2,),
+    "rand": (0,),
+    "sin": (1,),
     "split": (2, 3),
+    "sqrt": (1,),
+    "srand": (0, 1),
     "sub": (2, 3),
     "substr": (2, 3),
+    "system": (1,),
     "tolower": (1,),
     "toupper": (1,),
 }

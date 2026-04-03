@@ -322,9 +322,27 @@ def validate_expression(
                 )
             if function_def is None and not builtin_accepts_arity(function_name, len(args)):
                 match function_name:
+                    case "atan2":
+                        raise SemanticError(
+                            "builtin atan2 expects two arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "close":
                         raise SemanticError(
                             "builtin close expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "cos":
+                        raise SemanticError(
+                            "builtin cos expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "exp":
+                        raise SemanticError(
+                            "builtin exp expects one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
@@ -340,15 +358,39 @@ def validate_expression(
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
+                    case "int":
+                        raise SemanticError(
+                            "builtin int expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "length":
                         raise SemanticError(
                             "builtin length expects zero or one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
+                    case "log":
+                        raise SemanticError(
+                            "builtin log expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "match":
                         raise SemanticError(
                             "builtin match expects two arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "rand":
+                        raise SemanticError(
+                            "builtin rand expects zero arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "sin":
+                        raise SemanticError(
+                            "builtin sin expects one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
@@ -364,6 +406,18 @@ def validate_expression(
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
+                    case "sqrt":
+                        raise SemanticError(
+                            "builtin sqrt expects one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "srand":
+                        raise SemanticError(
+                            "builtin srand expects zero or one argument",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
                     case "sub":
                         raise SemanticError(
                             "builtin sub expects two or three arguments",
@@ -373,6 +427,12 @@ def validate_expression(
                     case "substr":
                         raise SemanticError(
                             "builtin substr expects two or three arguments",
+                            span,
+                            SemanticErrorCode.INVALID_BUILTIN_CALL,
+                        )
+                    case "system":
+                        raise SemanticError(
+                            "builtin system expects one argument",
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )

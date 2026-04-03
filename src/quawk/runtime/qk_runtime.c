@@ -11,12 +11,15 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 #include <regex.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <time.h>
 
 struct qk_runtime {
     int argc;
@@ -43,6 +46,8 @@ struct qk_runtime {
     char **temp_strings;
     size_t temp_string_count;
     size_t temp_string_capacity;
+    int64_t random_seed;
+    uint32_t random_state;
     struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
     struct qk_output_entry *outputs;
@@ -85,6 +90,10 @@ struct qk_output_entry {
 static const char QK_EMPTY_FIELD[] = "";
 static const char QK_DEFAULT_OFMT[] = "%.6g";
 static const char QK_DEFAULT_CONVFMT[] = "%.6g";
+static const double QK_RAND_MODULUS = 2147483648.0;
+static const uint32_t QK_RAND_MASK = 0x7fffffffU;
+static const uint32_t QK_RAND_MULTIPLIER = 1103515245U;
+static const uint32_t QK_RAND_INCREMENT = 12345U;
 static const int32_t QK_OUTPUT_WRITE = 1;
 static const int32_t QK_OUTPUT_APPEND = 2;
 static const int32_t QK_OUTPUT_PIPE = 3;
@@ -520,6 +529,16 @@ static double qk_parse_awk_numeric_prefix(const char *text)
     return value;
 }
 
+static uint32_t qk_normalize_seed(double value)
+{
+    return ((uint32_t)((int64_t)trunc(value))) & QK_RAND_MASK;
+}
+
+static uint32_t qk_next_rand_state(uint32_t state)
+{
+    return (QK_RAND_MULTIPLIER * state + QK_RAND_INCREMENT) & QK_RAND_MASK;
+}
+
 static bool qk_pointer_aliases_scratch(const qk_runtime *runtime, const char *text)
 {
     uintptr_t start;
@@ -740,6 +759,8 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
 
     runtime->argc = argc;
     runtime->argv = argv;
+    runtime->random_seed = 1;
+    runtime->random_state = 1U;
     runtime->field_separator = qk_strdup_or_null(field_separator);
     if ((field_separator != NULL) && (runtime->field_separator == NULL)) {
         free(runtime);
@@ -1625,6 +1646,101 @@ const char *qk_toupper(qk_runtime *runtime, const char *text)
         runtime->scratch_buffer[index] = (char)toupper((unsigned char)runtime->scratch_buffer[index]);
     }
     return runtime->scratch_buffer;
+}
+
+double qk_atan2(double left, double right)
+{
+    return atan2(left, right);
+}
+
+double qk_cos(double value)
+{
+    return cos(value);
+}
+
+double qk_exp(double value)
+{
+    return exp(value);
+}
+
+double qk_int_builtin(double value)
+{
+    return trunc(value);
+}
+
+double qk_log(double value)
+{
+    return log(value);
+}
+
+double qk_rand(qk_runtime *runtime)
+{
+    if (runtime == NULL) {
+        return 0.0;
+    }
+    runtime->random_state = qk_next_rand_state(runtime->random_state);
+    return ((double)runtime->random_state) / QK_RAND_MODULUS;
+}
+
+double qk_sin(double value)
+{
+    return sin(value);
+}
+
+double qk_sqrt(double value)
+{
+    return sqrt(value);
+}
+
+double qk_srand0(qk_runtime *runtime)
+{
+    int64_t previous_seed;
+    int64_t next_seed;
+
+    if (runtime == NULL) {
+        return 0.0;
+    }
+
+    previous_seed = runtime->random_seed;
+    next_seed = (int64_t)time(NULL);
+    runtime->random_seed = next_seed;
+    runtime->random_state = qk_normalize_seed((double)next_seed);
+    return (double)previous_seed;
+}
+
+double qk_srand1(qk_runtime *runtime, double seed)
+{
+    int64_t previous_seed;
+    int64_t next_seed;
+
+    if (runtime == NULL) {
+        return 0.0;
+    }
+
+    previous_seed = runtime->random_seed;
+    next_seed = (int64_t)trunc(seed);
+    runtime->random_seed = next_seed;
+    runtime->random_state = qk_normalize_seed(seed);
+    return (double)previous_seed;
+}
+
+double qk_system(qk_runtime *runtime, const char *command)
+{
+    int status;
+
+    (void)runtime;
+    if (command == NULL) {
+        return -1.0;
+    }
+
+    status = system(command);
+    if (status < 0) {
+        return -1.0;
+    }
+    if (WIFEXITED(status)) {
+        return (double)WEXITSTATUS(status);
+    }
+    return (double)status;
 }
 
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern)

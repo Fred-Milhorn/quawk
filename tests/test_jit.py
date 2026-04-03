@@ -194,6 +194,18 @@ def test_execute_host_runtime_supports_string_and_regex_builtins(capsys) -> None
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_numeric_and_system_builtins(capsys) -> None:
+    program = parse_program(
+        "BEGIN { print int(3.9); print atan2(0, -1); print cos(0); print sin(0); "
+        'print srand(1); print rand(); print system("exit 7") }'
+    )
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "3\n3.14159\n1\n0\n1\n0.51387\n7\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_updates_nr_fnr_and_nf(capsys, monkeypatch) -> None:
     program = parse_program("{ print NR; print FNR; print NF }")
 
@@ -569,6 +581,47 @@ def test_execute_routes_supported_string_and_regex_builtin_programs_through_back
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; linked string-regex builtin backend module"
+
+
+def test_execute_routes_supported_numeric_and_system_builtin_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(
+        'BEGIN { print int(3.9); print atan2(0, -1); print cos(0); print srand(1); print rand(); print system("exit 7") }'
+    )
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("supported numeric and system builtin programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; numeric-system builtin backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; numeric-system builtin backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked numeric-system builtin backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; linked numeric-system builtin backend module"
 
 
 def test_execute_with_inputs_routes_supported_nextfile_programs_through_backend(monkeypatch) -> None:

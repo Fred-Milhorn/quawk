@@ -214,7 +214,7 @@ Current public execution surface:
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
 - the currently claimed expression subset: `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
 - user-defined functions and returns
-- the current builtin subset, including `close`, `index`, `length`, `match`, `split`, `sprintf`, `sub`, `gsub`, `substr`, `tolower`, and `toupper`
+- the current builtin subset, including `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper`
 - `-F` field-separator support and numeric `-v` preassignment
 
 Current backend and inspection surface:
