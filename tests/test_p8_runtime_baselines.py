@@ -245,6 +245,27 @@ def test_builtin_variables_nr_fnr_and_nf_update_per_record() -> None:
     assert result.stderr == ""
 
 
+def test_end_only_program_consumes_input_and_reports_final_nr(tmp_path: Path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("a\nb\n", encoding="utf-8")
+    second.write_text("c\n", encoding="utf-8")
+
+    result = run_quawk("END { print NR }", str(first), str(second))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n"
+    assert result.stderr == ""
+
+
+def test_backslash_continued_multiline_print_executes() -> None:
+    result = run_quawk('BEGIN { print "population of", 6,\\\n"Asian countries in millions is", 3530 }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "population of 6 Asian countries in millions is 3530\n"
+    assert result.stderr == ""
+
+
 def test_argc_argv_and_string_v_preassignment_execute(tmp_path: Path) -> None:
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"

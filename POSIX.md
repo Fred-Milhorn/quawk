@@ -204,10 +204,8 @@ upstream skips.
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
 - `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are now implemented and covered by
   direct CLI/runtime/JIT tests.
-- there is at least one reviewed builtin-variable sequencing mismatch:
-  `END { print NR }`.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L241)
+- the reviewed builtin-variable sequencing mismatch `END { print NR }` is now
+  clean under direct tests and the runnable upstream subset case `one-true-awk:p.6`.
 
 #### CLI and Preassignment
 
@@ -222,18 +220,15 @@ upstream skips.
 
 #### Parser and Syntax Gaps
 
-- backslash-continued multi-line `print` still exposes a parser continuation
-  gap.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L268)
-- several multiline POSIX forms still expose newline-handling parser gaps.
-  Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L390),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L398),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L407),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L416),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L644),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L653)
+- backslash-continued multi-line `print` is now handled as normal POSIX line
+  continuation and corroborated by the runnable upstream subset cases
+  `one-true-awk:p.26` and `one-true-awk:p.26a`.
+- reviewed newline-sensitive `if`, `for`, and `do ... while` forms now parse
+  cleanly enough to promote `one-true-awk:t.a`, `one-true-awk:t.break`, and
+  `one-true-awk:t.do`.
+- the remaining reviewed `p.7`, `p.8`, and `p.21a` skips are no longer parser
+  gaps; they are now classified precisely as semantic expression-pattern
+  mismatches.
 
 #### Pattern and Record Semantics
 
@@ -630,8 +625,7 @@ Acceptance:
 
 Status:
 
-- `SUBSEP` done via `T-164`; builtin-variable sequencing work remains in
-  `POSIX-042`
+- `SUBSEP` done via `T-164`; builtin-variable sequencing done via `T-165`
 
 Scope:
 
@@ -646,6 +640,10 @@ Acceptance:
 
 #### POSIX-040: Close multiline and continuation parser gaps
 
+Status:
+
+- done via `T-165`
+
 Scope:
 
 - backslash continuation
@@ -658,6 +656,10 @@ Acceptance:
 
 #### POSIX-041: Close remaining default-print and expression-pattern mismatches
 
+Status:
+
+- done via `T-165`
+
 Acceptance:
 
 - the reviewed `p.7`, `p.8`, and `p.21a` style mismatches are either fixed or
@@ -665,9 +667,24 @@ Acceptance:
 
 #### POSIX-042: Fix builtin-variable sequencing mismatches
 
+Status:
+
+- done via `T-165`
+
 Acceptance:
 
 - reviewed cases like `END { print NR }` become clean
+
+### T-165 Parser And Sequencing Result
+
+- backslash-newline continuation now lexes as trivia, so POSIX multi-line
+  `print` forms no longer fail in the frontend
+- newline-sensitive `if`, `for`, and `do ... while` bodies no longer block the
+  reviewed multiline subset cases `p.26`, `p.26a`, `t.a`, `t.break`, and `t.do`
+- `END`-only programs now consume main input before `END`, so `one-true-awk:p.6`
+  is a clean runnable corroborating case for final `NR`
+- the reviewed `p.7`, `p.8`, and `p.21a` cases remain skipped, but now with
+  precise semantic mismatch reasons instead of parser-gap placeholders
 
 ### Compatibility and Evidence Tasks
 
@@ -733,43 +750,33 @@ Planning note:
 - in roadmap terms, the fallback-removal intent is now folded into the
   remaining parity wave rather than treated as a separate post-`T-153` step
 
-## Recommended Execution Order
+## Remaining Execution Order
 
-Use this order so `SPEC.md` stops overclaiming early and the highest-value POSIX
-gaps close first:
+The implementation backlog is now down to evidence and final contract cleanup:
 
-1. `POSIX-001` through `POSIX-003`
-2. `POSIX-004`
-3. `POSIX-010` and `POSIX-031`
-4. `POSIX-040` and `POSIX-042`
-5. `POSIX-020` through `POSIX-023`
-6. `POSIX-030` through `POSIX-033`
-7. `POSIX-041`
-8. `POSIX-050` through `POSIX-052`
-9. `POSIX-060` through `POSIX-062`
+1. `POSIX-050` and `POSIX-051`
+2. `POSIX-052`
+3. `POSIX-060` through `POSIX-062` only if a new POSIX claim exposes a backend-only gap
 
 Why this order:
 
-- `print` plus `OFS` / `ORS` unlocks a large number of currently reviewed
-  upstream skips
-- parser cleanup removes false negatives that currently hide real semantic gaps
-- builtin and builtin-variable enumeration is necessary before `SPEC.md` can be
-  trusted as a POSIX contract
-- the execution-model rewrite needs to happen early so later tasks are planned
-  against the intended AOT architecture instead of the current transitional
-  mixed model
+- the highest-value remaining work is to re-audit the upstream subset after the
+  recent parser, print, builtin, and `getline` fixes
+- `SPEC.md`, this plan, and the reviewed manifest should converge before any
+  further claim expansion
+- backend-only follow-up should happen only when the public POSIX contract
+  actually requires it
 
 ## Immediate Next Steps
 
-The first concrete follow-up after this document should be:
+The next concrete follow-up after this document should be:
 
-1. update `SPEC.md` so it stops over-compressing POSIX areas such as `print`,
-   builtin variables, and builtins
-2. update `SPEC.md` and `docs/design.md` for `POSIX-004` so Python fallback is
-   documented as transition debt, not target architecture
-3. create a focused task for `POSIX-010` full POSIX `print`
-4. create a focused task for `POSIX-031` output and formatting variables
-5. create a focused task for `POSIX-040` multiline and continuation parser gaps
+1. execute `POSIX-050` / `T-166` to re-audit the reviewed upstream subset after
+   the recent semantic fixes
+2. promote clean corroborating cases for parser/sequencing, print/output,
+   builtin, builtin-variable, and `getline` work
+3. execute `POSIX-052` / `T-167` so `SPEC.md`, `POSIX.md`, and the manifest
+   agree on the remaining in-scope POSIX surface
 
 ## Notes
 

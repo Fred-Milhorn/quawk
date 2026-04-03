@@ -242,9 +242,8 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.6"
 path = "third_party/onetrueawk/testdir/p.6"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Currently exposes an `END { print NR }` builtin-variable sequencing mismatch in `quawk`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -253,7 +252,7 @@ case_id = "p.7"
 path = "third_party/onetrueawk/testdir/p.7"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Currently exposes a bare relational default-print mismatch in `quawk`; keep explicit until that pattern gap is evaluated."
+reason = "Still exposes a real numeric comparison pattern mismatch: quawk currently treats `$3 > 100` as matching every record instead of only records whose population field exceeds 100."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -262,7 +261,7 @@ case_id = "p.8"
 path = "third_party/onetrueawk/testdir/p.8"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Uses a non-regex expression pattern; the current reusable backend record-selection path still narrows those patterns."
+reason = "Still exposes a real expression-pattern equality mismatch: quawk currently treats `$4 == \"Asia\"` as matching every record instead of only the expected region."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -271,7 +270,7 @@ case_id = "p.21a"
 path = "third_party/onetrueawk/testdir/p.21a"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Currently exposes boolean regex-expression pattern mismatch under default-print in `quawk`."
+reason = "Still exposes a real boolean pattern mismatch: quawk currently treats `/Asia/ || /Africa/` as matching every record instead of the union of those regex selections."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -287,18 +286,16 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.26"
 path = "third_party/onetrueawk/testdir/p.26"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses backslash-continued multi-line `print`, which still hits a parser continuation gap in `quawk`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.26a"
 path = "third_party/onetrueawk/testdir/p.26a"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses backslash-continued multi-line `print`, which still hits a parser continuation gap in `quawk`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -630,27 +627,24 @@ tags = ["posix", "arrays", "delete"]
 suite = "one-true-awk"
 case_id = "t.a"
 path = "third_party/onetrueawk/testdir/t.a"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses multiline associative-array accumulation that still triggers a parser newline-handling gap in quawk."
 tags = ["posix", "arrays"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "t.break"
 path = "third_party/onetrueawk/testdir/t.break"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses a multiline `for` plus nested `if` body form that the current parser still rejects on newline handling."
 tags = ["posix", "control-flow"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "t.do"
 path = "third_party/onetrueawk/testdir/t.do"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Uses multiline `do ... while` control flow and `gsub`; the current parser still rejects this form before builtin coverage is even relevant."
 tags = ["posix", "control-flow"]
 
 [[case]]
@@ -831,7 +825,7 @@ selection_keys = [
   "one-true-awk:t.delete1",
   "one-true-awk:t.a",
 ]
-notes = "Direct-file runnable array coverage now comes from `t.delete1`; the multiline `t.a` variant remains an explicit parser-gap skip."
+notes = "Direct-file runnable array coverage now includes both `t.delete1` and the multiline `t.a` aggregation case."
 
 [[coverage]]
 family = "fields"

@@ -2450,13 +2450,14 @@ def build_execution_driver_llvm_ir(
     """Build the reusable execution driver that invokes runtime and program phases."""
     normalized_program = normalize_program_for_lowering(program)
     has_record_phase = bool(normalized_program.record_items)
+    consumes_main_input = bool(normalized_program.record_items or normalized_program.end_actions)
     state_type = extract_state_type_declaration(program_llvm_ir)
     variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
 
     globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
     state_setup = render_driver_state_setup(variable_indexes, initial_variables or [])
     scalar_preassignments = render_driver_scalar_preassignments(variable_indexes, initial_variables or [])
-    record_loop = render_driver_record_loop(has_record_phase)
+    record_loop = render_driver_record_loop(consumes_main_input, has_record_phase)
 
     return "\n".join(
         [
@@ -2632,10 +2633,11 @@ def render_driver_runtime_create(input_files: list[str], field_separator: str | 
     ]
 
 
-def render_driver_record_loop(has_record_phase: bool) -> list[str]:
+def render_driver_record_loop(consumes_main_input: bool, has_record_phase: bool) -> list[str]:
     """Render the per-record runtime loop in the execution driver."""
-    if not has_record_phase:
+    if not consumes_main_input:
         return []
+    body_lines = ["  call void @quawk_record(ptr %rt, ptr %state)"] if has_record_phase else []
     return [
         "  %should.exit.begin = call i1 @qk_should_exit(ptr %rt)",
         "  br i1 %should.exit.begin, label %record.done, label %record.cond",
@@ -2643,7 +2645,7 @@ def render_driver_record_loop(has_record_phase: bool) -> list[str]:
         "  %has.record = call i1 @qk_next_record(ptr %rt)",
         "  br i1 %has.record, label %record.body, label %record.done",
         "record.body:",
-        "  call void @quawk_record(ptr %rt, ptr %state)",
+        *body_lines,
         "  %should.exit.record = call i1 @qk_should_exit(ptr %rt)",
         "  br i1 %should.exit.record, label %record.done, label %record.cond",
         "record.done:",
@@ -2706,7 +2708,8 @@ def execute_host_runtime(
         terminated = True
 
     try:
-        if not terminated and record_items and state.input_state is not None:
+        should_consume_main_input = bool(record_items or end_actions)
+        if not terminated and should_consume_main_input and state.input_state is not None:
             while True:
                 next_line = next_main_input_line(state.input_state)
                 if next_line is None:

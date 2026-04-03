@@ -911,7 +911,9 @@ class Parser:
     def parse_do_while_statement(self) -> DoWhileStmt:
         """Parse a `do ... while` statement."""
         do_token = self.expect(TokenKind.DO)
+        self.consume_separators()
         body = self.parse_statement()
+        self.consume_separators()
         self.expect(TokenKind.WHILE)
         condition = self.parse_parenthesized_expression()
         return DoWhileStmt(body=body, condition=condition, span=combine_spans(do_token.span, condition.span))
@@ -925,6 +927,7 @@ class Parser:
             self.expect(TokenKind.IN)
             iterable = self.parse_expression()
             self.expect(TokenKind.RPAREN)
+            self.consume_separators()
             body = self.parse_statement()
             return ForInStmt(
                 name=name_token.text or "",
@@ -949,6 +952,7 @@ class Parser:
             update = tuple(self.parse_expression_list())
         self.expect(TokenKind.RPAREN)
 
+        self.consume_separators()
         body = self.parse_statement()
         return ForStmt(
             init=init,
@@ -962,12 +966,17 @@ class Parser:
         """Parse an `if` statement with optional `else` support."""
         if_token = self.expect(TokenKind.IF)
         condition = self.parse_parenthesized_expression()
+        self.consume_separators()
         then_branch = self.parse_statement()
         else_branch = None
+        separator_index = self.index
         self.consume_separators()
         if self.check(TokenKind.ELSE):
             self.advance()
+            self.consume_separators()
             else_branch = self.parse_statement()
+        else:
+            self.index = separator_index
         return IfStmt(
             condition=condition,
             then_branch=then_branch,
@@ -1028,6 +1037,7 @@ class Parser:
         """Parse a `while` loop statement."""
         while_token = self.expect(TokenKind.WHILE)
         condition = self.parse_parenthesized_expression()
+        self.consume_separators()
         body = self.parse_statement()
         return WhileStmt(condition=condition, body=body, span=combine_spans(while_token.span, body.span))
 

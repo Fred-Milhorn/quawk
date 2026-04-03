@@ -269,6 +269,11 @@ class Lexer:
             self.skip_horizontal_whitespace()
             return None
 
+        if char == "\\" and self.cursor.peek(1) == "\n":
+            self.cursor.advance()
+            self.cursor.advance()
+            return None
+
         start = self.cursor.point()
 
         if char == "\n":

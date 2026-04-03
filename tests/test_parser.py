@@ -707,3 +707,34 @@ def test_parses_remaining_expression_families() -> None:
     assert isinstance(action.statements[8], ExprStmt)
     assert isinstance(action.statements[8].value, PostfixExpr)
     assert action.statements[8].value.op is PostfixOp.POST_INC
+
+
+def test_parses_newline_separated_for_loop_body() -> None:
+    program = parse(lex("BEGIN { for (i = 0; i < 2; i++)\n print i }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForStmt)
+    assert isinstance(loop.body, PrintStmt)
+
+
+def test_parses_if_then_statement_without_swallowing_following_separator() -> None:
+    program = parse(lex("BEGIN { if (1) x = 1; y = 2 }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    assert len(action.statements) == 2
+    first = action.statements[0]
+    second = action.statements[1]
+    assert isinstance(first, IfStmt)
+    assert isinstance(second, AssignStmt)
+
+
+def test_parses_do_while_with_newline_before_while_keyword() -> None:
+    program = parse(lex("BEGIN { do { print 1 }\nwhile (0) }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    statement = action.statements[0]
+    assert isinstance(statement, DoWhileStmt)

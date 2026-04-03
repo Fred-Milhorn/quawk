@@ -78,6 +78,22 @@ def test_lexes_posix_comments_as_trivia_and_preserves_newlines() -> None:
     assert tokens[5].span.format_start() == "<inline>:2:35"
 
 
+def test_lexes_backslash_newline_as_line_continuation_trivia() -> None:
+    tokens = lex('BEGIN { print "a", \\\n"b" }\n')
+
+    assert [token.kind for token in tokens] == [
+        TokenKind.BEGIN,
+        TokenKind.LBRACE,
+        TokenKind.PRINT,
+        TokenKind.STRING,
+        TokenKind.COMMA,
+        TokenKind.STRING,
+        TokenKind.RBRACE,
+        TokenKind.NEWLINE,
+        TokenKind.EOF,
+    ]
+
+
 def test_lexes_hash_inside_string_and_regex_as_data() -> None:
     tokens = lex('BEGIN { print "#"; print /#/ }\n')
 

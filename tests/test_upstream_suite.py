@@ -97,13 +97,19 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     case_ids = [case.id for case in upstream_suite.selected_upstream_cases()]
 
     assert "one-true-awk:p.3" in case_ids
+    assert "one-true-awk:p.6" in case_ids
+    assert "one-true-awk:p.26" in case_ids
+    assert "one-true-awk:p.26a" in case_ids
     assert "one-true-awk:p.21" in case_ids
     assert "one-true-awk:p.39" in case_ids
     assert "one-true-awk:p.46" in case_ids
     assert "one-true-awk:p.49" in case_ids
     assert "one-true-awk:T.-f-f" in case_ids
     assert "one-true-awk:T.nextfile" in case_ids
+    assert "one-true-awk:t.a" in case_ids
+    assert "one-true-awk:t.break" in case_ids
     assert "one-true-awk:t.delete1" in case_ids
+    assert "one-true-awk:t.do" in case_ids
     assert "one-true-awk:t.fun" in case_ids
     assert "one-true-awk:t.printf" in case_ids
     assert "one-true-awk:t.substr" in case_ids
@@ -115,9 +121,11 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:substr" in case_ids
     assert "gawk:strfieldnum" in case_ids
     assert "one-true-awk:p.1" not in case_ids
+    assert "one-true-awk:p.7" not in case_ids
+    assert "one-true-awk:p.8" not in case_ids
+    assert "one-true-awk:p.21a" not in case_ids
     assert "one-true-awk:p.43" not in case_ids
     assert "one-true-awk:T.argv" not in case_ids
-    assert "one-true-awk:t.a" not in case_ids
     assert "one-true-awk:t.NF" not in case_ids
 
 
