@@ -51,6 +51,7 @@ struct qk_runtime {
     struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
     struct qk_output_entry *outputs;
+    struct qk_input_entry *inputs;
 };
 
 enum qk_scalar_kind {
@@ -87,6 +88,12 @@ struct qk_output_entry {
     struct qk_output_entry *next;
 };
 
+struct qk_input_entry {
+    char *name;
+    FILE *handle;
+    struct qk_input_entry *next;
+};
+
 static const char QK_EMPTY_FIELD[] = "";
 static const char QK_DEFAULT_OFMT[] = "%.6g";
 static const char QK_DEFAULT_CONVFMT[] = "%.6g";
@@ -97,8 +104,11 @@ static const uint32_t QK_RAND_INCREMENT = 12345U;
 static const int32_t QK_OUTPUT_WRITE = 1;
 static const int32_t QK_OUTPUT_APPEND = 2;
 static const int32_t QK_OUTPUT_PIPE = 3;
+static const char QK_DEFAULT_SUBSEP[] = "\034";
 
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
+static bool qk_rebuild_fields(qk_runtime *runtime);
+extern char **environ;
 
 static char *qk_strdup_or_null(const char *text)
 {
@@ -224,6 +234,51 @@ static void qk_free_outputs(struct qk_output_entry *entry)
         free(entry);
         entry = next;
     }
+}
+
+static double qk_close_input_entry(struct qk_input_entry *entry)
+{
+    int close_result;
+
+    if ((entry == NULL) || (entry->handle == NULL)) {
+        return -1.0;
+    }
+
+    close_result = fclose(entry->handle);
+    entry->handle = NULL;
+    if (close_result < 0) {
+        return -1.0;
+    }
+    return (double)close_result;
+}
+
+static void qk_free_inputs(struct qk_input_entry *entry)
+{
+    while (entry != NULL) {
+        struct qk_input_entry *next = entry->next;
+        (void)qk_close_input_entry(entry);
+        free(entry->name);
+        free(entry);
+        entry = next;
+    }
+}
+
+static struct qk_input_entry *qk_find_input(qk_runtime *runtime, const char *name)
+{
+    struct qk_input_entry *entry;
+
+    if ((runtime == NULL) || (name == NULL)) {
+        return NULL;
+    }
+
+    entry = runtime->inputs;
+    while (entry != NULL) {
+        if ((entry->name != NULL) && (strcmp(entry->name, name) == 0)) {
+            return entry;
+        }
+        entry = entry->next;
+    }
+    return NULL;
 }
 
 static struct qk_output_entry *qk_find_output(qk_runtime *runtime, const char *name, int32_t mode)
@@ -750,8 +805,186 @@ static bool qk_open_next_input(qk_runtime *runtime)
     return false;
 }
 
+static double qk_read_main_line(qk_runtime *runtime, bool update_record, const char **result_out)
+{
+    ssize_t line_length;
+    char **line_buffer;
+    size_t *line_capacity;
+
+    if (result_out != NULL) {
+        *result_out = QK_EMPTY_FIELD;
+    }
+    if (runtime == NULL) {
+        return -1.0;
+    }
+
+    if (update_record) {
+        line_buffer = &runtime->current_record;
+        line_capacity = &runtime->current_record_capacity;
+    } else {
+        line_buffer = &runtime->scratch_buffer;
+        line_capacity = &runtime->scratch_capacity;
+    }
+
+    for (;;) {
+        if ((runtime->current_handle == NULL) && !qk_open_next_input(runtime)) {
+            return runtime->had_error ? -1.0 : 0.0;
+        }
+
+        line_length = getline(line_buffer, line_capacity, runtime->current_handle);
+        if (line_length >= 0) {
+            while ((line_length > 0) &&
+                   (((*line_buffer)[line_length - 1] == '\n') ||
+                    ((*line_buffer)[line_length - 1] == '\r'))) {
+                (*line_buffer)[line_length - 1] = '\0';
+                line_length -= 1;
+            }
+            runtime->nr += 1.0;
+            runtime->fnr += 1.0;
+            if (result_out != NULL) {
+                *result_out = *line_buffer;
+            }
+            if (update_record) {
+                return qk_rebuild_fields(runtime) ? 1.0 : -1.0;
+            }
+            return 1.0;
+        }
+
+        if (feof(runtime->current_handle)) {
+            qk_close_current_handle(runtime);
+            continue;
+        }
+
+        runtime->had_error = true;
+        qk_close_current_handle(runtime);
+        return -1.0;
+    }
+}
+
+static FILE *qk_open_input(qk_runtime *runtime, const char *target)
+{
+    struct qk_input_entry *entry;
+
+    if ((runtime == NULL) || (target == NULL)) {
+        return NULL;
+    }
+
+    entry = qk_find_input(runtime, target);
+    if (entry != NULL) {
+        return entry->handle;
+    }
+
+    entry = calloc(1U, sizeof(*entry));
+    if (entry == NULL) {
+        return NULL;
+    }
+    entry->name = qk_strdup_or_null(target);
+    if (entry->name == NULL) {
+        free(entry);
+        return NULL;
+    }
+    entry->handle = fopen(target, "r");
+    if (entry->handle == NULL) {
+        free(entry->name);
+        free(entry);
+        return NULL;
+    }
+
+    entry->next = runtime->inputs;
+    runtime->inputs = entry;
+    return entry->handle;
+}
+
+static double qk_close_input(qk_runtime *runtime, const char *target)
+{
+    struct qk_input_entry *entry;
+    struct qk_input_entry *previous;
+
+    if ((runtime == NULL) || (target == NULL)) {
+        return -1.0;
+    }
+
+    previous = NULL;
+    entry = runtime->inputs;
+    while (entry != NULL) {
+        struct qk_input_entry *next = entry->next;
+        if ((entry->name != NULL) && (strcmp(entry->name, target) == 0)) {
+            double result = qk_close_input_entry(entry);
+            if (previous == NULL) {
+                runtime->inputs = next;
+            } else {
+                previous->next = next;
+            }
+            free(entry->name);
+            free(entry);
+            return result;
+        }
+        previous = entry;
+        entry = next;
+    }
+
+    return -1.0;
+}
+
+static double qk_read_file_line(
+    qk_runtime *runtime,
+    const char *target,
+    bool update_record,
+    const char **result_out
+)
+{
+    FILE *handle;
+    ssize_t line_length;
+
+    if (result_out != NULL) {
+        *result_out = QK_EMPTY_FIELD;
+    }
+    if ((runtime == NULL) || (target == NULL)) {
+        return -1.0;
+    }
+
+    handle = qk_open_input(runtime, target);
+    if (handle == NULL) {
+        return -1.0;
+    }
+
+    line_length = getline(
+        &runtime->scratch_buffer,
+        &runtime->scratch_capacity,
+        handle
+    );
+    if (line_length < 0) {
+        if (feof(handle)) {
+            return 0.0;
+        }
+        return -1.0;
+    }
+
+    while ((line_length > 0) &&
+           ((runtime->scratch_buffer[line_length - 1] == '\n') ||
+            (runtime->scratch_buffer[line_length - 1] == '\r'))) {
+        runtime->scratch_buffer[line_length - 1] = '\0';
+        line_length -= 1;
+    }
+
+    if (result_out != NULL) {
+        *result_out = runtime->scratch_buffer;
+    }
+    if (update_record) {
+        free(runtime->current_record);
+        runtime->current_record = qk_strdup_or_null(runtime->scratch_buffer);
+        if (runtime->current_record == NULL) {
+            return -1.0;
+        }
+        return qk_rebuild_fields(runtime) ? 1.0 : -1.0;
+    }
+    return 1.0;
+}
+
 qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator)
 {
+    int index;
+
     qk_runtime *runtime = calloc(1U, sizeof(*runtime));
     if (runtime == NULL) {
         return NULL;
@@ -791,6 +1024,51 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
         qk_runtime_destroy(runtime);
         return NULL;
     }
+    if (!qk_scalar_set_number_value(runtime, "ARGC", (double)(argc + 1))) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_scalar_set_string_value(runtime, "SUBSEP", QK_DEFAULT_SUBSEP)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    if (!qk_array_set(runtime, "ARGV", "0", "quawk")) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
+    for (index = 0; index < argc; index += 1) {
+        char key[32];
+        snprintf(key, sizeof(key), "%d", index + 1);
+        if (!qk_array_set(runtime, "ARGV", key, argv[index])) {
+            qk_runtime_destroy(runtime);
+            return NULL;
+        }
+    }
+    if (environ != NULL) {
+        for (index = 0; environ[index] != NULL; index += 1) {
+            char *separator = strchr(environ[index], '=');
+            size_t name_length;
+            char *name;
+
+            if (separator == NULL) {
+                continue;
+            }
+            name_length = (size_t)(separator - environ[index]);
+            name = malloc(name_length + 1U);
+            if (name == NULL) {
+                qk_runtime_destroy(runtime);
+                return NULL;
+            }
+            memcpy(name, environ[index], name_length);
+            name[name_length] = '\0';
+            if (!qk_array_set(runtime, "ENVIRON", name, separator + 1)) {
+                free(name);
+                qk_runtime_destroy(runtime);
+                return NULL;
+            }
+            free(name);
+        }
+    }
 
     return runtime;
 }
@@ -813,43 +1091,13 @@ void qk_runtime_destroy(qk_runtime *runtime)
     qk_free_scalars(runtime->scalars);
     qk_free_arrays(runtime->arrays);
     qk_free_outputs(runtime->outputs);
+    qk_free_inputs(runtime->inputs);
     free(runtime);
 }
 
 bool qk_next_record(qk_runtime *runtime)
 {
-    if (runtime == NULL) {
-        return false;
-    }
-
-    for (;;) {
-        if ((runtime->current_handle == NULL) && !qk_open_next_input(runtime)) {
-            return false;
-        }
-
-        ssize_t line_length = getline(
-            &runtime->current_record,
-            &runtime->current_record_capacity,
-            runtime->current_handle
-        );
-        if (line_length >= 0) {
-            /*
-             * Normalize the record in place so `$0` matches AWK's record text
-             * rather than the raw line including its trailing newline.
-             */
-            while ((line_length > 0) &&
-                   ((runtime->current_record[line_length - 1] == '\n') ||
-                    (runtime->current_record[line_length - 1] == '\r'))) {
-                runtime->current_record[line_length - 1] = '\0';
-                line_length -= 1;
-            }
-            runtime->nr += 1.0;
-            runtime->fnr += 1.0;
-            return qk_rebuild_fields(runtime);
-        }
-
-        qk_close_current_handle(runtime);
-    }
+    return qk_read_main_line(runtime, true, NULL) > 0.0;
 }
 
 const char *qk_get_field(qk_runtime *runtime, int64_t index)
@@ -1023,7 +1271,10 @@ double qk_close_output(qk_runtime *runtime, const char *target)
         entry = next;
     }
 
-    return found ? result : -1.0;
+    if (found) {
+        return result;
+    }
+    return qk_close_input(runtime, target);
 }
 
 void qk_write_output_string(FILE *handle, const char *value)
@@ -1089,6 +1340,26 @@ void qk_print_output_separator(qk_runtime *runtime)
 void qk_print_output_record_separator(qk_runtime *runtime)
 {
     qk_write_output_record_separator(runtime, stdout);
+}
+
+double qk_getline_main_record(qk_runtime *runtime)
+{
+    return qk_read_main_line(runtime, true, NULL);
+}
+
+double qk_getline_main_string(qk_runtime *runtime, const char **result_out)
+{
+    return qk_read_main_line(runtime, false, result_out);
+}
+
+double qk_getline_file_record(qk_runtime *runtime, const char *target)
+{
+    return qk_read_file_line(runtime, target, true, NULL);
+}
+
+double qk_getline_file_string(qk_runtime *runtime, const char *target, const char **result_out)
+{
+    return qk_read_file_line(runtime, target, false, result_out);
 }
 
 void qk_nextfile(qk_runtime *runtime)

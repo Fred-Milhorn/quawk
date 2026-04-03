@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -17,7 +18,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Callable, TextIO
 
 from . import runtime_support
-from .builtins import is_builtin_function_name, is_builtin_variable_name
+from .builtins import BUILTIN_ARRAY_NAMES, is_builtin_function_name, is_builtin_variable_name
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
@@ -46,6 +47,7 @@ from .parser import (
     ForInStmt,
     ForStmt,
     FunctionDef,
+    GetlineExpr,
     IfStmt,
     NameExpr,
     NameLValue,
@@ -136,6 +138,9 @@ class RuntimeState:
     output_processes: dict[tuple[str, OutputRedirectKind], subprocess.Popen[str]] = field(default_factory=dict)
     random_seed: int = 1
     random_state: int = 1
+    argv0: str = "quawk"
+    input_state: "HostInputState | None" = None
+    input_streams: dict[str, TextIO] = field(default_factory=dict)
 
 
 @dataclass
@@ -144,6 +149,32 @@ class RecordContext:
 
     field0: str
     fields: list[str]
+
+
+@dataclass
+class HostInputFile:
+    """One materialized input operand for host-side streaming."""
+
+    filename: str
+    lines: list[str]
+    index: int = 0
+
+
+@dataclass
+class MainInputLine:
+    """One streamed main-input line for host-side execution."""
+
+    filename: str
+    text: str
+    new_file: bool
+
+
+@dataclass
+class HostInputState:
+    """Host-side cursor shared by the record loop and `getline`."""
+
+    files: list[HostInputFile]
+    file_index: int = 0
 
 
 @dataclass
@@ -187,7 +218,8 @@ class ExitSignal(Exception):
         self.status = status
 
 
-InitialVariables = list[tuple[str, float]]
+InitialVariableValue = float | str
+InitialVariables = list[tuple[str, InitialVariableValue]]
 
 
 class ValueKind(Enum):
@@ -229,6 +261,41 @@ def rand_value_from_state(state: int) -> float:
     return state / RAND_MODULUS
 
 
+def initial_variables_require_string_runtime(initial_variables: InitialVariables | None) -> bool:
+    """Report whether one initial-variable set needs runtime string storage."""
+    if initial_variables is None:
+        return False
+    return any(isinstance(value, str) for _, value in initial_variables)
+
+
+def build_host_input_state(input_files: list[str]) -> HostInputState:
+    """Materialize the ordered main-input operands for host-side streaming."""
+    files = [HostInputFile(filename=filename, lines=lines) for filename, lines in iter_input_files(input_files)]
+    return HostInputState(files=files)
+
+
+def next_main_input_line(input_state: HostInputState) -> MainInputLine | None:
+    """Return the next line from the main input stream, if any."""
+    while input_state.file_index < len(input_state.files):
+        current = input_state.files[input_state.file_index]
+        new_file = current.index == 0
+        if current.index < len(current.lines):
+            line = current.lines[current.index]
+            current.index += 1
+            return MainInputLine(filename=current.filename, text=line.rstrip("\n"), new_file=new_file)
+        input_state.file_index += 1
+    return None
+
+
+def skip_remaining_main_input_file(input_state: HostInputState) -> None:
+    """Advance the main-input cursor to the next file operand."""
+    if input_state.file_index >= len(input_state.files):
+        return
+    current = input_state.files[input_state.file_index]
+    current.index = len(current.lines)
+    input_state.file_index += 1
+
+
 def emit_assembly(llvm_ir: str) -> str:
     """Run `llc` on LLVM IR and return the emitted assembly text."""
     llc_path = shutil.which("llc")
@@ -249,7 +316,12 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
-    if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
+    string_initial_variables = initial_variables_require_string_runtime(initial_variables)
+    if (
+        requires_host_runtime_execution(program)
+        or (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        or (string_initial_variables and has_function_definitions(program))
+    ):
         return execute_host_runtime(program, [], None, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables)
     return execute_llvm_ir(llvm_ir)
@@ -288,6 +360,8 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     normalized_program = normalize_program_for_lowering(program)
     if supports_direct_function_backend_subset(program):
         return lower_direct_function_program_to_llvm_ir(program, normalized_program, initial_variables)
+    if initial_variables_require_string_runtime(initial_variables):
+        return lower_reusable_program_to_llvm_ir(normalized_program)
     if supports_runtime_backend_subset(program):
         return lower_reusable_program_to_llvm_ir(normalized_program)
     if requires_input_aware_execution(program):
@@ -452,14 +526,21 @@ def build_public_execution_llvm_ir(
         llvm_ir = lower_to_llvm_ir(program)
     else:
         llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
-    if program_requires_linked_execution_module(program):
+    if program_requires_linked_execution_module(program, initial_variables):
         return link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
     return llvm_ir
 
 
-def program_requires_linked_execution_module(program: Program) -> bool:
+def program_requires_linked_execution_module(
+    program: Program,
+    initial_variables: InitialVariables | None = None,
+) -> bool:
     """Report whether public execution/inspection needs the reusable driver module."""
-    return supports_runtime_backend_subset(program) or requires_input_aware_execution(program)
+    return (
+        supports_runtime_backend_subset(program)
+        or requires_input_aware_execution(program)
+        or initial_variables_require_string_runtime(initial_variables)
+    )
 
 
 def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProgram) -> str:
@@ -517,6 +598,10 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare double @qk_srand0(ptr)",
         "declare double @qk_srand1(ptr, double)",
         "declare double @qk_system(ptr, ptr)",
+        "declare double @qk_getline_main_record(ptr)",
+        "declare double @qk_getline_main_string(ptr, ptr)",
+        "declare double @qk_getline_file_record(ptr, ptr)",
+        "declare double @qk_getline_file_string(ptr, ptr, ptr)",
         "declare double @qk_get_nr(ptr)",
         "declare double @qk_get_fnr(ptr)",
         "declare double @qk_get_nf(ptr)",
@@ -1534,6 +1619,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_unary_numeric_builtin(expression, state, "@qk_cos", "cos")
         case CallExpr(function="exp"):
             return lower_runtime_unary_numeric_builtin(expression, state, "@qk_exp", "exp")
+        case GetlineExpr():
+            return lower_runtime_getline_expression(expression, state)
         case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
@@ -1926,6 +2013,48 @@ def lower_runtime_system_builtin(expression: CallExpr, state: LoweringState) -> 
     return result
 
 
+def lower_runtime_getline_expression(expression: GetlineExpr, state: LoweringState) -> str:
+    """Lower one currently claimed `getline` expression in the runtime-backed backend."""
+    assert state.runtime_param is not None
+    if expression.source is None and expression.target is None:
+        result = state.next_temp("getline")
+        state.instructions.append(f"  {result} = call double @qk_getline_main_record(ptr {state.runtime_param})")
+        return result
+    if expression.source is not None and expression.target is None:
+        source_ptr = lower_runtime_captured_string_expression(expression.source, state)
+        result = state.next_temp("getline")
+        state.instructions.append(
+            f"  {result} = call double @qk_getline_file_record(ptr {state.runtime_param}, ptr {source_ptr})"
+        )
+        return result
+
+    result_slot = state.next_temp("getline.result.slot")
+    state.allocas.append(f"  {result_slot} = alloca ptr")
+    if expression.source is None:
+        result = state.next_temp("getline")
+        state.instructions.append(f"  {result} = call double @qk_getline_main_string(ptr {state.runtime_param}, ptr {result_slot})")
+    else:
+        source_ptr = lower_runtime_captured_string_expression(expression.source, state)
+        result = state.next_temp("getline")
+        state.instructions.append(
+            f"  {result} = call double @qk_getline_file_string(ptr {state.runtime_param}, ptr {source_ptr}, ptr {result_slot})"
+        )
+    assign_condition = state.next_temp("getline.assign")
+    assign_label = state.next_label("getline.assign.block")
+    done_label = state.next_label("getline.done")
+    state.instructions.append(
+        f"  {assign_condition} = fcmp ogt double {result}, 0.000000000000000e+00"
+    )
+    state.instructions.append(f"  br i1 {assign_condition}, label %{assign_label}, label %{done_label}")
+    state.instructions.append(f"{assign_label}:")
+    result_ptr = state.next_temp("getline.result.ptr")
+    state.instructions.append(f"  {result_ptr} = load ptr, ptr {result_slot}")
+    lower_runtime_assign_string_lvalue(expression.target, result_ptr, state)
+    state.instructions.append(f"  br label %{done_label}")
+    state.instructions.append(f"{done_label}:")
+    return result
+
+
 def lower_runtime_assign_string_lvalue(target: NameLValue | ArrayLValue | FieldLValue, string_value: str, state: LoweringState) -> None:
     """Assign one runtime string result back through a supported lvalue."""
     assert state.runtime_param is not None
@@ -2239,7 +2368,12 @@ def execute_with_inputs(
     initial_variables: InitialVariables | None = None,
 ) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
-    if requires_host_runtime_execution(program) or requires_host_runtime_value_execution(program):
+    string_initial_variables = initial_variables_require_string_runtime(initial_variables)
+    if (
+        requires_host_runtime_execution(program)
+        or (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        or (string_initial_variables and has_function_definitions(program))
+    ):
         return execute_host_runtime(program, input_files, field_separator, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)
     return execute_llvm_ir(llvm_ir)
@@ -2332,6 +2466,7 @@ def build_execution_driver_llvm_ir(
             "declare i1 @qk_should_exit(ptr)",
             "declare i32 @qk_exit_status(ptr)",
             "declare void @qk_scalar_set_number(ptr, ptr, double)",
+            "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
             "declare void @quawk_begin(ptr, ptr)",
             "declare void @quawk_record(ptr, ptr)",
             "declare void @quawk_end(ptr, ptr)",
@@ -2385,12 +2520,16 @@ def render_driver_globals(
         globals_block.append(declare_bytes("@.driver.fs", data))
 
     seen_scalars: set[str] = set()
-    for name, _ in initial_variables:
+    for index, (name, value) in enumerate(initial_variables):
         if name in seen_scalars:
+            if isinstance(value, str):
+                globals_block.append(declare_bytes(driver_scalar_value_global(index), value.encode("utf-8") + b"\x00"))
             continue
         seen_scalars.add(name)
         global_name, _ = driver_scalar_name_global(name)
         globals_block.append(declare_bytes(global_name, name.encode("utf-8") + b"\x00"))
+        if isinstance(value, str):
+            globals_block.append(declare_bytes(driver_scalar_value_global(index), value.encode("utf-8") + b"\x00"))
 
     return globals_block
 
@@ -2398,6 +2537,11 @@ def render_driver_globals(
 def driver_scalar_name_global(name: str) -> tuple[str, int]:
     """Return the global name and byte length for one driver scalar preassignment name."""
     return f"@.driver.scalar.{name}", len(name.encode("utf-8")) + 1
+
+
+def driver_scalar_value_global(index: int) -> str:
+    """Return the driver-global name for one string `-v` value."""
+    return f"@.driver.scalar.value.{index}"
 
 
 def render_driver_state_setup(
@@ -2448,14 +2592,18 @@ def render_driver_scalar_preassignments(
         if name in variable_indexes:
             continue
         scalar_name, scalar_length = driver_scalar_name_global(name)
-        setup.extend(
-            [
-                f"  %preassign.name.{index} = {emit_gep_inline(scalar_length, scalar_name)}",
-                (
-                    f"  call void @qk_scalar_set_number("
-                    f"ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
-                ),
-            ]
+        setup.append(f"  %preassign.name.{index} = {emit_gep_inline(scalar_length, scalar_name)}")
+        if isinstance(value, str):
+            byte_length = len(value.encode("utf-8")) + 1
+            setup.extend(
+                [
+                    f"  %preassign.value.{index} = {emit_gep_inline(byte_length, driver_scalar_value_global(index))}",
+                    f"  call void @qk_scalar_set_string(ptr %rt, ptr %preassign.name.{index}, ptr %preassign.value.{index})",
+                ]
+            )
+            continue
+        setup.append(
+            f"  call void @qk_scalar_set_number(ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
         )
     return setup
 
@@ -2542,9 +2690,10 @@ def execute_host_runtime(
     """Execute the supported subset with explicit BEGIN/record/END sequencing."""
     begin_actions, record_items, end_actions = partition_host_runtime_items(program)
     state = RuntimeState(
-        variables={name: make_numeric_value(value) for name, value in (initial_variables or [])},
+        variables={name: make_initial_value(value) for name, value in (initial_variables or [])},
         functions=collect_function_definitions(program),
         field_separator=field_separator,
+        input_state=build_host_input_state(input_files),
     )
     initialize_builtin_variables(state)
     exit_status = 0
@@ -2557,35 +2706,32 @@ def execute_host_runtime(
         terminated = True
 
     try:
-        if not terminated and record_items:
-            for filename, input_records in iter_input_files(input_files):
-                skip_remaining_file = False
-                state.current_filename = filename
-                state.variables["FNR"] = make_numeric_value(0.0)
-                for line in input_records:
-                    record_text = line.rstrip("\n")
-                    record = RecordContext(
-                        field0=record_text,
-                        fields=split_fields(record_text, field_separator),
-                    )
-                    update_record_builtin_variables(state, record)
-                    try:
-                        for item in record_items:
-                            if record_item_matches(item, state, record):
-                                execute_record_item(item, state, record)
-                    except NextSignal:
-                        continue
-                    except NextFileSignal:
-                        skip_remaining_file = True
-                        break
-                    except ExitSignal as signal:
-                        exit_status = signal.status
-                        terminated = True
-                        break
-                if terminated:
+        if not terminated and record_items and state.input_state is not None:
+            while True:
+                next_line = next_main_input_line(state.input_state)
+                if next_line is None:
                     break
-                if skip_remaining_file:
+                if next_line.new_file:
+                    state.variables["FNR"] = make_numeric_value(0.0)
+                state.current_filename = next_line.filename
+                record = RecordContext(
+                    field0=next_line.text,
+                    fields=split_fields(next_line.text, field_separator),
+                )
+                update_record_builtin_variables(state, record)
+                try:
+                    for item in record_items:
+                        if record_item_matches(item, state, record):
+                            execute_record_item(item, state, record)
+                except NextSignal:
                     continue
+                except NextFileSignal:
+                    skip_remaining_main_input_file(state.input_state)
+                    continue
+                except ExitSignal as signal:
+                    exit_status = signal.status
+                    terminated = True
+                    break
 
         for action in end_actions:
             try:
@@ -2595,6 +2741,7 @@ def execute_host_runtime(
         return exit_status
     finally:
         close_all_outputs(state)
+        close_all_inputs(state)
 
 
 def collect_record_contexts(
@@ -2707,12 +2854,18 @@ def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Acti
 def iter_input_files(input_files: list[str]) -> list[tuple[str, list[str]]]:
     """Collect logical input records grouped by input source."""
     if not input_files:
-        return [("-", sys.stdin.readlines())]
+        try:
+            return [("-", sys.stdin.readlines())]
+        except OSError:
+            return []
 
     grouped_records: list[tuple[str, list[str]]] = []
     for path in input_files:
         if path == "-":
-            grouped_records.append(("-", sys.stdin.readlines()))
+            try:
+                grouped_records.append(("-", sys.stdin.readlines()))
+            except OSError:
+                grouped_records.append(("-", []))
             continue
         with Path(path).open("r", encoding="utf-8") as handle:
             grouped_records.append((path, handle.readlines()))
@@ -2958,6 +3111,8 @@ def evaluate_value_expression(
             if array is None:
                 return UNINITIALIZED_VALUE
             return array.get(key, UNINITIALIZED_VALUE)
+        case GetlineExpr():
+            return evaluate_getline_expression(expression, state, record, locals_scope)
         case NameExpr(name=name):
             return read_scalar_value(name, state, locals_scope)
         case CallExpr():
@@ -3114,6 +3269,70 @@ def call_function(
     return UNINITIALIZED_VALUE
 
 
+def replace_active_record(record: RecordContext, text: str, state: RuntimeState) -> None:
+    """Replace the active `$0` view with one freshly read record."""
+    record.field0 = text
+    record.fields = split_fields(text, state.field_separator)
+    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
+
+
+def main_getline_line(state: RuntimeState) -> MainInputLine | None:
+    """Read one line from the main input stream for host-side `getline`."""
+    if state.input_state is None:
+        return None
+    return next_main_input_line(state.input_state)
+
+
+def file_getline_line(state: RuntimeState, target: str) -> str | None:
+    """Read one line from one `getline < file` stream."""
+    stream = getline_input_stream(state, target)
+    line = stream.readline()
+    if line == "":
+        return None
+    return line.rstrip("\n")
+
+
+def evaluate_getline_expression(
+    expression: GetlineExpr,
+    state: RuntimeState,
+    record: RecordContext | None,
+    locals_scope: LocalScope | None,
+) -> AwkValue:
+    """Execute the currently claimed `getline` forms in the host runtime."""
+    try:
+        if expression.source is None:
+            line = main_getline_line(state)
+            if line is None:
+                return make_numeric_value(0.0)
+            if line.new_file:
+                state.variables["FNR"] = make_numeric_value(0.0)
+            state.current_filename = line.filename
+            state.variables["NR"] = make_numeric_value(coerce_scalar_to_number(state.variables["NR"]) + 1.0)
+            state.variables["FNR"] = make_numeric_value(coerce_scalar_to_number(state.variables["FNR"]) + 1.0)
+            state.variables["FILENAME"] = make_string_value(line.filename)
+            if expression.target is None:
+                if record is None:
+                    raise RuntimeError("bare getline requires an active record when used outside BEGIN/END is not implemented")
+                replace_active_record(record, line.text, state)
+            else:
+                assign_lvalue_value(expression.target, make_string_value(line.text), state, record, locals_scope)
+            return make_numeric_value(1.0)
+
+        target_text = evaluate_string_expression(expression.source, state, record, locals_scope)
+        line_text = file_getline_line(state, target_text)
+        if line_text is None:
+            return make_numeric_value(0.0)
+        if expression.target is None:
+            if record is None:
+                raise RuntimeError("getline < file requires an active record when used outside BEGIN/END is not implemented")
+            replace_active_record(record, line_text, state)
+        else:
+            assign_lvalue_value(expression.target, make_string_value(line_text), state, record, locals_scope)
+        return make_numeric_value(1.0)
+    except OSError:
+        return make_numeric_value(-1.0)
+
+
 def call_builtin_function(
     expression: CallExpr,
     state: RuntimeState,
@@ -3209,7 +3428,7 @@ def call_close_builtin(
     if len(expression.args) != 1:
         raise RuntimeError("builtin close expects one argument")
     target = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    return make_numeric_value(close_output_target(state, target))
+    return make_numeric_value(close_io_target(state, target))
 
 
 def call_index_builtin(
@@ -3807,10 +4026,44 @@ def close_output_target(state: RuntimeState, target: str) -> float:
     return result if matched else -1.0
 
 
+def getline_input_stream(state: RuntimeState, target: str) -> TextIO:
+    """Open or reuse one file-backed `getline < file` input stream."""
+    existing = state.input_streams.get(target)
+    if existing is not None:
+        return existing
+    stream = open(target, "r", encoding="utf-8")
+    state.input_streams[target] = stream
+    return stream
+
+
+def close_input_target(state: RuntimeState, target: str) -> float:
+    """Close one cached `getline` file stream."""
+    stream = state.input_streams.pop(target, None)
+    if stream is None:
+        return -1.0
+    stream.close()
+    return 0.0
+
+
+def close_io_target(state: RuntimeState, target: str) -> float:
+    """Close one cached output or `getline` file stream."""
+    output_result = close_output_target(state, target)
+    input_result = close_input_target(state, target)
+    if output_result >= 0.0:
+        return output_result
+    return input_result
+
+
 def close_all_outputs(state: RuntimeState) -> None:
     """Best-effort close of all cached redirected outputs."""
     for key in tuple(state.output_streams):
         _ = close_output_key(state, key)
+
+
+def close_all_inputs(state: RuntimeState) -> None:
+    """Best-effort close of all cached `getline` file streams."""
+    for target in tuple(state.input_streams):
+        _ = close_input_target(state, target)
 
 
 def render_print_output(
@@ -3834,9 +4087,11 @@ def render_print_output(
 
 def initialize_builtin_variables(state: RuntimeState) -> None:
     """Seed the builtin variables tracked by the host runtime."""
+    argc = 1 + (0 if state.input_state is None else len(state.input_state.files))
     state.variables["NR"] = make_numeric_value(0.0)
     state.variables["FNR"] = make_numeric_value(0.0)
     state.variables["NF"] = make_numeric_value(0.0)
+    state.variables["ARGC"] = make_numeric_value(float(argc))
     state.variables["FILENAME"] = make_string_value(state.current_filename)
     state.variables["OFS"] = make_string_value(" ")
     state.variables["ORS"] = make_string_value("\n")
@@ -3844,6 +4099,9 @@ def initialize_builtin_variables(state: RuntimeState) -> None:
     state.variables["CONVFMT"] = make_string_value(DEFAULT_CONVFMT)
     state.variables["RSTART"] = make_numeric_value(0.0)
     state.variables["RLENGTH"] = make_numeric_value(-1.0)
+    state.variables["SUBSEP"] = make_string_value("\x1c")
+    state.arrays["ARGV"] = build_argv_array(state)
+    state.arrays["ENVIRON"] = build_environ_array()
 
 
 def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
@@ -3856,6 +4114,21 @@ def update_record_builtin_variables(state: RuntimeState, record: RecordContext) 
     state.variables["FILENAME"] = make_string_value(state.current_filename)
 
 
+def build_argv_array(state: RuntimeState) -> dict[str, AwkValue]:
+    """Build the POSIX `ARGV` builtin array for the current CLI input operands."""
+    entries: dict[str, AwkValue] = {"0": make_string_value(state.argv0)}
+    if state.input_state is None:
+        return entries
+    for index, file_entry in enumerate(state.input_state.files, start=1):
+        entries[str(index)] = make_string_value(file_entry.filename)
+    return entries
+
+
+def build_environ_array() -> dict[str, AwkValue]:
+    """Build the POSIX `ENVIRON` builtin array from the process environment."""
+    return {name: make_string_value(value) for name, value in os.environ.items()}
+
+
 def make_numeric_value(value: float) -> AwkValue:
     """Create one numeric runtime value."""
     return AwkValue(ValueKind.NUMBER, number=value)
@@ -3864,6 +4137,13 @@ def make_numeric_value(value: float) -> AwkValue:
 def make_string_value(value: str) -> AwkValue:
     """Create one string runtime value."""
     return AwkValue(ValueKind.STRING, string=value)
+
+
+def make_initial_value(value: InitialVariableValue) -> AwkValue:
+    """Create one preassigned runtime value from the CLI-facing type."""
+    if isinstance(value, str):
+        return make_string_value(value)
+    return make_numeric_value(value)
 
 
 def parse_awk_numeric_prefix(text: str) -> float:
@@ -4352,6 +4632,21 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 )
             case CallExpr(function="atan2", args=args):
                 return len(args) == 2 and all(supports_numeric_expression(argument) for argument in args)
+            case GetlineExpr(target=target, source=source):
+                target_supported = True
+                if target is not None:
+                    match target:
+                        case NameLValue():
+                            target_supported = True
+                        case FieldLValue(index=index):
+                            target_supported = supports_numeric_expression(index)
+                        case ArrayLValue(subscripts=subscripts):
+                            target_supported = len(subscripts) == 1 and supports_array_key(subscripts[0])
+                        case _:
+                            target_supported = False
+                return target_supported and (
+                    source is None or supports_string_expression(source) or supports_numeric_expression(source)
+                )
             case _:
                 return False
 
@@ -4377,6 +4672,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
     def expression_contains_runtime_builtin(expression: Expr) -> bool:
         match expression:
             case CallExpr():
+                return True
+            case GetlineExpr():
                 return True
             case BinaryExpr(left=left, right=right):
                 return expression_contains_runtime_builtin(left) or expression_contains_runtime_builtin(right)
@@ -4620,6 +4917,8 @@ def has_host_runtime_only_operations(program: Program) -> bool:
     def expression_has_host_runtime_only_ops(expression: Expr) -> bool:
         match expression:
             case ArrayIndexExpr():
+                return True
+            case GetlineExpr():
                 return True
             case ConditionalExpr() | AssignExpr() | UnaryExpr() | PostfixExpr():
                 return True

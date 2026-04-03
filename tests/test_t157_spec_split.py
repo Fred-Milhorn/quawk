@@ -9,7 +9,7 @@ def test_t157_spec_splits_cli_variable_rows() -> None:
     spec_text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
 
     assert "| `-v` numeric scalar preassignment | implemented |" in spec_text
-    assert "| `-v` string scalar preassignment | partial |" in spec_text
+    assert "| `-v` string scalar preassignment | implemented |" in spec_text
     assert "| `-v name=value` | partial |" not in spec_text
 
 
@@ -31,11 +31,11 @@ def test_t157_spec_splits_builtin_and_backend_rows() -> None:
     assert "| Core builtin variables | implemented |" in spec_text
     assert "| Output separator builtin variables | implemented |" in spec_text
     assert "| Formatting builtin variables | implemented |" in spec_text
-    assert "| Remaining POSIX builtin variables | partial |" in spec_text
+    assert "| Remaining POSIX builtin variables | implemented |" in spec_text
     assert "| Current builtin subset | implemented |" in spec_text
     assert "| POSIX string and regex builtins | implemented |" in spec_text
     assert "| POSIX numeric and system builtins | implemented |" in spec_text
-    assert "| `getline` | planned |" in spec_text
+    assert "| `getline` | implemented |" in spec_text
     assert "| Backend parity for broader frontend-admitted POSIX forms | partial |" in spec_text
     assert "| Builtin variables | implemented |" not in spec_text
     assert "| Builtins | partial |" not in spec_text

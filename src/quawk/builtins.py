@@ -28,8 +28,22 @@ BUILTIN_FUNCTION_NAMES = frozenset(
     }
 )
 BUILTIN_VARIABLE_NAMES = frozenset(
-    {"NR", "FNR", "NF", "FILENAME", "OFS", "ORS", "OFMT", "CONVFMT", "RSTART", "RLENGTH"}
+    {
+        "ARGC",
+        "CONVFMT",
+        "FILENAME",
+        "FNR",
+        "NF",
+        "NR",
+        "OFMT",
+        "OFS",
+        "ORS",
+        "RLENGTH",
+        "RSTART",
+        "SUBSEP",
+    }
 )
+BUILTIN_ARRAY_NAMES = frozenset({"ARGV", "ENVIRON"})
 
 BUILTIN_ARITY_RULES: dict[str, tuple[int, ...]] = {
     "atan2": (2,),
@@ -63,6 +77,11 @@ def is_builtin_function_name(name: str) -> bool:
 def is_builtin_variable_name(name: str) -> bool:
     """Report whether `name` is a supported builtin variable in the current subset."""
     return name in BUILTIN_VARIABLE_NAMES
+
+
+def is_builtin_array_name(name: str) -> bool:
+    """Report whether `name` is a supported builtin array in the current subset."""
+    return name in BUILTIN_ARRAY_NAMES
 
 
 def builtin_accepts_arity(name: str, arg_count: int) -> bool:

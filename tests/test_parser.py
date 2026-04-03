@@ -34,6 +34,7 @@ from quawk.parser import (
     ForInStmt,
     ForStmt,
     FunctionDef,
+    GetlineExpr,
     IfStmt,
     NameExpr,
     NameLValue,
@@ -144,6 +145,35 @@ def test_parses_array_assignment_and_indexed_read() -> None:
     assert array_read.array_name == "a"
     assert isinstance(array_read.index, StringLiteralExpr)
     assert array_read.index.value == "x"
+
+
+def test_parses_getline_into_named_target_with_file_source() -> None:
+    program = parse(lex('BEGIN { getline x < "input.txt" }'))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    statement = action.statements[0]
+    assert isinstance(statement, ExprStmt)
+    assert isinstance(statement.value, GetlineExpr)
+    assert isinstance(statement.value.target, NameLValue)
+    assert statement.value.target.name == "x"
+    assert isinstance(statement.value.source, StringLiteralExpr)
+    assert statement.value.source.value == "input.txt"
+
+
+def test_format_program_includes_getline_expression_shape() -> None:
+    program = parse(lex('BEGIN { getline < "input.txt" }'))
+
+    assert format_program(program) == (
+        "Program span=<inline>:1:1\n"
+        "  PatternAction span=<inline>:1:1\n"
+        "    BeginPattern span=<inline>:1:1\n"
+        "    Action span=<inline>:1:7\n"
+        "      ExprStmt span=<inline>:1:9\n"
+        "        GetlineExpr span=<inline>:1:9\n"
+        "          Source\n"
+        "            StringLiteralExpr span=<inline>:1:19 value='input.txt'\n"
+    )
 
 
 def test_parses_delete_statement() -> None:

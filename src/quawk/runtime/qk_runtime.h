@@ -52,6 +52,10 @@ void qk_write_output_string(FILE *handle, const char *value);
 void qk_write_output_number(qk_runtime *runtime, FILE *handle, double value);
 void qk_write_output_separator(qk_runtime *runtime, FILE *handle);
 void qk_write_output_record_separator(qk_runtime *runtime, FILE *handle);
+double qk_getline_main_record(qk_runtime *runtime);
+double qk_getline_main_string(qk_runtime *runtime, const char **result_out);
+double qk_getline_file_record(qk_runtime *runtime, const char *target);
+double qk_getline_file_string(qk_runtime *runtime, const char *target, const char **result_out);
 
 /* Record-control support for the reusable backend/runtime path. */
 void qk_nextfile(qk_runtime *runtime);

@@ -26,6 +26,7 @@ from .parser import (
     ForInStmt,
     ForStmt,
     FunctionDef,
+    GetlineExpr,
     IfStmt,
     NameExpr,
     NameLValue,
@@ -40,6 +41,7 @@ from .parser import (
     UnaryExpr,
     WhileStmt,
 )
+from .builtins import BUILTIN_ARRAY_NAMES
 
 
 @dataclass(frozen=True)
@@ -169,6 +171,11 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
             case CallExpr(args=args):
                 for argument in args:
                     visit_expression(argument, local_names)
+            case GetlineExpr(target=target, source=source):
+                if target is not None:
+                    visit_lvalue(target, local_names)
+                if source is not None:
+                    visit_expression(source, local_names)
             case _:
                 return
 
@@ -269,7 +276,7 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
 
 def collect_array_names(program: Program) -> frozenset[str]:
     """Collect names used as associative arrays in the currently supported surface."""
-    names: set[str] = set()
+    names: set[str] = set(BUILTIN_ARRAY_NAMES)
 
     def visit_expression(expression: Expr, local_names: frozenset[str] = frozenset()) -> None:
         match expression:

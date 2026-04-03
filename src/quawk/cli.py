@@ -13,7 +13,7 @@ from typing import Sequence
 
 from . import __version__
 from .diagnostics import LexError, ParseError, SemanticError, format_error
-from .jit import build_public_execution_llvm_ir, emit_assembly, execute_with_inputs
+from .jit import InitialVariableValue, build_public_execution_llvm_ir, emit_assembly, execute_with_inputs
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
 from .semantics import ProgramAnalysis, analyze
@@ -206,9 +206,9 @@ def load_program_source(
     return ProgramSource.from_inline(inline_program)
 
 
-def parse_assignments(assignments: list[str]) -> list[tuple[str, float]]:
-    """Parse ordered numeric `-v name=value` assignments for execution."""
-    parsed: list[tuple[str, float]] = []
+def parse_assignments(assignments: list[str]) -> list[tuple[str, InitialVariableValue]]:
+    """Parse ordered `-v name=value` assignments for execution."""
+    parsed: list[tuple[str, InitialVariableValue]] = []
     for assignment in assignments:
         if "=" not in assignment:
             raise ValueError(f"invalid -v assignment {assignment!r}: expected name=value")
@@ -216,19 +216,15 @@ def parse_assignments(assignments: list[str]) -> list[tuple[str, float]]:
         name, raw_value = assignment.split("=", 1)
         if not IDENTIFIER_PATTERN.fullmatch(name):
             raise ValueError(f"invalid -v variable name {name!r}")
-        if raw_value == "":
-            raise ValueError(f"invalid -v assignment for {name!r}: missing numeric value")
         try:
             value = float(raw_value)
-        except ValueError as exc:
-            raise ValueError(
-                f"unsupported -v value for {name!r}: expected a numeric literal in the current subset"
-            ) from exc
+        except ValueError:
+            value = raw_value
         parsed.append((name, value))
     return parsed
 
 
-def validate_assignment_targets(assignments: list[tuple[str, float]], analysis: ProgramAnalysis) -> None:
+def validate_assignment_targets(assignments: list[tuple[str, InitialVariableValue]], analysis: ProgramAnalysis) -> None:
     """Reject `-v` assignments that collide with top-level function names."""
     for name, _ in assignments:
         if name in analysis.functions:

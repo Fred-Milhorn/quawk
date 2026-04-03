@@ -4,19 +4,25 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+def run_quawk(
+    *args: str,
+    stdin: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["quawk", *args],
         cwd=ROOT,
         input=stdin,
         capture_output=True,
         text=True,
+        env=None if env is None else {**os.environ, **env},
         check=False,
     )
 
@@ -236,4 +242,94 @@ def test_builtin_variables_nr_fnr_and_nf_update_per_record() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "1\n1\n2\n2\n2\n2\n"
+    assert result.stderr == ""
+
+
+def test_argc_argv_and_string_v_preassignment_execute(tmp_path: Path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("a\n", encoding="utf-8")
+    second.write_text("b\n", encoding="utf-8")
+
+    result = run_quawk(
+        "-v",
+        "x=hello",
+        'BEGIN { print x; print ARGC; print ARGV[0]; print ARGV[1]; print ARGV[2] }',
+        str(first),
+        str(second),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"hello\n3\nquawk\n{first}\n{second}\n"
+    assert result.stderr == ""
+
+
+def test_environ_and_subsep_builtin_variables_execute() -> None:
+    result = run_quawk(
+        'BEGIN { print ENVIRON["QUAWK_TEST_ENV"]; print length(SUBSEP) }',
+        env={"QUAWK_TEST_ENV": "present"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "present\n1\n"
+    assert result.stderr == ""
+
+
+def test_getline_main_string_updates_counters_without_replacing_current_record() -> None:
+    result = run_quawk('{ print getline x; print NR ":" FNR ":" x ":" $0 ":" NF; exit }', stdin="a\nb c\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n2:2:b c:a:1\n"
+    assert result.stderr == ""
+
+
+def test_getline_main_record_replaces_current_record() -> None:
+    result = run_quawk("{ print getline; print NR \":\" FNR \":\" NF \":\" $0; exit }", stdin="a\nb c\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n2:2:2:b c\n"
+    assert result.stderr == ""
+
+
+def test_getline_file_string_does_not_change_main_record_or_counters(tmp_path: Path) -> None:
+    input_path = tmp_path / "getline.txt"
+    input_path.write_text("u\nv\n", encoding="utf-8")
+
+    result = run_quawk(
+        f'{{ print getline x < "{input_path}"; print NR ":" FNR ":" x ":" $0 ":" NF; exit }}',
+        stdin="a\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1:1:u:a:1\n"
+    assert result.stderr == ""
+
+
+def test_getline_file_record_replaces_current_record_without_changing_main_counters(tmp_path: Path) -> None:
+    input_path = tmp_path / "getline.txt"
+    input_path.write_text("u v\n", encoding="utf-8")
+
+    result = run_quawk(
+        f'{{ print getline < "{input_path}"; print NR ":" FNR ":" NF ":" $0; exit }}',
+        stdin="a\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1:1:2:u v\n"
+    assert result.stderr == ""
+
+
+def test_close_resets_getline_file_streams(tmp_path: Path) -> None:
+    input_path = tmp_path / "getline.txt"
+    input_path.write_text("u\nv\n", encoding="utf-8")
+
+    result = run_quawk(
+        (
+            f'BEGIN {{ print getline x < "{input_path}"; close("{input_path}"); '
+            f'print getline x < "{input_path}"; print x }}'
+        )
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1\nu\n"
     assert result.stderr == ""

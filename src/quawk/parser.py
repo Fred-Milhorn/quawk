@@ -151,6 +151,13 @@ class OutputRedirectKind(Enum):
 
 
 @dataclass(frozen=True)
+class GetlineExpr:
+    target: LValue | None
+    source: Expr | None
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
 class BinaryExpr:
     left: Expr
     op: BinaryOp
@@ -209,6 +216,7 @@ Expr: TypeAlias = (
     | FieldExpr
     | CallExpr
     | ArrayIndexExpr
+    | GetlineExpr
     | BinaryExpr
     | ConditionalExpr
     | AssignExpr
@@ -679,6 +687,15 @@ def format_expression(expression: Expr, indent: str) -> list[str]:
             ]
             for subscript in expression.subscripts:
                 lines.extend(format_expression(subscript, indent + "  "))
+            return lines
+        case GetlineExpr():
+            lines = [f"{indent}GetlineExpr span={expression.span.format_start()}"]
+            if expression.target is not None:
+                lines.append(f"{indent}  Target")
+                lines.extend(format_lvalue(expression.target, indent + "    "))
+            if expression.source is not None:
+                lines.append(f"{indent}  Source")
+                lines.extend(format_expression(expression.source, indent + "    "))
             return lines
         case BinaryExpr():
             lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
@@ -1256,6 +1273,8 @@ class Parser:
                 regex_token = self.advance()
                 return RegexLiteralExpr(raw_text=regex_token.text or "", span=regex_token.span)
             case TokenKind.IDENT:
+                if token.text == "getline":
+                    return self.parse_getline_expression()
                 if self.peek_kind() is TokenKind.LPAREN:
                     return self.parse_call_expression()
                 if self.peek_kind() is TokenKind.LBRACKET:
@@ -1275,6 +1294,32 @@ class Parser:
                 return self.parse_parenthesized_expression()
             case _:
                 raise ParseError(f"expected expression, got {token.kind.name}", token.span)
+
+    def parse_getline_expression(self) -> GetlineExpr:
+        """Parse one POSIX `getline` expression in the currently claimed forms."""
+        getline_token = self.expect(TokenKind.IDENT)
+        assert getline_token.text == "getline"
+
+        target: LValue | None = None
+        source: Expr | None = None
+        if self.check(TokenKind.LESS):
+            self.advance()
+            source = self.parse_expression()
+            span_end = source.span
+            return GetlineExpr(target=target, source=source, span=combine_spans(getline_token.span, span_end))
+
+        if self.current().kind in {TokenKind.IDENT, TokenKind.DOLLAR}:
+            target = self.parse_lvalue()
+        if self.check(TokenKind.LESS):
+            self.advance()
+            source = self.parse_expression()
+
+        span_end = getline_token.span
+        if source is not None:
+            span_end = source.span
+        elif target is not None:
+            span_end = target.span
+        return GetlineExpr(target=target, source=source, span=combine_spans(getline_token.span, span_end))
 
     def parse_call_expression(self) -> CallExpr:
         """Parse one function call expression."""

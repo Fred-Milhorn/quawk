@@ -379,12 +379,12 @@ Start here unless priorities change:
 Next deliverable: P14 POSIX compatibility completion
 
 Target outcome:
-- every behavior currently marked `implemented` in `SPEC.md` executes through
-  the compiled backend/runtime path, and Python no longer serves as a semantic
-  fallback for claimed execution
+- the remaining POSIX gaps are ordinary feature or behavior mismatches rather
+  than missing claimed surface such as `getline`, builtin variables, or
+  string-valued CLI preassignment
 
-1. `T-164` implement `getline`, the remaining builtin variables, and CLI or environment preassignment behavior
-2. `T-165` close the remaining POSIX parser-continuation and runtime-sequencing gaps
+1. `T-165` close the remaining POSIX parser-continuation and runtime-sequencing gaps
+2. `T-166` re-audit the upstream manifest and promote corroborating POSIX cases
 
 ## Backlog
 
@@ -522,7 +522,7 @@ Priority values:
 | T-161 | P14 | P0 | Close the reviewed `printf` parity gaps | T-158, T-159 | The reviewed formatting and `substr(..., ..., ...)`-inside-`printf` mismatches are fixed or replaced with narrower classified gaps | done |
 | T-162 | P14 | P0 | Implement the missing POSIX string and regex builtins | T-157 | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` have parser, runtime, and compatibility coverage | done |
 | T-163 | P14 | P1 | Implement the missing POSIX numeric and system builtins | T-157 | `int`, `rand`, `srand`, `system`, and any remaining required POSIX math builtins are covered by direct and compatibility tests | done |
-| T-164 | P14 | P0 | Implement `getline`, the remaining builtin variables, and CLI or environment preassignment behavior | T-157 | `getline`, `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, and string-valued `-v` behave as claimed and are covered by tests | todo |
+| T-164 | P14 | P0 | Implement `getline`, the remaining builtin variables, and CLI or environment preassignment behavior | T-157 | `getline`, `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, and string-valued `-v` behave as claimed and are covered by tests | done |
 | T-165 | P14 | P0 | Close the remaining POSIX parser-continuation and runtime-sequencing gaps | T-158, T-159, T-164 | Reviewed multiline/parser cases, default-print expression-pattern mismatches, and cases like `END { print NR }` are fixed or reclassified precisely | todo |
 | T-166 | P14 | P1 | Re-audit the upstream manifest and promote corroborating POSIX cases | T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165 | Clean upstream cases are promoted for every major fixed POSIX family, and no stale skip reason remains after a semantic fix lands | todo |
 | T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | todo |

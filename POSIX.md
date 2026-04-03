@@ -190,9 +190,10 @@ upstream skips.
 - reviewed upstream skips show a real `split` behavior mismatch.
   Evidence:
   [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L751)
-- `getline` does not appear in the current lexer, parser, semantics, or builtin
-  metadata at all, so it should be treated as not implemented until proven
-  otherwise.
+- `getline` is now implemented for the currently claimed POSIX forms:
+  bare `getline`, `getline var`, `getline < file`, and `getline var < file`.
+  Coverage:
+  parser, CLI, runtime-baseline, JIT, and runtime-ABI tests.
 
 #### Builtin Variables
 
@@ -201,8 +202,8 @@ upstream skips.
   Evidence:
   [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L6),
   [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
-- standard variables such as `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` should be treated as missing
-  until implemented and tested.
+- `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are now implemented and covered by
+  direct CLI/runtime/JIT tests.
 - there is at least one reviewed builtin-variable sequencing mismatch:
   `END { print NR }`.
   Evidence:
@@ -210,11 +211,11 @@ upstream skips.
 
 #### CLI and Preassignment
 
-- string-valued `-v` assignments are still unsupported.
-  Evidence:
-  [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L19)
-- `ARGV` and `ARGC` coverage is still incomplete and currently represented only
-  by reviewed skips and focused shell-driver coverage.
+- string-valued `-v` assignments are now implemented and part of the claimed
+  CLI surface.
+- upstream corroboration for CLI-sensitive `ARGV` / `ARGC` cases is still
+  incomplete; `T-166` should promote clean operand-sensitive anchors now that
+  the direct behavior exists.
   Evidence:
   [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L451),
   [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L702)
@@ -575,6 +576,10 @@ Acceptance:
 
 #### POSIX-023: Implement `getline`
 
+Status:
+
+- done via `T-164`
+
 Acceptance:
 
 - grammar, parser, semantics, and runtime all support the POSIX forms that the
@@ -606,6 +611,10 @@ Acceptance:
 
 #### POSIX-032: Implement CLI and environment variables
 
+Status:
+
+- done via `T-164`
+
 Scope:
 
 - `ARGC`
@@ -618,6 +627,11 @@ Acceptance:
   `ARGV` shape
 
 #### POSIX-033: Implement regex-result and array-separator variables
+
+Status:
+
+- `SUBSEP` done via `T-164`; builtin-variable sequencing work remains in
+  `POSIX-042`
 
 Scope:
 

@@ -206,6 +206,26 @@ def test_execute_host_runtime_supports_numeric_and_system_builtins(capsys) -> No
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_string_v_preassignments(capsys) -> None:
+    program = parse_program('BEGIN { print x; print x + 1 }')
+
+    assert jit.execute_host_runtime(program, [], None, [("x", "12")]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "12\n13\n"
+    assert captured.err == ""
+
+
+def test_execute_host_runtime_supports_getline_into_named_target(capsys, monkeypatch) -> None:
+    program = parse_program('BEGIN { print getline x; print x }')
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("alpha\n"))
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "1\nalpha\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_updates_nr_fnr_and_nf(capsys, monkeypatch) -> None:
     program = parse_program("{ print NR; print FNR; print NF }")
 
@@ -934,6 +954,45 @@ def test_execute_routes_builtin_only_programs_through_backend(monkeypatch) -> No
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; linked builtin backend module"
+
+
+def test_execute_routes_string_v_preassignments_through_backend(monkeypatch) -> None:
+    program = parse_program("BEGIN { print x }")
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("string -v programs without function definitions should not stay on the host runtime")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables == [("x", "hello")]
+        return "; string-v backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; string-v backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables == [("x", "hello")]
+        return "; linked string-v backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program, [("x", "hello")]) == 0
+    assert captured_ir["module"] == "; linked string-v backend module"
 
 
 def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:

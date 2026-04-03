@@ -17,7 +17,7 @@ Status values:
 | `-f progfile` | implemented | Repeatable and ordered. |
 | `-F fs` | implemented | Field separator support is part of the public execution surface. |
 | `-v` numeric scalar preassignment | implemented | Numeric scalar preassignment is part of the current AOT-backed contract. |
-| `-v` string scalar preassignment | partial | String-valued `-v` is not supported yet. |
+| `-v` string scalar preassignment | implemented | String-valued `-v` is part of the current claimed CLI surface. |
 | `--lex` / `--parse` | implemented | Stable human-readable inspection output. |
 | `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but not yet claimed POSIX forms can still fail inspection until the `P14` completion work lands. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
@@ -72,11 +72,11 @@ Evidence:
 | Core builtin variables | implemented | `NR`, `FNR`, `NF`, and `FILENAME` are part of the current claimed surface. |
 | Output separator builtin variables | implemented | `OFS` and `ORS` now affect `print` output as in POSIX AWK. |
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
-| Remaining POSIX builtin variables | partial | `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, and related POSIX variables are still not implemented; `RSTART` and `RLENGTH` now update through `match()`. |
+| Remaining POSIX builtin variables | implemented | `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are now part of the current claimed surface; `RSTART` and `RLENGTH` update through `match()`. |
 | Current builtin subset | implemented | `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper` are part of the current claimed surface. |
 | POSIX string and regex builtins | implemented | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now have direct execution coverage; upstream corroboration includes runnable `sprintf` coverage, while one record-target `gsub` case remains a narrower reviewed backend skip. |
 | POSIX numeric and system builtins | implemented | `int`, `rand`, `srand`, `system`, `atan2`, `cos`, `sin`, `exp`, `log`, and `sqrt` now have direct execution coverage across host and backend/runtime paths. The upstream subset includes a runnable `system()` anchor; `rand()` remains direct-test-only for now because the pinned references disagree on deterministic seeded output. |
-| `getline` | planned | POSIX `getline` support is not claimed yet. |
+| `getline` | implemented | The current claimed forms are bare `getline`, `getline var`, `getline < file`, and `getline var < file`. |
 
 Evidence:
 - `tests/test_p3_mixed_programs.py`

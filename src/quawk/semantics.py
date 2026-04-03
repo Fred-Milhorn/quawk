@@ -29,6 +29,7 @@ from .parser import (
     ForInStmt,
     ForStmt,
     FunctionDef,
+    GetlineExpr,
     IfStmt,
     NameExpr,
     NameLValue,
@@ -466,6 +467,11 @@ def validate_expression(
             validate_expression(test, functions, scope=scope)
             validate_expression(if_true, functions, scope=scope)
             validate_expression(if_false, functions, scope=scope)
+        case GetlineExpr(target=target, source=source):
+            if target is not None:
+                validate_lvalue(target, functions, scope=scope)
+            if source is not None:
+                validate_expression(source, functions, scope=scope)
         case AssignExpr(target=target, value=value):
             validate_lvalue(target, functions, scope=scope)
             validate_expression(value, functions, scope=scope)

@@ -210,12 +210,12 @@ Current public execution surface:
 - mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules
 - scalar and associative-array execution with AWK-style unset-value behavior and string/number coercions
 - bare `print`, single-argument `print`, multi-argument `print`, `printf`, `OFS` / `ORS`-driven print output, `OFMT` / `CONVFMT` formatting control, and `print` / `printf` output redirection with `close()`
-- field reads, dynamic field assignment, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`
+- field reads, dynamic field assignment, `getline`, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
 - the currently claimed expression subset: `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
 - user-defined functions and returns
 - the current builtin subset, including `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper`
-- `-F` field-separator support and numeric `-v` preassignment
+- `-F` field-separator support and both numeric and string-valued `-v` preassignment
 
 Current backend and inspection surface:
 - the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md`, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths

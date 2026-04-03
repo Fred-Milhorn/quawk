@@ -141,13 +141,12 @@ def test_quawk_reports_invalid_v_assignment_name() -> None:
     assert result.stderr == "quawk: invalid -v variable name '1x'\n"
 
 
-def test_quawk_reports_unsupported_non_numeric_v_value() -> None:
-    result = run_quawk("-v", "x=hello", "BEGIN { print 1 }")
+def test_quawk_applies_string_v_assignment_before_execution() -> None:
+    result = run_quawk("-v", "x=hello", 'BEGIN { print x; print x "!" }')
 
-    assert result.returncode == 2
-    assert result.stderr == (
-        "quawk: unsupported -v value for 'x': expected a numeric literal in the current subset\n"
-    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "hello\nhello!\n"
+    assert result.stderr == ""
 
 
 def test_quawk_rejects_v_assignment_to_function_name() -> None:
@@ -628,6 +627,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_string_v_preassignments() -> None:
+    result = run_quawk("--ir", "-v", "x=hello", 'BEGIN { print x }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_scalar_set_string(" in result.stdout
+    assert "@.driver.scalar.value.0" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_print_surface_programs() -> None:
     result = run_quawk("--ir", 'BEGIN { OFS = ","; ORS = "!"; print 1, 2; print }')
 
@@ -654,6 +662,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs(
     assert "@qk_open_output(" in result.stdout
     assert "@qk_close_output(" in result.stdout
     assert "@fprintf(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_getline_programs() -> None:
+    result = run_quawk("--ir", '{ print getline x; print getline < "input.txt" }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_getline_main_string(" in result.stdout
+    assert "@qk_getline_file_record(" in result.stdout
     assert result.stderr == ""
 
 
@@ -777,6 +794,14 @@ def test_quawk_executes_supported_exit_program_with_end() -> None:
 
 def test_quawk_executes_supported_scalar_string_program_through_backend() -> None:
     result = run_quawk('BEGIN { x = "12"; print x + 1; print x "a" }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "13\n12a\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_string_v_preassignments_through_backend() -> None:
+    result = run_quawk("-v", "x=12", 'BEGIN { print x + 1; print x "a" }')
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "13\n12a\n"
