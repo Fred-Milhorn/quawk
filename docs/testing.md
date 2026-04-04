@@ -80,6 +80,14 @@ CI parity:
 - static lint, type, and formatting checks remain part of the local and release validation workflow, not the current branch-push CI gate
 - the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
 
+Current naming and entrypoint debt before the planned `P16` cleanup:
+- `uv run pytest -q -m "not compat"` is the current fast default suite, even though the name describes it only by exclusion
+- `compat_upstream` is the current marker for the reference-engine differential gate, even though One True Awk and gawk are reference oracles rather than upstream dependencies of `quawk`
+- `compat_local` is the current marker for the repo-owned supplemental corpus coverage
+- local differential corpus coverage is currently split across `tests/test_p10_compat_baselines.py` and `tests/test_p11_supported_compatibility_corpus.py`, which are near-identical pytest entrypoints with different case selectors
+- `corpus` remains available as a manual harness command in parallel with the pytest surfaces
+- release-smoke selection is currently documented both as `tests/test_p12_release_smoke.py` and as the `smoke` marker; this is intentional debt to be standardized in `P16`
+
 ## Test Corpus Structure
 
 Keep the repo-owned corpus small, fast, and reviewable.

@@ -426,6 +426,17 @@ Target outcome:
 `P15` closeout is complete. The next planned cleanup is the testing-surface
 refactor tracked in `P16`.
 
+Immediate next tasks:
+- `T-179` rename pytest markers and default suite selection to positive,
+  accurate names
+- `T-180` update CI, contributor commands, and compatibility docs to the
+  renamed testing surfaces
+- `T-181` merge the overlapping local differential corpus pytest files into one
+  surface
+- `T-182` reclassify the `corpus` CLI and standardize the smoke entrypoint
+- `T-183` rebaseline testing docs and final workflow audit after the cleanup
+  lands
+
 ## Backlog
 
 Status values:
