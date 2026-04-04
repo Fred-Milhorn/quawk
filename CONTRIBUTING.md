@@ -86,7 +86,9 @@ Current local checks are defined in [docs/testing.md](docs/testing.md). When the
 quawk --help
 corpus --list
 pytest
-uv run pytest -m compat
+uv run pytest -q -m core
+uv run pytest -m compat_reference
+uv run pytest -m compat_corpus
 yapf --diff --recursive src tests
 ruff check .
 mypy src
@@ -97,12 +99,12 @@ also run:
 
 ```sh
 uv run python scripts/upstream_compat.py bootstrap
-uv run pytest -m compat_upstream
+uv run pytest -m compat_reference
 ```
 
-GitHub Actions runs the fast non-compatibility pytest gate in
-`.github/workflows/ci-fast.yml` and keeps the upstream differential gate in
-`.github/workflows/compat-upstream.yml`. The upstream workflow remains
+GitHub Actions runs the fast `core` pytest gate in
+`.github/workflows/ci-fast.yml` and keeps the reference differential gate in
+`.github/workflows/compat-upstream.yml`. The reference workflow remains
 intentionally non-required until the promotion criteria in
 [docs/compatibility.md](docs/compatibility.md) are met.
 

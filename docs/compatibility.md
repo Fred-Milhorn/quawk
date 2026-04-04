@@ -10,8 +10,8 @@ POSIX-first stop condition that matches the public claims in [SPEC.md](../SPEC.m
 
 Current compatibility stance:
 
-- `compat_upstream` is the primary compatibility authority
-- `compat_local` remains a fast supplemental regression suite
+- `compat_reference` is the primary compatibility authority
+- `compat_corpus` remains a fast supplemental regression suite
 - One True Awk is the primary upstream source for core POSIX-style coverage
 - gawk is a secondary source used to add fixture-backed POSIX coverage and to catch disagreements
 
@@ -50,8 +50,8 @@ Recommended local flow:
 ```sh
 git submodule update --init --recursive
 uv run python scripts/upstream_compat.py bootstrap
-uv run pytest -m compat_upstream
-uv run pytest -m compat_local
+uv run pytest -m compat_reference
+uv run pytest -m compat_corpus
 ```
 
 Expected behavior:
@@ -59,8 +59,8 @@ Expected behavior:
 - `bootstrap` builds deterministic local reference binaries for One True Awk
   and gawk under ignored `build/` paths
 - the compatibility harness resolves only those pinned binaries by default
-- `compat_upstream` is the authoritative compatibility gate
-- `compat_local` remains available as a faster repo-owned regression suite
+- `compat_reference` is the authoritative compatibility gate
+- `compat_corpus` remains available as a faster repo-owned regression suite
 
 ## Selection Policy
 
@@ -237,8 +237,8 @@ What landed:
   - no runnable upstream case is still classified as `posix-required-fix`
 - confirmed the checked-in upstream divergence manifest remains empty, so there
   are no active blocking upstream fixes or stale classified failures
-- closed the `P11` upstream-suite growth track: `compat_upstream` is the
-  compatibility authority, while `compat_local` remains supplemental regression
+- closed the `P11` upstream-suite growth track: `compat_reference` is the
+  compatibility authority, while `compat_corpus` remains supplemental regression
   coverage instead of the sole evidence for any implemented POSIX family
 
 Stop condition after `T-149`:
@@ -295,14 +295,14 @@ Current upstream workflow:
 - `.github/workflows/compat-upstream.yml`
 - runs on pull requests, pushes to `main`, and manual `workflow_dispatch`
 - builds the pinned references with the same repo-managed bootstrap used locally
-- runs `uv run pytest -m compat_upstream`
+- runs `uv run pytest -m compat_reference`
 - is intentionally optional at the branch-protection level for now
 
 Separate fast CI:
 
 - `.github/workflows/ci-fast.yml`
 - runs on pushes, pull requests, and manual `workflow_dispatch`
-- covers the non-compatibility pytest suite without bootstrapping pinned reference engines
+- covers the `core` pytest suite without bootstrapping pinned reference engines
 
 Promotion criteria:
 
@@ -314,7 +314,7 @@ Promotion criteria:
   `ubuntu-latest`
 - active non-fix upstream failures, if any, are classified in
   `tests/upstream/divergences.toml` and reviewed in this document
-- maintainers explicitly add `compat-upstream` to required branch protection
+- maintainers explicitly add the reference-compatibility workflow to required branch protection
   only after the criteria above are satisfied
 
 ## Evaluated Divergences
@@ -371,7 +371,7 @@ Complete when:
 
 - pinned upstream sources exist
 - repo-managed local reference builds exist
-- `compat_upstream` runs selected cases under `quawk`, One True Awk, and gawk
+- `compat_reference` runs selected cases under `quawk`, One True Awk, and gawk
 - evaluated divergence metadata and companion notes exist
 - CI can run the upstream subset as an optional job
 

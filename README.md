@@ -61,8 +61,8 @@ fresh checkout, initialize them with `git submodule update --init --recursive`.
 When working on the compatibility transition, build the local One True Awk and
 gawk wrappers with `uv run python scripts/upstream_compat.py bootstrap`.
 GitHub Actions now runs a fast `ci-fast` workflow on pushes and pull requests
-for the non-compatibility pytest suite, and keeps a separate `compat-upstream`
-workflow for the heavier upstream compatibility subset.
+for the `core` pytest suite, and keeps a separate reference-compatibility
+workflow for the heavier `compat_reference` subset.
 
 ## Docs Map
 
