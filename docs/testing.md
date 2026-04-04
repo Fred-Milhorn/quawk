@@ -82,7 +82,8 @@ CI parity:
 - the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
 
 Current remaining entrypoint debt before the rest of the planned `P16` cleanup:
-- local differential corpus coverage is currently split across `tests/test_p10_compat_baselines.py` and `tests/test_p11_supported_compatibility_corpus.py`, which are near-identical pytest entrypoints with different case selectors
+- local differential corpus coverage now runs through one shared `compat_corpus` pytest entrypoint in `tests/test_compat_corpus.py`
+- the historical `compat-baseline` corpus tag remains available for case metadata and grouping, but it no longer drives a separate pytest file
 - `corpus` remains available as a manual harness command in parallel with the pytest surfaces
 - release-smoke selection is currently documented both as `tests/test_p12_release_smoke.py` and as the `smoke` marker; this is intentional debt to be standardized in `P16`
 

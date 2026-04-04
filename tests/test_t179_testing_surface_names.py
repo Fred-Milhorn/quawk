@@ -42,16 +42,15 @@ def test_t179_workflows_run_the_renamed_pytest_surfaces() -> None:
 
 def test_t179_compatibility_tests_use_the_renamed_markers() -> None:
     corpus_text = (ROOT / "tests" / "test_corpus.py").read_text(encoding="utf-8")
-    baseline_text = (ROOT / "tests" / "test_p10_compat_baselines.py").read_text(encoding="utf-8")
-    supported_text = (ROOT / "tests" / "test_p11_supported_compatibility_corpus.py").read_text(encoding="utf-8")
+    compat_corpus_text = (ROOT / "tests" / "test_compat_corpus.py").read_text(encoding="utf-8")
     upstream_text = (ROOT / "tests" / "test_p11_upstream_compatibility_subset.py").read_text(encoding="utf-8")
     conftest_text = (ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
 
     assert "pytest.mark.compat_corpus" in corpus_text
-    assert "@pytest.mark.compat_corpus" in baseline_text
-    assert "@pytest.mark.compat_corpus" in supported_text
+    assert "@pytest.mark.compat_corpus" in compat_corpus_text
     assert "@pytest.mark.compat_reference" in upstream_text
-    assert "compat_local" not in corpus_text + baseline_text + supported_text
+    assert "differential_corpus_cases" in compat_corpus_text
+    assert "compat_local" not in corpus_text + compat_corpus_text
     assert "compat_upstream" not in upstream_text
     assert 'pytest.mark.core' in conftest_text
     assert '"compat" not in item.keywords' in conftest_text

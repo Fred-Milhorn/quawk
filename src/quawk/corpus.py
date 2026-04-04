@@ -189,6 +189,17 @@ def supported_corpus_cases(root: Path | None = None) -> list[CorpusCase]:
     return cases_with_tag("supported", root=root)
 
 
+def differential_corpus_cases(root: Path | None = None) -> list[CorpusCase]:
+    """Return the repo-owned local corpus cases used by `compat_corpus`.
+
+    The local differential compatibility surface is now one shared pytest
+    entrypoint over the supported corpus cases. The older
+    `compat-baseline` tag remains useful for case metadata and historical
+    grouping, but it no longer drives a separate pytest file.
+    """
+    return supported_corpus_cases(root=root)
+
+
 def divergence_manifest_path(root: Path | None = None) -> Path:
     """Return the checked-in divergence manifest path."""
     base = corpus_root() if root is None else root
