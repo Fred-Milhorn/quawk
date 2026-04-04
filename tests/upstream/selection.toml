@@ -313,9 +313,8 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.30"
 path = "third_party/onetrueawk/testdir/p.30"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a real bare-`length` builtin mismatch: quawk currently treats `length` without parentheses as empty instead of `length($0)`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]

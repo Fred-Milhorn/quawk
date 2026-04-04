@@ -19,7 +19,6 @@ def test_posix_plan_records_post_p14_gap_categories_and_order() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "## Post-P14 Remaining Gap Plan" in posix_text
-    assert "bare `length` semantics" in posix_text
     assert "numeric comparison and expression-pattern selection" in posix_text
     assert "reviewed backend/runtime crashes or lowering gaps" in posix_text
     assert "non-UTF-8 input policy" in posix_text

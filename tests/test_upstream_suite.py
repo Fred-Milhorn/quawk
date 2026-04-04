@@ -107,6 +107,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.26" in case_ids
     assert "one-true-awk:p.26a" in case_ids
     assert "one-true-awk:p.27" in case_ids
+    assert "one-true-awk:p.30" in case_ids
     assert "one-true-awk:p.21" in case_ids
     assert "one-true-awk:p.34" in case_ids
     assert "one-true-awk:p.36" in case_ids
@@ -143,7 +144,6 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:numsubstr" in case_ids
     assert "gawk:substr" in case_ids
     assert "gawk:strfieldnum" in case_ids
-    assert "one-true-awk:p.30" not in case_ids
     assert "one-true-awk:p.32" not in case_ids
     assert "one-true-awk:p.35" not in case_ids
     assert "one-true-awk:p.7" not in case_ids

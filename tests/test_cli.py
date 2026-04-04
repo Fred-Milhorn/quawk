@@ -664,6 +664,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_input_separator_programs(
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_bare_length() -> None:
+    result = run_quawk("--ir", "{ print length, $0 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "@strlen(" in result.stdout
+    assert "@qk_get_field(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs() -> None:
     result = run_quawk('--ir', 'BEGIN { print "x" > "out"; printf "%s", "y" >> "out"; close("out") }')
 

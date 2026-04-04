@@ -259,6 +259,19 @@ def test_parses_bare_action_with_field_expression() -> None:
     assert statement.arguments[0].index == 1
 
 
+def test_parses_bare_length_as_zero_argument_builtin_call() -> None:
+    program = parse(lex("{ print length, $0 }"))
+
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert isinstance(item.action, Action)
+    statement = item.action.statements[0]
+    assert isinstance(statement, PrintStmt)
+    assert isinstance(statement.arguments[0], CallExpr)
+    assert statement.arguments[0].function == "length"
+    assert statement.arguments[0].args == ()
+
+
 def test_parses_if_statement_with_comparison() -> None:
     program = parse(lex("BEGIN { if (1 < 2) print 3 }"))
 

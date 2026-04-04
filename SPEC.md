@@ -75,7 +75,7 @@ Evidence:
 | Formatting builtin variables | implemented | `OFMT` and `CONVFMT` now affect numeric print formatting and ordinary numeric-to-string coercion. |
 | Argument, environment, and match-result builtin variables | implemented | `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are part of the current claimed surface; `RSTART` and `RLENGTH` update through `match()`. |
 | Input separator builtin variables | implemented | CLI `-F` plus in-program `FS` / `RS` assignment now affect the current claimed field and record surface. |
-| Current builtin subset | partial | The named builtins are present in the claimed surface, but bare `length` without parentheses still diverges from POSIX `length($0)`. |
+| Current builtin subset | implemented | The named builtins, including bare `length` as POSIX `length($0)`, are part of the current claimed surface. |
 | POSIX string and regex builtins | implemented | `index`, `match`, `sub`, `gsub`, `sprintf`, `tolower`, and `toupper` now have direct execution coverage; upstream corroboration includes runnable `sprintf` coverage, while one record-target `gsub` case remains a narrower reviewed backend skip. |
 | POSIX numeric and system builtins | implemented | `int`, `rand`, `srand`, `system`, `atan2`, `cos`, `sin`, `exp`, `log`, and `sqrt` now have direct execution coverage across host and backend/runtime paths. The upstream subset includes a runnable `system()` anchor; `rand()` remains direct-test-only for now because the pinned references disagree on deterministic seeded output. |
 | `getline` | implemented | The current claimed forms are bare `getline`, `getline var`, `getline < file`, and `getline var < file`. |

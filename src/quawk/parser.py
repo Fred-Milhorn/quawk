@@ -1289,6 +1289,13 @@ class Parser:
                     return self.parse_call_expression()
                 if self.peek_kind() is TokenKind.LBRACKET:
                     return self.parse_array_index_expression()
+                if token.text == "length":
+                    name_token = self.advance()
+                    return CallExpr(
+                        function="length",
+                        args=(),
+                        span=name_token.span,
+                    )
                 name_token = self.advance()
                 return NameExpr(name=name_token.text or "", span=name_token.span)
             case TokenKind.DOLLAR:

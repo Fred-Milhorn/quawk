@@ -188,6 +188,14 @@ def test_split_and_substr_builtins_execute() -> None:
     assert result.stderr == ""
 
 
+def test_bare_length_uses_the_current_record() -> None:
+    result = run_quawk("{ print length, $0 }", stdin="a b c\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "5 a b c\n"
+    assert result.stderr == ""
+
+
 def test_string_and_regex_builtins_execute() -> None:
     result = run_quawk(
         'BEGIN { print index("banana", "na"); print match("banana", /ana/); '

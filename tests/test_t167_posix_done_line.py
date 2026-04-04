@@ -11,15 +11,14 @@ def test_t167_spec_tracks_remaining_posix_gap_rows_explicitly() -> None:
     assert "| Repeated `$0` reassignment and field rebuild | partial |" in spec_text
     assert "| Input separator builtin variables | implemented |" in spec_text
     assert "CLI `-F` plus in-program `FS` / `RS` assignment" in spec_text
-    assert "| Current builtin subset | partial |" in spec_text
-    assert "bare `length` without parentheses still diverges from POSIX `length($0)`" in spec_text
+    assert "| Current builtin subset | implemented |" in spec_text
+    assert "including bare `length` as POSIX `length($0)`" in spec_text
 
 
 def test_t167_posix_plan_records_the_done_line_audit_result() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "### T-167 POSIX Done-Line Result" in posix_text
-    assert "bare `length`" in posix_text
     assert "non-UTF-8 fixture input" in posix_text
     assert "numeric comparison mismatches" in posix_text
     assert "reusable-backend" in posix_text
