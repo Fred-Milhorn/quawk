@@ -8,7 +8,7 @@ import pytest
 
 from quawk.corpus import CorpusCase, compare_case, load_cases, run_case
 
-pytestmark = [pytest.mark.compat, pytest.mark.compat_local]
+pytestmark = [pytest.mark.compat, pytest.mark.compat_corpus]
 
 
 def build_case_params() -> list[pytest.ParameterSet]:

@@ -10,7 +10,7 @@ from quawk.upstream_suite import selected_upstream_cases, run_upstream_case_diff
 
 
 @pytest.mark.compat
-@pytest.mark.compat_upstream
+@pytest.mark.compat_reference
 @pytest.mark.parametrize("case", selected_upstream_cases(), ids=lambda case: case.id)
 def test_upstream_compatibility_subset(case) -> None:
     missing = missing_engines()

@@ -65,25 +65,23 @@ Manifest-only adapter names:
 ## Compatibility Surfaces
 
 Compatibility pytest surfaces are split intentionally:
-- `compat_upstream` is the primary compatibility authority and is derived from the pinned upstream suites
-- `compat_local` is the repo-owned supplemental corpus used for fast regression and smoke coverage
+- `core` is the default fast repo suite and covers every non-compatibility test
+- `compat_reference` is the primary compatibility authority and is derived from the pinned upstream suites
+- `compat_corpus` is the repo-owned supplemental corpus used for fast regression and smoke coverage
 - `compat` remains the umbrella marker for both surfaces
 
 Recommended commands:
-- `uv run pytest -q -m "not compat"`
-- `uv run pytest -m compat_upstream`
-- `uv run pytest -m compat_local`
+- `uv run pytest -q -m core`
+- `uv run pytest -m compat_reference`
+- `uv run pytest -m compat_corpus`
 
 CI parity:
-- `.github/workflows/ci-fast.yml` runs `uv run pytest -q -m "not compat"` on pushes and pull requests
-- `.github/workflows/compat-upstream.yml` runs `uv run pytest -m compat_upstream` after bootstrapping the pinned references on `ubuntu-latest`
+- `.github/workflows/ci-fast.yml` runs `uv run pytest -q -m core` on pushes and pull requests
+- `.github/workflows/compat-upstream.yml` runs `uv run pytest -m compat_reference` after bootstrapping the pinned references on `ubuntu-latest`
 - static lint, type, and formatting checks remain part of the local and release validation workflow, not the current branch-push CI gate
 - the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
 
-Current naming and entrypoint debt before the planned `P16` cleanup:
-- `uv run pytest -q -m "not compat"` is the current fast default suite, even though the name describes it only by exclusion
-- `compat_upstream` is the current marker for the reference-engine differential gate, even though One True Awk and gawk are reference oracles rather than upstream dependencies of `quawk`
-- `compat_local` is the current marker for the repo-owned supplemental corpus coverage
+Current remaining entrypoint debt before the rest of the planned `P16` cleanup:
 - local differential corpus coverage is currently split across `tests/test_p10_compat_baselines.py` and `tests/test_p11_supported_compatibility_corpus.py`, which are near-identical pytest entrypoints with different case selectors
 - `corpus` remains available as a manual harness command in parallel with the pytest surfaces
 - release-smoke selection is currently documented both as `tests/test_p12_release_smoke.py` and as the `smoke` marker; this is intentional debt to be standardized in `P16`
@@ -238,7 +236,7 @@ The differential corpus workflow should fail on:
 
 ## Upstream Divergence Classification
 
-Use the upstream divergence workflow for failures in `compat_upstream`.
+Use the upstream divergence workflow for failures in `compat_reference`.
 
 Machine-readable metadata:
 - `tests/upstream/divergences.toml`

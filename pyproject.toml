@@ -36,9 +36,10 @@ files = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "core: default fast repo test surface excluding compatibility suites",
     "compat: full compatibility suite coverage, including corpus and differential checks",
-    "compat_upstream: upstream-suite-derived compatibility coverage",
-    "compat_local: repo-owned supplemental compatibility corpus coverage",
+    "compat_reference: reference-engine differential compatibility coverage",
+    "compat_corpus: repo-owned supplemental compatibility corpus coverage",
     "corpus: single-engine compatibility corpus coverage",
     "property: reserved for property-based tests",
     "smoke: reserved for smoke coverage",

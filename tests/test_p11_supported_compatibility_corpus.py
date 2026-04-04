@@ -14,7 +14,7 @@ from quawk.corpus import (
 
 
 @pytest.mark.compat
-@pytest.mark.compat_local
+@pytest.mark.compat_corpus
 @pytest.mark.parametrize("case", supported_corpus_cases(), ids=lambda case: case.id)
 def test_supported_compatibility_corpus(case) -> None:
     missing = missing_engines()

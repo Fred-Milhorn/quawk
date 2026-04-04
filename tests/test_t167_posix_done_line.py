@@ -25,10 +25,11 @@ def test_t167_posix_plan_records_the_done_line_audit_result() -> None:
     assert "`argarray`" in posix_text
 
 
-def test_t167_roadmap_advances_to_p15() -> None:
+def test_t167_roadmap_records_p15_complete_and_p16_next() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P15 remaining POSIX gap closure" in roadmap_text
+    assert "`P15` closeout is complete." in roadmap_text
+    assert "Next deliverable: P16 testing surface cleanup" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit |" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 |" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | done |" in roadmap_text
