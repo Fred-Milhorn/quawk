@@ -34,6 +34,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P13 | AOT Contract Completion | Every currently claimed behavior executes through the compiled backend/runtime path |
 | P14 | POSIX Compatibility Completion | Remaining in-scope POSIX feature and behavior gaps are closed and corroborated |
 | P15 | Remaining POSIX Gap Closure | Explicitly tracked post-`P14` POSIX gaps are closed or intentionally left as permanent reviewed skips |
+| P16 | Testing Surface Cleanup | Test entrypoints, markers, CI commands, and corpus surfaces are renamed and consolidated into a clearer workflow |
 
 ## Phase Entry and Exit Rules
 
@@ -376,18 +377,54 @@ Exit criteria:
 - unsuitable corroborating anchors remain explicit reviewed skips rather than
   implicit backlog debt
 
+### P16: Testing Surface Cleanup
+
+Objective:
+- make the repo test workflow easier to understand by replacing negative or
+  misleading suite names, reducing overlap between local compatibility
+  surfaces, and documenting the resulting commands consistently
+
+In scope:
+- replace `not compat` with a positive default test-surface marker
+- rename the reference-engine compatibility suite so it reflects reference
+  comparison rather than a false upstream relationship
+- rename the repo-owned local compatibility suite so it reads as corpus-backed
+  coverage rather than a vague local bucket
+- merge the overlapping local differential corpus pytest files into one clearer
+  compatibility surface
+- standardize the release-smoke entrypoint and decide whether it is marker-based
+  or file-based
+- reclassify the `corpus` CLI as a manual harness tool rather than a primary
+  test gate
+- implementation details for this phase live in [testing-refactor.md](../testing-refactor.md)
+
+Exit criteria:
+- the primary pytest surfaces are named positively and described consistently in
+  `pyproject.toml`, docs, and CI
+- `ci-fast` runs the renamed default core suite rather than a negative marker
+  selection
+- the reference-engine compatibility gate uses the renamed reference-oriented
+  marker everywhere
+- the repo-owned local differential compatibility surface is represented by one
+  pytest entrypoint instead of two overlapping ones
+- release-smoke invocation is documented one way only, and docs plus checklist
+  agree on that command
+- `corpus` remains available, but docs describe it as a harness/debugging tool
+  instead of a parallel first-class test gate
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-Next deliverable: P15 remaining POSIX gap closure
+Next deliverable: P16 testing surface cleanup
 
 Target outcome:
-- the next work burns down the explicit post-`P14` POSIX gap buckets instead of
-  introducing a new optional benchmark track
+- the next work replaces confusing test-surface names, consolidates overlapping
+  local compatibility entrypoints, and makes docs plus CI agree on one testing
+  workflow vocabulary
 
-`P15` closeout is complete. No further post-`P14` POSIX-gap tasks are planned
-right now.
+`P15` closeout is complete. The next planned cleanup is the testing-surface
+refactor tracked in `P16`.
 
 ## Backlog
 
@@ -539,6 +576,12 @@ Priority values:
 | T-175 | P15 | P1 | Fix the remaining `split` target-variable mismatch and re-audit corroboration | T-167 | `splitvar` becomes clean or is replaced by a narrower classified skip backed by direct repo-owned tests | done |
 | T-176 | P15 | P1 | Improve CLI-sensitive corroboration coverage | T-167 | `argarray` is either runnable with a clean adapter or superseded by an equivalent corroborating anchor for `ARGV` / multifile behavior | done |
 | T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | done |
+| T-178 | P16 | P0 | Author the testing-surface rename and consolidation baseline | T-177 | `testing-refactor.md`, `docs/testing.md`, and focused regression tests make the current marker names, command surfaces, and overlap explicit before implementation | todo |
+| T-179 | P16 | P0 | Rename pytest markers and default suite selection to positive, accurate names | T-178 | `core`, `compat_reference`, and `compat_corpus` replace the old marker names in `pyproject.toml`, tests, and command documentation without leaving stale references | todo |
+| T-180 | P16 | P0 | Update CI, contributor commands, and compatibility docs to the renamed testing surfaces | T-179 | `ci-fast`, the reference compatibility workflow, README, and testing/compatibility docs all use the new command vocabulary consistently | todo |
+| T-181 | P16 | P1 | Merge the overlapping local differential corpus pytest files into one surface | T-179 | The two near-identical local differential corpus pytest entrypoints are replaced by one shared `compat_corpus` differential surface with stable case selection | todo |
+| T-182 | P16 | P1 | Reclassify the `corpus` CLI and standardize the smoke entrypoint | T-180, T-181 | Docs present `corpus` as a manual harness tool, and release-smoke invocation is standardized to one documented command style | todo |
+| T-183 | P16 | P1 | Rebaseline testing docs and final workflow audit after the cleanup lands | T-180, T-181, T-182 | `docs/testing.md`, `docs/release-checklist.md`, and any remaining workflow references agree on the final testing surfaces with no stale old-marker wording | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
