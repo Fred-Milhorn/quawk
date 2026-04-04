@@ -775,15 +775,25 @@ Acceptance:
 - the remaining post-`P14` work now starts at the explicit non-UTF-8 policy
   decision in `T-174`
 
+### T-174 Byte-Oriented Input Policy Result
+
+- the current public contract now treats input records and file-backed
+  `getline` as byte-tolerant text rather than UTF-8-only text
+- the Python-side runtime helpers now preserve undecodable bytes with
+  `surrogateescape`, which keeps fallback/helper paths aligned with the
+  compiled backend/runtime behavior on ordinary non-UTF-8 input
+- the old `t.NF` skip reason was stale: input decoding is no longer the
+  blocker, and the case is now narrowed to the real remaining `NF`-driven
+  record-rebuild formatting mismatch
+- the remaining post-`P14` work now starts at the corroboration-sensitive
+  `splitvar` and `argarray` cases in `T-175` and `T-176`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
 
 These are the real remaining product gaps:
 
-- non-UTF-8 input policy
-  Case:
-  `t.NF`
 - remaining corroboration-sensitive gaps
   Cases:
   `splitvar`, `argarray`
@@ -793,7 +803,7 @@ anchors appear:
 
 - narrowed `$0` field-rebuild corroboration gap after `T-169`
   Cases:
-  `p.35`
+  `p.35`, `t.NF`
 - reference-disagreement or unsuitable-corroboration cases
   Cases:
   `p.43`, `p.48b`, `range1`
@@ -803,11 +813,9 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. decide the non-UTF-8 input policy explicitly before widening any claim that
-   depends on text-decoding behavior (`t.NF`)
-2. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+1. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
    once the semantic work is done
-3. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+2. only then widen `SPEC.md` and rerun the final upstream corroboration audit
 
 Roadmap mapping:
 
@@ -815,7 +823,7 @@ Roadmap mapping:
 - `T-169`: re-audit and promote the unlocked `FS`-sensitive direct-file cases
 - `T-171`: numeric comparison and expression-pattern fixes
 - `T-172` through `T-173`: backend/lowering gap and crash cleanup
-- `T-174`: non-UTF-8 input policy
+- `T-174`: byte-oriented input policy and stale-skip cleanup
 - `T-175` through `T-176`: remaining corroboration-sensitive gaps
 - `T-177`: final claim expansion and post-gap audit
 
@@ -893,9 +901,9 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. decide and implement the non-UTF-8 input policy in `T-174`
-2. then continue through the narrower remaining semantic gaps in `T-175`
-   through `T-176`
+1. continue through the narrower corroboration-sensitive gaps in `T-175` and
+   `T-176`
+2. then widen the final public claims in `T-177`
 
 ## Notes
 

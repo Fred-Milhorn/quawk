@@ -585,7 +585,7 @@ case_id = "t.NF"
 path = "third_party/onetrueawk/testdir/t.NF"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "The upstream fixture contains non-UTF-8 bytes in `test.data`; quawk's current text decoder rejects the input before the `NF` behavior is exercised."
+reason = "Not blocked by input decoding anymore: the actual remaining mismatch is `NF`-driven record rebuild behavior. After `OFS = \"|\"; NF = 2; print`, quawk preserves the original separators, and later `$5 = \"five\"` rebuilds `$0` with spaces instead of the reference `|`-joined record text."
 tags = ["posix", "fields", "builtin-variables"]
 
 [[case]]

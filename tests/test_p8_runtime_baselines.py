@@ -74,6 +74,17 @@ def test_repeated_record_rebuild_handles_short_then_long_records() -> None:
     assert result.stderr == ""
 
 
+def test_non_utf8_input_file_is_processed_as_byte_oriented_text(tmp_path: Path) -> None:
+    input_path = tmp_path / "latin1.txt"
+    input_path.write_bytes(b"a\xffb c\nsolo\n")
+
+    result = run_quawk("{ print NF }", str(input_path))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2\n1\n"
+    assert result.stderr == ""
+
+
 def test_numeric_pattern_comparison_uses_awk_string_numeric_rules() -> None:
     result = run_quawk('$1 > 5000 { next } { print }', stdin="6000 skip\n5daemon keep\n20 stay\n")
 

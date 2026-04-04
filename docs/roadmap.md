@@ -386,8 +386,8 @@ Target outcome:
 - the next work burns down the explicit post-`P14` POSIX gap buckets instead of
   introducing a new optional benchmark track
 
-1. `T-174` decide and implement the non-UTF-8 input policy
-2. `T-175` fix the remaining `split` target-variable mismatch and re-audit corroboration
+1. `T-175` fix the remaining `split` target-variable mismatch and re-audit corroboration
+2. `T-176` improve CLI-sensitive corroboration coverage
 
 ## Backlog
 
@@ -535,7 +535,7 @@ Priority values:
 | T-171 | P15 | P0 | Fix remaining numeric comparison and expression-pattern mismatches | T-167 | `p.7`, `p.8`, `p.21a`, and `t.next` become clean or are narrowed to one smaller remaining operator family | done |
 | T-172 | P15 | P0 | Fix the runtime-backed numeric-expression lowering gap | T-167 | The reviewed `getnr2tb` anchor becomes clean and no longer fails on `NR " " 10/NR` in compiled execution | done |
 | T-173 | P15 | P0 | Eliminate reviewed reusable-backend crashes in field and record rebuild paths | T-167 | `p.29`, `p.32`, and `t.set0a` run clean without `lli` aborts | done |
-| T-174 | P15 | P1 | Decide and implement the non-UTF-8 input policy | T-167 | Reviewed cases such as `t.NF` either run under a documented byte-oriented policy or are explicitly marked out-of-scope in the public contract | todo |
+| T-174 | P15 | P1 | Decide and implement the non-UTF-8 input policy | T-167 | Reviewed cases such as `t.NF` either run under a documented byte-oriented policy or are explicitly marked out-of-scope in the public contract | done |
 | T-175 | P15 | P1 | Fix the remaining `split` target-variable mismatch and re-audit corroboration | T-167 | `splitvar` becomes clean or is replaced by a narrower classified skip backed by direct repo-owned tests | todo |
 | T-176 | P15 | P1 | Improve CLI-sensitive corroboration coverage | T-167 | `argarray` is either runnable with a clean adapter or superseded by an equivalent corroborating anchor for `ARGV` / multifile behavior | todo |
 | T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | todo |

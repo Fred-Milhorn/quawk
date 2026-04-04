@@ -22,6 +22,7 @@ Status values:
 | `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but not yet claimed POSIX forms can still fail inspection until the `P14` completion work lands. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
 | `-` stdin operand | implemented | Reads standard input at that operand position. |
+| Input data decoding policy | implemented | Input records and file-backed `getline` follow a byte-tolerant text policy. Python-side helper paths preserve undecodable bytes with `surrogateescape`; AWK source files still load as UTF-8 text. |
 
 Evidence:
 - `tests/test_cli.py`
@@ -37,7 +38,7 @@ Evidence:
 | Scalar variables and assignment | implemented | Plain scalar assignment and assignment expressions are part of the current AOT-backed contract. Broader compound-assignment parsing exists, but full backended execution for those forms is not yet claimed. |
 | Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also documents a parenthesized `for ... in` iterable extension in the compatibility corpus. |
 | Fields | implemented | Basic `$0`, `$n`, and dynamic field reads and assignment are part of the current claimed surface. |
-| Repeated `$0` reassignment and field rebuild | partial | The reviewed `t.set0a` class still exposes a reusable-backend crash after repeated `$0` reassignment. |
+| Repeated `$0` reassignment and field rebuild | partial | The old reusable-backend crash is fixed, but reviewed `p.35` / `t.NF` style rebuilds still diverge on how `$0` is reconstructed after `NF` or field mutation. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
 | Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain outside the current claimed AOT contract and are tracked for `P14`. |

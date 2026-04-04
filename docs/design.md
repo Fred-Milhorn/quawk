@@ -216,6 +216,7 @@ Current public execution surface:
 - user-defined functions and returns
 - the current builtin subset, including `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper`
 - `-F` field-separator support and both numeric and string-valued `-v` preassignment
+- input records and file-backed `getline` follow a byte-tolerant text policy; the Python-side helper paths preserve undecodable bytes with `surrogateescape`, while AWK source files remain UTF-8 text
 
 Current backend and inspection surface:
 - the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md`, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths

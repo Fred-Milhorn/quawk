@@ -82,6 +82,23 @@ def test_execute_host_runtime_keeps_function_parameters_local(capsys) -> None:
     assert captured.err == ""
 
 
+def test_read_input_sources_decodes_non_utf8_files_with_surrogateescape(tmp_path) -> None:
+    input_path = tmp_path / "latin1.txt"
+    input_path.write_bytes(b"a\xffb c\n")
+
+    assert jit.read_input_sources([str(input_path)]) == [(str(input_path), "a\udcffb c\n")]
+
+
+def test_getline_input_stream_decodes_non_utf8_files_with_surrogateescape(tmp_path) -> None:
+    input_path = tmp_path / "latin1.txt"
+    input_path.write_bytes(b"a\xffb c\n")
+    state = jit.RuntimeState()
+
+    stream = jit.getline_input_stream(state, str(input_path))
+
+    assert stream.content == "a\udcffb c\n"
+
+
 def test_execute_host_runtime_prints_unset_globals_as_empty_strings(capsys) -> None:
     program = parse_program("function f(x) { return x }\nBEGIN { print y }")
 

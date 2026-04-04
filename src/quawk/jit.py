@@ -75,6 +75,8 @@ from .parser import (
 
 DEFAULT_OFMT = "%.6g"
 DEFAULT_CONVFMT = "%.6g"
+RUNTIME_TEXT_ENCODING = "utf-8"
+RUNTIME_TEXT_ERRORS = "surrogateescape"
 OUTPUT_REDIRECT_WRITE = 1
 OUTPUT_REDIRECT_APPEND = 2
 OUTPUT_REDIRECT_PIPE = 3
@@ -3048,7 +3050,7 @@ def iter_input_files(input_files: list[str]) -> list[tuple[str, list[str]]]:
             except OSError:
                 grouped_records.append(("-", []))
             continue
-        with Path(path).open("r", encoding="utf-8") as handle:
+        with Path(path).open("r", encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS) as handle:
             grouped_records.append((path, handle.readlines()))
     return grouped_records
 
@@ -3069,7 +3071,7 @@ def read_input_sources(input_files: list[str]) -> list[tuple[str, str]]:
             except OSError:
                 grouped_sources.append(("-", ""))
             continue
-        with Path(path).open("r", encoding="utf-8") as handle:
+        with Path(path).open("r", encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS) as handle:
             grouped_sources.append((path, handle.read()))
     return grouped_sources
 
@@ -4200,7 +4202,14 @@ def open_output_stream(
         return existing
 
     if redirect.kind is OutputRedirectKind.PIPE:
-        process = subprocess.Popen(target, shell=True, text=True, stdin=subprocess.PIPE)
+        process = subprocess.Popen(
+            target,
+            shell=True,
+            text=True,
+            encoding=RUNTIME_TEXT_ENCODING,
+            errors=RUNTIME_TEXT_ERRORS,
+            stdin=subprocess.PIPE,
+        )
         if process.stdin is None:
             raise RuntimeError(f"failed to open pipe output: {target}")
         state.output_processes[key] = process
@@ -4208,7 +4217,7 @@ def open_output_stream(
         return process.stdin
 
     mode = "w" if redirect.kind is OutputRedirectKind.WRITE else "a"
-    stream = open(target, mode, encoding="utf-8")
+    stream = open(target, mode, encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS)
     state.output_streams[key] = stream
     return stream
 
@@ -4243,7 +4252,7 @@ def getline_input_stream(state: RuntimeState, target: str) -> HostGetlineInput:
     existing = state.input_streams.get(target)
     if existing is not None:
         return existing
-    stream = HostGetlineInput(content=Path(target).read_text(encoding="utf-8"))
+    stream = HostGetlineInput(content=Path(target).read_text(encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS))
     state.input_streams[target] = stream
     return stream
 
