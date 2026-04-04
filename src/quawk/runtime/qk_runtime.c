@@ -2293,6 +2293,10 @@ const char *qk_get_filename(qk_runtime *runtime)
 
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator)
 {
+    regex_t regex;
+    regmatch_t match;
+    int regex_result;
+
     if ((runtime == NULL) || (array_name == NULL) || (text == NULL)) {
         return 0.0;
     }
@@ -2309,7 +2313,7 @@ double qk_split_into_array(qk_runtime *runtime, const char *text, const char *ar
     }
 
     size_t count = 0U;
-    if ((separator == NULL) || (*separator == '\0')) {
+    if (separator == NULL) {
         char *cursor = buffer;
         while (*cursor != '\0') {
             while ((*cursor != '\0') && isspace((unsigned char)*cursor)) {
@@ -2335,32 +2339,60 @@ double qk_split_into_array(qk_runtime *runtime, const char *text, const char *ar
             }
         }
     } else {
-        size_t separator_length = strlen(separator);
-        char *field_start = buffer;
-        if (separator_length == 0U) {
-            (void)qk_array_set(runtime, array_name, "1", field_start);
+        const char *cursor = text;
+        if (*separator == '\0') {
+            (void)qk_array_set(runtime, array_name, "1", text);
             free(buffer);
             return 1.0;
         }
-        for (;;) {
-            char *match = strstr(field_start, separator);
+
+        if (regcomp(&regex, separator, REG_EXTENDED) != 0) {
+            free(buffer);
+            return 0.0;
+        }
+
+        while ((regex_result = regexec(&regex, cursor, 1, &match, 0)) == 0) {
             count += 1U;
             char key[32];
             snprintf(key, sizeof(key), "%zu", count);
-            if (match == NULL) {
-                if (!qk_array_set(runtime, array_name, key, field_start)) {
-                    free(buffer);
-                    return 0.0;
-                }
-                break;
-            }
-            *match = '\0';
-            if (!qk_array_set(runtime, array_name, key, field_start)) {
+
+            if (!qk_store_scratch(runtime, cursor, (size_t)match.rm_so)) {
+                regfree(&regex);
                 free(buffer);
                 return 0.0;
             }
-            field_start = match + separator_length;
+            if (!qk_array_set(runtime, array_name, key, runtime->scratch_buffer)) {
+                regfree(&regex);
+                free(buffer);
+                return 0.0;
+            }
+
+            if (match.rm_so == match.rm_eo) {
+                if (cursor[match.rm_eo] == '\0') {
+                    cursor += match.rm_eo;
+                    break;
+                }
+                cursor += match.rm_eo + 1;
+                continue;
+            }
+            cursor += match.rm_eo;
         }
+
+        if ((regex_result != 0) && (regex_result != REG_NOMATCH)) {
+            regfree(&regex);
+            free(buffer);
+            return 0.0;
+        }
+
+        count += 1U;
+        char key[32];
+        snprintf(key, sizeof(key), "%zu", count);
+        if (!qk_array_set(runtime, array_name, key, cursor)) {
+            regfree(&regex);
+            free(buffer);
+            return 0.0;
+        }
+        regfree(&regex);
     }
 
     free(buffer);

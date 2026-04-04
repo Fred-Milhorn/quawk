@@ -246,6 +246,14 @@ def test_split_and_substr_builtins_execute() -> None:
     assert result.stderr == ""
 
 
+def test_split_accepts_regexp_separator_from_scalar_variable() -> None:
+    result = run_quawk('BEGIN { sep = "=+"; n = split("Here===Is=Some=====Data", a, sep); print n; print a[2]; print a[4] }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "4\nIs\nData\n"
+    assert result.stderr == ""
+
+
 def test_bare_length_uses_the_current_record() -> None:
     result = run_quawk("{ print length, $0 }", stdin="a b c\n")
 

@@ -198,6 +198,15 @@ def test_execute_host_runtime_supports_split_and_substr_builtins(capsys) -> None
     assert captured.err == ""
 
 
+def test_execute_host_runtime_supports_split_with_regexp_separator_from_scalar(capsys) -> None:
+    program = parse_program('BEGIN { sep = "=+"; n = split("Here===Is=Some=====Data", a, sep); print n; print a[2]; print a[4] }')
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "4\nIs\nData\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_supports_string_and_regex_builtins(capsys) -> None:
     program = parse_program(
         'BEGIN { x = "bananas"; print index(x, "na"); print match(x, /ana/); print RSTART; print RLENGTH; '

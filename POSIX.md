@@ -788,6 +788,16 @@ Acceptance:
 - the remaining post-`P14` work now starts at the corroboration-sensitive
   `splitvar` and `argarray` cases in `T-175` and `T-176`
 
+### T-175 Split Target-Variable Result
+
+- `split()` now treats an explicit third argument as a regexp separator in both
+  the host runtime and the compiled backend/runtime path, including when that
+  separator comes from a scalar variable
+- the corroborating gawk anchor `splitvar` is now runnable in the upstream
+  subset because the old `=+` separator mismatch is closed
+- the remaining post-`P14` corroboration-sensitive work is now down to the
+  CLI-shaped `argarray` case in `T-176`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
@@ -796,7 +806,7 @@ These are the real remaining product gaps:
 
 - remaining corroboration-sensitive gaps
   Cases:
-  `splitvar`, `argarray`
+  `argarray`
 
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
@@ -813,7 +823,7 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+1. re-audit the remaining corroboration-specific gap (`argarray`)
    once the semantic work is done
 2. only then widen `SPEC.md` and rerun the final upstream corroboration audit
 
@@ -831,7 +841,6 @@ Roadmap mapping:
 
 Remaining priority promotion targets after `T-166`:
 
-- `splitvar`
 - any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
   reviewed backend-crash gaps are fixed
 
@@ -901,8 +910,7 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. continue through the narrower corroboration-sensitive gaps in `T-175` and
-   `T-176`
+1. continue through the narrower corroboration-sensitive gap in `T-176`
 2. then widen the final public claims in `T-177`
 
 ## Notes

@@ -717,9 +717,8 @@ tags = ["posix", "range", "patterns"]
 suite = "gawk"
 case_id = "splitvar"
 path = "third_party/gawk/test/splitvar.awk"
-status = "skip"
+status = "run"
 adapter = "gawk-awk-in-ok"
-reason = "Still exposes a real `split`/target-variable mismatch in quawk: the pinned references return `4`, while quawk currently returns `1`."
 tags = ["posix", "split", "fields", "builtins"]
 
 [[case]]

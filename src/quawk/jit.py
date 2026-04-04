@@ -3091,6 +3091,15 @@ def split_fields(line: str, field_separator: str | None) -> list[str]:
     return line.split(field_separator)
 
 
+def split_builtin_fields(text: str, separator: str | None, field_separator: str | None) -> list[str]:
+    """Split one string for the `split()` builtin using current supported rules."""
+    if separator is None:
+        return split_fields(text, field_separator)
+    if separator == "":
+        return [text]
+    return re.split(separator, text)
+
+
 def record_matches_pattern(pattern: ExprPattern | None, record: RecordContext) -> bool:
     """Report whether the current record matches a supported record-selection pattern."""
     if pattern is None:
@@ -3777,7 +3786,7 @@ def call_split_builtin(
     if len(expression.args) == 3:
         separator = evaluate_string_expression(expression.args[2], state, record, locals_scope)
 
-    parts = split_fields(source_text, separator if separator is not None else state.field_separator)
+    parts = split_builtin_fields(source_text, separator, state.field_separator)
     target_array: dict[str, AwkValue] = {}
     for index, part in enumerate(parts, start=1):
         target_array[str(index)] = make_string_value(part)
