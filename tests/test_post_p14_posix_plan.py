@@ -23,7 +23,7 @@ def test_posix_plan_records_post_p14_gap_categories_and_order() -> None:
     assert "### T-173 Reusable-Backend Crash Result" in posix_text
     assert "### T-174 Byte-Oriented Input Policy Result" in posix_text
     assert "### T-175 Split Target-Variable Result" in posix_text
-    assert "remaining corroboration-sensitive gaps" in posix_text
+    assert "### T-176 CLI-Sensitive Corroboration Result" in posix_text
     assert "narrowed `$0` field-rebuild corroboration gap after `T-169`" in posix_text
     assert "Recommended execution order for the post-`P14` gap-closure wave:" in posix_text
     assert "Roadmap mapping:" in posix_text
@@ -33,4 +33,5 @@ def test_posix_plan_records_post_p14_gap_categories_and_order() -> None:
     assert "`p.29`, `p.32`, and `t.set0a` are now runnable" in posix_text
     assert "`t.NF` skip reason was stale" in posix_text
     assert "`splitvar` is now runnable" in posix_text
+    assert "`argarray` selection now runs as a focused equivalent" in posix_text
     assert "`T-177`: final claim expansion and post-gap audit" in posix_text

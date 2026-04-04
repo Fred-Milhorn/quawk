@@ -59,6 +59,7 @@ class UpstreamCase:
     oracle: UpstreamOracleKind
     expectation: UpstreamExpectation | None
     operand_separator: bool = False
+    preserve_relative_input_operands: bool = False
     workdir_files: tuple[UpstreamWorkdirFile, ...] = ()
 
     @property
@@ -254,6 +255,26 @@ def load_gawk_awk_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
 
 def load_gawk_awk_in_ok(selection: UpstreamCaseSelection) -> UpstreamCase:
     """Adapt one gawk `.awk` + `.in` + `.ok` fixture triple."""
+    if selection.case_id == "argarray":
+        return UpstreamCase(
+            selection=selection,
+            program_path=Path("program.awk"),
+            cli_args=(),
+            input_operands=("argarray.one", "argarray.two"),
+            operand_separator=False,
+            preserve_relative_input_operands=True,
+            oracle="reference-agreement",
+            expectation=None,
+            workdir_files=(
+                text_workdir_file(
+                    "program.awk",
+                    'BEGIN { print ARGC; print ARGV[1]; print ARGV[2] }\n'
+                    'FNR == 1 { print FILENAME }\n',
+                ),
+                text_workdir_file("argarray.one", "alpha beta\n"),
+                text_workdir_file("argarray.two", "gamma delta\n"),
+            ),
+        )
     return UpstreamCase(
         selection=selection,
         program_path=selection.path,
@@ -345,6 +366,9 @@ def resolve_case_input_operands(case: UpstreamCase, workdir: Path) -> tuple[str,
             continue
         operand_path = Path(operand)
         if operand_path.is_absolute():
+            resolved.append(operand)
+            continue
+        if case.preserve_relative_input_operands:
             resolved.append(operand)
             continue
         resolved.append(str(workdir / operand_path))

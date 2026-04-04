@@ -150,6 +150,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:exit2" in case_ids
     assert "gawk:getnr2tb" in case_ids
     assert "gawk:numsubstr" in case_ids
+    assert "gawk:argarray" in case_ids
     assert "gawk:splitvar" in case_ids
     assert "gawk:substr" in case_ids
     assert "gawk:strfieldnum" in case_ids
@@ -247,3 +248,37 @@ def test_run_upstream_case_materializes_program_file_focus_files_in_temp_dir(mon
 
     assert result.returncode == 0
     assert result.stdout == "included from system\n"
+
+
+def test_run_upstream_case_materializes_focused_gawk_argarray_files_in_temp_dir(monkeypatch) -> None:
+    selection = next(
+        selection for selection in upstream_inventory.load_upstream_selection_manifest()
+        if (selection.suite, selection.case_id) == ("gawk", "argarray")
+    )
+    case = upstream_suite.load_upstream_case(selection)
+
+    def fake_run(command, *, capture_output, text, encoding, errors, check, cwd):
+        assert capture_output is True
+        assert text is True
+        assert encoding == "utf-8"
+        assert errors == "surrogateescape"
+        assert check is False
+        workdir = Path(cwd)
+        program_path = workdir / "program.awk"
+        first_input = workdir / "argarray.one"
+        second_input = workdir / "argarray.two"
+        assert program_path.read_text(encoding="utf-8") == (
+            'BEGIN { print ARGC; print ARGV[1]; print ARGV[2] }\n'
+            'FNR == 1 { print FILENAME }\n'
+        )
+        assert first_input.read_text(encoding="utf-8") == "alpha beta\n"
+        assert second_input.read_text(encoding="utf-8") == "gamma delta\n"
+        assert command == ["quawk", "-f", str(program_path), "argarray.one", "argarray.two"]
+        return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(upstream_suite.subprocess, "run", fake_run)
+
+    result = upstream_suite.run_upstream_case(case, engine="quawk")
+
+    assert result.returncode == 0
+    assert result.stdout == "ok\n"

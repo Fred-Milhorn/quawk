@@ -148,8 +148,8 @@ coercion, and `substr` coercion. It now also includes a small One True Awk
 `t.*` direct-file expansion for arrays, user-defined functions, and substring
 matching, plus focused runnable shell-driver-derived coverage for CLI basics
 and multi-file `nextfile` behavior. It still relies on reviewed `skip` anchors
-for broader `ARGV` handling, gawk shell-driver cases, and several richer
-direct-file families that still expose real quawk gaps.
+for gawk shell-driver cases and several richer direct-file families that still
+expose real quawk gaps.
 
 | Family | Current upstream anchors |
 |---|---|

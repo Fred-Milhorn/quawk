@@ -212,9 +212,8 @@ upstream skips.
 - string-valued `-v` assignments are now implemented and part of the claimed
   CLI surface.
 - upstream corroboration for CLI-sensitive `ARGV` / `ARGC` behavior now
-  includes the runnable direct-file case `one-true-awk:p.48a`; broader gawk
-  operand-shape cases remain reviewed skips because their direct fixture
-  adapters are not yet clean corroborating anchors.
+  includes the runnable direct-file case `one-true-awk:p.48a` plus the focused
+  runnable gawk `argarray` corroboration for stable operand-shape behavior.
 
 #### Parser and Syntax Gaps
 
@@ -798,15 +797,22 @@ Acceptance:
 - the remaining post-`P14` corroboration-sensitive work is now down to the
   CLI-shaped `argarray` case in `T-176`
 
+### T-176 CLI-Sensitive Corroboration Result
+
+- the gawk `argarray` selection now runs as a focused equivalent corroborating
+  case instead of a stale direct-fixture skip
+- the checked-in upstream subset now includes stable `ARGC` / `ARGV[1..]` and
+  multi-file `FILENAME` corroboration without depending on engine-specific
+  `ARGV[0]` or `BEGIN`-phase `FILENAME` details
+- there are no remaining post-`P14` product gaps after the corroboration wave;
+  the only remaining work is the final public-claim expansion and audit in
+  `T-177`
+
 ## Post-P14 Remaining Gap Plan
 
-The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
-
-These are the real remaining product gaps:
-
-- remaining corroboration-sensitive gaps
-  Cases:
-  `argarray`
+The `T-167` audit left a smaller, explicit set of post-`P14` POSIX work. After
+`T-176`, no remaining product gaps are still open; the last step is the final
+claim-expansion and audit pass in `T-177`.
 
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
@@ -823,9 +829,10 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. re-audit the remaining corroboration-specific gap (`argarray`)
-   once the semantic work is done
-2. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+1. widen `SPEC.md` only where the fixed and corroborated families now justify
+   it
+2. rerun the final upstream corroboration audit and keep unsuitable anchors as
+   explicit reviewed skips
 
 Roadmap mapping:
 
@@ -834,7 +841,7 @@ Roadmap mapping:
 - `T-171`: numeric comparison and expression-pattern fixes
 - `T-172` through `T-173`: backend/lowering gap and crash cleanup
 - `T-174`: byte-oriented input policy and stale-skip cleanup
-- `T-175` through `T-176`: remaining corroboration-sensitive gaps
+- `T-175` through `T-176`: corroboration cleanup now completed
 - `T-177`: final claim expansion and post-gap audit
 
 #### POSIX-051: Promote upstream cases that directly corroborate fixed gaps
@@ -910,8 +917,8 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. continue through the narrower corroboration-sensitive gap in `T-176`
-2. then widen the final public claims in `T-177`
+1. widen the final public claims in `T-177`
+2. keep the remaining unsuitable anchors as explicit reviewed skips
 
 ## Notes
 
