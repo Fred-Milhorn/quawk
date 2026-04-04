@@ -745,15 +745,23 @@ Acceptance:
 - the remaining post-`P14` work now starts at the numeric comparison and
   expression-pattern bucket in `T-171`
 
+### T-171 Comparison and Expression-Pattern Result
+
+- AWK-style numeric-versus-string comparison selection now matches the pinned
+  references for the remaining reviewed expression-pattern cases, including
+  mixed numeric-field and nonnumeric-field comparisons under `next`
+- regex literals now work as boolean condition terms inside nontrivial
+  expression patterns such as `/Asia/ || /Africa/`
+- the corroborating anchors `p.7`, `p.8`, `p.21a`, and `t.next` are now
+  runnable in the upstream subset, so the remaining post-`P14` work starts at
+  `T-172`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
 
 These are the real remaining product gaps:
 
-- numeric comparison and expression-pattern selection
-  Cases:
-  `p.7`, `p.8`, `p.21a`, `t.next`
 - reviewed backend/runtime crashes or lowering gaps
   Cases:
   `p.29`, `p.32`, `t.set0a`, `getnr2tb`
@@ -779,15 +787,13 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. fix the remaining numeric comparison and expression-pattern selection
-   mismatches (`p.7`, `p.8`, `p.21a`, `t.next`)
-2. close the reviewed backend/runtime crashes and lowering gaps
+1. close the reviewed backend/runtime crashes and lowering gaps
    (`p.29`, `p.32`, `t.set0a`, `getnr2tb`)
-3. decide the non-UTF-8 input policy explicitly before widening any claim that
+2. decide the non-UTF-8 input policy explicitly before widening any claim that
    depends on text-decoding behavior (`t.NF`)
-4. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+3. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
    once the semantic work is done
-5. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+4. only then widen `SPEC.md` and rerun the final upstream corroboration audit
 
 Roadmap mapping:
 
@@ -805,10 +811,8 @@ Remaining priority promotion targets after `T-166`:
 
 - `getnr2tb`
 - `splitvar`
-- any clean `p.7` / `p.8` / `p.21a` / `t.next` corroborating anchors after the
-  remaining numeric-comparison work
 - any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
-  reviewed numeric-comparison and backend-crash gaps are fixed
+  reviewed backend-crash gaps are fixed
 
 Acceptance:
 
@@ -876,9 +880,8 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. fix the remaining numeric comparison and expression-pattern mismatches in
-   `T-171`
-2. then continue through the narrower remaining semantic gaps in `T-172`
+1. fix the runtime-backed numeric-expression lowering gap in `T-172`
+2. then continue through the narrower remaining semantic gaps in `T-173`
    through `T-176`
 
 ## Notes

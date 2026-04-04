@@ -103,6 +103,9 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.5" in case_ids
     assert "one-true-awk:p.5a" in case_ids
     assert "one-true-awk:p.6" in case_ids
+    assert "one-true-awk:p.7" in case_ids
+    assert "one-true-awk:p.8" in case_ids
+    assert "one-true-awk:p.21a" in case_ids
     assert "one-true-awk:p.24" in case_ids
     assert "one-true-awk:p.26" in case_ids
     assert "one-true-awk:p.26a" in case_ids
@@ -135,6 +138,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:t.exit" in case_ids
     assert "one-true-awk:t.fun" in case_ids
     assert "one-true-awk:t.if" in case_ids
+    assert "one-true-awk:t.next" in case_ids
     assert "one-true-awk:t.printf" in case_ids
     assert "one-true-awk:t.substr" in case_ids
     assert "gawk:assignnumfield" in case_ids
@@ -146,13 +150,9 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:strfieldnum" in case_ids
     assert "one-true-awk:p.32" not in case_ids
     assert "one-true-awk:p.35" not in case_ids
-    assert "one-true-awk:p.7" not in case_ids
-    assert "one-true-awk:p.8" not in case_ids
-    assert "one-true-awk:p.21a" not in case_ids
     assert "one-true-awk:p.43" not in case_ids
     assert "one-true-awk:T.argv" not in case_ids
     assert "one-true-awk:t.NF" not in case_ids
-    assert "one-true-awk:t.next" not in case_ids
 
 
 def test_run_upstream_case_executes_in_isolated_temp_dir(monkeypatch) -> None:

@@ -245,27 +245,24 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.7"
 path = "third_party/onetrueawk/testdir/p.7"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a real numeric comparison pattern mismatch: quawk currently treats `$3 > 100` as matching every record instead of only records whose population field exceeds 100."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.8"
 path = "third_party/onetrueawk/testdir/p.8"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a real expression-pattern equality mismatch: quawk currently treats `$4 == \"Asia\"` as matching every record instead of only the expected region."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.21a"
 path = "third_party/onetrueawk/testdir/p.21a"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a real boolean pattern mismatch: quawk currently treats `/Asia/ || /Africa/` as matching every record instead of the union of those regex selections."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -653,9 +650,8 @@ tags = ["posix", "control-flow"]
 suite = "one-true-awk"
 case_id = "t.next"
 path = "third_party/onetrueawk/testdir/t.next"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a real numeric comparison mismatch under `next`: quawk keeps records that the references skip for `$1 > 5000`."
 tags = ["posix", "record-control"]
 
 [[case]]

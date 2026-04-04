@@ -73,6 +73,17 @@ bool qk_scalar_truthy(qk_runtime *runtime, const char *name);
 void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value);
 void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value);
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name);
+bool qk_compare_values(
+    const char *left_string,
+    double left_number,
+    bool left_needs_numeric_check,
+    bool left_force_string,
+    const char *right_string,
+    double right_number,
+    bool right_needs_numeric_check,
+    bool right_force_string,
+    int32_t op
+);
 const char *qk_capture_string_arg(qk_runtime *runtime, const char *text);
 double qk_parse_number_text(const char *text);
 const char *qk_format_number(qk_runtime *runtime, double value);

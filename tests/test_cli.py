@@ -479,7 +479,7 @@ def test_quawk_ir_flag_prints_equality_expression_ir() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "fcmp oeq double 1.000000000000000e+00, 1.000000000000000e+00" in result.stdout
-    assert "uitofp i1 %eq." in result.stdout
+    assert "uitofp i1 %boolnum." in result.stdout or "uitofp i1 %cmp." in result.stdout
     assert "call i32 (ptr, ...) @printf(" in result.stdout
     assert result.stderr == ""
 
@@ -531,6 +531,15 @@ def test_quawk_ir_flag_prints_reusable_regex_program_ir() -> None:
     assert result.returncode == 0, result.stderr
     assert "define void @quawk_record(" in result.stdout
     assert "@qk_regex_match_current_record" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_runtime_comparison_helper_for_field_patterns() -> None:
+    result = run_quawk("--ir", '$1 > 5000 { next } { print }')
+
+    assert result.returncode == 0, result.stderr
+    assert "define void @quawk_record(" in result.stdout
+    assert "@qk_compare_values" in result.stdout
     assert result.stderr == ""
 
 

@@ -51,6 +51,30 @@ def test_next_skips_to_the_next_record() -> None:
     assert result.stderr == ""
 
 
+def test_numeric_pattern_comparison_uses_awk_string_numeric_rules() -> None:
+    result = run_quawk('$1 > 5000 { next } { print }', stdin="6000 skip\n5daemon keep\n20 stay\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "20 stay\n"
+    assert result.stderr == ""
+
+
+def test_string_equality_expression_pattern_filters_matching_records() -> None:
+    result = run_quawk('$2 == "Asia" { print $1 }', stdin="China Asia\nPeru SouthAmerica\nIndia Asia\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "China\nIndia\n"
+    assert result.stderr == ""
+
+
+def test_logical_or_regex_expression_pattern_selects_union() -> None:
+    result = run_quawk('/Asia/ || /Africa/', stdin="China Asia\nPeru SouthAmerica\nKenya Africa\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "China Asia\nKenya Africa\n"
+    assert result.stderr == ""
+
+
 def test_nextfile_skips_remaining_records_in_current_file(tmp_path: Path) -> None:
     first = tmp_path / "first.txt"
     second = tmp_path / "second.txt"

@@ -123,7 +123,7 @@ def test_execute_host_runtime_uses_string_truthiness_and_string_comparison(capsy
 
     jit.execute_host_runtime(program, [], None)
     captured = capsys.readouterr()
-    assert captured.out == "1\n1\n0\n"
+    assert captured.out == "1\n1\n1\n"
     assert captured.err == ""
 
 
@@ -915,6 +915,45 @@ def test_execute_with_inputs_routes_supported_expression_pattern_programs_throug
 
     assert jit.execute_with_inputs(program, [], None) == 0
     assert captured_ir["module"] == "; linked expr-pattern backend module"
+
+
+def test_execute_with_inputs_routes_comparison_expression_patterns_through_backend(monkeypatch) -> None:
+    program = parse_program('$2 == "Asia" { print $1 }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("comparison expression-pattern programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; comparison expr-pattern backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; comparison expr-pattern backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked comparison expr-pattern backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute_with_inputs(program, [], None) == 0
+    assert captured_ir["module"] == "; linked comparison expr-pattern backend module"
 
 
 def test_execute_with_inputs_routes_supported_default_print_expression_patterns_through_backend(monkeypatch) -> None:

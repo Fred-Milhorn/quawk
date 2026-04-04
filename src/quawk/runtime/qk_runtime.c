@@ -614,6 +614,74 @@ static double qk_parse_awk_numeric_prefix(const char *text)
     return value;
 }
 
+static bool qk_is_full_numeric_string(const char *text)
+{
+    char *end = NULL;
+
+    if (text == NULL) {
+        return false;
+    }
+
+    while (isspace((unsigned char)*text)) {
+        text += 1;
+    }
+    if (*text == '\0') {
+        return false;
+    }
+
+    errno = 0;
+    (void)strtod(text, &end);
+    if (end == text) {
+        return false;
+    }
+    while ((*end != '\0') && isspace((unsigned char)*end)) {
+        end += 1;
+    }
+    return *end == '\0';
+}
+
+static bool qk_compare_numbers(double left, double right, int32_t op)
+{
+    switch (op) {
+        case 0:
+            return left < right;
+        case 1:
+            return left <= right;
+        case 2:
+            return left > right;
+        case 3:
+            return left >= right;
+        case 4:
+            return left == right;
+        case 5:
+            return left != right;
+        default:
+            return false;
+    }
+}
+
+static bool qk_compare_strings(const char *left, const char *right, int32_t op)
+{
+    int cmp = strcmp(left == NULL ? "" : left, right == NULL ? "" : right);
+
+    switch (op) {
+        case 0:
+            return cmp < 0;
+        case 1:
+            return cmp <= 0;
+        case 2:
+            return cmp > 0;
+        case 3:
+            return cmp >= 0;
+        case 4:
+            return cmp == 0;
+        case 5:
+            return cmp != 0;
+        default:
+            return false;
+    }
+}
+
 static uint32_t qk_normalize_seed(double value)
 {
     return ((uint32_t)((int64_t)trunc(value))) & QK_RAND_MASK;
@@ -1595,6 +1663,33 @@ void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *so
         return;
     }
     qk_clear_scalar(target);
+}
+
+bool qk_compare_values(
+    const char *left_string,
+    double left_number,
+    bool left_needs_numeric_check,
+    bool left_force_string,
+    const char *right_string,
+    double right_number,
+    bool right_needs_numeric_check,
+    bool right_force_string,
+    int32_t op
+)
+{
+    bool left_numeric;
+    bool right_numeric;
+
+    if (left_force_string || right_force_string) {
+        return qk_compare_strings(left_string, right_string, op);
+    }
+
+    left_numeric = !left_needs_numeric_check || qk_is_full_numeric_string(left_string);
+    right_numeric = !right_needs_numeric_check || qk_is_full_numeric_string(right_string);
+    if (left_numeric && right_numeric) {
+        return qk_compare_numbers(left_number, right_number, op);
+    }
+    return qk_compare_strings(left_string, right_string, op);
 }
 
 const char *qk_capture_string_arg(qk_runtime *runtime, const char *text)

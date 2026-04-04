@@ -250,6 +250,7 @@ class AwkValue:
 
 UNINITIALIZED_VALUE = AwkValue(ValueKind.UNINITIALIZED)
 NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
+FULL_NUMERIC_PATTERN = re.compile(r"^[ \t\r\n\f\v]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\r\n\f\v]*$")
 PRINTF_SPEC_PATTERN = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)([%aAcdeEfgGiosuxX])")
 
 LocalScope = dict[str, AwkValue]
@@ -658,6 +659,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_substr2(ptr, ptr, i64)",
         "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
         "declare i64 @strlen(ptr)",
+        "declare i1 @qk_compare_values(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
         "declare i32 @fprintf(ptr, ptr, ...)",
         "declare i32 @printf(ptr, ...)",
     ]
@@ -2327,10 +2329,39 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
             return False
 
 
+def expression_forces_string_comparison(expression: Expr) -> bool:
+    """Report whether one expression should force AWK string-comparison semantics."""
+    match expression:
+        case StringLiteralExpr(value=value):
+            return not awk_string_is_numeric(value)
+        case RegexLiteralExpr():
+            return True
+        case NameExpr(name="FILENAME"):
+            return True
+        case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
+            return True
+        case BinaryExpr(op=BinaryOp.CONCAT):
+            return True
+        case _:
+            return False
+
+
 def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     """Lower a supported condition expression to an LLVM `i1` value."""
     if state.runtime_param is not None:
         match expression:
+            case RegexLiteralExpr(raw_text=raw_text):
+                pattern_text = raw_text[1:-1]
+                global_name, byte_length = declare_string(state, pattern_text)
+                string_ptr = state.next_temp("regexptr")
+                match_result = state.next_temp("match")
+                state.instructions.extend(
+                    [
+                        emit_gep(string_ptr, byte_length, global_name),
+                        f"  {match_result} = call i1 @qk_regex_match_current_record(ptr {state.runtime_param}, ptr {string_ptr})",
+                    ]
+                )
+                return match_result
             case NameExpr(name=name) if runtime_name_uses_scalar_runtime(name, state):
                 scalar_name = lower_runtime_scalar_name(name, state)
                 temp = state.next_temp("scalar.truthy")
@@ -2343,17 +2374,53 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
 
     numeric_lowerer = lower_runtime_numeric_expression if state.runtime_param is not None else lower_numeric_expression
     if isinstance(expression, BinaryExpr):
-        if expression.op is BinaryOp.LESS:
+        if expression.op in {
+            BinaryOp.LESS,
+            BinaryOp.LESS_EQUAL,
+            BinaryOp.GREATER,
+            BinaryOp.GREATER_EQUAL,
+            BinaryOp.EQUAL,
+            BinaryOp.NOT_EQUAL,
+        }:
+            if state.runtime_param is not None:
+                left_string = lower_runtime_captured_string_expression(expression.left, state)
+                left_number = lower_runtime_numeric_expression(expression.left, state)
+                right_string = lower_runtime_captured_string_expression(expression.right, state)
+                right_number = lower_runtime_numeric_expression(expression.right, state)
+                left_needs_check = str(runtime_expression_has_string_result(expression.left, state)).lower()
+                right_needs_check = str(runtime_expression_has_string_result(expression.right, state)).lower()
+                left_forces_string = str(expression_forces_string_comparison(expression.left)).lower()
+                right_forces_string = str(expression_forces_string_comparison(expression.right)).lower()
+                op_code = {
+                    BinaryOp.LESS: 0,
+                    BinaryOp.LESS_EQUAL: 1,
+                    BinaryOp.GREATER: 2,
+                    BinaryOp.GREATER_EQUAL: 3,
+                    BinaryOp.EQUAL: 4,
+                    BinaryOp.NOT_EQUAL: 5,
+                }[expression.op]
+                temp = state.next_temp("cmp")
+                state.instructions.append(
+                    "  "
+                    f"{temp} = call i1 @qk_compare_values("
+                    f"ptr {left_string}, double {left_number}, i1 {left_needs_check}, i1 {left_forces_string}, "
+                    f"ptr {right_string}, double {right_number}, i1 {right_needs_check}, i1 {right_forces_string}, "
+                    f"i32 {op_code})"
+                )
+                return temp
+
             left_operand = numeric_lowerer(expression.left, state)
             right_operand = numeric_lowerer(expression.right, state)
             temp = state.next_temp("cmp")
-            state.instructions.append(f"  {temp} = fcmp olt double {left_operand}, {right_operand}")
-            return temp
-        if expression.op is BinaryOp.EQUAL:
-            left_operand = numeric_lowerer(expression.left, state)
-            right_operand = numeric_lowerer(expression.right, state)
-            temp = state.next_temp("eq")
-            state.instructions.append(f"  {temp} = fcmp oeq double {left_operand}, {right_operand}")
+            predicate = {
+                BinaryOp.LESS: "olt",
+                BinaryOp.LESS_EQUAL: "ole",
+                BinaryOp.GREATER: "ogt",
+                BinaryOp.GREATER_EQUAL: "oge",
+                BinaryOp.EQUAL: "oeq",
+                BinaryOp.NOT_EQUAL: "one",
+            }[expression.op]
+            state.instructions.append(f"  {temp} = fcmp {predicate} double {left_operand}, {right_operand}")
             return temp
         if expression.op is BinaryOp.LOGICAL_AND:
             left_condition = lower_condition_expression(expression.left, state)
@@ -2371,6 +2438,24 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             state.instructions.append(f"{end_label}:")
             state.instructions.append(
                 f"  {phi_temp} = phi i1 [ false, %{false_label} ], [ {right_condition}, %{rhs_label} ]"
+            )
+            return phi_temp
+        if expression.op is BinaryOp.LOGICAL_OR:
+            left_condition = lower_condition_expression(expression.left, state)
+            true_label = state.next_label("or.true")
+            rhs_label = state.next_label("or.rhs")
+            end_label = state.next_label("or.end")
+            phi_temp = state.next_temp("or")
+
+            state.instructions.append(f"  br i1 {left_condition}, label %{true_label}, label %{rhs_label}")
+            state.instructions.append(f"{true_label}:")
+            state.instructions.append(f"  br label %{end_label}")
+            state.instructions.append(f"{rhs_label}:")
+            right_condition = lower_condition_expression(expression.right, state)
+            state.instructions.append(f"  br label %{end_label}")
+            state.instructions.append(f"{end_label}:")
+            state.instructions.append(
+                f"  {phi_temp} = phi i1 [ true, %{true_label} ], [ {right_condition}, %{rhs_label} ]"
             )
             return phi_temp
 
@@ -3301,6 +3386,10 @@ def evaluate_condition(
     locals_scope: LocalScope | None,
 ) -> bool:
     """Evaluate a condition expression using the supported truthiness rules."""
+    if isinstance(expression, RegexLiteralExpr):
+        if record is None:
+            return False
+        return regex_matches_record(expression, record)
     return coerce_scalar_to_truthy(evaluate_value_expression(expression, state, record, locals_scope))
 
 
@@ -4230,6 +4319,11 @@ def parse_awk_numeric_prefix(text: str) -> float:
     return float(match.group(1))
 
 
+def awk_string_is_numeric(text: str) -> bool:
+    """Report whether one AWK string should count as a full numeric string."""
+    return FULL_NUMERIC_PATTERN.fullmatch(text) is not None
+
+
 def compare_values(
     op: BinaryOp,
     left: Expr,
@@ -4242,7 +4336,12 @@ def compare_values(
     left_value = evaluate_value_expression(left, state, record, locals_scope)
     right_value = evaluate_value_expression(right, state, record, locals_scope)
 
-    if left_value.kind is ValueKind.STRING or right_value.kind is ValueKind.STRING:
+    left_forces_string = expression_forces_string_comparison(left)
+    right_forces_string = expression_forces_string_comparison(right)
+    left_numericish = left_value.kind is not ValueKind.STRING or awk_string_is_numeric(left_value.string)
+    right_numericish = right_value.kind is not ValueKind.STRING or awk_string_is_numeric(right_value.string)
+
+    if left_forces_string or right_forces_string or not (left_numericish and right_numericish):
         left_string = coerce_scalar_to_string(left_value, state)
         right_string = coerce_scalar_to_string(right_value, state)
         match op:
@@ -4743,7 +4842,33 @@ def supports_runtime_backend_subset(program: Program) -> bool:
         )
 
     def supports_condition_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
-        return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
+        def supports_comparison_operand(operand: Expr) -> bool:
+            return isinstance(operand, NumericLiteralExpr | StringLiteralExpr | FieldExpr | NameExpr)
+
+        match expression:
+            case RegexLiteralExpr():
+                return True
+            case BinaryExpr(
+                op=BinaryOp.LESS
+                | BinaryOp.LESS_EQUAL
+                | BinaryOp.GREATER
+                | BinaryOp.GREATER_EQUAL
+                | BinaryOp.EQUAL
+                | BinaryOp.NOT_EQUAL,
+                left=left,
+                right=right,
+            ):
+                return (
+                    supports_comparison_operand(left)
+                    and supports_comparison_operand(right)
+                    and not (isinstance(left, NameExpr) and isinstance(right, NameExpr))
+                )
+            case BinaryExpr(op=BinaryOp.LOGICAL_AND | BinaryOp.LOGICAL_OR, left=left, right=right):
+                return supports_condition_expression(left, string_bindings) and supports_condition_expression(
+                    right, string_bindings
+                )
+            case _:
+                return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
 
     def expression_contains_runtime_builtin(expression: Expr) -> bool:
         match expression:
