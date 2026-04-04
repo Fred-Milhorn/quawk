@@ -94,6 +94,7 @@ def test_runtime_support_header_and_abi_link_cleanly(tmp_path: Path) -> None:
             str(runtime_support.runtime_directory()),
             "-o",
             str(executable_path),
+            "-lm",
         ],
         check=True,
     )

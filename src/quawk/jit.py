@@ -2375,7 +2375,9 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
         case NameExpr(name="FILENAME"):
             return True
         case NameExpr(name=name):
-            return state is not None and runtime_name_uses_scalar_runtime(name, state)
+            return state is not None and (
+                name in state.loop_string_bindings or runtime_name_uses_scalar_runtime(name, state)
+            )
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
