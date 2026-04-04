@@ -21,7 +21,7 @@ def test_t157_spec_splits_output_surface_rows() -> None:
     assert "| Multi-argument `print` | implemented |" in spec_text
     assert "| `OFS` / `ORS` driven print behavior | implemented |" in spec_text
     assert "| `printf` basic execution | implemented |" in spec_text
-    assert "| Full POSIX `printf` parity | partial |" in spec_text
+    assert "| Full POSIX `printf` parity | implemented |" in spec_text
     assert "| Output redirection and pipe output | implemented |" in spec_text
 
 

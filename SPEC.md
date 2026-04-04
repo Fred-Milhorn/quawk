@@ -19,7 +19,7 @@ Status values:
 | `-v` numeric scalar preassignment | implemented | Numeric scalar preassignment is part of the current AOT-backed contract. |
 | `-v` string scalar preassignment | implemented | String-valued `-v` is part of the current claimed CLI surface. |
 | `--lex` / `--parse` | implemented | Stable human-readable inspection output. |
-| `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but not yet claimed POSIX forms can still fail inspection until the `P14` completion work lands. |
+| `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family. Broader frontend-admitted but intentionally unclaimed POSIX forms can still fail inspection because they remain outside the current contract. |
 | `--` operand separator | implemented | Needed when a program or input file operand begins with `-`. |
 | `-` stdin operand | implemented | Reads standard input at that operand position. |
 | Input data decoding policy | implemented | Input records and file-backed `getline` follow a byte-tolerant text policy. Python-side helper paths preserve undecodable bytes with `surrogateescape`; AWK source files still load as UTF-8 text. |
@@ -41,7 +41,7 @@ Evidence:
 | Repeated `$0` reassignment and field rebuild | partial | The old reusable-backend crash is fixed, but reviewed `p.35` / `t.NF` style rebuilds still diverge on how `$0` is reconstructed after `NF` or field mutation. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain outside the current claimed AOT contract and are tracked for `P14`. |
+| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain intentionally outside the current claimed AOT contract. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 
@@ -63,7 +63,7 @@ Evidence:
 | Multi-argument `print` | implemented | Explicit `print a, b, c` now joins arguments with `OFS`. |
 | `OFS` / `ORS` driven print behavior | implemented | Output-field and output-record separator behavior is part of the current claimed surface. |
 | `printf` basic execution | implemented | Literal-format `printf` is part of the current claimed AOT-backed surface. |
-| Full POSIX `printf` parity | partial | Reviewed formatting and expression-combination gaps remain. |
+| Full POSIX `printf` parity | implemented | The reviewed formatting and three-argument `substr(...)`-inside-`printf` gaps are closed; the older upstream `p.5` / `p.5a` skips were narrowed to `FS = "\t"` field splitting rather than `printf` behavior. |
 | Output redirection and pipe output | implemented | `print` / `printf` now support `>`, `>>`, `|`, and `close()` for the current claimed literal-format output surface. |
 | Multi-file input processing | implemented | Includes `FNR` reset and `FILENAME` updates. |
 

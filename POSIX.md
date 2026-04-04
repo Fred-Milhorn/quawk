@@ -808,11 +808,24 @@ Acceptance:
   the only remaining work is the final public-claim expansion and audit in
   `T-177`
 
+### T-177 Final Claim Expansion And Audit Result
+
+- `SPEC.md` now widens only the family that was still underclaimed: full POSIX
+  `printf` parity is part of the current public contract
+- the remaining reviewed skips stay explicit and non-product: narrowed `$0` /
+  `NF` rebuild mismatches (`p.35`, `t.NF`), unsuitable corroboration anchors
+  (`p.43`, `p.48b`, `range1`), and reviewed-but-unnecessary anchors
+  (`T.argv`, `T.builtin`, `T.expr`, `T.func`, `T.split`, `cmdlinefsbacknl`)
+- stale references to open `P14` hardening work are gone from the public
+  contract and architecture docs; the remaining partial rows now describe
+  intentionally unclaimed surface rather than unfinished post-gap POSIX work
+- the docs, manifest, and regression tests now agree on the resulting surface,
+  so the post-`P14` remaining-gap wave is complete
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit left a smaller, explicit set of post-`P14` POSIX work. After
-`T-176`, no remaining product gaps are still open; the last step is the final
-claim-expansion and audit pass in `T-177`.
+`T-177`, that remaining-gap wave is complete.
 
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
@@ -829,10 +842,9 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. widen `SPEC.md` only where the fixed and corroborated families now justify
-   it
-2. rerun the final upstream corroboration audit and keep unsuitable anchors as
-   explicit reviewed skips
+1. widen `SPEC.md` only where the fixed and corroborated families justify it
+2. keep unsuitable anchors as explicit reviewed skips instead of reopening them
+   as implied product debt
 
 Roadmap mapping:
 
@@ -917,8 +929,9 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. widen the final public claims in `T-177`
-2. keep the remaining unsuitable anchors as explicit reviewed skips
+1. treat the `P15` post-gap closeout as complete
+2. start any future POSIX widening work from a fresh explicit roadmap task, not
+   from implied debt in this document
 
 ## Notes
 
