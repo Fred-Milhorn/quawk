@@ -728,6 +728,15 @@ Acceptance:
 - the remaining work after `T-168` is corroboration and narrower semantic
   cleanup, not a missing input-separator runtime feature
 
+### T-169 FS-Sensitive Corroboration Result
+
+- the reviewed direct-file anchors `p.5`, `p.5a`, `p.36`, `p.48`, `p.50`,
+  `p.51`, and `p.52` are now runnable in the upstream subset because `T-168`
+  removed their old separator blocker
+- `p.35` stays reviewed, but its reason is now narrower: a `$0` field-rebuild
+  formatting mismatch after field mutation, not missing `FS` support
+- the post-`P14` remaining work now starts with bare `length` in `T-170`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
@@ -753,9 +762,9 @@ These are the real remaining product gaps:
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
 
-- `FS`-sensitive corroboration backlog after `T-168`
+- narrowed `$0` field-rebuild corroboration gap after `T-169`
   Cases:
-  `p.5`, `p.5a`, `p.35`, `p.36`, `p.48`, `p.50`, `p.51`, `p.52`
+  `p.35`
 - reference-disagreement or unsuitable-corroboration cases
   Cases:
   `p.43`, `p.48b`, `range1`
@@ -765,24 +774,22 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. re-audit and promote the unlocked `FS`-sensitive direct-file cases next
-   because `T-168` converted that bucket from product work into corroboration work
-2. fix bare `length` next because it is a small isolated semantic mismatch with
+1. fix bare `length` next because it is a small isolated semantic mismatch with
    a direct corroborating anchor (`p.30`)
-3. fix the remaining numeric comparison and expression-pattern selection
+2. fix the remaining numeric comparison and expression-pattern selection
    mismatches (`p.7`, `p.8`, `p.21a`, `t.next`)
-4. close the reviewed backend/runtime crashes and lowering gaps
+3. close the reviewed backend/runtime crashes and lowering gaps
    (`p.29`, `p.32`, `t.set0a`, `getnr2tb`)
-5. decide the non-UTF-8 input policy explicitly before widening any claim that
+4. decide the non-UTF-8 input policy explicitly before widening any claim that
    depends on text-decoding behavior (`t.NF`)
-6. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+5. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
    once the semantic work is done
-7. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+6. only then widen `SPEC.md` and rerun the final upstream corroboration audit
 
 Roadmap mapping:
 
 - `T-168`: current record-surface `FS` / `RS` assignment
-- `T-169`: re-audit and promote the eight unlocked `FS`-sensitive direct-file cases
+- `T-169`: re-audit and promote the unlocked `FS`-sensitive direct-file cases
 - `T-170`: bare `length`
 - `T-171`: numeric comparison and expression-pattern fixes
 - `T-172` through `T-173`: backend/lowering gap and crash cleanup
@@ -796,7 +803,6 @@ Remaining priority promotion targets after `T-166`:
 
 - `getnr2tb`
 - `splitvar`
-- the remaining clean `FS`-sensitive direct-file anchors after `T-168`
 - any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
   reviewed numeric-comparison and backend-crash gaps are fixed
 
@@ -866,9 +872,9 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. re-audit and promote the unlocked `FS`-sensitive corroboration backlog in
-   `T-169`
-2. then continue with the narrower remaining semantic gaps starting at `T-170`
+1. fix bare `length` semantics in `T-170`
+2. then continue through the narrower remaining semantic gaps in `T-171`
+   through `T-176`
 
 ## Notes
 

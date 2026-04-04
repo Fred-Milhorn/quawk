@@ -221,18 +221,16 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.5"
 path = "third_party/onetrueawk/testdir/p.5"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \"\\t\"` field splitting, which quawk still does not implement."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.5a"
 path = "third_party/onetrueawk/testdir/p.5a"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \"\\t\"` field splitting, which quawk still does not implement."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -343,16 +341,15 @@ case_id = "p.35"
 path = "third_party/onetrueawk/testdir/p.35"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = OFS = \"\\t\"`; quawk still does not apply tab field splitting before the field rewrite runs."
+reason = "Still exposes a narrower `$0` field-rebuild mismatch after field mutation: quawk joins the rewritten `NA` / `SA` records with spaces instead of preserving the tab-separated shape the references print."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.36"
 path = "third_party/onetrueawk/testdir/p.36"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = OFS = \"\\t\"`; quawk still does not apply tab field splitting before computing and printing `$4` and `$5`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -424,9 +421,8 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.48"
 path = "third_party/onetrueawk/testdir/p.48"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \"\\t\"` field splitting; quawk still groups `North America` and `South America` under truncated keys."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -458,27 +454,24 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.50"
 path = "third_party/onetrueawk/testdir/p.50"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \"\\t\"` field splitting; quawk still groups `North America` and `South America` under truncated keys before piping to `sort`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.51"
 path = "third_party/onetrueawk/testdir/p.51"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \":\"` field splitting; quawk still groups and formats the data as whitespace-separated records instead."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
 suite = "one-true-awk"
 case_id = "p.52"
 path = "third_party/onetrueawk/testdir/p.52"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Depends on `FS = \":\"` field splitting; quawk still groups and totals the data as whitespace-separated records instead."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
