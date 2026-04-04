@@ -84,8 +84,8 @@ CI parity:
 Current remaining entrypoint debt before the rest of the planned `P16` cleanup:
 - local differential corpus coverage now runs through one shared `compat_corpus` pytest entrypoint in `tests/test_compat_corpus.py`
 - the historical `compat-baseline` corpus tag remains available for case metadata and grouping, but it no longer drives a separate pytest file
-- `corpus` remains available as a manual harness command in parallel with the pytest surfaces
-- release-smoke selection is currently documented both as `tests/test_p12_release_smoke.py` and as the `smoke` marker; this is intentional debt to be standardized in `P16`
+- `corpus` remains available as a manual harness command for case discovery and targeted differential debugging
+- release-smoke is selected through the `smoke` marker and should be documented that way consistently
 
 ## Test Corpus Structure
 
@@ -337,14 +337,28 @@ Promotion rule:
 
 ## Local Commands
 
-Common local commands once the scaffold exists:
+Primary local test commands:
 
 ```sh
 quawk --help
-corpus --list
-pytest
-uv run pytest -m compat
-pytest -m smoke
+uv run pytest -q -m core
+uv run pytest -m compat_reference
+uv run pytest -m compat_corpus
+uv run pytest -q -m smoke
+uv run pytest -q
+```
+
+Manual harness commands:
+
+```sh
+uv run corpus --list
+uv run corpus demo_case
+uv run corpus --differential demo_case
+```
+
+Static validation commands:
+
+```sh
 yapf --diff --recursive src tests
 ruff check .
 mypy src

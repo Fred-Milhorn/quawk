@@ -32,7 +32,7 @@ It does not define:
    - Verify [docs/roadmap.md](/Users/fred/dev/quawk/docs/roadmap.md) no longer advertises completed tasks as immediate next work.
 5. Run the release validation checks.
    - `uv run pytest -q`
-   - `uv run pytest -q tests/test_p12_release_smoke.py`
+   - `uv run pytest -q -m smoke`
    - `uv run ruff check .`
    - `uv run mypy src`
    - `uv run yapf --diff --recursive src tests`
