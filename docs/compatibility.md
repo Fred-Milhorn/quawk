@@ -290,9 +290,9 @@ Gate policy:
 
 ## CI Promotion
 
-Current upstream workflow:
+Current reference workflow:
 
-- `.github/workflows/compat-upstream.yml`
+- `.github/workflows/compat-reference.yml`
 - runs on pull requests, pushes to `main`, and manual `workflow_dispatch`
 - builds the pinned references with the same repo-managed bootstrap used locally
 - runs `uv run pytest -m compat_reference`
@@ -314,7 +314,7 @@ Promotion criteria:
   `ubuntu-latest`
 - active non-fix upstream failures, if any, are classified in
   `tests/upstream/divergences.toml` and reviewed in this document
-- maintainers explicitly add the reference-compatibility workflow to required branch protection
+- maintainers explicitly add the `compat-reference` workflow to required branch protection
   only after the criteria above are satisfied
 
 ## Evaluated Divergences

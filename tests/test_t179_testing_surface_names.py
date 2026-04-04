@@ -32,7 +32,7 @@ def test_t179_testing_doc_uses_the_renamed_command_vocabulary() -> None:
 
 def test_t179_workflows_run_the_renamed_pytest_surfaces() -> None:
     ci_fast_text = (ROOT / ".github" / "workflows" / "ci-fast.yml").read_text(encoding="utf-8")
-    compat_text = (ROOT / ".github" / "workflows" / "compat-upstream.yml").read_text(encoding="utf-8")
+    compat_text = (ROOT / ".github" / "workflows" / "compat-reference.yml").read_text(encoding="utf-8")
 
     assert 'uv run pytest -q -m core' in ci_fast_text
     assert 'uv run pytest -m compat_reference' in compat_text

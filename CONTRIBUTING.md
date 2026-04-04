@@ -104,7 +104,7 @@ uv run pytest -m compat_reference
 
 GitHub Actions runs the fast `core` pytest gate in
 `.github/workflows/ci-fast.yml` and keeps the reference differential gate in
-`.github/workflows/compat-upstream.yml`. The reference workflow remains
+`.github/workflows/compat-reference.yml`. The reference workflow remains
 intentionally non-required until the promotion criteria in
 [docs/compatibility.md](docs/compatibility.md) are met.
 

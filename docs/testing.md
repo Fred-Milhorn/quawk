@@ -77,15 +77,15 @@ Recommended commands:
 
 CI parity:
 - `.github/workflows/ci-fast.yml` runs `uv run pytest -q -m core` on pushes and pull requests
-- `.github/workflows/compat-upstream.yml` runs `uv run pytest -m compat_reference` after bootstrapping the pinned references on `ubuntu-latest`
+- `.github/workflows/compat-reference.yml` runs `uv run pytest -m compat_reference` after bootstrapping the pinned references on `ubuntu-latest`
 - static lint, type, and formatting checks remain part of the local and release validation workflow, not the current branch-push CI gate
 - the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
 
-Current remaining entrypoint debt before the rest of the planned `P16` cleanup:
+Current testing workflow after the `P16` cleanup:
 - local differential corpus coverage now runs through one shared `compat_corpus` pytest entrypoint in `tests/test_compat_corpus.py`
 - the historical `compat-baseline` corpus tag remains available for case metadata and grouping, but it no longer drives a separate pytest file
-- `corpus` remains available as a manual harness command for case discovery and targeted differential debugging
-- release-smoke is selected through the `smoke` marker and should be documented that way consistently
+- `corpus` is a manual harness command for case discovery and targeted differential debugging
+- release-smoke is selected through the `smoke` marker and documented that way consistently
 
 ## Test Corpus Structure
 

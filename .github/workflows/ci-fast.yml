@@ -50,5 +50,5 @@ jobs:
       - name: Sync development dependencies
         run: uv sync --dev
 
-      - name: Run non-compatibility pytest suite
+      - name: Run core pytest suite
         run: uv run pytest -q -m core

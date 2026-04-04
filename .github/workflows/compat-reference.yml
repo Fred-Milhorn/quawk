@@ -1,10 +1,10 @@
-name: compat-upstream
+name: compat-reference
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - ".github/workflows/compat-upstream.yml"
+      - ".github/workflows/compat-reference.yml"
       - "CONTRIBUTING.md"
       - "README.md"
       - "docs/compatibility.md"
@@ -21,7 +21,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/compat-upstream.yml"
+      - ".github/workflows/compat-reference.yml"
       - "CONTRIBUTING.md"
       - "README.md"
       - "docs/compatibility.md"
@@ -39,7 +39,7 @@ permissions:
   contents: read
 
 jobs:
-  compat-upstream:
+  compat-reference:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -86,5 +86,5 @@ jobs:
       - name: Bootstrap pinned upstream references
         run: uv run python scripts/upstream_compat.py bootstrap
 
-      - name: Run upstream compatibility subset
+      - name: Run reference compatibility subset
         run: uv run pytest -m compat_reference

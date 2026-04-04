@@ -58,7 +58,7 @@ uv run pytest -m compat_reference
 
 GitHub Actions runs the fast `core` pytest suite in
 `.github/workflows/ci-fast.yml` and the heavier reference differential command
-in `.github/workflows/compat-upstream.yml`.
+in `.github/workflows/compat-reference.yml`.
 
 ## Common Commands
 
