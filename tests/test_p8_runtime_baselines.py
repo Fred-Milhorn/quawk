@@ -51,6 +51,14 @@ def test_next_skips_to_the_next_record() -> None:
     assert result.stderr == ""
 
 
+def test_input_aware_numeric_expression_concatenation_executes() -> None:
+    result = run_quawk('{ print NR " " 10 / NR; if (NR == 3) exit }', stdin="a\nb\nc\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1 10\n2 5\n3 3.33333\n"
+    assert result.stderr == ""
+
+
 def test_numeric_pattern_comparison_uses_awk_string_numeric_rules() -> None:
     result = run_quawk('$1 > 5000 { next } { print }', stdin="6000 skip\n5daemon keep\n20 stay\n")
 

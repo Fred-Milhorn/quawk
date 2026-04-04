@@ -756,6 +756,16 @@ Acceptance:
   runnable in the upstream subset, so the remaining post-`P14` work starts at
   `T-172`
 
+### T-172 Numeric-Expression Lowering Result
+
+- the reusable backend now lowers ordinary numeric arithmetic inside
+  string-producing record programs, including cases like `NR " " 10 / NR`
+- the reviewed corroborating anchor `getnr2tb` is now runnable in the upstream
+  subset instead of failing with a runtime-backed numeric-expression lowering
+  error
+- the remaining post-`P14` work now starts at the reviewed reusable-backend
+  crash bucket in `T-173`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
@@ -764,7 +774,7 @@ These are the real remaining product gaps:
 
 - reviewed backend/runtime crashes or lowering gaps
   Cases:
-  `p.29`, `p.32`, `t.set0a`, `getnr2tb`
+  `p.29`, `p.32`, `t.set0a`
 - non-UTF-8 input policy
   Case:
   `t.NF`
@@ -788,7 +798,7 @@ anchors appear:
 Recommended execution order for the post-`P14` gap-closure wave:
 
 1. close the reviewed backend/runtime crashes and lowering gaps
-   (`p.29`, `p.32`, `t.set0a`, `getnr2tb`)
+   (`p.29`, `p.32`, `t.set0a`)
 2. decide the non-UTF-8 input policy explicitly before widening any claim that
    depends on text-decoding behavior (`t.NF`)
 3. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
@@ -809,7 +819,6 @@ Roadmap mapping:
 
 Remaining priority promotion targets after `T-166`:
 
-- `getnr2tb`
 - `splitvar`
 - any remaining clean `next`-sensitive and `$0`-rebuild anchors once the
   reviewed backend-crash gaps are fixed
@@ -880,8 +889,8 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. fix the runtime-backed numeric-expression lowering gap in `T-172`
-2. then continue through the narrower remaining semantic gaps in `T-173`
+1. eliminate the reviewed reusable-backend crashes in `T-173`
+2. then continue through the narrower remaining semantic gaps in `T-174`
    through `T-176`
 
 ## Notes

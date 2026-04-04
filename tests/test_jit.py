@@ -878,6 +878,45 @@ def test_execute_with_inputs_routes_supported_next_programs_through_backend(monk
     assert captured_ir["module"] == "; linked next backend module"
 
 
+def test_execute_with_inputs_routes_supported_numeric_concat_programs_through_backend(monkeypatch) -> None:
+    program = parse_program('{ print NR " " 10 / NR }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("numeric concat record programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; numeric concat backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; numeric concat backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked numeric concat backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute_with_inputs(program, [], None) == 0
+    assert captured_ir["module"] == "; linked numeric concat backend module"
+
+
 def test_execute_with_inputs_routes_supported_expression_pattern_programs_through_backend(monkeypatch) -> None:
     program = parse_program("1 { print $0 }")
     captured_ir: dict[str, str] = {}

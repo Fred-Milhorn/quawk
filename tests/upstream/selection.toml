@@ -703,9 +703,8 @@ tags = ["shell-driver", "cli"]
 suite = "gawk"
 case_id = "getnr2tb"
 path = "third_party/gawk/test/getnr2tb.awk"
-status = "skip"
+status = "run"
 adapter = "gawk-awk-in-ok"
-reason = "Still exposes a real builtin-variable and numeric-expression backend gap: quawk rejects `NR \" \" 10/NR` with `unsupported numeric expression in runtime-backed backend`."
 tags = ["posix", "builtin-variables", "expressions"]
 
 [[case]]

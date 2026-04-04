@@ -659,6 +659,8 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_substr2(ptr, ptr, i64)",
         "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
         "declare i64 @strlen(ptr)",
+        "declare double @llvm.pow.f64(double, double)",
+        "declare double @llvm.trunc.f64(double)",
         "declare i1 @qk_compare_values(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
         "declare i32 @fprintf(ptr, ptr, ...)",
         "declare i32 @printf(ptr, ...)",
@@ -1669,7 +1671,56 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             temp = state.next_temp("add")
             state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
             return temp
-        case BinaryExpr(op=BinaryOp.LESS | BinaryOp.EQUAL | BinaryOp.LOGICAL_AND):
+        case BinaryExpr(op=BinaryOp.SUB, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            temp = state.next_temp("sub")
+            state.instructions.append(f"  {temp} = fsub double {left_operand}, {right_operand}")
+            return temp
+        case BinaryExpr(op=BinaryOp.MUL, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            temp = state.next_temp("mul")
+            state.instructions.append(f"  {temp} = fmul double {left_operand}, {right_operand}")
+            return temp
+        case BinaryExpr(op=BinaryOp.DIV, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            temp = state.next_temp("div")
+            state.instructions.append(f"  {temp} = fdiv double {left_operand}, {right_operand}")
+            return temp
+        case BinaryExpr(op=BinaryOp.MOD, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            quotient = state.next_temp("mod.div")
+            truncated = state.next_temp("mod.trunc")
+            product = state.next_temp("mod.mul")
+            remainder = state.next_temp("mod")
+            state.instructions.extend(
+                [
+                    f"  {quotient} = fdiv double {left_operand}, {right_operand}",
+                    f"  {truncated} = call double @llvm.trunc.f64(double {quotient})",
+                    f"  {product} = fmul double {truncated}, {right_operand}",
+                    f"  {remainder} = fsub double {left_operand}, {product}",
+                ]
+            )
+            return remainder
+        case BinaryExpr(op=BinaryOp.POW, left=left, right=right):
+            left_operand = lower_runtime_numeric_expression(left, state)
+            right_operand = lower_runtime_numeric_expression(right, state)
+            temp = state.next_temp("pow")
+            state.instructions.append(f"  {temp} = call double @llvm.pow.f64(double {left_operand}, double {right_operand})")
+            return temp
+        case BinaryExpr(
+            op=BinaryOp.LESS
+            | BinaryOp.LESS_EQUAL
+            | BinaryOp.GREATER
+            | BinaryOp.GREATER_EQUAL
+            | BinaryOp.EQUAL
+            | BinaryOp.NOT_EQUAL
+            | BinaryOp.LOGICAL_AND
+            | BinaryOp.LOGICAL_OR
+        ):
             condition_value = lower_condition_expression(expression, state)
             temp = state.next_temp("boolnum")
             state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
@@ -4734,7 +4785,20 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr()):
                 return True
             case BinaryExpr(
-                op=BinaryOp.ADD | BinaryOp.LESS | BinaryOp.EQUAL | BinaryOp.LOGICAL_AND,
+                op=BinaryOp.ADD
+                | BinaryOp.SUB
+                | BinaryOp.MUL
+                | BinaryOp.DIV
+                | BinaryOp.MOD
+                | BinaryOp.POW
+                | BinaryOp.LESS
+                | BinaryOp.LESS_EQUAL
+                | BinaryOp.GREATER
+                | BinaryOp.GREATER_EQUAL
+                | BinaryOp.EQUAL
+                | BinaryOp.NOT_EQUAL
+                | BinaryOp.LOGICAL_AND
+                | BinaryOp.LOGICAL_OR,
                 left=left,
                 right=right,
             ):

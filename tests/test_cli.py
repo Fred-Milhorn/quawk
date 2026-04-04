@@ -543,6 +543,16 @@ def test_quawk_ir_flag_prints_runtime_comparison_helper_for_field_patterns() -> 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_numeric_concat_record_programs() -> None:
+    result = run_quawk("--ir", '{ print NR " " 10 / NR }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_get_nr(" in result.stdout
+    assert "@qk_concat(" in result.stdout
+    assert "fdiv double" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_reports_string_escape_errors_with_token_location() -> None:
     result = run_quawk(r'BEGIN { print "bad\q" }')
 
