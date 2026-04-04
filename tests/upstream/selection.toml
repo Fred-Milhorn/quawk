@@ -301,9 +301,8 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.29"
 path = "third_party/onetrueawk/testdir/p.29"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Two-argument record-target `gsub` still exposes a cwd-sensitive reusable-backend crash under installed-command execution, so runnable promotion stays blocked pending a narrower backend fix."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -318,9 +317,8 @@ tags = ["posix", "p-direct-file"]
 suite = "one-true-awk"
 case_id = "p.32"
 path = "third_party/onetrueawk/testdir/p.32"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a reusable-backend crash after field mutation with `substr($1, 1, 3)`; quawk prints the expected records and then aborts under `lli`."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -658,9 +656,8 @@ tags = ["posix", "record-control"]
 suite = "one-true-awk"
 case_id = "t.set0a"
 path = "third_party/onetrueawk/testdir/t.set0a"
-status = "skip"
+status = "run"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a reusable-backend crash after repeated `$0` reassignment and field rebuild; keep explicit until that narrower runtime fix lands."
 tags = ["posix", "fields"]
 
 [[case]]

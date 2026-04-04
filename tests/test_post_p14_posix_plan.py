@@ -20,7 +20,7 @@ def test_posix_plan_records_post_p14_gap_categories_and_order() -> None:
 
     assert "## Post-P14 Remaining Gap Plan" in posix_text
     assert "### T-171 Comparison and Expression-Pattern Result" in posix_text
-    assert "reviewed backend/runtime crashes or lowering gaps" in posix_text
+    assert "### T-173 Reusable-Backend Crash Result" in posix_text
     assert "non-UTF-8 input policy" in posix_text
     assert "remaining corroboration-sensitive gaps" in posix_text
     assert "narrowed `$0` field-rebuild corroboration gap after `T-169`" in posix_text
@@ -29,4 +29,5 @@ def test_posix_plan_records_post_p14_gap_categories_and_order() -> None:
     assert "`T-168`: current record-surface `FS` / `RS` assignment" in posix_text
     assert "`T-169`: re-audit and promote the unlocked `FS`-sensitive direct-file cases" in posix_text
     assert "`p.7`, `p.8`, `p.21a`, and `t.next` are now" in posix_text
+    assert "`p.29`, `p.32`, and `t.set0a` are now runnable" in posix_text
     assert "`T-177`: final claim expansion and post-gap audit" in posix_text

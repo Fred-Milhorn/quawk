@@ -135,6 +135,29 @@ static void qk_set_current_filename(qk_runtime *runtime, const char *path)
     runtime->current_filename = qk_strdup_or_null(path);
 }
 
+static bool qk_replace_current_record(qk_runtime *runtime, const char *text)
+{
+    size_t capacity = 0U;
+    char *copy;
+
+    if (runtime == NULL) {
+        return false;
+    }
+
+    if (text != NULL) {
+        capacity = strlen(text) + 1U;
+    }
+    copy = qk_strdup_or_null(text);
+    if ((text != NULL) && (copy == NULL)) {
+        return false;
+    }
+
+    free(runtime->current_record);
+    runtime->current_record = copy;
+    runtime->current_record_capacity = capacity;
+    return true;
+}
+
 static void qk_close_current_handle(qk_runtime *runtime)
 {
     if ((runtime->current_handle != NULL) && !runtime->current_handle_is_stdin) {
@@ -1146,9 +1169,7 @@ static double qk_read_file_line(
         *result_out = runtime->scratch_buffer;
     }
     if (update_record) {
-        free(runtime->current_record);
-        runtime->current_record = qk_strdup_or_null(runtime->scratch_buffer);
-        if (runtime->current_record == NULL) {
+        if (!qk_replace_current_record(runtime, runtime->scratch_buffer)) {
             return -1.0;
         }
         return qk_rebuild_fields(runtime) ? 1.0 : -1.0;
@@ -1309,9 +1330,7 @@ static bool qk_rebuild_record_from_parts(qk_runtime *runtime, int64_t index, con
         return false;
     }
     if (index == 0) {
-        free(runtime->current_record);
-        runtime->current_record = qk_strdup_or_null(value);
-        if ((value != NULL) && (runtime->current_record == NULL)) {
+        if (!qk_replace_current_record(runtime, value)) {
             return false;
         }
         return qk_rebuild_fields(runtime);
@@ -1364,6 +1383,7 @@ static bool qk_rebuild_record_from_parts(qk_runtime *runtime, int64_t index, con
 
     free(runtime->current_record);
     runtime->current_record = next_record;
+    runtime->current_record_capacity = total_length + 1U;
     return qk_rebuild_fields(runtime);
 }
 

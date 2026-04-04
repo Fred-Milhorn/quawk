@@ -59,6 +59,21 @@ def test_input_aware_numeric_expression_concatenation_executes() -> None:
     assert result.stderr == ""
 
 
+def test_repeated_record_rebuild_handles_short_then_long_records() -> None:
+    result = run_quawk('{$0 = $2; print; print NF, $0; print $1}', stdin="1 b\n18demos:*:993:997:Demonstration User:/usr/demos:/bin/csh\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "b\n"
+        "1 b\n"
+        "b\n"
+        "User:/usr/demos:/bin/csh\n"
+        "1 User:/usr/demos:/bin/csh\n"
+        "User:/usr/demos:/bin/csh\n"
+    )
+    assert result.stderr == ""
+
+
 def test_numeric_pattern_comparison_uses_awk_string_numeric_rules() -> None:
     result = run_quawk('$1 > 5000 { next } { print }', stdin="6000 skip\n5daemon keep\n20 stay\n")
 

@@ -384,9 +384,11 @@ def execute_llvm_ir(llvm_ir: str) -> int:
         ir_path.unlink(missing_ok=True)
 
     if result.stdout:
-        print(result.stdout, end="")
+        sys.stdout.buffer.write(result.stdout)
+        sys.stdout.buffer.flush()
     if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
+        sys.stderr.buffer.write(result.stderr)
+        sys.stderr.buffer.flush()
     return result.returncode
 
 
@@ -5378,7 +5380,7 @@ def emit_gep_constant(byte_length: int, global_name: str) -> str:
     return f"getelementptr inbounds ([{byte_length} x i8], ptr {global_name}, i64 0, i64 0)"
 
 
-def run_process_with_current_stdin(command: list[str]) -> subprocess.CompletedProcess[str]:
+def run_process_with_current_stdin(command: list[str]) -> subprocess.CompletedProcess[bytes]:
     """Run one subprocess while forwarding the current stdin source when possible."""
     stdin_handle = current_stdin_handle()
     if stdin_handle is not None:
@@ -5386,16 +5388,25 @@ def run_process_with_current_stdin(command: list[str]) -> subprocess.CompletedPr
             command,
             stdin=stdin_handle,
             capture_output=True,
-            text=True,
             check=False,
         )
 
     try:
-        stdin_text = sys.stdin.read()
-    except OSError:
-        stdin_text = ""
+        stdin_buffer = sys.stdin.buffer
+    except AttributeError:
+        try:
+            stdin_text = sys.stdin.read()
+        except OSError:
+            stdin_bytes = b""
+        else:
+            stdin_bytes = stdin_text.encode("utf-8")
+    else:
+        try:
+            stdin_bytes = stdin_buffer.read()
+        except OSError:
+            stdin_bytes = b""
 
-    return subprocess.run(command, input=stdin_text, capture_output=True, text=True, check=False)
+    return subprocess.run(command, input=stdin_bytes, capture_output=True, check=False)
 
 
 def current_stdin_handle() -> TextIO | None:

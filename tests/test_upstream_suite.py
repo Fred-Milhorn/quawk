@@ -110,6 +110,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.26" in case_ids
     assert "one-true-awk:p.26a" in case_ids
     assert "one-true-awk:p.27" in case_ids
+    assert "one-true-awk:p.29" in case_ids
     assert "one-true-awk:p.30" in case_ids
     assert "one-true-awk:p.21" in case_ids
     assert "one-true-awk:p.34" in case_ids
@@ -129,6 +130,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:p.50" in case_ids
     assert "one-true-awk:p.51" in case_ids
     assert "one-true-awk:p.52" in case_ids
+    assert "one-true-awk:p.32" in case_ids
     assert "one-true-awk:T.-f-f" in case_ids
     assert "one-true-awk:T.nextfile" in case_ids
     assert "one-true-awk:t.a" in case_ids
@@ -141,6 +143,7 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "one-true-awk:t.next" in case_ids
     assert "one-true-awk:t.printf" in case_ids
     assert "one-true-awk:t.substr" in case_ids
+    assert "one-true-awk:t.set0a" in case_ids
     assert "gawk:assignnumfield" in case_ids
     assert "gawk:assignnumfield2" in case_ids
     assert "gawk:divzero2" in case_ids
@@ -149,7 +152,6 @@ def test_selected_upstream_cases_return_only_runnable_entries() -> None:
     assert "gawk:numsubstr" in case_ids
     assert "gawk:substr" in case_ids
     assert "gawk:strfieldnum" in case_ids
-    assert "one-true-awk:p.32" not in case_ids
     assert "one-true-awk:p.35" not in case_ids
     assert "one-true-awk:p.43" not in case_ids
     assert "one-true-awk:T.argv" not in case_ids
@@ -164,9 +166,11 @@ def test_run_upstream_case_executes_in_isolated_temp_dir(monkeypatch) -> None:
     case = upstream_suite.load_upstream_case(selection)
     seen_cwds: list[Path] = []
 
-    def fake_run(command, *, capture_output, text, check, cwd):
+    def fake_run(command, *, capture_output, text, encoding, errors, check, cwd):
         assert capture_output is True
         assert text is True
+        assert encoding == "utf-8"
+        assert errors == "surrogateescape"
         assert check is False
         workdir = Path(cwd)
         seen_cwds.append(workdir)
@@ -193,9 +197,11 @@ def test_run_upstream_case_materializes_shell_driver_files_in_temp_dir(monkeypat
     )
     case = upstream_suite.load_upstream_case(selection)
 
-    def fake_run(command, *, capture_output, text, check, cwd):
+    def fake_run(command, *, capture_output, text, encoding, errors, check, cwd):
         assert capture_output is True
         assert text is True
+        assert encoding == "utf-8"
+        assert errors == "surrogateescape"
         assert check is False
         workdir = Path(cwd)
         foo1 = workdir / "foo1.awk"
@@ -220,9 +226,11 @@ def test_run_upstream_case_materializes_program_file_focus_files_in_temp_dir(mon
     )
     case = upstream_suite.load_upstream_case(selection)
 
-    def fake_run(command, *, capture_output, text, check, cwd):
+    def fake_run(command, *, capture_output, text, encoding, errors, check, cwd):
         assert capture_output is True
         assert text is True
+        assert encoding == "utf-8"
+        assert errors == "surrogateescape"
         assert check is False
         workdir = Path(cwd)
         input_path = workdir / "system-input.txt"

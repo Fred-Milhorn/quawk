@@ -515,9 +515,8 @@ Acceptance:
 - `match()` now updates `RSTART` and `RLENGTH`, and those variables are part of
   the current claimed builtin-variable surface
 - the upstream compatibility subset now promotes `one-true-awk:t.printf` as
-  corroborating `sprintf` coverage, while `one-true-awk:p.29` stays a narrower
-  reviewed skip because record-target `gsub` still has a cwd-sensitive backend
-  crash under installed-command execution
+  corroborating `sprintf` coverage, and the old `one-true-awk:p.29`
+  record-target `gsub` crash has since been closed by `T-173`
 
 ### Builtin Function Tasks
 
@@ -766,15 +765,22 @@ Acceptance:
 - the remaining post-`P14` work now starts at the reviewed reusable-backend
   crash bucket in `T-173`
 
+### T-173 Reusable-Backend Crash Result
+
+- record-target `gsub`, field mutation with rebuild, and repeated `$0`
+  reassignment now run clean through the reusable backend/runtime path instead
+  of corrupting the active getline buffer and aborting later under `lli`
+- the corroborating anchors `p.29`, `p.32`, and `t.set0a` are now runnable in
+  the upstream subset
+- the remaining post-`P14` work now starts at the explicit non-UTF-8 policy
+  decision in `T-174`
+
 ## Post-P14 Remaining Gap Plan
 
 The `T-167` audit leaves a smaller, explicit set of post-`P14` POSIX work.
 
 These are the real remaining product gaps:
 
-- reviewed backend/runtime crashes or lowering gaps
-  Cases:
-  `p.29`, `p.32`, `t.set0a`
 - non-UTF-8 input policy
   Case:
   `t.NF`
@@ -797,13 +803,11 @@ anchors appear:
 
 Recommended execution order for the post-`P14` gap-closure wave:
 
-1. close the reviewed backend/runtime crashes and lowering gaps
-   (`p.29`, `p.32`, `t.set0a`)
-2. decide the non-UTF-8 input policy explicitly before widening any claim that
+1. decide the non-UTF-8 input policy explicitly before widening any claim that
    depends on text-decoding behavior (`t.NF`)
-3. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
+2. re-audit the remaining corroboration-specific gaps (`splitvar`, `argarray`)
    once the semantic work is done
-4. only then widen `SPEC.md` and rerun the final upstream corroboration audit
+3. only then widen `SPEC.md` and rerun the final upstream corroboration audit
 
 Roadmap mapping:
 
@@ -889,8 +893,8 @@ Why this order:
 
 The next concrete follow-up after this document should be:
 
-1. eliminate the reviewed reusable-backend crashes in `T-173`
-2. then continue through the narrower remaining semantic gaps in `T-174`
+1. decide and implement the non-UTF-8 input policy in `T-174`
+2. then continue through the narrower remaining semantic gaps in `T-175`
    through `T-176`
 
 ## Notes

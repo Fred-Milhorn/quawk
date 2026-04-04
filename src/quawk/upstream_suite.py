@@ -367,6 +367,8 @@ def run_upstream_case(case: UpstreamCase, engine: EngineName = "quawk") -> Norma
             command,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="surrogateescape",
             check=False,
             cwd=workdir_path,
         )
