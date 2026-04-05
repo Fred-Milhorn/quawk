@@ -131,8 +131,8 @@ Run focused compatibility-tooling coverage first:
 - `tests/test_upstream_audit.py`
 
 Then run broader validation:
-- `uv run pytest -q -m "not compat"`
-- `uv run pytest -m compat_upstream`
+- `uv run pytest -q -m core`
+- `uv run pytest -m compat_reference`
 
 ## Assumptions and Defaults
 

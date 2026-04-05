@@ -35,5 +35,5 @@ def test_t183_workflows_use_the_final_testing_surface_names() -> None:
 def test_t183_roadmap_records_p16_complete() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`P16` closeout is complete. No further testing-surface cleanup tasks are" in roadmap_text
     assert "| T-183 | P16 | P1 | Rebaseline testing docs and final workflow audit after the cleanup lands | T-180, T-181, T-182 | `docs/testing.md`, `docs/release-checklist.md`, and any remaining workflow references agree on the final testing surfaces with no stale old-marker wording | done |" in roadmap_text
+    assert "| P17 | Compatibility Tooling Namespace Cleanup |" in roadmap_text

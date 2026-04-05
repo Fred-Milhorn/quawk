@@ -87,6 +87,28 @@ Current testing workflow after the `P16` cleanup:
 - `corpus` is a manual harness command for case discovery and targeted differential debugging
 - release-smoke is selected through the `smoke` marker and documented that way consistently
 
+## Compatibility Tooling Layout
+
+Current package layout before `P17`:
+- `src/quawk/corpus.py` lives in the top-level package namespace
+- `src/quawk/upstream_compat.py`, `src/quawk/upstream_inventory.py`,
+  `src/quawk/upstream_suite.py`, `src/quawk/upstream_divergence.py`, and
+  `src/quawk/upstream_audit.py` also live flat under `src/quawk/`
+- the selected runnable upstream subset is still executed through
+  `quawk.upstream_suite`
+
+Current wrapper-script dependency before `P17`:
+- contributor docs and CI still bootstrap pinned references with
+  `uv run python scripts/upstream_compat.py bootstrap`
+- `scripts/upstream_compat.py` is a thin repo-root wrapper over package code,
+  not the real implementation
+
+Planned target state in `P17`:
+- corpus and upstream-compatibility tooling move under `quawk.compat`
+- the singleton `scripts/upstream_compat.py` wrapper is removed
+- package-owned entrypoints replace the wrapper while the `corpus` command stays
+  stable
+
 ## Test Corpus Structure
 
 Keep the repo-owned corpus small, fast, and reviewable.

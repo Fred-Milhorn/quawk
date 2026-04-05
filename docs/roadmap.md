@@ -35,6 +35,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P14 | POSIX Compatibility Completion | Remaining in-scope POSIX feature and behavior gaps are closed and corroborated |
 | P15 | Remaining POSIX Gap Closure | Explicitly tracked post-`P14` POSIX gaps are closed or intentionally left as permanent reviewed skips |
 | P16 | Testing Surface Cleanup | Test entrypoints, markers, CI commands, and corpus surfaces are renamed and consolidated into a clearer workflow |
+| P17 | Compatibility Tooling Namespace Cleanup | Corpus and upstream-compatibility tooling move under `quawk.compat`, and the singleton script wrapper is removed |
 
 ## Phase Entry and Exit Rules
 
@@ -412,22 +413,57 @@ Exit criteria:
 - `corpus` remains available, but docs describe it as a harness/debugging tool
   instead of a parallel first-class test gate
 
+### P17: Compatibility Tooling Namespace Cleanup
+
+Objective:
+- clean up the package layout so product/runtime/compiler code stays at the top
+  level while corpus and upstream-compatibility tooling live under a dedicated
+  `quawk.compat` namespace
+
+In scope:
+- create `src/quawk/compat/` as the dedicated home for corpus and upstream
+  compatibility modules
+- move the current flat compatibility modules into that namespace
+- remove the singleton `scripts/upstream_compat.py` wrapper
+- replace the wrapper with package-owned entrypoints while keeping the `corpus`
+  command stable
+- update internal imports, tests, docs, and CI references together so the repo
+  no longer depends on the old flat module layout
+- implementation details for this phase live in [repo-refactor.md](../repo-refactor.md)
+
+Exit criteria:
+- compatibility and corpus tooling are grouped under `quawk.compat`
+- the top-level `quawk` package remains focused on product/runtime/compiler code
+- `scripts/upstream_compat.py` is gone
+- a package-owned upstream bootstrap entrypoint exists and is used by docs and
+  CI
+- the `corpus` command remains stable while resolving through the new namespace
+- focused compatibility-tooling tests and the broader `core` and
+  `compat_reference` pytest surfaces pass against the new layout
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-Next deliverable: P16 testing surface cleanup
+Next deliverable: P17 compatibility tooling namespace cleanup
 
 Target outcome:
-- the next work replaces confusing test-surface names, consolidates overlapping
-  local compatibility entrypoints, and makes docs plus CI agree on one testing
-  workflow vocabulary
+- the next work moves corpus and upstream-compatibility tooling under
+  `quawk.compat`, removes the singleton script wrapper, and rebaselines docs
+  plus workflows around package-owned entrypoints
 
-`P15` closeout is complete. The next planned cleanup is the testing-surface
-refactor tracked in `P16`.
+`T-184` is complete. Implementation now starts with the namespace move in
+`T-185`.
 
-`P16` closeout is complete. No further testing-surface cleanup tasks are
-planned right now.
+Immediate next tasks:
+- `T-185` create `quawk.compat` and move the corpus/upstream modules into the
+  dedicated namespace
+- `T-186` replace `scripts/upstream_compat.py` with package-owned entrypoints
+  while keeping `corpus` stable
+- `T-187` update imports, tests, docs, and CI references to the new namespace
+  and command surfaces
+- `T-188` rebaseline the repo layout docs and final namespace audit after the
+  cleanup lands
 
 ## Backlog
 
@@ -585,6 +621,11 @@ Priority values:
 | T-181 | P16 | P1 | Merge the overlapping local differential corpus pytest files into one surface | T-179 | The two near-identical local differential corpus pytest entrypoints are replaced by one shared `compat_corpus` differential surface with stable case selection | done |
 | T-182 | P16 | P1 | Reclassify the `corpus` CLI and standardize the smoke entrypoint | T-180, T-181 | Docs present `corpus` as a manual harness tool, and release-smoke invocation is standardized to one documented command style | done |
 | T-183 | P16 | P1 | Rebaseline testing docs and final workflow audit after the cleanup lands | T-180, T-181, T-182 | `docs/testing.md`, `docs/release-checklist.md`, and any remaining workflow references agree on the final testing surfaces with no stale old-marker wording | done |
+| T-184 | P17 | P0 | Author the compatibility-tooling namespace baseline and import audit | T-183 | Tests and docs make the current flat compatibility module layout, wrapper script dependency, and target `quawk.compat` namespace explicit before implementation | done |
+| T-185 | P17 | P0 | Create `quawk.compat` and move corpus/upstream modules into the dedicated namespace | T-184 | `corpus`, `upstream_compat`, `upstream_inventory`, `upstream_suite`, `upstream_divergence`, and `upstream_audit` live under `src/quawk/compat/` with no functional behavior change | todo |
+| T-186 | P17 | P0 | Replace `scripts/upstream_compat.py` with package-owned entrypoints | T-185 | The singleton wrapper is removed, a package-owned upstream bootstrap entrypoint exists, and the `corpus` command still resolves cleanly through the new namespace | todo |
+| T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | todo |
+| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
