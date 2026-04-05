@@ -1,46 +1,21 @@
-"""Audit helpers for the upstream compatibility done-line criteria."""
+"""Compatibility wrapper for the moved upstream audit module."""
 
-from __future__ import annotations
+from importlib import import_module as _import_module
+import sys as _sys
+from types import ModuleType as _ModuleType
 
-from quawk.upstream_divergence import load_upstream_divergence_manifest
-from quawk.upstream_divergence import UpstreamDivergenceEntry
-from quawk.upstream_inventory import (
-    UpstreamFeatureFamilyId,
-    UpstreamFeatureCoverageEntry,
-    UpstreamCaseSelection,
-    load_upstream_feature_coverage,
-    load_upstream_selection_manifest,
-)
+_MODULE = _import_module("quawk.compat.upstream_audit")
+_WRAPPER = _sys.modules[__name__]
 
 
-def families_missing_runnable_upstream_coverage(
-    selections: list[UpstreamCaseSelection] | None = None,
-    coverage: dict[UpstreamFeatureFamilyId, UpstreamFeatureCoverageEntry] | None = None,
-) -> list[UpstreamFeatureFamilyId]:
-    """Return implemented feature families that have no runnable upstream anchor."""
-    selection_entries = load_upstream_selection_manifest() if selections is None else selections
-    coverage_entries = load_upstream_feature_coverage() if coverage is None else coverage
-    statuses_by_selection_key = {
-        selection.selection_key: selection.status
-        for selection in selection_entries
-    }
+class _CompatModuleProxy(_ModuleType):
+    def __getattr__(self, name: str):
+        return getattr(_MODULE, name)
 
-    missing: list[UpstreamFeatureFamilyId] = []
-    for family, entry in coverage_entries.items():
-        if any(statuses_by_selection_key[selection_key] == "run" for selection_key in entry.selection_keys):
-            continue
-        missing.append(family)
-    return missing
+    def __setattr__(self, name: str, value) -> None:
+        setattr(_MODULE, name, value)
+        super().__setattr__(name, value)
 
 
-def blocking_posix_required_fix_case_ids(
-    divergences: dict[str, UpstreamDivergenceEntry] | None = None,
-) -> list[str]:
-    """Return runnable upstream cases that still carry blocking `posix-required-fix` classifications."""
-    divergence_entries = load_upstream_divergence_manifest() if divergences is None else divergences
-    blocking = [
-        result_key
-        for result_key, entry in divergence_entries.items()
-        if entry.classification == "posix-required-fix"
-    ]
-    return sorted(blocking)
+_WRAPPER.__class__ = _CompatModuleProxy
+globals().update(_MODULE.__dict__)

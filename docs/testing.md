@@ -50,7 +50,7 @@ Reference-engine policy:
 - the checked-in upstream suite selection manifest lives at `tests/upstream/selection.toml`
 - evaluated upstream divergence metadata lives at `tests/upstream/divergences.toml`
 - reviewed upstream divergence notes live at `docs/compatibility.md`
-- the selected runnable upstream subset is executed through `quawk.upstream_suite`
+- the selected runnable upstream subset is executed through `quawk.compat.upstream_suite`
 - host `awk` is not a compatibility reference
 
 Current upstream execution adapter coverage:
@@ -89,25 +89,22 @@ Current testing workflow after the `P16` cleanup:
 
 ## Compatibility Tooling Layout
 
-Current package layout before `P17`:
-- `src/quawk/corpus.py` lives in the top-level package namespace
-- `src/quawk/upstream_compat.py`, `src/quawk/upstream_inventory.py`,
-  `src/quawk/upstream_suite.py`, `src/quawk/upstream_divergence.py`, and
-  `src/quawk/upstream_audit.py` also live flat under `src/quawk/`
-- the selected runnable upstream subset is still executed through
-  `quawk.upstream_suite`
+Current transition state after `T-185`:
+- the real compatibility and corpus implementations now live under
+  `src/quawk/compat/`
+- the selected runnable upstream subset now executes through
+  `quawk.compat.upstream_suite`
+- compatibility wrapper modules still exist at the old top-level import paths
+  under `src/quawk/` so current commands and tests do not break during the
+  namespace move
 
-Current wrapper-script dependency before `P17`:
+Remaining `P17` cleanup after `T-185`:
 - contributor docs and CI still bootstrap pinned references with
   `uv run python scripts/upstream_compat.py bootstrap`
-- `scripts/upstream_compat.py` is a thin repo-root wrapper over package code,
-  not the real implementation
-
-Planned target state in `P17`:
-- corpus and upstream-compatibility tooling move under `quawk.compat`
-- the singleton `scripts/upstream_compat.py` wrapper is removed
-- package-owned entrypoints replace the wrapper while the `corpus` command stays
-  stable
+- `scripts/upstream_compat.py` is still a thin repo-root wrapper over package
+  code
+- package-owned entrypoints still need to replace the wrapper while the
+  `corpus` command stays stable
 
 ## Test Corpus Structure
 

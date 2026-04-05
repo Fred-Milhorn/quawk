@@ -452,12 +452,10 @@ Target outcome:
   `quawk.compat`, removes the singleton script wrapper, and rebaselines docs
   plus workflows around package-owned entrypoints
 
-`T-184` is complete. Implementation now starts with the namespace move in
-`T-185`.
+`T-185` is complete. The next implementation step is the entrypoint cleanup in
+`T-186`.
 
 Immediate next tasks:
-- `T-185` create `quawk.compat` and move the corpus/upstream modules into the
-  dedicated namespace
 - `T-186` replace `scripts/upstream_compat.py` with package-owned entrypoints
   while keeping `corpus` stable
 - `T-187` update imports, tests, docs, and CI references to the new namespace
@@ -622,7 +620,7 @@ Priority values:
 | T-182 | P16 | P1 | Reclassify the `corpus` CLI and standardize the smoke entrypoint | T-180, T-181 | Docs present `corpus` as a manual harness tool, and release-smoke invocation is standardized to one documented command style | done |
 | T-183 | P16 | P1 | Rebaseline testing docs and final workflow audit after the cleanup lands | T-180, T-181, T-182 | `docs/testing.md`, `docs/release-checklist.md`, and any remaining workflow references agree on the final testing surfaces with no stale old-marker wording | done |
 | T-184 | P17 | P0 | Author the compatibility-tooling namespace baseline and import audit | T-183 | Tests and docs make the current flat compatibility module layout, wrapper script dependency, and target `quawk.compat` namespace explicit before implementation | done |
-| T-185 | P17 | P0 | Create `quawk.compat` and move corpus/upstream modules into the dedicated namespace | T-184 | `corpus`, `upstream_compat`, `upstream_inventory`, `upstream_suite`, `upstream_divergence`, and `upstream_audit` live under `src/quawk/compat/` with no functional behavior change | todo |
+| T-185 | P17 | P0 | Create `quawk.compat` and move corpus/upstream modules into the dedicated namespace | T-184 | `corpus`, `upstream_compat`, `upstream_inventory`, `upstream_suite`, `upstream_divergence`, and `upstream_audit` live under `src/quawk/compat/` with no functional behavior change | done |
 | T-186 | P17 | P0 | Replace `scripts/upstream_compat.py` with package-owned entrypoints | T-185 | The singleton wrapper is removed, a package-owned upstream bootstrap entrypoint exists, and the `corpus` command still resolves cleanly through the new namespace | todo |
 | T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | todo |
 | T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | todo |
