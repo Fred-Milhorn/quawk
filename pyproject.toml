@@ -12,7 +12,8 @@ dependencies = []
 
 [project.scripts]
 quawk = "quawk.cli:main"
-corpus = "quawk.corpus:main"
+corpus = "quawk.compat.corpus:main"
+quawk-upstream = "quawk.compat.upstream_compat:main"
 
 [dependency-groups]
 dev = [

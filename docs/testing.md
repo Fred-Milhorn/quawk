@@ -89,7 +89,7 @@ Current testing workflow after the `P16` cleanup:
 
 ## Compatibility Tooling Layout
 
-Current transition state after `T-185`:
+Current transition state after `T-186`:
 - the real compatibility and corpus implementations now live under
   `src/quawk/compat/`
 - the selected runnable upstream subset now executes through
@@ -97,14 +97,15 @@ Current transition state after `T-185`:
 - compatibility wrapper modules still exist at the old top-level import paths
   under `src/quawk/` so current commands and tests do not break during the
   namespace move
+- the package-owned entrypoints are now `uv run quawk-upstream bootstrap`,
+  `uv run python -m quawk.compat.upstream_compat bootstrap`, and the stable
+  `uv run corpus ...` command
 
-Remaining `P17` cleanup after `T-185`:
-- contributor docs and CI still bootstrap pinned references with
-  `uv run python scripts/upstream_compat.py bootstrap`
-- `scripts/upstream_compat.py` is still a thin repo-root wrapper over package
-  code
-- package-owned entrypoints still need to replace the wrapper while the
-  `corpus` command stays stable
+Remaining `P17` cleanup after `T-186`:
+- contributor docs and CI still reference the removed wrapper command in a few
+  places and need a coordinated rebaseline
+- the top-level compatibility wrapper modules still exist for transition
+  compatibility and will be cleaned up after imports and references move over
 
 ## Test Corpus Structure
 
