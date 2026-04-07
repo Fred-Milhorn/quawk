@@ -992,6 +992,9 @@ Rationale:
   than close a remaining known product gap
 - the roadmap should not imply that broader expression support is already owed
   by the current public contract
+- supporting analysis lives in:
+  - [docs/plans/expression-surface-decision-table.md](docs/plans/expression-surface-decision-table.md)
+  - [docs/plans/expression-surface-widening-analysis.md](docs/plans/expression-surface-widening-analysis.md)
 
 Decision-gated broader surface, not current product debt:
 
