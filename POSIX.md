@@ -934,6 +934,51 @@ The next concrete follow-up after this document should be:
 2. start any future POSIX widening work from a fresh explicit roadmap task, not
    from implied debt in this document
 
+## P18 Remaining Surface Baseline
+
+The next remaining product work is narrower than the historical `P14` / `P15`
+waves.
+
+Current remaining claimed product gap:
+
+- `$0` / `NF` rebuild behavior is still the one explicit partial row in the
+  claimed POSIX execution surface.
+  Evidence:
+  [SPEC.md](SPEC.md)
+  and the reviewed upstream anchors
+  [tests/upstream/selection.toml](tests/upstream/selection.toml).
+
+Current corroborating anchors for that gap:
+
+- `one-true-awk:p.35`
+- `one-true-awk:t.NF`
+
+Those anchors are still reviewed `skip` entries, and their reasons now point to
+the actual remaining behavior mismatch rather than stale parser, crash, or
+input-decoding issues.
+
+Decision-gated broader surface, not current product debt:
+
+- the broader POSIX expression surface remains intentionally unclaimed in
+  `SPEC.md`
+- this includes operators and forms such as:
+  - `||`
+  - `<=`, `>`, `>=`, `!=`
+  - `-`, `*`, `/`, `%`, `^`
+  - ternary
+  - match operators
+  - `in`
+- any work on that broader expression family should start only after an
+  explicit roadmap decision to widen the claimed surface
+
+Execution order for the next wave:
+
+1. fix the remaining claimed `$0` / `NF` rebuild mismatch
+2. re-audit `p.35` / `t.NF`
+3. decide whether the broader intentionally unclaimed expression surface should
+   be widened
+4. only then author tests and implementation for any approved widening
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

@@ -28,7 +28,7 @@ def test_t167_posix_plan_records_the_done_line_audit_result() -> None:
 def test_t167_roadmap_records_p15_complete_after_the_done_line_audit() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`P17` closeout is complete. No further compatibility-tooling namespace" in roadmap_text
+    assert "Next deliverable: P18 remaining POSIX surface closure and widening decisions" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit |" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 |" in roadmap_text
     assert "| T-167 | P14 | P0 | Complete the POSIX done-line audit | T-157, T-166 | `SPEC.md`, `POSIX.md`, the upstream manifest, and the required tests agree on the remaining in-scope POSIX surface with no untracked gaps | done |" in roadmap_text
