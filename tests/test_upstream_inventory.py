@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from quawk import upstream_inventory
+from quawk.compat import upstream_inventory
 
 
 def test_load_upstream_selection_manifest_reads_checked_in_inventory() -> None:

@@ -52,7 +52,7 @@ Build the local One True Awk and gawk compatibility references when working on
 the upstream compatibility transition:
 
 ```sh
-uv run python scripts/upstream_compat.py bootstrap
+uv run quawk-upstream bootstrap
 uv run pytest -m compat_reference
 ```
 
@@ -99,7 +99,6 @@ Target implementation layout:
 ├── README.md
 ├── CONTRIBUTING.md
 ├── docs/
-├── scripts/
 ├── src/
 │   └── quawk/
 ├── tests/

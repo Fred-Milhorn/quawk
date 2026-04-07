@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from quawk.upstream_inventory import load_upstream_selection_manifest
+from quawk.compat.upstream_inventory import load_upstream_selection_manifest
 
 
 def test_t169_promotes_clean_fs_sensitive_cases_and_leaves_p35_reviewed() -> None:

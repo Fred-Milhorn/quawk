@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.corpus import (
+from quawk.compat.corpus import (
     differential_corpus_cases,
     differential_validation_errors,
     load_divergence_manifest,

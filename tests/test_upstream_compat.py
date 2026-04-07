@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from quawk import upstream_compat
+from quawk.compat import upstream_compat
 
 
 def test_upstream_projects_use_pinned_sources_and_wrapper_paths(tmp_path: Path) -> None:

@@ -1,23 +1,19 @@
-# Repository Refactor Plan
+# Repository Refactor
 
-This document records a proposed repository-layout refactor for `quawk`.
-
-It is planning-only. It does not imply that the refactor should be implemented
-now.
+This document records the completed repository-layout refactor for `quawk`.
 
 ## Goal
 
 Clean up the repo layout so user-facing product code stays distinct from
 compatibility and corpus tooling.
 
-Current concern:
-- `scripts/upstream_compat.py` is the only file in `scripts/`
-- it is only a thin wrapper over package code in `src/quawk/upstream_compat.py`
-- the upstream and corpus modules in `src/quawk/` are legitimate package code,
-  but they are flat in the top-level namespace rather than grouped under a
-  dedicated compatibility area
+Result:
+- product/runtime/compiler code stays at the top level under `src/quawk/`
+- compatibility and corpus tooling now live under `src/quawk/compat/`
+- the singleton `scripts/upstream_compat.py` wrapper is gone
+- package-owned entrypoints replace the old repo-root wrapper command
 
-## Proposed End State
+## Final State
 
 - keep the product CLI in `src/quawk/cli.py`
 - move compatibility and corpus tooling into `src/quawk/compat/`
@@ -40,11 +36,16 @@ src/quawk/
     └── upstream_audit.py
 ```
 
-## Implementation Plan
+Package-owned commands:
+- `corpus`
+- `quawk-upstream`
+- `python -m quawk.compat.upstream_compat`
 
-### 1. Create a dedicated compatibility namespace
+## Resulting Decisions
 
-Add `src/quawk/compat/` and move these modules under it:
+### 1. Dedicated compatibility namespace
+
+`src/quawk/compat/` now holds:
 - `corpus.py`
 - `upstream_compat.py`
 - `upstream_inventory.py`
@@ -55,7 +56,7 @@ Add `src/quawk/compat/` and move these modules under it:
 The top-level `quawk` package should remain focused on product/runtime/compiler
 code.
 
-### 2. Keep the product CLI at top level
+### 2. Product CLI stays at top level
 
 Leave `src/quawk/cli.py` where it is.
 
@@ -63,63 +64,34 @@ Intent:
 - `quawk` remains the user-facing product command
 - `quawk.compat.*` becomes internal and contributor-oriented tooling
 
-### 3. Replace the `scripts/` wrapper
+### 3. Wrapper script removed
 
-Delete `scripts/upstream_compat.py`.
+- `scripts/upstream_compat.py` was deleted
+- `quawk-upstream = "quawk.compat.upstream_compat:main"` is the package-owned
+  console script
+- `python -m quawk.compat.upstream_compat` is also supported
 
-Replace it with a package-owned entrypoint:
-- add a console script in `pyproject.toml`, for example:
-  - `quawk-upstream = "quawk.compat.upstream_compat:main"`
-- optionally also support:
-  - `python -m quawk.compat.upstream_compat`
+### 4. `corpus` stays stable
 
-This removes the special-case wrapper file and makes the command shape match the
-rest of the package.
+- the existing `corpus` console script now resolves to
+  `quawk.compat.corpus:main`
+- the user-facing command name did not change
 
-### 4. Keep the `corpus` command stable
+### 5. Imports and references moved together
 
-Keep the existing `corpus` console script, but repoint it to:
-- `quawk.compat.corpus:main`
+- internal imports now use `quawk.compat.*`
+- tests, docs, and workflow references were moved to the new namespace and
+  command surfaces in the same refactor wave
+- the temporary top-level compatibility wrappers used during the transition are
+  gone
 
-Do not rename the user-facing command unless docs and workflows are being
-cleaned up in the same change.
+### 6. Docs and CI use package-owned commands
 
-### 5. Update imports in one pass
+- contributor docs and CI now use `uv run quawk-upstream bootstrap`
+- module-oriented documentation also accepts
+  `uv run python -m quawk.compat.upstream_compat bootstrap`
 
-Change internal imports to `quawk.compat.*`.
-
-Change test imports the same way.
-
-Do not leave compatibility shims unless a temporary migration period is
-deliberately needed.
-
-### 6. Update docs and CI references
-
-Replace:
-
-```sh
-uv run python scripts/upstream_compat.py bootstrap
-```
-
-with either:
-
-```sh
-uv run quawk-upstream bootstrap
-```
-
-or:
-
-```sh
-uv run python -m quawk.compat.upstream_compat bootstrap
-```
-
-Update these references together:
-- `README.md`
-- `docs/getting-started.md`
-- `docs/compatibility.md`
-- `.github/workflows/compat-upstream.yml`
-
-### 7. Verify in focused layers
+## Verification Targets
 
 Run focused compatibility-tooling coverage first:
 - `tests/test_upstream_compat.py`
@@ -134,11 +106,10 @@ Then run broader validation:
 - `uv run pytest -q -m core`
 - `uv run pytest -m compat_reference`
 
-## Assumptions and Defaults
+## Steady-State Assumptions
 
 - top-level `quawk` remains the product namespace
 - compatibility and corpus code should be grouped under `quawk.compat`
 - the `corpus` command stays named `corpus`
-- the standalone `scripts/` wrapper should be removed rather than expanded
 - package-owned entrypoints are preferred over repo-root helper scripts for this
   tooling

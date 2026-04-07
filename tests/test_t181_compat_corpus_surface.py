@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from quawk.corpus import compatibility_baseline_cases, differential_corpus_cases
+from quawk.compat.corpus import compatibility_baseline_cases, differential_corpus_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 

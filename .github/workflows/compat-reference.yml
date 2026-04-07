@@ -13,7 +13,6 @@ on:
       - "docs/roadmap.md"
       - "docs/testing.md"
       - "pyproject.toml"
-      - "scripts/upstream_compat.py"
       - "src/**"
       - "tests/**"
       - "third_party/**"
@@ -30,7 +29,6 @@ on:
       - "docs/roadmap.md"
       - "docs/testing.md"
       - "pyproject.toml"
-      - "scripts/upstream_compat.py"
       - "src/**"
       - "tests/**"
       - "third_party/**"
@@ -84,7 +82,7 @@ jobs:
         run: uv sync --dev
 
       - name: Bootstrap pinned upstream references
-        run: uv run python scripts/upstream_compat.py bootstrap
+        run: uv run quawk-upstream bootstrap
 
       - name: Run reference compatibility subset
         run: uv run pytest -m compat_reference

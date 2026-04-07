@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from quawk import upstream_audit, upstream_divergence, upstream_inventory
+from quawk.compat import upstream_audit, upstream_divergence, upstream_inventory
 
 
 def test_families_missing_runnable_upstream_coverage_is_empty_for_checked_in_state() -> None:

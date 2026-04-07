@@ -28,7 +28,7 @@ Use the local environment described in [docs/getting-started.md](docs/getting-st
 Compatibility work also depends on the pinned upstream sources under
 `third_party/`. Initialize them with `git submodule update --init --recursive`.
 When working on the upstream compatibility transition, build the local One True
-Awk and gawk references with `uv run python scripts/upstream_compat.py bootstrap`.
+Awk and gawk references with `uv run quawk-upstream bootstrap`.
 
 ## Workflow Expectations
 
@@ -98,7 +98,7 @@ When touching the upstream compatibility bootstrap or suite-selection flow,
 also run:
 
 ```sh
-uv run python scripts/upstream_compat.py bootstrap
+uv run quawk-upstream bootstrap
 uv run pytest -m compat_reference
 ```
 

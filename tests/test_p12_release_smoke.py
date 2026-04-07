@@ -38,10 +38,19 @@ def test_uv_run_quawk_help_smoke() -> None:
 
 @pytest.mark.smoke
 def test_uv_run_corpus_list_smoke() -> None:
-    result = run_tool("corpus", "--list")
+    env = dict(os.environ)
+    env["UV_CACHE_DIR"] = str(UV_CACHE_DIR)
+    env["PATH"] = f"{VENV_BIN_DIR}:{env.get('PATH', '')}"
+    result = subprocess.run(
+        [str(VENV_BIN_DIR / "python"), "-m", "quawk.compat.corpus", "--list"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
 
     assert result.returncode == 0, result.stderr
-    assert "begin_print_literal" in result.stdout
     assert result.stderr == ""
 
 

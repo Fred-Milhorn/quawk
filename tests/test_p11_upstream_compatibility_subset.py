@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.corpus import missing_engines
-from quawk.upstream_divergence import load_upstream_divergence_manifest
-from quawk.upstream_suite import selected_upstream_cases, run_upstream_case_differential, upstream_validation_errors
+from quawk.compat.corpus import missing_engines
+from quawk.compat.upstream_divergence import load_upstream_divergence_manifest
+from quawk.compat.upstream_suite import selected_upstream_cases, run_upstream_case_differential, upstream_validation_errors
 
 
 @pytest.mark.compat

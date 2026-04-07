@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from quawk import upstream_divergence, upstream_inventory, upstream_suite
-from quawk.corpus import NormalizedCorpusResult
+from quawk.compat import upstream_divergence, upstream_inventory, upstream_suite
+from quawk.compat.corpus import NormalizedCorpusResult
 
 
 def make_result(

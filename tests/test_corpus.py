@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.corpus import CorpusCase, compare_case, load_cases, run_case
+from quawk.compat.corpus import CorpusCase, compare_case, load_cases, run_case
 
 pytestmark = [pytest.mark.compat, pytest.mark.compat_corpus]
 

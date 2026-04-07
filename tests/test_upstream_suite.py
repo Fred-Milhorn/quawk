@@ -3,7 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from quawk import upstream_inventory, upstream_suite
+from quawk.compat import upstream_inventory, upstream_suite
+from quawk.compat.corpus import engine_executable
 
 
 def test_load_upstream_case_for_onetrueawk_program_file_uses_compare_inputs() -> None:
@@ -210,7 +211,7 @@ def test_run_upstream_case_materializes_shell_driver_files_in_temp_dir(monkeypat
         foo2 = workdir / "foo2.awk"
         assert foo1.read_text(encoding="utf-8") == 'BEGIN { print "begin" }\n'
         assert foo2.read_text(encoding="utf-8") == 'END { print "end" }\n'
-        assert command == ["quawk", "-f", str(foo1), "-f", str(foo2)]
+        assert command == [engine_executable("quawk"), "-f", str(foo1), "-f", str(foo2)]
         return subprocess.CompletedProcess(command, 0, stdout="begin\nend\n", stderr="")
 
     monkeypatch.setattr(upstream_suite.subprocess, "run", fake_run)
@@ -239,7 +240,7 @@ def test_run_upstream_case_materializes_program_file_focus_files_in_temp_dir(mon
         included_path = workdir / "included.txt"
         assert input_path.read_text(encoding="utf-8") == "include included.txt\n"
         assert included_path.read_text(encoding="utf-8") == "included from system\n"
-        assert command == ["quawk", "-f", str(selection.path), str(input_path)]
+        assert command == [engine_executable("quawk"), "-f", str(selection.path), str(input_path)]
         return subprocess.CompletedProcess(command, 0, stdout="included from system\n", stderr="")
 
     monkeypatch.setattr(upstream_suite.subprocess, "run", fake_run)
@@ -273,7 +274,7 @@ def test_run_upstream_case_materializes_focused_gawk_argarray_files_in_temp_dir(
         )
         assert first_input.read_text(encoding="utf-8") == "alpha beta\n"
         assert second_input.read_text(encoding="utf-8") == "gamma delta\n"
-        assert command == ["quawk", "-f", str(program_path), "argarray.one", "argarray.two"]
+        assert command == [engine_executable("quawk"), "-f", str(program_path), "argarray.one", "argarray.two"]
         return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
 
     monkeypatch.setattr(upstream_suite.subprocess, "run", fake_run)

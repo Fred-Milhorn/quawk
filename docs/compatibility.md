@@ -49,7 +49,7 @@ Recommended local flow:
 
 ```sh
 git submodule update --init --recursive
-uv run python scripts/upstream_compat.py bootstrap
+uv run quawk-upstream bootstrap
 uv run pytest -m compat_reference
 uv run pytest -m compat_corpus
 ```

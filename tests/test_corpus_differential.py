@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from quawk import corpus
+from quawk.compat import corpus
 
 pytestmark = pytest.mark.compat
 
