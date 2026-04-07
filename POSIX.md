@@ -971,6 +971,28 @@ The focused corroboration re-audit is now complete:
 - the remaining immediate `P18` work is now only the explicit decision about
   whether to widen the broader intentionally unclaimed expression surface
 
+### T-192 Expression-Surface Decision Result
+
+The broader intentionally unclaimed POSIX expression surface is not approved
+for widening in the current roadmap wave.
+
+Decision:
+
+- keep the current claimed expression subset as-is
+- do not start `T-193` through `T-196` in the current roadmap wave
+- treat any future widening as a fresh explicit product decision, not implied
+  debt from the current POSIX claim
+
+Rationale:
+
+- the current claimed AOT-backed contract is now coherent and corroborated for
+  the selected POSIX surface
+- widening operators such as `||`, broader comparisons, arithmetic families,
+  ternary, match operators, and `in` would create a new feature wave rather
+  than close a remaining known product gap
+- the roadmap should not imply that broader expression support is already owed
+  by the current public contract
+
 Decision-gated broader surface, not current product debt:
 
 - the broader POSIX expression surface remains intentionally unclaimed in
@@ -983,14 +1005,13 @@ Decision-gated broader surface, not current product debt:
   - match operators
   - `in`
 - any work on that broader expression family should start only after an
-  explicit roadmap decision to widen the claimed surface
+  explicit future roadmap decision to widen the claimed surface
 
 Execution order for the next wave:
 
-1. re-audit `p.35` / `t.NF`
-2. decide whether the broader intentionally unclaimed expression surface should
-   be widened
-3. only then author tests and implementation for any approved widening
+1. treat `T-192` as the current stop point for `P18`
+2. leave the broader expression wave blocked until a future explicit widening
+   decision reactivates it
 
 ## Notes
 

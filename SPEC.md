@@ -41,7 +41,7 @@ Evidence:
 | Repeated `$0` reassignment and field rebuild | implemented | Direct tests now cover the remaining `p.35` / `t.NF` style rebuild shapes after `NF` and field mutation. The next step is corroborating-anchor re-audit, not a known product mismatch. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain intentionally outside the current claimed AOT contract. |
+| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. The `T-192` decision keeps broader arithmetic, comparison, logical-or, ternary, match, and `in` forms intentionally outside the current claimed AOT contract until a future roadmap wave explicitly widens them. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 

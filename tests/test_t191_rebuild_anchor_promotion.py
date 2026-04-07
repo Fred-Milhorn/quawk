@@ -19,5 +19,5 @@ def test_t191_posix_and_roadmap_advance_to_the_expression_surface_decision_gate(
     assert "### T-191 Rebuild-Anchor Corroboration Result" in posix_text
     assert "`one-true-awk:p.35` is now runnable" in posix_text
     assert "`one-true-awk:t.NF` is now runnable" in posix_text
-    assert "`T-191` is complete. The next implementation step is the expression-surface" in roadmap_text
+    assert "`T-192` is complete. The decision is to keep the broader intentionally" in roadmap_text
     assert "| T-191 | P18 | P1 | Re-audit and promote the `p.35` / `t.NF` corroborating anchors | T-190 | The reviewed `p.35` / `t.NF` anchors move to `run` or are narrowed to smaller explicit non-product corroboration reasons after the behavior fix | done |" in roadmap_text

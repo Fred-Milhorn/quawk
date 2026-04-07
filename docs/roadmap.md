@@ -485,19 +485,13 @@ Target outcome:
 `P17` closeout is complete. The next planned work is the remaining POSIX
 surface cleanup and decision-gated widening tracked in `P18`.
 
-`T-191` is complete. The next implementation step is the expression-surface
-decision gate in `T-192`.
+`T-192` is complete. The decision is to keep the broader intentionally
+unclaimed POSIX expression surface out of scope for the current roadmap wave.
 
 Immediate next tasks:
-- `T-192` decide and document whether to widen the broader unclaimed POSIX
-  expression surface
-- `T-193` author tests and claim updates for the next expression-surface wave
-  only if widening is approved
-- `T-194` implement the chosen broader POSIX expression/operator wave
-- `T-195` close backend/inspection parity and corroboration for any newly
-  claimed expression families
-- `T-196` rebaseline `SPEC.md`, `POSIX.md`, and compatibility docs after the
-  remaining gap and any approved widening land
+- no active `P18` implementation tasks are approved after `T-192`
+- `T-193` through `T-196` stay blocked unless a future roadmap decision widens
+  the claimed expression surface
 
 ## Backlog
 
@@ -663,11 +657,11 @@ Priority values:
 | T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | done |
 | T-190 | P18 | P0 | Fix the remaining claimed `$0` / `NF` rebuild mismatch | T-189 | Public execution no longer diverges on the reviewed `$0` reconstruction cases after `NF` or field mutation, and direct tests pin the corrected behavior | done |
 | T-191 | P18 | P1 | Re-audit and promote the `p.35` / `t.NF` corroborating anchors | T-190 | The reviewed `p.35` / `t.NF` anchors move to `run` or are narrowed to smaller explicit non-product corroboration reasons after the behavior fix | done |
-| T-192 | P18 | P0 | Decide and document whether to widen the broader unclaimed POSIX expression surface | T-191 | `SPEC.md`, `POSIX.md`, and the roadmap state clearly whether operators such as `||`, broader comparisons, arithmetic, ternary, match operators, and `in` remain intentionally unclaimed or are approved for the next implementation wave | todo |
-| T-193 | P18 | P1 | Author tests and claim updates for the next POSIX expression wave if widening is approved | T-192 | If widening is approved, failing tests and explicit `SPEC.md` target rows are checked in for the exact next operator/forms wave before implementation starts | todo |
-| T-194 | P18 | P0 | Implement the chosen broader POSIX expression and operator wave | T-193 | The approved next operator/forms wave executes correctly through the public path with parser, runtime, and JIT coverage | todo |
-| T-195 | P18 | P1 | Close backend/inspection parity and corroboration for newly claimed expression families | T-194 | Any newly claimed broader expression families support `--ir` / `--asm` as claimed and gain direct or upstream corroborating coverage where clean anchors exist | todo |
-| T-196 | P18 | P1 | Rebaseline the public POSIX contract after the remaining gap and any approved widening land | T-191, T-192, T-195 | `SPEC.md`, `POSIX.md`, `docs/compatibility.md`, and the roadmap agree on the resulting claimed POSIX surface with no stale implied debt | todo |
+| T-192 | P18 | P0 | Decide and document whether to widen the broader unclaimed POSIX expression surface | T-191 | `SPEC.md`, `POSIX.md`, and the roadmap state clearly whether operators such as `||`, broader comparisons, arithmetic, ternary, match operators, and `in` remain intentionally unclaimed or are approved for the next implementation wave | done |
+| T-193 | P18 | P1 | Author tests and claim updates for the next POSIX expression wave if widening is approved | T-192 | If widening is approved, failing tests and explicit `SPEC.md` target rows are checked in for the exact next operator/forms wave before implementation starts | blocked |
+| T-194 | P18 | P0 | Implement the chosen broader POSIX expression and operator wave | T-193 | The approved next operator/forms wave executes correctly through the public path with parser, runtime, and JIT coverage | blocked |
+| T-195 | P18 | P1 | Close backend/inspection parity and corroboration for newly claimed expression families | T-194 | Any newly claimed broader expression families support `--ir` / `--asm` as claimed and gain direct or upstream corroborating coverage where clean anchors exist | blocked |
+| T-196 | P18 | P1 | Rebaseline the public POSIX contract after the remaining gap and any approved widening land | T-191, T-192, T-195 | `SPEC.md`, `POSIX.md`, `docs/compatibility.md`, and the roadmap agree on the resulting claimed POSIX surface with no stale implied debt | blocked |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

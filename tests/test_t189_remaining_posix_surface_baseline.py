@@ -11,7 +11,7 @@ def test_t189_spec_makes_the_remaining_claimed_gap_and_unclaimed_expression_surf
     assert "| Repeated `$0` reassignment and field rebuild | implemented |" in spec_text
     assert "The next step is corroborating-anchor re-audit, not a known product mismatch." in spec_text
     assert "| Expressions | partial |" in spec_text
-    assert "Broader arithmetic, comparison, logical-or, ternary, match, and `in` forms remain intentionally outside the current claimed AOT contract." in spec_text
+    assert "The `T-192` decision keeps broader arithmetic, comparison, logical-or, ternary, match, and `in` forms intentionally outside the current claimed AOT contract" in spec_text
 
 
 def test_t189_posix_doc_records_the_remaining_gap_the_anchor_cases_and_the_decision_gate() -> None:
@@ -46,8 +46,8 @@ def test_t189_roadmap_marks_the_baseline_done_and_moves_to_t190() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "Next deliverable: P18 remaining POSIX surface closure and widening decisions" in roadmap_text
-    assert "`T-191` is complete. The next implementation step is the expression-surface" in roadmap_text
-    assert "- `T-192` decide and document whether to widen the broader unclaimed POSIX" in roadmap_text
+    assert "`T-192` is complete. The decision is to keep the broader intentionally" in roadmap_text
+    assert "- no active `P18` implementation tasks are approved after `T-192`" in roadmap_text
     assert "- `T-189` author the remaining POSIX surface baseline and decision gate" not in roadmap_text
     assert "| T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | done |" in roadmap_text
     assert "| T-190 | P18 | P0 | Fix the remaining claimed `$0` / `NF` rebuild mismatch | T-189 | Public execution no longer diverges on the reviewed `$0` reconstruction cases after `NF` or field mutation, and direct tests pin the corrected behavior | done |" in roadmap_text
