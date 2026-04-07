@@ -1,19 +1,18 @@
-# Testing Refactor Plan
+# Testing Surface Refactor
 
-This document records a proposed cleanup of `quawk`'s testing entrypoints,
+This document records the completed cleanup of `quawk`'s testing entrypoints,
 pytest markers, and compatibility-suite naming.
 
-It is planning-only. It does not imply that the changes should be implemented
-now.
+It is now a historical record of the `P16` cleanup rather than an active plan.
 
-## Goal
+## Refactor Goal
 
 Make the test surfaces easier to understand and easier to run by:
 - replacing negative or misleading names
 - reducing overlap between local compatibility targets
 - clarifying which commands are primary test gates versus manual harness tools
 
-## Current Problems
+## Pre-Refactor Problems
 
 ### `not compat` is a poor name
 
@@ -62,7 +61,7 @@ The repo currently uses both:
 
 This should be standardized to one documented release-smoke entrypoint.
 
-## Proposed Naming
+## Final Naming
 
 ### Pytest markers
 
@@ -82,7 +81,7 @@ Intent:
 - `compat_reference` means differential tests against reference engines
 - `compat_corpus` means repo-owned supplemental compatibility corpus coverage
 
-## Proposed Test Surfaces
+## Final Test Surfaces
 
 Primary commands:
 
@@ -140,7 +139,7 @@ Examples:
 - `corpus demo_case`
 - `corpus --differential demo_case`
 
-## CI and Docs Changes
+## Resulting CI and Docs Changes
 
 ### CI
 

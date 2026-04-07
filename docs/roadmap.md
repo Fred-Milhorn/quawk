@@ -397,7 +397,7 @@ In scope:
   or file-based
 - reclassify the `corpus` CLI as a manual harness tool rather than a primary
   test gate
-- implementation details for this phase live in [testing-refactor.md](../testing-refactor.md)
+- implementation details for this phase live in [history/testing-refactor.md](history/testing-refactor.md)
 
 Exit criteria:
 - the primary pytest surfaces are named positively and described consistently in
@@ -429,7 +429,7 @@ In scope:
   command stable
 - update internal imports, tests, docs, and CI references together so the repo
   no longer depends on the old flat module layout
-- implementation details for this phase live in [repo-refactor.md](../repo-refactor.md)
+- implementation details for this phase live in [history/repo-refactor.md](history/repo-refactor.md)
 
 Exit criteria:
 - compatibility and corpus tooling are grouped under `quawk.compat`
@@ -598,7 +598,7 @@ Priority values:
 | T-175 | P15 | P1 | Fix the remaining `split` target-variable mismatch and re-audit corroboration | T-167 | `splitvar` becomes clean or is replaced by a narrower classified skip backed by direct repo-owned tests | done |
 | T-176 | P15 | P1 | Improve CLI-sensitive corroboration coverage | T-167 | `argarray` is either runnable with a clean adapter or superseded by an equivalent corroborating anchor for `ARGV` / multifile behavior | done |
 | T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | done |
-| T-178 | P16 | P0 | Author the testing-surface rename and consolidation baseline | T-177 | `testing-refactor.md`, `docs/testing.md`, and focused regression tests make the current marker names, command surfaces, and overlap explicit before implementation | todo |
+| T-178 | P16 | P0 | Author the testing-surface rename and consolidation baseline | T-177 | `docs/history/testing-refactor.md`, `docs/testing.md`, and focused regression tests make the current marker names, command surfaces, and overlap explicit before implementation | todo |
 | T-179 | P16 | P0 | Rename pytest markers and default suite selection to positive, accurate names | T-178 | `core`, `compat_reference`, and `compat_corpus` replace the old marker names in `pyproject.toml`, tests, and command documentation without leaving stale references | done |
 | T-180 | P16 | P0 | Update CI, contributor commands, and compatibility docs to the renamed testing surfaces | T-179 | `ci-fast`, the reference compatibility workflow, README, and testing/compatibility docs all use the new command vocabulary consistently | done |
 | T-181 | P16 | P1 | Merge the overlapping local differential corpus pytest files into one surface | T-179 | The two near-identical local differential corpus pytest entrypoints are replaced by one shared `compat_corpus` differential surface with stable case selection | done |
@@ -608,7 +608,7 @@ Priority values:
 | T-185 | P17 | P0 | Create `quawk.compat` and move corpus/upstream modules into the dedicated namespace | T-184 | `corpus`, `upstream_compat`, `upstream_inventory`, `upstream_suite`, `upstream_divergence`, and `upstream_audit` live under `src/quawk/compat/` with no functional behavior change | done |
 | T-186 | P17 | P0 | Replace `scripts/upstream_compat.py` with package-owned entrypoints | T-185 | The singleton wrapper is removed, a package-owned upstream bootstrap entrypoint exists, and the `corpus` command still resolves cleanly through the new namespace | done |
 | T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | done |
-| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |
+| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `docs/history/repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

@@ -17,7 +17,7 @@ Implemented now:
 - scalar variables, associative arrays, `delete`, classic `for`, and `for ... in`
 - field reads and assignment, builtin variables, and multi-file input processing
 - control flow including `if`, `while`, `do ... while`, `break`, `continue`, `next`, `nextfile`, and `exit`
-- user-defined functions plus the current builtin subset: `length`, `split`, and `substr`
+- user-defined functions plus the current POSIX builtin surface, including string, regex, numeric, system, and math builtins
 - differential compatibility coverage against pinned `one-true-awk` and `gawk --posix`, with the upstream suite now the primary compatibility authority
 
 Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadmap.md), which is the source of truth for current and next phases.
@@ -68,6 +68,7 @@ workflow for the heavier `compat_reference` subset.
 
 - [CHANGELOG.md](CHANGELOG.md): user-visible release history
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor workflow, standards, and PR expectations
+- [POSIX.md](POSIX.md): POSIX alignment status, remaining reviewed gaps, and historical closeout notes
 - [SPEC.md](SPEC.md): implemented/planned/out-of-scope feature matrix
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [docs/release-checklist.md](docs/release-checklist.md): versioned release workflow

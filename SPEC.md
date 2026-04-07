@@ -119,8 +119,8 @@ Evidence:
 Evidence:
 - `tests/test_corpus.py`
 - `tests/test_corpus_differential.py`
-- `tests/test_p10_compat_baselines.py`
-- `tests/test_p11_supported_compatibility_corpus.py`
+- `tests/test_compat_corpus.py`
+- `tests/test_p11_upstream_compatibility_subset.py`
 - `tests/test_p12_release_smoke.py`
 - `docs/release-checklist.md`
 - `CHANGELOG.md`

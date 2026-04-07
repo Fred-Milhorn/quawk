@@ -1,14 +1,15 @@
-# POSIX Plan
+# POSIX Status And Gap Record
 
-This document is the starting plan for bringing `quawk` to an honest,
-reviewable POSIX-compatibility contract.
+This document records `quawk`'s POSIX-alignment status, remaining reviewed
+gaps, and the historical implementation notes behind the completed POSIX work.
 
-It has three goals:
+It has three jobs:
 
-1. align [SPEC.md](/Users/fred/dev/quawk/SPEC.md) with expected POSIX behavior
-2. identify and document the gaps between POSIX behavior and the current
+1. keep [SPEC.md](SPEC.md) aligned with expected POSIX behavior
+2. record the remaining reviewed gaps between POSIX behavior and the current
    `quawk` implementation
-3. define the work required to close those gaps
+3. preserve the implementation history and rationale behind the completed
+   `P13` through `P15` closeout work
 
 It also adopts this architectural constraint:
 
@@ -16,11 +17,10 @@ It also adopts this architectural constraint:
 - AWK program semantics should execute in the compiled backend/runtime, not in a
   Python interpreter fallback
 
-This is a planning document, not the source of truth for current shipped
-behavior. Current shipped behavior still lives in [SPEC.md](/Users/fred/dev/quawk/SPEC.md),
-[docs/design.md](/Users/fred/dev/quawk/docs/design.md), tests, and the reviewed
-upstream manifest at
-[tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml).
+This is a supporting status and audit document, not the primary source of truth
+for current shipped behavior. Current shipped behavior still lives in
+[SPEC.md](SPEC.md), [docs/design.md](docs/design.md), tests, and the reviewed
+upstream manifest at [tests/upstream/selection.toml](tests/upstream/selection.toml).
 
 ## Scope
 
@@ -38,9 +38,9 @@ Out of scope here:
   violate the compiler-only role of the Python layer
 - non-behavioral performance work
 
-## Deliverables
+## Role
 
-This plan will be complete when the repo has:
+This record is useful when the repo has:
 
 - a `SPEC.md` that clearly distinguishes POSIX-required behavior, current gaps,
   extensions, and out-of-scope areas
@@ -87,7 +87,7 @@ That means:
 - backend parity work is not optional cleanup; it is part of reaching the
   intended `quawk` architecture
 
-## Phase 1: Align SPEC.md
+## Historical Phase 1: Align SPEC.md
 
 Objective:
 
@@ -97,7 +97,7 @@ Objective:
 Work items:
 
 1. audit every `implemented`, `partial`, and `planned` row in
-   [SPEC.md](/Users/fred/dev/quawk/SPEC.md) against POSIX behavior, current
+   [SPEC.md](SPEC.md) against POSIX behavior, current
    tests, and reviewed upstream skips
 2. split rows that currently collapse too much behavior into one label
    Example:
@@ -129,7 +129,7 @@ Acceptance:
 - no known POSIX public-execution gap remains hidden behind a broad
   `implemented` row
 
-## Phase 2: Build the POSIX Gap Inventory
+## Historical Phase 2: Build the POSIX Gap Inventory
 
 Objective:
 
@@ -138,9 +138,9 @@ Objective:
 
 Sources of truth for the inventory:
 
-- [SPEC.md](/Users/fred/dev/quawk/SPEC.md)
-- [docs/design.md](/Users/fred/dev/quawk/docs/design.md)
-- [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml)
+- [SPEC.md](SPEC.md)
+- [docs/design.md](docs/design.md)
+- [tests/upstream/selection.toml](tests/upstream/selection.toml)
 - existing CLI, parser, runtime, backend, corpus, and upstream pytest coverage
 
 The inventory should track for each gap:
@@ -163,15 +163,15 @@ upstream skips.
 - output redirection and pipe output for `print` are outside the current claimed
   surface.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L433),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L442)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L433),
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L442)
 - `printf` still has at least one reviewed formatting mismatch.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L223)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L223)
 - `printf` still has at least one parser/runtime gap around
   `substr(..., ..., ...)` inside `printf`.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L760)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L760)
 
 #### Builtin Functions
 
@@ -180,16 +180,16 @@ upstream skips.
   `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`,
   `tolower`, and `toupper`.
   Evidence:
-  [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L5),
-  [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L59)
+  [src/quawk/builtins.py](src/quawk/builtins.py#L5),
+  [SPEC.md](SPEC.md#L59)
 - reviewed upstream corroboration for `rand()` is still narrower than the
   direct coverage because the pinned references disagree on seeded randomized
   output.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L459)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L459)
 - reviewed upstream skips show a real `split` behavior mismatch.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L751)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L751)
 - `getline` is now implemented for the currently claimed POSIX forms:
   bare `getline`, `getline var`, `getline < file`, and `getline var < file`.
   Coverage:
@@ -200,8 +200,8 @@ upstream skips.
 - the implemented builtin-variable set now includes `NR`, `FNR`, `NF`,
   `FILENAME`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`.
   Evidence:
-  [src/quawk/builtins.py](/Users/fred/dev/quawk/src/quawk/builtins.py#L6),
-  [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L58)
+  [src/quawk/builtins.py](src/quawk/builtins.py#L6),
+  [SPEC.md](SPEC.md#L58)
 - `ARGC`, `ARGV`, `ENVIRON`, and `SUBSEP` are now implemented and covered by
   direct CLI/runtime/JIT tests.
 - the reviewed builtin-variable sequencing mismatch `END { print NR }` is now
@@ -232,34 +232,34 @@ upstream skips.
 - some non-regex expression-pattern cases still mismatch under default-print
   behavior.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L250),
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L259)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L250),
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L259)
 - one reviewed skip says the reusable backend record-selection path still
   narrows some non-regex expression patterns.
   Evidence:
-  [tests/upstream/selection.toml](/Users/fred/dev/quawk/tests/upstream/selection.toml#L259)
+  [tests/upstream/selection.toml](tests/upstream/selection.toml#L259)
 
 #### Backend-Only Gaps
 
 - `--ir` and `--asm` still do not cover every public execution path.
   Evidence:
-  [SPEC.md](/Users/fred/dev/quawk/SPEC.md#L75),
-  [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L203)
+  [SPEC.md](SPEC.md#L75),
+  [docs/design.md](docs/design.md#L203)
 - the checked-in `T-150` audit expands that list into explicit claimed-family
   anchors, including expression-pattern selection, default-print expression
   patterns, `do ... while`, loop `break` or `continue`, `next`, `nextfile`,
   `exit`, user-defined functions, and scalar-string coercion paths.
   Evidence:
-  [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml#L1),
-  [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py#L1)
+  [tests/architecture/audit.toml](tests/architecture/audit.toml#L1),
+  [tests/test_architecture_audit.py](tests/test_architecture_audit.py#L1)
 
 #### Architecture Gaps
 
 - the current design docs still describe a public model where some AWK programs
   run through Python-host fallback instead of the compiled backend/runtime.
   Evidence:
-  [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L203),
-  [docs/design.md](/Users/fred/dev/quawk/docs/design.md#L223)
+  [docs/design.md](docs/design.md#L203),
+  [docs/design.md](docs/design.md#L223)
 - if the intended product is AOT-only execution, every remaining host-runtime
   family is an architecture gap in addition to any POSIX gap.
 - the remaining documented host-runtime families should be kept current as
@@ -270,7 +270,7 @@ upstream skips.
 - keep the verified list above current as gaps are fixed or reclassified
 - add any missing POSIX-required areas not yet represented by upstream review
 - keep the checked-in architecture cross-reference in
-  [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml)
+  [tests/architecture/audit.toml](tests/architecture/audit.toml)
   aligned with the code and docs
 
 ### T-150 Backend Gap Baseline
@@ -279,9 +279,9 @@ upstream skips.
 
 The checked-in architecture audit baseline lives in:
 
-- [tests/architecture/audit.toml](/Users/fred/dev/quawk/tests/architecture/audit.toml)
-- [src/quawk/architecture_audit.py](/Users/fred/dev/quawk/src/quawk/architecture_audit.py)
-- [tests/test_architecture_audit.py](/Users/fred/dev/quawk/tests/test_architecture_audit.py)
+- [tests/architecture/audit.toml](tests/architecture/audit.toml)
+- [src/quawk/architecture_audit.py](src/quawk/architecture_audit.py)
+- [tests/test_architecture_audit.py](tests/test_architecture_audit.py)
 
 There are no remaining audited claimed families lacking full backend/runtime
 execution or `--ir` / `--asm` support.
@@ -406,10 +406,11 @@ What landed:
   behavior, including runtime-side formatting for array-key coercion and scalar
   string views
 
-## Phase 3: Task Backlog To Reach POSIX Compatibility
+## Historical POSIX Task Backlog
 
-Task IDs below are proposed planning IDs for POSIX work. They do not replace
-the roadmap yet.
+The task IDs below are the original POSIX planning breakdown. They are kept for
+historical traceability only; [docs/roadmap.md](docs/roadmap.md) is the
+authoritative backlog.
 
 ### SPEC Alignment Tasks
 
@@ -937,7 +938,7 @@ The next concrete follow-up after this document should be:
 
 This plan should stay stricter than the current compatibility plan:
 
-- [docs/compatibility.md](/Users/fred/dev/quawk/docs/compatibility.md) is about
+- [docs/compatibility.md](docs/compatibility.md) is about
   the reviewed upstream suite and its growth policy
 - `POSIX.md` is about the full standard-alignment gap inventory and the work
   needed to make the public contract honestly POSIX-compatible

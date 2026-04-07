@@ -53,7 +53,7 @@ def test_t188_repo_layout_has_only_the_compat_namespace_for_compatibility_toolin
 
 
 def test_t188_repo_refactor_doc_records_the_final_layout() -> None:
-    refactor_text = (ROOT / "repo-refactor.md").read_text(encoding="utf-8")
+    refactor_text = (ROOT / "docs" / "history" / "repo-refactor.md").read_text(encoding="utf-8")
 
     assert "# Repository Refactor" in refactor_text
     assert "completed repository-layout refactor" in refactor_text
@@ -80,7 +80,7 @@ def test_t188_roadmap_records_p17_complete() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "| T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | done |" in roadmap_text
-    assert "| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |" in roadmap_text
+    assert "| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `docs/history/repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |" in roadmap_text
     assert "`P17` closeout is complete. No further compatibility-tooling namespace" in roadmap_text
     assert "Next deliverable: P17 compatibility tooling namespace cleanup" not in roadmap_text
     assert "Immediate next tasks:" not in roadmap_text
