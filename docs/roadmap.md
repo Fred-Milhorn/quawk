@@ -36,6 +36,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P15 | Remaining POSIX Gap Closure | Explicitly tracked post-`P14` POSIX gaps are closed or intentionally left as permanent reviewed skips |
 | P16 | Testing Surface Cleanup | Test entrypoints, markers, CI commands, and corpus surfaces are renamed and consolidated into a clearer workflow |
 | P17 | Compatibility Tooling Namespace Cleanup | Corpus and upstream-compatibility tooling move under `quawk.compat`, and the singleton script wrapper is removed |
+| P18 | Remaining POSIX Surface Closure And Widening Decisions | The last known claimed POSIX gap is closed, and any broader POSIX expression-surface expansion happens only through an explicit decision-gated wave |
 
 ## Phase Entry and Exit Rules
 
@@ -441,12 +442,62 @@ Exit criteria:
 - focused compatibility-tooling tests and the broader `core` and
   `compat_reference` pytest surfaces pass against the new layout
 
+### P18: Remaining POSIX Surface Closure And Widening Decisions
+
+Objective:
+- close the last known claimed POSIX product gap and separate that work from any
+  optional widening of the still-unclaimed broader POSIX expression surface
+
+In scope:
+- fix the remaining `$0` / `NF` rebuild behavior mismatch tracked in `SPEC.md`
+  and `POSIX.md`
+- promote or precisely reclassify the corroborating `p.35` / `t.NF` anchors
+  once the behavior is fixed
+- make an explicit product decision about whether to widen the currently
+  unclaimed POSIX expression surface beyond the existing AOT-backed subset
+- if widening is approved, stage it as a separate test-first implementation
+  wave with matching backend/inspection parity and doc updates
+- implementation details for the current remaining gaps live in
+  [POSIX.md](../POSIX.md)
+
+Exit criteria:
+- the claimed POSIX surface no longer has the remaining `$0` / `NF` rebuild
+  mismatch recorded in `SPEC.md`
+- the reviewed `p.35` / `t.NF` anchors are either runnable or narrowed to a
+  smaller, explicitly documented non-product corroboration issue
+- any broader POSIX expression-surface expansion happens only after an explicit
+  roadmap decision, with tests, `SPEC.md`, and backend claims updated together
+- if no widening is approved, the roadmap and docs make it explicit that the
+  broader operator families remain intentionally unclaimed rather than
+  implicitly unfinished
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-`P17` closeout is complete. No further compatibility-tooling namespace cleanup
-tasks are planned right now.
+Next deliverable: P18 remaining POSIX surface closure and widening decisions
+
+Target outcome:
+- close the remaining claimed `$0` / `NF` rebuild gap first, then make an
+  explicit product decision about whether to widen the broader currently
+  unclaimed POSIX expression surface
+
+`P17` closeout is complete. The next planned work is the remaining POSIX
+surface cleanup and decision-gated widening tracked in `P18`.
+
+Immediate next tasks:
+- `T-189` author the remaining POSIX surface baseline and decision gate
+- `T-190` fix the remaining claimed `$0` / `NF` rebuild mismatch
+- `T-191` re-audit and promote the `p.35` / `t.NF` corroborating anchors
+- `T-192` decide and document whether to widen the broader unclaimed POSIX
+  expression surface
+- `T-193` author tests and claim updates for the next expression-surface wave
+  only if widening is approved
+- `T-194` implement the chosen broader POSIX expression/operator wave
+- `T-195` close backend/inspection parity and corroboration for any newly
+  claimed expression families
+- `T-196` rebaseline `SPEC.md`, `POSIX.md`, and compatibility docs after the
+  remaining gap and any approved widening land
 
 ## Backlog
 
@@ -609,6 +660,14 @@ Priority values:
 | T-186 | P17 | P0 | Replace `scripts/upstream_compat.py` with package-owned entrypoints | T-185 | The singleton wrapper is removed, a package-owned upstream bootstrap entrypoint exists, and the `corpus` command still resolves cleanly through the new namespace | done |
 | T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | done |
 | T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `docs/history/repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |
+| T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | todo |
+| T-190 | P18 | P0 | Fix the remaining claimed `$0` / `NF` rebuild mismatch | T-189 | Public execution no longer diverges on the reviewed `$0` reconstruction cases after `NF` or field mutation, and direct tests pin the corrected behavior | todo |
+| T-191 | P18 | P1 | Re-audit and promote the `p.35` / `t.NF` corroborating anchors | T-190 | The reviewed `p.35` / `t.NF` anchors move to `run` or are narrowed to smaller explicit non-product corroboration reasons after the behavior fix | todo |
+| T-192 | P18 | P0 | Decide and document whether to widen the broader unclaimed POSIX expression surface | T-191 | `SPEC.md`, `POSIX.md`, and the roadmap state clearly whether operators such as `||`, broader comparisons, arithmetic, ternary, match operators, and `in` remain intentionally unclaimed or are approved for the next implementation wave | todo |
+| T-193 | P18 | P1 | Author tests and claim updates for the next POSIX expression wave if widening is approved | T-192 | If widening is approved, failing tests and explicit `SPEC.md` target rows are checked in for the exact next operator/forms wave before implementation starts | todo |
+| T-194 | P18 | P0 | Implement the chosen broader POSIX expression and operator wave | T-193 | The approved next operator/forms wave executes correctly through the public path with parser, runtime, and JIT coverage | todo |
+| T-195 | P18 | P1 | Close backend/inspection parity and corroboration for newly claimed expression families | T-194 | Any newly claimed broader expression families support `--ir` / `--asm` as claimed and gain direct or upstream corroborating coverage where clean anchors exist | todo |
+| T-196 | P18 | P1 | Rebaseline the public POSIX contract after the remaining gap and any approved widening land | T-191, T-192, T-195 | `SPEC.md`, `POSIX.md`, `docs/compatibility.md`, and the roadmap agree on the resulting claimed POSIX surface with no stale implied debt | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |
