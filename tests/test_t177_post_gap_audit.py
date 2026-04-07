@@ -17,7 +17,6 @@ def test_t177_posix_plan_pins_the_remaining_reviewed_skips() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "### T-177 Final Claim Expansion And Audit Result" in posix_text
-    assert "`p.35`, `t.NF`" in posix_text
     assert "`p.43`, `p.48b`, `range1`" in posix_text
     assert "`T.argv`, `T.builtin`, `T.expr`, `T.func`, `T.split`, `cmdlinefsbacknl`" in posix_text
     assert "post-`P14` remaining-gap wave is complete" in posix_text

@@ -813,9 +813,9 @@ Acceptance:
 
 - `SPEC.md` now widens only the family that was still underclaimed: full POSIX
   `printf` parity is part of the current public contract
-- the remaining reviewed skips stay explicit and non-product: narrowed `$0` /
-  `NF` rebuild mismatches (`p.35`, `t.NF`), unsuitable corroboration anchors
-  (`p.43`, `p.48b`, `range1`), and reviewed-but-unnecessary anchors
+- the remaining reviewed skips stay explicit and non-product: unsuitable
+  corroboration anchors (`p.43`, `p.48b`, `range1`), and
+  reviewed-but-unnecessary anchors
   (`T.argv`, `T.builtin`, `T.expr`, `T.func`, `T.split`, `cmdlinefsbacknl`)
 - stale references to open `P14` hardening work are gone from the public
   contract and architecture docs; the remaining partial rows now describe
@@ -831,9 +831,6 @@ The `T-167` audit left a smaller, explicit set of post-`P14` POSIX work. After
 These are not product gaps and should stay reviewed as such unless better
 anchors appear:
 
-- narrowed `$0` field-rebuild corroboration gap after `T-169`
-  Cases:
-  `p.35`, `t.NF`
 - reference-disagreement or unsuitable-corroboration cases
   Cases:
   `p.43`, `p.48b`, `range1`
@@ -962,8 +959,17 @@ Current corroborating anchors for that rebuilt-record surface:
 - `one-true-awk:p.35`
 - `one-true-awk:t.NF`
 
-Those anchors are still reviewed `skip` entries for one more step, but they are
-now pending corroboration re-audit rather than known product mismatches.
+At the end of `T-190`, those anchors were no longer known product mismatches;
+they only remained pending the focused corroboration pass that `T-191` closes.
+
+### T-191 Rebuild-Anchor Corroboration Result
+
+The focused corroboration re-audit is now complete:
+
+- `one-true-awk:p.35` is now runnable in the selected reference subset
+- `one-true-awk:t.NF` is now runnable in the selected reference subset
+- the remaining immediate `P18` work is now only the explicit decision about
+  whether to widen the broader intentionally unclaimed expression surface
 
 Decision-gated broader surface, not current product debt:
 
