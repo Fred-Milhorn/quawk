@@ -109,6 +109,7 @@ static const char QK_DEFAULT_SUBSEP[] = "\034";
 
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 static bool qk_rebuild_fields(qk_runtime *runtime);
+static bool qk_rebuild_current_record(qk_runtime *runtime, size_t target_fields, int64_t index, const char *value);
 static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_entry *entry);
 static bool qk_update_field_separator(qk_runtime *runtime, const char *text);
 static void qk_update_record_separator(qk_runtime *runtime, const char *text);
@@ -411,6 +412,7 @@ static bool qk_apply_scalar_side_effects(qk_runtime *runtime, const char *name)
 {
     struct qk_scalar_entry *entry;
     const char *text;
+    int64_t target_fields;
 
     if ((runtime == NULL) || (name == NULL)) {
         return false;
@@ -429,6 +431,16 @@ static bool qk_apply_scalar_side_effects(qk_runtime *runtime, const char *name)
         text = qk_scalar_string_view(runtime, entry);
         qk_update_record_separator(runtime, text);
         return true;
+    }
+    if (strcmp(name, "NF") == 0) {
+        target_fields = (int64_t)qk_scalar_get_number(runtime, "NF");
+        if (target_fields < 0) {
+            return false;
+        }
+        if (!qk_rebuild_current_record(runtime, (size_t)target_fields, -1, NULL)) {
+            return false;
+        }
+        return qk_scalar_set_number_value(runtime, "NF", (double)runtime->field_count);
     }
     return true;
 }
@@ -904,6 +916,8 @@ static bool qk_split_literal_separator_fields(qk_runtime *runtime)
 
 static bool qk_rebuild_fields(qk_runtime *runtime)
 {
+    bool ok;
+
     runtime->field_count = 0U;
     free(runtime->field_buffer);
     runtime->field_buffer = qk_strdup_or_null(runtime->current_record);
@@ -912,9 +926,120 @@ static bool qk_rebuild_fields(qk_runtime *runtime)
     }
 
     if ((runtime->field_separator == NULL) || (*runtime->field_separator == '\0')) {
-        return qk_split_whitespace_fields(runtime);
+        ok = qk_split_whitespace_fields(runtime);
+    } else {
+        ok = qk_split_literal_separator_fields(runtime);
     }
-    return qk_split_literal_separator_fields(runtime);
+    if (!ok) {
+        return false;
+    }
+    return qk_scalar_set_number_value(runtime, "NF", (double)runtime->field_count);
+}
+
+static bool qk_rebuild_current_record(
+    qk_runtime *runtime,
+    size_t target_fields,
+    int64_t index,
+    const char *value
+)
+{
+    const char *separator;
+    size_t separator_length;
+    size_t total_length = 0U;
+    size_t total_field_buffer_length = target_fields == 0U ? 1U : 0U;
+    char *next_record;
+    char *next_field_buffer;
+    char *cursor;
+    char *field_cursor;
+    char **next_fields;
+
+    if (runtime == NULL) {
+        return false;
+    }
+    if (runtime->current_record == NULL) {
+        return true;
+    }
+    if (index == 0) {
+        if (!qk_replace_current_record(runtime, value)) {
+            return false;
+        }
+        return qk_rebuild_fields(runtime);
+    }
+
+    if ((index > 0) && (target_fields < (size_t)index)) {
+        target_fields = (size_t)index;
+    }
+
+    separator = qk_output_variable_text(runtime, "OFS", " ");
+    separator_length = strlen(separator);
+
+    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
+        const char *field_value = "";
+        if ((index > 0) && ((int64_t)(field_index + 1U) == index)) {
+            field_value = value == NULL ? "" : value;
+        } else if (field_index < runtime->field_count) {
+            field_value = runtime->fields[field_index];
+        }
+        total_length += strlen(field_value);
+        total_field_buffer_length += strlen(field_value) + 1U;
+        if (field_index + 1U < target_fields) {
+            total_length += separator_length;
+        }
+    }
+
+    next_record = malloc(total_length + 1U);
+    if (next_record == NULL) {
+        return false;
+    }
+    next_field_buffer = malloc(total_field_buffer_length);
+    if (next_field_buffer == NULL) {
+        free(next_record);
+        return false;
+    }
+    if (target_fields > runtime->field_capacity) {
+        next_fields = realloc(runtime->fields, target_fields * sizeof(*next_fields));
+        if (next_fields == NULL) {
+            free(next_record);
+            free(next_field_buffer);
+            return false;
+        }
+        runtime->fields = next_fields;
+        runtime->field_capacity = target_fields;
+    }
+
+    cursor = next_record;
+    field_cursor = next_field_buffer;
+    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
+        const char *field_value = "";
+        size_t field_length = 0U;
+        if ((index > 0) && ((int64_t)(field_index + 1U) == index)) {
+            field_value = value == NULL ? "" : value;
+        } else if (field_index < runtime->field_count) {
+            field_value = runtime->fields[field_index];
+        }
+        field_length = strlen(field_value);
+        memcpy(cursor, field_value, field_length);
+        cursor += field_length;
+        memcpy(field_cursor, field_value, field_length + 1U);
+        runtime->fields[field_index] = field_cursor;
+        field_cursor += field_length + 1U;
+        if (field_index + 1U < target_fields) {
+            memcpy(cursor, separator, separator_length);
+            cursor += separator_length;
+        }
+    }
+    *cursor = '\0';
+    if (target_fields == 0U) {
+        next_field_buffer[0] = '\0';
+    }
+
+    free(runtime->current_record);
+    free(runtime->field_buffer);
+    runtime->current_record = next_record;
+    runtime->current_record_capacity = total_length + 1U;
+    runtime->field_buffer = next_field_buffer;
+    runtime->field_count = target_fields;
+    return qk_scalar_set_number_value(runtime, "NF", (double)runtime->field_count);
 }
 
 static bool qk_open_next_input(qk_runtime *runtime)
@@ -1329,62 +1454,7 @@ static bool qk_rebuild_record_from_parts(qk_runtime *runtime, int64_t index, con
     if (index < 0) {
         return false;
     }
-    if (index == 0) {
-        if (!qk_replace_current_record(runtime, value)) {
-            return false;
-        }
-        return qk_rebuild_fields(runtime);
-    }
-
-    size_t target_fields = (size_t)index;
-    if (target_fields < runtime->field_count) {
-        target_fields = runtime->field_count;
-    }
-
-    size_t value_length = strlen(value == NULL ? "" : value);
-    size_t total_length = 0U;
-    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
-        const char *field_value = "";
-        if ((int64_t)(field_index + 1U) == index) {
-            field_value = value == NULL ? "" : value;
-        } else if (field_index < runtime->field_count) {
-            field_value = runtime->fields[field_index];
-        }
-        total_length += strlen(field_value);
-        if (field_index + 1U < target_fields) {
-            total_length += 1U;
-        }
-    }
-
-    char *next_record = malloc(total_length + 1U);
-    if (next_record == NULL) {
-        return false;
-    }
-
-    char *cursor = next_record;
-    for (size_t field_index = 0; field_index < target_fields; field_index += 1U) {
-        const char *field_value = "";
-        size_t field_length = 0U;
-        if ((int64_t)(field_index + 1U) == index) {
-            field_value = value == NULL ? "" : value;
-            field_length = value_length;
-        } else if (field_index < runtime->field_count) {
-            field_value = runtime->fields[field_index];
-            field_length = strlen(field_value);
-        }
-        memcpy(cursor, field_value, field_length);
-        cursor += field_length;
-        if (field_index + 1U < target_fields) {
-            *cursor = ' ';
-            cursor += 1U;
-        }
-    }
-    *cursor = '\0';
-
-    free(runtime->current_record);
-    runtime->current_record = next_record;
-    runtime->current_record_capacity = total_length + 1U;
-    return qk_rebuild_fields(runtime);
+    return qk_rebuild_current_record(runtime, runtime->field_count, index, value);
 }
 
 void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value)

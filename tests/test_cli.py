@@ -683,6 +683,15 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_input_separator_programs(
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_nf_rebuild_programs() -> None:
+    result = run_quawk("--ir", '{ OFS = "|"; NF = 2; print; $5 = "five"; print }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_scalar_set_number(" in result.stdout
+    assert "@qk_set_field_string(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_bare_length() -> None:
     result = run_quawk("--ir", "{ print length, $0 }")
 
@@ -858,6 +867,14 @@ def test_quawk_executes_supported_formatting_variable_program_through_backend() 
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "1.23\n1.234\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_nf_rebuild_program_through_backend() -> None:
+    result = run_quawk('{ OFS = "|"; NF = 2; print; $5 = "five"; print }', stdin="one two three\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "one|two\none|two|||five\n"
     assert result.stderr == ""
 
 

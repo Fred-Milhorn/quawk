@@ -939,23 +939,31 @@ The next concrete follow-up after this document should be:
 The next remaining product work is narrower than the historical `P14` / `P15`
 waves.
 
-Current remaining claimed product gap:
+### T-190 Direct Rebuild Fix Result
 
-- `$0` / `NF` rebuild behavior is still the one explicit partial row in the
-  claimed POSIX execution surface.
-  Evidence:
-  [SPEC.md](SPEC.md)
-  and the reviewed upstream anchors
-  [tests/upstream/selection.toml](tests/upstream/selection.toml).
+The remaining direct product mismatch is now fixed:
 
-Current corroborating anchors for that gap:
+- `$0` / `NF` rebuild behavior no longer remains a known claimed-surface gap.
+- direct execution tests now pin:
+  - `OFS`-preserving field rewrites such as `p.35`
+  - `NF` truncation plus later field growth such as `t.NF`
+- [SPEC.md](SPEC.md) now treats repeated `$0` / field rebuild as implemented
+  again
+
+Remaining `P18` work after `T-190`:
+
+- re-audit the reviewed `p.35` / `t.NF` corroborating anchors and promote them
+  to `run` if the pinned references agree cleanly
+- keep the broader POSIX expression surface decision-gated until that narrower
+  corroboration pass is complete
+
+Current corroborating anchors for that rebuilt-record surface:
 
 - `one-true-awk:p.35`
 - `one-true-awk:t.NF`
 
-Those anchors are still reviewed `skip` entries, and their reasons now point to
-the actual remaining behavior mismatch rather than stale parser, crash, or
-input-decoding issues.
+Those anchors are still reviewed `skip` entries for one more step, but they are
+now pending corroboration re-audit rather than known product mismatches.
 
 Decision-gated broader surface, not current product debt:
 
@@ -973,11 +981,10 @@ Decision-gated broader surface, not current product debt:
 
 Execution order for the next wave:
 
-1. fix the remaining claimed `$0` / `NF` rebuild mismatch
-2. re-audit `p.35` / `t.NF`
-3. decide whether the broader intentionally unclaimed expression surface should
+1. re-audit `p.35` / `t.NF`
+2. decide whether the broader intentionally unclaimed expression surface should
    be widened
-4. only then author tests and implementation for any approved widening
+3. only then author tests and implementation for any approved widening
 
 ## Notes
 

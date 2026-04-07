@@ -194,6 +194,25 @@ def test_rs_assignment_changes_record_reads_for_subsequent_input() -> None:
     assert result.stderr == ""
 
 
+def test_field_rebuild_preserves_ofs_after_field_mutation() -> None:
+    result = run_quawk(
+        'BEGIN { FS = OFS = "\\t" } $4 ~ /^North America$/ { $4 = "NA" } { print }',
+        stdin="Canada\t3852\t24\tNorth America\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "Canada\t3852\t24\tNA\n"
+    assert result.stderr == ""
+
+
+def test_nf_assignment_and_later_field_growth_rebuild_record_with_ofs() -> None:
+    result = run_quawk('{ OFS = "|"; print NF; NF = 2; print NF; print; $5 = "five"; print NF; print }', stdin="one two three\n")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n2\none|two\n5\none|two|||five\n"
+    assert result.stderr == ""
+
+
 def test_concatenation_honors_convfmt_for_numeric_to_string_coercion() -> None:
     result = run_quawk('BEGIN { CONVFMT = "%.2f"; x = 1.2345; print x "" }')
 

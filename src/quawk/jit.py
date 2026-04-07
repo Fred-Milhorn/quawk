@@ -3257,7 +3257,7 @@ def execute_statement(
             array_name = iterable.name
             keys = tuple(state.arrays.get(array_name, {}).keys())
             for key in keys:
-                assign_scalar_value(name, make_string_value(key), state, locals_scope)
+                assign_scalar_value(name, make_string_value(key), state, record, locals_scope)
                 try:
                     execute_statement(body, state, record, locals_scope)
                 except ContinueSignal:
@@ -3329,7 +3329,7 @@ def evaluate_value_expression(
         case GetlineExpr():
             return evaluate_getline_expression(expression, state, record, locals_scope)
         case NameExpr(name=name):
-            return read_scalar_value(name, state, locals_scope)
+            return read_scalar_value(name, state, record, locals_scope)
         case CallExpr():
             return call_function(expression, state, record, locals_scope)
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
@@ -3696,7 +3696,7 @@ def call_length_builtin(
 
     argument = expression.args[0]
     if isinstance(argument, NameExpr):
-        scalar_value = read_scalar_value(argument.name, state, locals_scope)
+        scalar_value = read_scalar_value(argument.name, state, record, locals_scope)
         if scalar_value.kind is ValueKind.UNINITIALIZED and argument.name in state.arrays:
             return make_numeric_value(float(len(state.arrays[argument.name])))
     return make_numeric_value(float(len(evaluate_string_expression(argument, state, record, locals_scope))))
@@ -3977,20 +3977,34 @@ def evaluate_string_expression(
 def read_scalar_value(
     name: str,
     state: RuntimeState,
+    record: RecordContext | None,
     locals_scope: LocalScope | None,
 ) -> AwkValue:
     """Read one scalar from the active local scope first, then globals."""
     if locals_scope is not None and name in locals_scope:
         return locals_scope[name]
+    if name == "NF":
+        return make_numeric_value(float(len(record.fields)) if record is not None else 0.0)
     if is_builtin_variable_name(name):
         return state.variables.get(name, UNINITIALIZED_VALUE)
     return state.variables.get(name, UNINITIALIZED_VALUE)
+
+
+def rebuild_record_from_fields(record: RecordContext, state: RuntimeState, target_fields: int | None = None) -> None:
+    """Rebuild `$0` from the current field view using the effective `OFS`."""
+    if target_fields is not None:
+        record.fields = record.fields[:target_fields]
+        if len(record.fields) < target_fields:
+            record.fields.extend([""] * (target_fields - len(record.fields)))
+    record.field0 = output_variable_text(state, "OFS", " ").join(record.fields)
+    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
 
 
 def assign_scalar_value(
     name: str,
     value: AwkValue,
     state: RuntimeState,
+    record: RecordContext | None,
     locals_scope: LocalScope | None,
 ) -> None:
     """Assign one scalar value to the local scope when present, otherwise globals."""
@@ -4001,6 +4015,13 @@ def assign_scalar_value(
         state.field_separator = normalize_field_separator(coerce_scalar_to_string(value, state))
     elif name == "RS":
         state.record_separator = normalize_record_separator(coerce_scalar_to_string(value, state))
+    elif name == "NF" and record is not None:
+        target_fields = int(coerce_scalar_to_number(value))
+        if target_fields < 0:
+            raise RuntimeError("negative NF assignments are not supported by the current runtime")
+        rebuild_record_from_fields(record, state, target_fields)
+        state.variables[name] = make_numeric_value(float(len(record.fields)))
+        return
     state.variables[name] = value
 
 
@@ -4013,7 +4034,7 @@ def read_lvalue_value(
     """Read one assignable target through the current runtime value model."""
     match target:
         case NameLValue(name=name):
-            return read_scalar_value(name, state, locals_scope)
+            return read_scalar_value(name, state, record, locals_scope)
         case ArrayLValue(name=name, subscripts=subscripts):
             if len(subscripts) != 1:
                 raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
@@ -4039,7 +4060,7 @@ def assign_lvalue_value(
     """Assign one runtime value through a validated lvalue target."""
     match target:
         case NameLValue(name=name):
-            assign_scalar_value(name, value, state, locals_scope)
+            assign_scalar_value(name, value, state, record, locals_scope)
         case ArrayLValue(name=name, subscripts=subscripts):
             if len(subscripts) != 1:
                 raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
@@ -4337,9 +4358,9 @@ def initialize_builtin_variables(state: RuntimeState) -> None:
     state.arrays["ARGV"] = build_argv_array(state)
     state.arrays["ENVIRON"] = build_environ_array()
     if initial_fs is not None:
-        assign_scalar_value("FS", initial_fs, state, locals_scope=None)
+        assign_scalar_value("FS", initial_fs, state, record=None, locals_scope=None)
     if initial_rs is not None:
-        assign_scalar_value("RS", initial_rs, state, locals_scope=None)
+        assign_scalar_value("RS", initial_rs, state, record=None, locals_scope=None)
 
 
 def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
@@ -4512,7 +4533,7 @@ def assign_field_value(
     while len(record.fields) < field_index:
         record.fields.append("")
     record.fields[field_index - 1] = string_value
-    record.field0 = " ".join(record.fields)
+    rebuild_record_from_fields(record, state)
 
 
 def render_printf_output(

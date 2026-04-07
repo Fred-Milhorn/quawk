@@ -309,6 +309,17 @@ def test_execute_host_runtime_supports_printf_and_dynamic_field_assignment(capsy
     assert captured.err == ""
 
 
+def test_execute_host_runtime_rebuilds_records_with_ofs_after_nf_and_field_updates(capsys, monkeypatch) -> None:
+    program = parse_program('{ OFS = "|"; print NF; NF = 2; print NF; print; $5 = "five"; print NF; print }')
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("one two three\n"))
+
+    assert jit.execute_host_runtime(program, [], None) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "3\n2\none|two\n5\none|two|||five\n"
+    assert captured.err == ""
+
+
 def test_execute_host_runtime_returns_exit_status_and_runs_end(capsys) -> None:
     program = parse_program('BEGIN { print "before"; exit 7 }\nEND { print "done" }')
 
@@ -980,6 +991,45 @@ def test_execute_with_inputs_routes_supported_record_rebuild_programs_through_ba
 
     assert jit.execute_with_inputs(program, [], None) == 0
     assert captured_ir["module"] == "; linked record rebuild backend module"
+
+
+def test_execute_with_inputs_routes_supported_nf_rebuild_programs_through_backend(monkeypatch) -> None:
+    program = parse_program('{ OFS = "|"; NF = 2; print; $5 = "five"; print }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("NF rebuild programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; nf rebuild backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; nf rebuild backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked nf rebuild backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute_with_inputs(program, [], None) == 0
+    assert captured_ir["module"] == "; linked nf rebuild backend module"
 
 
 def test_execute_with_inputs_routes_supported_expression_pattern_programs_through_backend(monkeypatch) -> None:

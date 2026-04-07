@@ -335,7 +335,7 @@ case_id = "p.35"
 path = "third_party/onetrueawk/testdir/p.35"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Still exposes a narrower `$0` field-rebuild mismatch after field mutation: quawk joins the rewritten `NA` / `SA` records with spaces instead of preserving the tab-separated shape the references print."
+reason = "The direct rebuild fix has landed, but this anchor is still pending the focused corroboration re-audit in T-191 before it moves into the runnable subset."
 tags = ["posix", "p-direct-file"]
 
 [[case]]
@@ -585,7 +585,7 @@ case_id = "t.NF"
 path = "third_party/onetrueawk/testdir/t.NF"
 status = "skip"
 adapter = "onetrueawk-program-file"
-reason = "Not blocked by input decoding anymore: the actual remaining mismatch is `NF`-driven record rebuild behavior. After `OFS = \"|\"; NF = 2; print`, quawk preserves the original separators, and later `$5 = \"five\"` rebuilds `$0` with spaces instead of the reference `|`-joined record text."
+reason = "The direct `NF` rebuild fix has landed, but this anchor is still pending the focused corroboration re-audit in T-191 before it moves into the runnable subset."
 tags = ["posix", "fields", "builtin-variables"]
 
 [[case]]
