@@ -15,11 +15,11 @@ def test_t199_audit_doc_records_the_focused_routing_regression_result() -> None:
     assert "this routing behavior is now explicit regression coverage" in audit_text
 
 
-def test_t199_roadmap_advances_the_immediate_next_list_to_t200() -> None:
+def test_t199_roadmap_now_points_at_the_p21_contract_rebaseline() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "- `T-209`: implement backend/runtime support for `||`" in roadmap_text
+    assert "- `T-212`: rebaseline the public contract after `P21`" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
     assert "| T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |" in roadmap_text

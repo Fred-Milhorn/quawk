@@ -14,8 +14,8 @@ Legend:
 
 | Candidate form | Parses today | Host executes today | Public backend executes today | `--ir` / `--asm` today | Clean direct tests exist | Clean reference anchor exists | Known semantic risks | Estimated implementation cost to claim cleanly | Recommended claim action |
 |---|---|---|---|---|---|---|---|---|---|
-| `||` | yes | yes | partial | no | yes | partial | short-circuit behavior, regex-term truthiness, public support gate is still narrower than the lowering internals | medium | keep unclaimed until dedicated backend and inspection baselines exist |
-| Broader comparisons: `<=`, `>`, `>=`, `!=` | yes | yes | partial | partial | yes | partial | AWK string-vs-numeric comparison choice, mixed operand-shape handling, current condition gate is narrower than the parser | medium | keep unclaimed until reviewed public examples and explicit IR coverage land |
+| `||` | yes | yes | yes | yes | yes | yes | short-circuit behavior, regex-term truthiness | medium | backend work complete; widen the public claim only in `T-212` |
+| Broader comparisons: `<=`, `>`, `>=`, `!=` | yes | yes | yes | yes | yes | yes | AWK string-vs-numeric comparison choice, mixed operand-shape handling | medium | backend work complete; widen the public claim only in `T-212` |
 | Broader arithmetic: `-`, `*`, `/`, `%`, `^` | yes | yes | partial | partial | partial | partial | precedence/associativity, coercion through numeric and string contexts, modulo/power edge cases | medium to high | widen only as a deliberate arithmetic wave, not piecemeal |
 | Ternary: `test ? a : b` | yes | yes | no | no | parse-only | no | branch coercion, string-vs-numeric branch result typing, backend lowering shape not yet public | medium | keep unclaimed |
 | Match operators: `~`, `!~` | yes | yes | no | no | parse-only | no dedicated clean anchor yet | regex evaluation semantics, string coercion, current backend supports regex patterns but not the binary match operators as public expressions | high | keep unclaimed |
@@ -38,11 +38,9 @@ Legend:
   [src/quawk/jit.py](../../src/quawk/jit.py), with selected direct runtime
   checks in [tests/test_p8_runtime_baselines.py](../../tests/test_p8_runtime_baselines.py)
   and [tests/test_jit.py](../../tests/test_jit.py).
-- Public backend evidence is intentionally narrower than parser admission.
-  One explicit example is `||`: the lowering machinery exists, but
-  [tests/test_cli.py](../../tests/test_cli.py) still pins
-  `BEGIN { print 1 || 0 }` as unsupported under `--ir`.
-- Some reviewed upstream anchors already cover narrower pieces of this space,
-  especially comparison-driven record selection, but the repo does not yet have
-  a clean operator-by-operator corroboration set for the broader expression
-  families.
+- `P21` has now closed the backend/runtime and inspection work for `||` plus
+  broader comparisons; the remaining step for that wave is the claim rebaseline
+  in `T-212`.
+- Runnable reference anchors already exist for `P21`, especially
+  `one-true-awk:p.7`, `one-true-awk:p.8`, `one-true-awk:p.21a`, and
+  `one-true-awk:t.next`.

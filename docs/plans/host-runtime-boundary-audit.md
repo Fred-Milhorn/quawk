@@ -32,8 +32,6 @@ further architecture-tightening work starts.
 The main residual host-heavy area is the broader intentionally unclaimed POSIX
 expression surface, including forms such as:
 
-- `||`
-- `<=`, `>`, `>=`, `!=`
 - `-`, `*`, `/`, `%`, `^`
 - ternary
 - match operators
@@ -326,3 +324,20 @@ Remaining claimed follow-on:
   `requires_host_runtime_value_execution()`
 - that next cleanup wave is planned separately in:
   - [claimed-value-fallback-cleanup.md](claimed-value-fallback-cleanup.md)
+
+## T-211 Residual Boundary Narrowing Result
+
+The `P21` widening implementation has narrowed the residual host-boundary
+problem.
+
+Current result:
+
+- representative logical-or and broader-comparison programs are no longer part
+  of the residual host-runtime boundary
+- the residual matrix now starts at broader arithmetic and continues through
+  ternary, match operators, and `in`
+- the remaining host-boundary risk area is therefore smaller than the original
+  `T-198` inventory
+
+That means future host-boundary work should focus on `P22` through `P24`, not
+revisit the now-backended `P21` surface.

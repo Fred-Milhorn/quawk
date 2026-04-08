@@ -152,3 +152,34 @@ The baseline also makes the backend-only claim rule explicit:
   claim
 - `--ir` / `--asm` support, focused routing coverage, and direct target tests
   are part of the baseline before implementation begins
+
+## T-209 And T-210 Backend Implementation Result
+
+The backend/runtime implementation work for the exact `P21` target forms is now
+checked in:
+
+- representative `||` programs now execute through ordinary public
+  backend/runtime execution with no host fallback
+- representative `<=`, `>`, `>=`, and `!=` programs now execute through
+  ordinary public backend/runtime execution with no host fallback
+- the direct runtime-backed path now preserves the intended `P21`
+  string-vs-numeric comparison behavior for representative mixed operand cases
+
+This closes the implementation side of the original `P21` widening target
+without widening the public claim yet. `T-212` remains the contract-rebaseline
+step for that.
+
+## T-211 Inspection And Corroboration Result
+
+The inspection and corroboration closeout for `P21` is now explicit:
+
+- representative `||`, `<=`, `>`, `>=`, and `!=` programs now succeed under
+  `--ir` and `--asm`
+- focused routing regressions now pin those representative forms to the
+  compiled backend/runtime path rather than the residual host-boundary path
+- the existing runnable reference subset already contains clean corroborating
+  anchors for this wave, especially `one-true-awk:p.7`, `one-true-awk:p.8`,
+  `one-true-awk:p.21a`, and `one-true-awk:t.next`
+
+That leaves `T-212` as a pure public-contract rebaseline step, not an
+implementation or evidence gap.

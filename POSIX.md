@@ -1109,6 +1109,38 @@ The contract rule remains strict: these forms do not become claimed until
 ordinary public execution, `--ir`, and `--asm` all stay on the compiled
 backend/runtime path with no public Python host dependency.
 
+### T-209 And T-210 P21 Backend Result
+
+The backend/runtime implementation for the exact `P21` target forms is now
+complete:
+
+- representative `||` programs now stay on the compiled backend/runtime path
+  in ordinary public execution
+- representative `<=`, `>`, `>=`, and `!=` programs now stay on the compiled
+  backend/runtime path in ordinary public execution
+- the direct `P21` target tests now pin the intended comparison semantics for
+  representative string-vs-numeric cases
+
+At the end of `T-210`, the remaining `P21` work is no longer implementation
+support. It is inspection, routing, corroboration, and then the claim
+rebaseline in `T-212`.
+
+### T-211 P21 Inspection And Corroboration Result
+
+The `P21` closeout evidence is now explicit:
+
+- representative `||`, `<=`, `>`, `>=`, and `!=` programs now succeed under
+  `--ir` and `--asm`
+- focused routing regressions now pin those forms to the compiled
+  backend/runtime path instead of the residual host-boundary path
+- the existing runnable reference subset already corroborates this wave through
+  cases such as `one-true-awk:p.7`, `one-true-awk:p.8`,
+  `one-true-awk:p.21a`, and `one-true-awk:t.next`
+
+That leaves `T-212` as the public-contract step: widen the actual claimed
+surface only after the backend/runtime, inspection, and evidence closeout is
+already checked in.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

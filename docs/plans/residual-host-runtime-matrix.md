@@ -32,8 +32,6 @@ Column meanings:
 
 | Family | Representative program | Reachable from ordinary `quawk` today | Host semantic execution exists today | Public host fallback exists today | Public backend executes today | `--ir` / `--asm` today | Claimed in `SPEC.md` today | Classification | Current direct evidence | Clean reference anchor today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Logical-or | `BEGIN { print 1 || 0 }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py`; negative `--ir` coverage in `tests/test_cli.py` | none identified | Narrower regex-term expression-pattern `||` support already exists; this row tracks the broader direct expression form that remains outside the current claim |
-| Broader comparisons | `BEGIN { print 1 != 0 }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | `==` and `<` are already claimed; this row tracks the broader comparison family outside the current claim |
 | Broader arithmetic | `BEGIN { print 6 / 2 }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Some arithmetic subexpressions already appear inside narrower claimed runtime-backed programs; this row tracks the broader direct arithmetic family outside the current claim |
 | Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Still fully outside the current claimed AOT-backed surface |
 | Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Regex-driven record selection is already claimed; binary `~` / `!~` operators are not |
@@ -61,3 +59,22 @@ Current classification result:
 That result means the current residual host-routed surface is still outside the
 claimed AOT-backed contract, and the next decision is about public fallback
 policy rather than about re-expanding claims immediately.
+
+## T-211 Residual Narrowing Result
+
+`P21` has now lifted logical-or and broader comparisons out of this residual
+matrix:
+
+- representative `||` programs now execute through the public backend/runtime
+  path
+- representative `<=`, `>`, `>=`, and `!=` programs now execute through the
+  public backend/runtime path
+- those forms therefore no longer belong in the residual host-runtime boundary
+  inventory
+
+The remaining representative residual rows are now:
+
+- broader arithmetic
+- ternary
+- match operators
+- `in`

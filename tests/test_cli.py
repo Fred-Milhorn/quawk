@@ -618,17 +618,16 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
     assert result.stderr == f"quawk: {missing_path}: No such file or directory\n"
 
 
-def test_quawk_reports_runtime_failures_with_exit_code_four() -> None:
-    result = run_quawk("--ir", "BEGIN { print 1 || 0 }")
+def test_quawk_ir_flag_prints_backend_ir_for_supported_p21_logical_or_program() -> None:
+    result = run_quawk("--ir", "BEGIN { print (1 || 0) }")
 
-    assert result.returncode == 4
-    assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
+    assert result.returncode == 0, result.stderr
+    assert "phi i1" in result.stdout
+    assert result.stderr == ""
 
 
 def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_and_asm() -> None:
     representative_programs = [
-        "BEGIN { print 1 || 0 }",
-        "BEGIN { print 1 != 0 }",
         "BEGIN { print 6 / 2 }",
         "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
@@ -643,8 +642,8 @@ def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_
             assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
 
 
-def test_quawk_rejects_the_current_host_only_p21_target_forms_under_ir_and_asm() -> None:
-    p21_host_only_programs = [
+def test_quawk_supports_the_current_p21_target_forms_under_ir_and_asm() -> None:
+    p21_programs = [
         "BEGIN { print (1 || 0) }",
         "BEGIN { print (1 <= 0) }",
         "BEGIN { print (1 > 0) }",
@@ -653,17 +652,16 @@ def test_quawk_rejects_the_current_host_only_p21_target_forms_under_ir_and_asm()
     ]
 
     for flag in ("--ir", "--asm"):
-        for source_text in p21_host_only_programs:
+        for source_text in p21_programs:
             result = run_quawk(flag, source_text)
 
-            assert result.returncode == 4
-            assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
+            assert result.returncode == 0, result.stderr
+            assert result.stdout != ""
+            assert result.stderr == ""
 
 
 def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None:
     representative_programs = [
-        "BEGIN { print 1 || 0 }",
-        "BEGIN { print 1 != 0 }",
         "BEGIN { print 6 / 2 }",
         "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
@@ -677,8 +675,8 @@ def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None
         assert result.stderr == "quawk: public execution does not support programs that still require the Python host runtime\n"
 
 
-def test_quawk_rejects_the_current_host_only_p21_target_forms_for_public_execution() -> None:
-    p21_host_only_programs = [
+def test_quawk_supports_the_current_p21_target_forms_for_public_execution() -> None:
+    p21_programs = [
         "BEGIN { print (1 || 0) }",
         "BEGIN { print (1 <= 0) }",
         "BEGIN { print (1 > 0) }",
@@ -686,11 +684,30 @@ def test_quawk_rejects_the_current_host_only_p21_target_forms_for_public_executi
         "BEGIN { print (1 != 0) }",
     ]
 
-    for source_text in p21_host_only_programs:
+    expected = {
+        "BEGIN { print (1 || 0) }": "1\n",
+        "BEGIN { print (1 <= 0) }": "0\n",
+        "BEGIN { print (1 > 0) }": "1\n",
+        "BEGIN { print (1 >= 0) }": "1\n",
+        "BEGIN { print (1 != 0) }": "1\n",
+    }
+
+    for source_text in p21_programs:
         result = run_quawk(source_text)
 
-        assert result.returncode == 4
-        assert result.stderr == "quawk: public execution does not support programs that still require the Python host runtime\n"
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected[source_text]
+        assert result.stderr == ""
+
+
+def test_quawk_supports_p21_string_and_numeric_comparison_semantics() -> None:
+    result = run_quawk(
+        'BEGIN { x = "abc"; y = "10"; print (x > y); x = "2"; y = "10"; print (x > y); print (x <= y); print (x != y) }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n0\n1\n1\n"
+    assert result.stderr == ""
 
 
 

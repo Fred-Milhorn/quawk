@@ -29,4 +29,5 @@ def test_t203_roadmap_adds_p20_after_the_p19_rebaseline_task() -> None:
     assert "| T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 |" in roadmap_text
     assert "| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 |" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 |" in roadmap_text
+    assert "- `T-212`: rebaseline the public contract after `P21`" in roadmap_text
     assert "[claimed-value-fallback-cleanup.md](claimed-value-fallback-cleanup.md)" in audit_text

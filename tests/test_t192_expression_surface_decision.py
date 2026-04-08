@@ -26,4 +26,5 @@ def test_t192_roadmap_blocks_follow_on_expression_tasks() -> None:
     assert "| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | done |" in roadmap_text
     assert "| T-192 | P18 | P0 | Decide and document whether to widen the broader unclaimed POSIX expression surface | T-191 | `SPEC.md`, `POSIX.md`, and the roadmap state clearly whether operators such as `||`, broader comparisons, arithmetic, ternary, match operators, and `in` remain intentionally unclaimed or are approved for the next implementation wave | done |" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 |" in roadmap_text
+    assert "- `T-212`: rebaseline the public contract after `P21`" in roadmap_text
     assert "| T-226 | P24 | P1 | Rebaseline the public contract after match and membership widening | T-225 |" in roadmap_text
