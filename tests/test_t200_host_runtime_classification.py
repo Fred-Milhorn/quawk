@@ -31,6 +31,7 @@ def test_t200_audit_doc_records_that_no_claimed_family_is_new_aot_debt() -> None
 def test_t200_roadmap_advances_the_immediate_next_list_to_t201() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`T-197` through `T-206` are complete." in roadmap_text
-    assert "- `T-207`: rebaseline the execution-model docs after claimed fallback removal" in roadmap_text
+    assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
+    assert "`T-197` through `T-207` are complete." in roadmap_text
+    assert "- `T-208`: author the backend-only baseline, target `SPEC.md` rows, and direct tests for `P21`" in roadmap_text
     assert "| T-200 | P19 | P0 | Classify residual host-routed forms and identify accidental AOT debt | T-198, T-199 | Each residual host-routed form is marked as AOT debt, unclaimed but backend-ready, unclaimed and backend-incomplete, or host-only by design | done |" in roadmap_text

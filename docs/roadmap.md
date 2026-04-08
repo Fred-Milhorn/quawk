@@ -39,6 +39,10 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P18 | Remaining POSIX Surface Closure And Widening Decisions | The last known claimed POSIX gap is closed, and any broader POSIX expression-surface expansion happens only through an explicit decision-gated wave |
 | P19 | Residual Host-Runtime Boundary Audit | Residual public host-runtime routing is inventoried, classified, and turned into an explicit backend-first follow-up plan |
 | P20 | Claimed Value-Fallback Cleanup | The remaining claimed programs that still depend on host-side value semantics are inventoried, backended, and removed from public fallback |
+| P21 | Logical-Or and Comparison Widening | `||` and the broader comparison family become claimed only when they execute through the compiled backend/runtime path with inspection parity and no public host fallback |
+| P22 | Arithmetic Widening | The broader arithmetic family becomes claimed only when it executes through the compiled backend/runtime path with inspection parity and no public host fallback |
+| P23 | Ternary Widening | Ternary expressions become claimed only when they execute through the compiled backend/runtime path with inspection parity and no public host fallback |
+| P24 | Match and Membership Widening | Match operators and `in` become claimed only when they execute through the compiled backend/runtime path with inspection parity and no public host fallback |
 
 ## Phase Entry and Exit Rules
 
@@ -506,27 +510,40 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: none currently scheduled
+Next deliverable: P21 logical-or and comparison widening
 
 Target outcome:
-- no active immediate implementation wave is scheduled; the claimed execution
-  surface is now backend/runtime-only in ordinary public execution, and any
-  future work requires a new prioritized phase
+- the next widening wave claims only `||`, `<=`, `>`, `>=`, and `!=`
+- every newly claimed form must execute through the compiled backend/runtime
+  path in ordinary public execution
+- no newly claimed form may depend on Python host semantics
+- `--ir` / `--asm` support and direct compatibility evidence must land before
+  the widened claim is considered complete
 
-`T-197` through `T-207` are complete. The host-runtime boundary baseline,
-residual inventory, routing regressions, classification, no-fallback policy
-for representative unclaimed forms, and the resulting execution-model doc
-rebaseline are now checked in. `P19` is complete, and the first checked-in
-claimed value-fallback inventory, focused routing regressions, and the first
-backend/runtime closure wave are now complete in `P20`.
-
-`T-192` is complete. The decision was to keep the broader intentionally
-unclaimed POSIX expression surface out of scope for the current roadmap wave.
-That leaves a follow-up architecture question: where ordinary public execution
-still reaches the Python host runtime, and what to do about it.
+`T-197` through `T-207` are complete. The execution-model cleanup work closed
+the claimed public host-fallback debt, so the roadmap can now widen the
+intentionally unclaimed expression surface in ranked backend-first phases.
 
 Immediate next tasks:
-- none currently scheduled; define a new prioritized phase before adding more implementation work
+- `T-208`: author the backend-only baseline, target `SPEC.md` rows, and direct tests for `P21`
+- `T-209`: implement backend/runtime support for `||`
+- `T-210`: implement backend/runtime support for `<=`, `>`, `>=`, and `!=`
+- `T-211`: close `--ir` / `--asm`, routing, and corroborating coverage for the widened `P21` surface
+- `T-212`: rebaseline the public contract after `P21`
+- `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave
+- `T-214`: implement backend/runtime support for `-`, `*`, and `/`
+- `T-215`: implement backend/runtime support for `%` and `^`
+- `T-216`: close `--ir` / `--asm`, routing, and corroborating coverage for the widened `P22` surface
+- `T-217`: rebaseline the public contract after `P22`
+- `T-218`: author the backend-only baseline and direct tests for ternary expressions
+- `T-219`: implement backend/runtime support for ternary expressions
+- `T-220`: close `--ir` / `--asm`, routing, and corroborating coverage for ternary
+- `T-221`: rebaseline the public contract after `P23`
+- `T-222`: author the backend-only baseline and direct tests for match operators and `in`
+- `T-223`: implement backend/runtime support for `~` and `!~`
+- `T-224`: implement backend/runtime support for `in`
+- `T-225`: close `--ir` / `--asm`, routing, and corroborating coverage for the widened `P24` surface
+- `T-226`: rebaseline the public contract after `P24`
 
 ## Backlog
 
@@ -708,6 +725,25 @@ Priority values:
 | T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |
 | T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | done |
 | T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | done |
+| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
+| T-209 | P21 | P0 | Implement backend/runtime support for logical-or | T-208 | Representative `||` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-210 | P21 | P0 | Implement backend/runtime support for broader comparisons | T-208 | Representative `<=`, `>`, `>=`, and `!=` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-211 | P21 | P1 | Close inspection parity, routing coverage, and corroboration for the widened logical-or and comparison surface | T-209, T-210 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P21` surface with no stale host-only gap | todo |
+| T-212 | P21 | P1 | Rebaseline the public contract after logical-or and comparison widening | T-211 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P21` claim with no implied host dependency | todo |
+| T-213 | P22 | P0 | Author the backend-only baseline, target claims, and direct tests for broader arithmetic | T-212 | Failing direct tests and explicit `SPEC.md` target rows define the exact `-`, `*`, `/`, `%`, and `^` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
+| T-214 | P22 | P0 | Implement backend/runtime support for subtraction, multiplication, and division | T-213 | Representative `-`, `*`, and `/` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-215 | P22 | P0 | Implement backend/runtime support for modulo and exponentiation | T-213 | Representative `%` and `^` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-216 | P22 | P1 | Close inspection parity, routing coverage, and corroboration for the widened arithmetic surface | T-214, T-215 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P22` surface with no stale host-only gap | todo |
+| T-217 | P22 | P1 | Rebaseline the public contract after arithmetic widening | T-216 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P22` claim with no implied host dependency | todo |
+| T-218 | P23 | P0 | Author the backend-only baseline, target claims, and direct tests for ternary expressions | T-217 | Failing direct tests and explicit `SPEC.md` target rows define the ternary forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
+| T-219 | P23 | P0 | Implement backend/runtime support for ternary expressions | T-218 | Representative ternary programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-220 | P23 | P1 | Close inspection parity, routing coverage, and corroboration for ternary | T-219 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover ternary with no stale host-only gap | todo |
+| T-221 | P23 | P1 | Rebaseline the public contract after ternary widening | T-220 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P23` claim with no implied host dependency | todo |
+| T-222 | P24 | P0 | Author the backend-only baseline, target claims, and direct tests for match operators and membership | T-221 | Failing direct tests and explicit `SPEC.md` target rows define the `~`, `!~`, and `in` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
+| T-223 | P24 | P0 | Implement backend/runtime support for match operators | T-222 | Representative `~` and `!~` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-224 | P24 | P0 | Implement backend/runtime support for membership tests | T-222 | Representative `in` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
+| T-225 | P24 | P1 | Close inspection parity, routing coverage, and corroboration for match operators and membership | T-223, T-224 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P24` surface with no stale host-only gap | todo |
+| T-226 | P24 | P1 | Rebaseline the public contract after match and membership widening | T-225 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P24` claim with no implied host dependency | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

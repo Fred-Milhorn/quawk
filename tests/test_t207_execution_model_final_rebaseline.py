@@ -18,11 +18,13 @@ def test_t207_docs_record_the_final_post_p20_execution_model_state() -> None:
     assert "the former claimed value-fallback debt from `P20` is now closed" in posix_text
 
 
-def test_t207_roadmap_closes_p20_and_clears_the_immediate_next_list() -> None:
+def test_t207_roadmap_closes_p20_and_sets_up_the_future_expression_waves() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: none currently scheduled" in roadmap_text
+    assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
     assert "`T-197` through `T-207` are complete." in roadmap_text
-    assert "backend/runtime closure wave are now complete in `P20`" in roadmap_text
-    assert "- none currently scheduled; define a new prioritized phase before adding more implementation work" in roadmap_text
+    assert "widen the" in roadmap_text
+    assert "intentionally unclaimed expression surface in ranked backend-first phases." in roadmap_text
     assert "| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | done |" in roadmap_text
+    assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 |" in roadmap_text
+    assert "| T-226 | P24 | P1 | Rebaseline the public contract after match and membership widening | T-225 |" in roadmap_text

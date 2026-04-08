@@ -102,16 +102,29 @@ rows for each candidate form and these columns:
 
 That is exactly what the companion decision table starts to provide.
 
-## Current Recommendation
+## Approved Future Phase Shape
 
-Based on the current repo state, the conservative recommendation remains:
+The current recommendation is to widen the remaining unclaimed expression
+surface in ranked phases rather than as one large POSIX-expression wave.
 
-- keep the broader expression surface intentionally unclaimed for now
-- only reopen it as a fresh explicit roadmap wave
-- start with a narrow, ranked operator/form set rather than a blanket POSIX
-  expression expansion
+Planned phase order:
 
-The main reason is not parser readiness. The parser already admits most of the
-surface. The real decision boundary is whether the repo wants to take on the
-public AOT/inspection contract, direct tests, and reference corroboration for
-those forms as a coherent new feature wave.
+1. `P21`: logical-or and broader comparisons
+2. `P22`: broader arithmetic
+3. `P23`: ternary
+4. `P24`: match operators and `in`
+
+These phases are backend-first by contract:
+
+- any newly claimed form must execute through the compiled backend/runtime path
+- ordinary public `quawk` execution must not depend on Python host semantics
+  for newly claimed forms
+- `--ir` / `--asm` support must land before the widened claim is considered
+  complete
+- direct tests and clean corroborating evidence must be checked in before the
+  public contract widens
+
+The main decision boundary is not parser readiness. The parser already admits
+most of the surface. The real question is whether the repo is ready to take on
+the backend/runtime, inspection, test, and corroboration cost for each ranked
+wave.

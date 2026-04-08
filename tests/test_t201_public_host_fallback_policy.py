@@ -29,6 +29,7 @@ def test_t201_matrix_records_no_public_host_fallback_for_representative_rows() -
 def test_t201_roadmap_advances_the_immediate_next_list_to_t202() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`T-197` through `T-206` are complete." in roadmap_text
-    assert "- `T-207`: rebaseline the execution-model docs after claimed fallback removal" in roadmap_text
+    assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
+    assert "`T-197` through `T-207` are complete." in roadmap_text
+    assert "- `T-208`: author the backend-only baseline, target `SPEC.md` rows, and direct tests for `P21`" in roadmap_text
     assert "| T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | done |" in roadmap_text

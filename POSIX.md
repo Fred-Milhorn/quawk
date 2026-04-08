@@ -973,8 +973,8 @@ The focused corroboration re-audit is now complete:
 
 ### T-192 Expression-Surface Decision Result
 
-The broader intentionally unclaimed POSIX expression surface is not approved
-for widening in the current roadmap wave.
+The broader intentionally unclaimed POSIX expression surface was not approved
+for widening in the original `P18` roadmap wave.
 
 Decision:
 
@@ -1010,11 +1010,16 @@ Decision-gated broader surface, not current product debt:
 - any work on that broader expression family should start only after an
   explicit future roadmap decision to widen the claimed surface
 
-Execution order for the next wave:
+Current follow-on plan:
 
-1. treat `T-192` as the current stop point for `P18`
-2. leave the broader expression wave blocked until a future explicit widening
-   decision reactivates it
+1. `P21`: logical-or and broader comparisons
+2. `P22`: broader arithmetic
+3. `P23`: ternary
+4. `P24`: match operators and `in`
+
+For every future widening phase, any newly claimed form must be fully
+implemented on the compiled backend/runtime path with no public Python host
+dependency for ordinary execution.
 
 Residual host-runtime boundary follow-up:
 
@@ -1046,6 +1051,8 @@ Supporting follow-on planning lives in:
 - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
 - [docs/plans/claimed-value-fallback-cleanup.md](docs/plans/claimed-value-fallback-cleanup.md)
 - [docs/plans/claimed-value-fallback-matrix.md](docs/plans/claimed-value-fallback-matrix.md)
+- [docs/plans/expression-surface-widening-analysis.md](docs/plans/expression-surface-widening-analysis.md)
+- [docs/plans/expression-surface-decision-table.md](docs/plans/expression-surface-decision-table.md)
 
 ### T-207 Execution-Model Final Rebaseline Result
 
@@ -1062,6 +1069,20 @@ What changed in the documented contract:
 - the remaining host-runtime discussion is limited to the broader intentionally
   unclaimed expression surface, where public execution still fails clearly
   rather than silently falling back
+
+### Future Widening Phases
+
+The next planned work is the ranked widening of the intentionally unclaimed
+expression surface:
+
+1. `P21`: logical-or and broader comparisons
+2. `P22`: broader arithmetic
+3. `P23`: ternary
+4. `P24`: match operators and `in`
+
+For every future phase, the rule is strict: any newly claimed form must be
+fully implemented in the compiled backend/runtime path, with no public Python
+host dependency for ordinary execution.
 
 ## Notes
 

@@ -23,6 +23,15 @@ Legend:
 
 ## Notes
 
+- The approved future roadmap order is:
+  - `P21`: `||` plus broader comparisons
+  - `P22`: broader arithmetic
+  - `P23`: ternary
+  - `P24`: match operators plus `in`
+- For every future phase, any newly claimed form must be fully implemented on
+  the compiled backend/runtime path. Public Python host fallback is not an
+  acceptable steady state for widened claims.
+
 - Parser admission evidence is in
   [tests/test_p7_posix_core_frontend.py](../../tests/test_p7_posix_core_frontend.py).
 - Host-runtime execution evidence exists broadly in
