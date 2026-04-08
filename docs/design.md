@@ -226,6 +226,7 @@ Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
 - broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
 - those broader POSIX forms stay outside the current public contract unless future roadmap work explicitly widens the claim set again
+- ordinary public `quawk` execution should fail clearly for representative host-runtime-only programs from that unclaimed surface rather than silently falling back
 
 Acceptance scenarios:
 - inline `BEGIN { print "hello" }` compiles and executes

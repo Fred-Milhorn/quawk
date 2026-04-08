@@ -249,9 +249,9 @@ the matrix.
 
 Current pinned state:
 
-- ordinary public execution still uses host fallback for the representative
-  logical-or, broader-comparison, broader-arithmetic, ternary, match-operator,
-  and `in` forms
+- ordinary public execution is now pinned to fail clearly rather than use host
+  fallback for the representative logical-or, broader-comparison,
+  broader-arithmetic, ternary, match-operator, and `in` forms
 - representative `--ir` and `--asm` requests still fail with the standard
   host-runtime-only backend error for those same forms
 - this routing behavior is now explicit regression coverage rather than an
@@ -294,6 +294,35 @@ Current audit conclusion:
 - the residual boundary problem is a policy and implementation question about
   intentionally unclaimed surface, not evidence of a hidden leak in the
   currently claimed contract
-- that moves the next work to `T-201`: decide whether ordinary `quawk` should
-  keep temporary host fallback for those unclaimed forms or fail clearly
-  outside the AOT-backed contract
+- `T-201` should make that public behavior explicit in the product contract
+
+## T-201 Public Fallback Policy Result
+
+The public fallback decision is now explicit:
+
+- ordinary public `quawk` execution does not keep temporary host fallback for
+  the representative unclaimed residual host-runtime-only forms
+- those programs now fail clearly outside the current AOT-backed contract
+- the Python host runtime remains available only as internal transition and
+  test-oracle infrastructure, not as a public semantic execution path
+
+Current public behavior split:
+
+- ordinary public execution now raises a clear runtime error for representative
+  unclaimed host-runtime-only programs
+- representative `--ir` and `--asm` requests still fail with the current
+  host-runtime-only backend error
+- the residual matrix now records `public host fallback exists today: no` for
+  the representative unclaimed rows
+
+That leaves `T-202` to rebaseline the broader execution-model docs around this
+now-explicit no-fallback policy.
+
+Remaining claimed follow-on:
+
+- `P19` resolves the unclaimed host-runtime-only surface and its public
+  fallback policy
+- a narrower follow-on still remains for claimed programs that can depend on
+  `requires_host_runtime_value_execution()`
+- that next cleanup wave is planned separately in:
+  - [claimed-value-fallback-cleanup.md](claimed-value-fallback-cleanup.md)

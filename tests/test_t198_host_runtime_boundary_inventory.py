@@ -30,12 +30,12 @@ def test_t198_matrix_records_the_representative_residual_host_routed_forms() -> 
     assert "Host semantic execution exists today" in matrix_text
     assert "Public host fallback exists today" in matrix_text
     assert "Public backend executes today" in matrix_text
-    assert "| Logical-or | `BEGIN { print 1 || 0 }` | yes | yes | yes | no | no | no |" in matrix_text
-    assert "| Broader comparisons | `BEGIN { print 1 != 0 }` | yes | yes | yes | no | no | no |" in matrix_text
-    assert "| Broader arithmetic | `BEGIN { print 6 / 2 }` | yes | yes | yes | no | no | no |" in matrix_text
-    assert "| Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | yes | no | no | no |" in matrix_text
-    assert '| Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | yes | no | no | no |' in matrix_text
-    assert '| `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | yes | no | no | no |' in matrix_text
+    assert "| Logical-or | `BEGIN { print 1 || 0 }` | yes | yes | no | no | no | no |" in matrix_text
+    assert "| Broader comparisons | `BEGIN { print 1 != 0 }` | yes | yes | no | no | no | no |" in matrix_text
+    assert "| Broader arithmetic | `BEGIN { print 6 / 2 }` | yes | yes | no | no | no | no |" in matrix_text
+    assert "| Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | no | no | no | no |" in matrix_text
+    assert '| Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | no | no | no | no |' in matrix_text
+    assert '| `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | no | no | no | no |' in matrix_text
     assert "`requires_host_runtime_execution(program) == True`" in matrix_text
     assert "`supports_runtime_backend_subset(program) == False`" in matrix_text
     assert "`lower_to_llvm_ir(program)` currently raises the standard" in matrix_text
@@ -48,7 +48,7 @@ def test_t198_posix_and_roadmap_point_to_the_checked_in_inventory_and_next_work(
     assert "[docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)" in posix_text
     assert "### P19: Residual Host-Runtime Boundary Audit" in roadmap_text
     assert "Next deliverable: P19 residual host-runtime boundary audit" in roadmap_text
-    assert "`T-197`, `T-198`, `T-199`, and `T-200` are complete." in roadmap_text
-    assert "- `T-201`: decide public behavior for unclaimed host-routed programs" in roadmap_text
+    assert "`T-197`, `T-198`, `T-199`, `T-200`, and `T-201` are complete." in roadmap_text
+    assert "- `T-202`: rebaseline the public execution-model docs after the audit" in roadmap_text
     assert "| T-197 | P19 | P0 | Author the residual host-runtime boundary audit baseline and scope | T-192 | `docs/plans/host-runtime-boundary-audit.md`, `POSIX.md`, and the roadmap make the backend-first purpose, audit scope, and required outputs explicit before new implementation decisions start | done |" in roadmap_text
     assert "| T-198 | P19 | P0 | Inventory public routes to the Python host runtime and produce the residual host-only matrix | T-197 | A checked-in matrix identifies residual host-routed forms, their claimed status, backend/inspection status, and whether they are reachable from ordinary public execution | done |" in roadmap_text

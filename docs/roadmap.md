@@ -38,6 +38,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P17 | Compatibility Tooling Namespace Cleanup | Corpus and upstream-compatibility tooling move under `quawk.compat`, and the singleton script wrapper is removed |
 | P18 | Remaining POSIX Surface Closure And Widening Decisions | The last known claimed POSIX gap is closed, and any broader POSIX expression-surface expansion happens only through an explicit decision-gated wave |
 | P19 | Residual Host-Runtime Boundary Audit | Residual public host-runtime routing is inventoried, classified, and turned into an explicit backend-first follow-up plan |
+| P20 | Claimed Value-Fallback Cleanup | The remaining claimed programs that still depend on host-side value semantics are inventoried, backended, and removed from public fallback |
 
 ## Phase Entry and Exit Rules
 
@@ -512,10 +513,10 @@ Target outcome:
   backend-first boundary and next reduction wave explicit before any future
   surface widening
 
-`T-197`, `T-198`, `T-199`, and `T-200` are complete. The host-runtime boundary
-baseline, residual inventory, routing regressions, and classification are now
-checked in, and the next planned work is the fallback-policy decision tracked
-in `P19`.
+`T-197`, `T-198`, `T-199`, `T-200`, and `T-201` are complete. The
+host-runtime boundary baseline, residual inventory, routing regressions,
+classification, and no-fallback policy are now checked in, and the next
+planned work is the execution-model doc rebaseline tracked in `P19`.
 
 `T-192` is complete. The decision was to keep the broader intentionally
 unclaimed POSIX expression surface out of scope for the current roadmap wave.
@@ -523,8 +524,13 @@ That leaves a follow-up architecture question: where ordinary public execution
 still reaches the Python host runtime, and what to do about it.
 
 Immediate next tasks:
-- `T-201`: decide public behavior for unclaimed host-routed programs
 - `T-202`: rebaseline the public execution-model docs after the audit
+- after `T-202`, begin `P20`:
+- `T-203`: inventory the remaining claimed value-fallback cases
+- `T-204`: add focused routing regressions for those claimed cases
+- `T-205`: close the backend/runtime value-semantics gaps for the claimed cases
+- `T-206`: remove the remaining claimed public value fallback
+- `T-207`: rebaseline the execution-model docs after claimed fallback removal
 
 ## Backlog
 
@@ -699,8 +705,13 @@ Priority values:
 | T-198 | P19 | P0 | Inventory public routes to the Python host runtime and produce the residual host-only matrix | T-197 | A checked-in matrix identifies residual host-routed forms, their claimed status, backend/inspection status, and whether they are reachable from ordinary public execution | done |
 | T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |
 | T-200 | P19 | P0 | Classify residual host-routed forms and identify accidental AOT debt | T-198, T-199 | Each residual host-routed form is marked as AOT debt, unclaimed but backend-ready, unclaimed and backend-incomplete, or host-only by design | done |
-| T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | todo |
+| T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | done |
 | T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | todo |
+| T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 | A checked-in plan or matrix identifies every representative claimed public case that still depends on `requires_host_runtime_value_execution()` or equivalent host-assisted value semantics | todo |
+| T-204 | P20 | P1 | Add focused routing regressions for the claimed value-fallback cases | T-203 | Direct tests pin which claimed programs still rely on the host evaluator today and prove the behavioral requirement they preserve | todo |
+| T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | todo |
+| T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | todo |
+| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

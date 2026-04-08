@@ -1,0 +1,109 @@
+# Claimed Value-Fallback Cleanup
+
+This document records the follow-on architecture work after `P19`.
+
+The host-runtime boundary audit distinguished two different problems:
+
+- unclaimed host-runtime-only forms
+- claimed behavior that can still rely on the host evaluator's richer value
+  semantics in some public cases
+
+`T-201` resolved only the first category. Ordinary public `quawk` now fails
+clearly for representative unclaimed host-runtime-only forms instead of
+silently falling back.
+
+This document covers the second category.
+
+## Why This Follow-On Exists
+
+The desired steady state remains:
+
+- host semantic execution exists: `no`
+- public host fallback exists: `no`
+- public backend execution exists: `yes`
+
+That is still not fully true for every currently claimed behavior.
+
+The remaining gap is narrower than the old residual matrix:
+
+- some currently claimed programs can still require the Python host evaluator's
+  richer value semantics
+- those are not broader unclaimed operator families
+- they are claimed behaviors that should eventually stay on the backend too
+
+## Current Problem Shape
+
+The remaining fallback path is centered on
+`requires_host_runtime_value_execution()` in [src/quawk/jit.py](/Users/fred/dev/quawk/src/quawk/jit.py).
+
+This is not the same as the host-runtime-only residual surface from `P19`.
+Instead, it covers claimed programs whose semantics still depend on the richer
+AWK value model available in the host evaluator.
+
+Representative examples to audit first:
+
+- `BEGIN { print x }`
+- `BEGIN { y = x; print y }`
+- other unset-scalar string-context cases
+- any claimed program shapes that currently depend on host-side value coercion
+  or unset-value behavior instead of the backend/runtime path
+
+The goal is to identify exactly which claimed cases still rely on that path and
+then remove it.
+
+## Required Outputs
+
+### 1. Claimed Value-Fallback Inventory
+
+Produce a checked-in list or matrix of currently claimed programs that still
+depend on `requires_host_runtime_value_execution()`.
+
+Each row should answer:
+
+- claimed in `SPEC.md` today
+- public execution currently reaches the host evaluator
+- representative direct regression exists
+- backend/runtime behavior already matches or still diverges
+- likely reason for fallback
+
+### 2. Focused Routing Regressions
+
+Add direct tests that pin the remaining claimed value-fallback cases.
+
+These regressions should prove:
+
+- the case is part of the claimed public surface
+- public execution still reaches the host evaluator today
+- removing that fallback would currently change behavior
+
+### 3. Backend Value-Semantics Closure
+
+Implement the backend/runtime work needed to keep those claimed cases correct
+without host assistance.
+
+Expected areas:
+
+- unset scalar handling in string contexts
+- plain scalar-name reads in `print` and assignment flows
+- value coercion behavior shared between unset, numeric, and string contexts
+
+### 4. Fallback Removal For Claimed Cases
+
+Once the backend/runtime path is correct for the claimed cases, remove the
+remaining claimed value-fallback path from ordinary public execution.
+
+After that point:
+
+- claimed programs should not need the host evaluator
+- unclaimed host-runtime-only forms should already be failing clearly from
+  `T-201`
+
+## Acceptance Direction
+
+This follow-on should end with:
+
+- no remaining claimed public feature that requires semantic host execution
+- no remaining public host fallback for claimed programs
+- backend/runtime-only public execution for the full claimed surface
+
+That is the stronger architecture state implied by the project direction.

@@ -360,9 +360,9 @@ def emit_assembly(llvm_ir: str) -> str:
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
     string_initial_variables = initial_variables_require_string_runtime(initial_variables)
+    ensure_public_execution_supported(program, initial_variables)
     if (
-        requires_host_runtime_execution(program)
-        or (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        (requires_host_runtime_value_execution(program) and not string_initial_variables)
         or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, [], None, initial_variables)
@@ -2551,14 +2551,26 @@ def execute_with_inputs(
 ) -> int:
     """Execute the current program, routing record-driven programs through the host loop."""
     string_initial_variables = initial_variables_require_string_runtime(initial_variables)
+    ensure_public_execution_supported(program, initial_variables)
     if (
-        requires_host_runtime_execution(program)
-        or (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        (requires_host_runtime_value_execution(program) and not string_initial_variables)
         or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, input_files, field_separator, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)
     return execute_llvm_ir(llvm_ir)
+
+
+def ensure_public_execution_supported(
+    program: Program,
+    initial_variables: InitialVariables | None = None,
+) -> None:
+    """Reject public execution for unclaimed programs that still require host-runtime-only support."""
+    _ = initial_variables
+    if requires_host_runtime_execution(program):
+        raise RuntimeError(
+            "public execution does not support programs that still require the Python host runtime"
+        )
 
 
 def link_reusable_execution_module(

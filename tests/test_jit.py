@@ -1313,7 +1313,7 @@ def test_execute_host_runtime_sequences_begin_regex_and_end(capsys, monkeypatch)
     assert captured.err == ""
 
 
-def test_execute_routes_representative_residual_expression_forms_through_host_runtime(
+def test_execute_rejects_representative_residual_expression_forms_for_public_execution(
     monkeypatch,
 ) -> None:
     programs = {
@@ -1325,7 +1325,7 @@ def test_execute_routes_representative_residual_expression_forms_through_host_ru
         "in_operator": 'BEGIN { a["x"] = 1; print ("x" in a) }',
     }
     parsed_programs = {name: parse_program(source_text) for name, source_text in programs.items()}
-    routed_to_host: list[str] = []
+    routed_to_host = False
 
     def fake_execute_host_runtime(
         program: Program,
@@ -1333,23 +1333,25 @@ def test_execute_routes_representative_residual_expression_forms_through_host_ru
         field_separator: str | None,
         initial_variables: jit.InitialVariables | None = None,
     ) -> int:
-        matched_name = next(name for name, parsed in parsed_programs.items() if parsed is program)
-        routed_to_host.append(matched_name)
-        assert input_files == []
-        assert field_separator is None
-        assert initial_variables is None
-        return 17
+        nonlocal routed_to_host
+        routed_to_host = True
+        raise AssertionError("public execution should not fall back to the Python host runtime now")
 
     def fail_build_public_execution_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("residual host-routed forms should not build public backend IR today")
+        raise AssertionError("residual host-routed forms should fail before public backend IR building")
 
     monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
     monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fail_build_public_execution_llvm_ir)
 
     for program in parsed_programs.values():
-        assert jit.execute(program) == 17
+        try:
+            jit.execute(program)
+        except RuntimeError as exc:
+            assert str(exc) == "public execution does not support programs that still require the Python host runtime"
+        else:
+            raise AssertionError("residual host-routed public execution should fail clearly now")
 
-    assert routed_to_host == list(programs)
+    assert routed_to_host is False
 
 
 def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) -> None:
