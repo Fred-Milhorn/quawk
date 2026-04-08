@@ -113,6 +113,8 @@ class LoweringState:
     function_defs: dict[str, FunctionDef] = field(default_factory=dict)
     return_slot: str | None = None
     return_label: str | None = None
+    initial_string_values: dict[str, str] = field(default_factory=dict)
+    local_names: frozenset[str] = field(default_factory=frozenset)
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -367,7 +369,6 @@ def execute(program: Program, initial_variables: InitialVariables | None = None)
             and not string_initial_variables
             and not supports_claimed_value_runtime_subset(program)
         )
-        or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, [], None, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables)
@@ -479,6 +480,10 @@ def lower_direct_function_program_to_llvm_ir(
             function_defs=function_defs,
             string_index=string_index,
             numeric_format_declared=numeric_format_declared,
+            initial_string_values={
+                name: value for name, value in (initial_variables or []) if isinstance(value, str)
+            },
+            local_names=frozenset(function_def.params),
         )
         return_slot = function_state.next_temp("retval")
         function_state.allocas.append(f"  {return_slot} = alloca double")
@@ -519,6 +524,9 @@ def lower_direct_function_program_to_llvm_ir(
         string_index=string_index,
         uses_printf=uses_printf,
         numeric_format_declared=numeric_format_declared,
+        initial_string_values={
+            name: value for name, value in (initial_variables or []) if isinstance(value, str)
+        },
     )
     if initial_variables is not None:
         lower_initial_variables(initial_variables, main_state)
@@ -591,6 +599,7 @@ def program_requires_linked_execution_module(
     initial_variables: InitialVariables | None = None,
 ) -> bool:
     """Report whether public execution/inspection needs the reusable driver module."""
+    direct_function_subset = supports_direct_function_backend_subset(program)
     return (
         (
             not initial_variables
@@ -600,7 +609,7 @@ def program_requires_linked_execution_module(
         or
         supports_runtime_backend_subset(program)
         or requires_input_aware_execution(program)
-        or initial_variables_require_string_runtime(initial_variables)
+        or (initial_variables_require_string_runtime(initial_variables) and not direct_function_subset)
     )
 
 
@@ -1134,6 +1143,7 @@ def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> N
     if statement.index is not None or statement.extra_indexes:
         raise RuntimeError("array assignments are not supported by the LLVM-backed backend")
     slot_name = variable_address(statement.name, state)
+    state.initial_string_values.pop(statement.name, None)
     numeric_value = lower_numeric_expression(statement.value, state)
     state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
 
@@ -1323,9 +1333,13 @@ def lower_runtime_for_in_statement(statement: ForInStmt, state: LoweringState) -
 
 
 def lower_initial_variables(initial_variables: InitialVariables, state: LoweringState) -> None:
-    """Seed ordered numeric preassignments before user statements execute."""
+    """Seed ordered preassignments before user statements execute."""
     for name, value in initial_variables:
         slot_name = variable_address(name, state)
+        if isinstance(value, str):
+            state.initial_string_values[name] = value
+            state.instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
+            continue
         state.instructions.append(f"  store double {format_double_literal(value)}, ptr {slot_name}")
 
 
@@ -1354,6 +1368,22 @@ def variable_address(name: str, state: LoweringState) -> str:
 
 def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one supported `print` expression into side-effecting IR."""
+    if (
+        isinstance(expression, NameExpr)
+        and expression.name in state.initial_string_values
+        and expression.name not in state.local_names
+    ):
+        state.uses_puts = True
+        global_name, byte_length = declare_string(state, state.initial_string_values[expression.name])
+        string_ptr = state.next_temp("strptr")
+        call_temp = state.next_temp("call")
+        state.instructions.extend(
+            [
+                emit_gep(string_ptr, byte_length, global_name),
+                f"  {call_temp} = call i32 @puts(ptr {string_ptr})",
+            ]
+        )
+        return
     if isinstance(expression, StringLiteralExpr):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, expression.value)
@@ -2574,7 +2604,6 @@ def execute_with_inputs(
             and not string_initial_variables
             and not supports_claimed_value_runtime_subset(program)
         )
-        or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, input_files, field_separator, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)

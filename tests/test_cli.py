@@ -922,6 +922,15 @@ def test_quawk_preserves_string_v_plus_function_value_behavior() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_string_v_plus_function_programs() -> None:
+    result = run_quawk("--ir", "-v", "x=hello", "function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "declare i32 @puts(ptr)" in result.stdout
+    assert "@qk_fn_f(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_executes_supported_print_surface_program_through_backend() -> None:
     result = run_quawk('BEGIN { OFS = ","; ORS = "!"; print 1, 2; print }')
 

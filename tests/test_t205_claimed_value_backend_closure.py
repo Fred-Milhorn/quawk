@@ -13,8 +13,6 @@ def test_t205_plan_doc_records_the_backend_closure_result() -> None:
     assert "`BEGIN { y = x; print y }` now stays on the backend/runtime path" in plan_text
     assert "`BEGIN { print x; print x + 1 }` now stays on the backend/runtime path" in plan_text
     assert "`BEGIN { x = 1; print x }` now stays on the backend/runtime path" in plan_text
-    assert "the remaining tracked claimed public fallback is the narrower" in plan_text
-    assert "string-`-v` plus user-defined-function row" in plan_text
     assert "That leaves `T-206` to remove the remaining claimed public value fallback" in plan_text
 
 
@@ -22,6 +20,6 @@ def test_t205_roadmap_advances_to_remaining_claimed_value_fallback_removal() -> 
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
-    assert "`T-197` through `T-205` are complete." in roadmap_text
-    assert "- `T-206`: remove the remaining claimed public value fallback" in roadmap_text
+    assert "`T-197` through `T-206` are complete." in roadmap_text
+    assert "- `T-207`: rebaseline the execution-model docs after claimed fallback removal" in roadmap_text
     assert "| T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |" in roadmap_text

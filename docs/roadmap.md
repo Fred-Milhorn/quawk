@@ -513,7 +513,7 @@ Target outcome:
   host-side value semantics, then remove that fallback so the claimed surface
   is backend/runtime-only in ordinary public execution
 
-`T-197` through `T-205` are complete. The host-runtime boundary baseline,
+`T-197` through `T-206` are complete. The host-runtime boundary baseline,
 residual inventory, routing regressions, classification, no-fallback policy
 for representative unclaimed forms, and the resulting execution-model doc
 rebaseline are now checked in. `P19` is complete, and the first checked-in
@@ -526,7 +526,6 @@ That leaves a follow-up architecture question: where ordinary public execution
 still reaches the Python host runtime, and what to do about it.
 
 Immediate next tasks:
-- `T-206`: remove the remaining claimed public value fallback
 - `T-207`: rebaseline the execution-model docs after claimed fallback removal
 
 ## Backlog
@@ -707,7 +706,7 @@ Priority values:
 | T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 | A checked-in plan or matrix identifies every representative claimed public case that still depends on `requires_host_runtime_value_execution()` or equivalent host-assisted value semantics | done |
 | T-204 | P20 | P1 | Add focused routing regressions for the claimed value-fallback cases | T-203 | Direct tests pin which claimed programs still rely on the host evaluator today and prove the behavioral requirement they preserve | done |
 | T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |
-| T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | todo |
+| T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | done |
 | T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |

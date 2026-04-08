@@ -122,6 +122,23 @@ The backend/runtime closure for this task is intentionally narrow:
 That leaves `T-206` to remove the remaining claimed public value fallback
 entirely instead of only narrowing it.
 
+## T-206 Claimed Fallback Removal Result
+
+The last tracked claimed public fallback is now closed.
+
+Current result:
+
+- string-valued `-v` plus the supported direct function subset now stays on the
+  backend/runtime path in ordinary public execution
+- the representative row
+  `function f(y) { return y + 1 } BEGIN { print x; print f(1) }`
+  with `-v x=hello` no longer routes to the host evaluator
+- the claimed-value matrix no longer contains any representative row with
+  `Public host fallback exists today | yes`
+
+That leaves `T-207` to rebaseline the broader execution-model docs to the new
+post-fallback state.
+
 ## Required Outputs
 
 ### 1. Claimed Value-Fallback Inventory

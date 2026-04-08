@@ -24,7 +24,6 @@ def current_public_route(program: Program, initial_variables: jit.InitialVariabl
             and not string_initial_variables
             and not jit.supports_claimed_value_runtime_subset(program)
         )
-        or (string_initial_variables and jit.has_function_definitions(program))
     ):
         return "host"
     return "backend"
@@ -38,7 +37,7 @@ def test_t203_matrix_records_the_representative_claimed_value_fallback_rows() ->
     assert "| Unset scalar propagation through assignment | `BEGIN { y = x; print y }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes |" in matrix_text
     assert "| Mixed unset-scalar string and numeric views | `BEGIN { print x; print x + 1 }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes |" in matrix_text
     assert "| Plain scalar-name read after assignment | `BEGIN { x = 1; print x }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes |" in matrix_text
-    assert '| String `-v` plus user-defined functions | `function f(y) { return y + 1 } BEGIN { print x; print f(1) }` | `-v x=hello` | yes | yes | `initial_variables_require_string_runtime(initial_variables) == True` and `has_function_definitions(program) == True` | no |' in matrix_text
+    assert '| String `-v` plus user-defined functions | `function f(y) { return y + 1 } BEGIN { print x; print f(1) }` | `-v x=hello` | yes | no | `supports_direct_function_backend_subset(program) == True` plus linked string preassignment setup keep public execution on the backend/runtime path | yes |' in matrix_text
     assert "`-v x=hello 'BEGIN { print x }'` is not part of this remaining matrix" in matrix_text
 
 
@@ -66,7 +65,8 @@ def test_t203_inventory_rows_match_the_current_value_fallback_boundary() -> None
 
     assert jit.requires_host_runtime_value_execution(string_v_with_function) is False
     assert jit.supports_claimed_value_runtime_subset(string_v_with_function) is False
-    assert current_public_route(string_v_with_function, [("x", "hello")]) == "host"
+    assert jit.supports_direct_function_backend_subset(string_v_with_function) is True
+    assert current_public_route(string_v_with_function, [("x", "hello")]) == "backend"
 
     assert jit.requires_host_runtime_value_execution(string_v_without_function) is True
     assert jit.supports_claimed_value_runtime_subset(string_v_without_function) is True

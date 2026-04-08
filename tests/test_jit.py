@@ -1307,31 +1307,47 @@ def test_execute_routes_representative_claimed_value_backend_subset_programs_thr
     assert built == list(cases.values())
 
 
-def test_execute_routes_remaining_string_v_plus_function_claimed_value_case_through_host_runtime(
+def test_execute_routes_remaining_string_v_plus_function_claimed_value_case_through_backend(
     monkeypatch,
 ) -> None:
     program = parse_program("function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }")
-    routed: list[tuple[Program, jit.InitialVariables | None]] = []
+    captured_ir: dict[str, str] = {}
 
-    def fake_execute_host_runtime(
-        routed_program: Program,
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("string -v plus supported function programs should not stay on the host runtime")
+
+    def fake_lower_to_llvm_ir(
+        lowered_program: Program,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert lowered_program is program
+        assert initial_variables == [("x", "hello")]
+        return "; string-v function backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
         input_files: list[str],
         field_separator: str | None,
         initial_variables: jit.InitialVariables | None = None,
-    ) -> int:
+    ) -> str:
+        assert llvm_ir == "; string-v function backend module"
+        assert linked_program is program
         assert input_files == []
         assert field_separator is None
-        routed.append((routed_program, initial_variables))
+        assert initial_variables == [("x", "hello")]
+        return "; linked string-v function backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
         return 0
 
-    def fail_build_public_execution_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("the remaining string-v plus function case should still route to the host runtime")
-
-    monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
-    monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fail_build_public_execution_llvm_ir)
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program, [("x", "hello")]) == 0
-    assert routed == [(program, [("x", "hello")])]
+    assert captured_ir["module"] == "; string-v function backend module"
 
 
 def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:

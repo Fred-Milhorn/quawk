@@ -14,9 +14,8 @@ Target interpretation:
   boundary from `P19`
 - these rows remain product debt because they are already part of the claimed
   public surface
-- after `T-205`, four representative scalar-value rows are now closed and kept
-  on the backend/runtime path, while one narrower string-`-v` plus
-  user-defined-function route still remains
+- after `T-206`, every representative row in this matrix is now closed and kept
+  on the backend/runtime path
 
 Column meanings:
 
@@ -35,7 +34,7 @@ Column meanings:
 | Unset scalar propagation through assignment | `BEGIN { y = x; print y }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes | Closed in `T-205`; the unset scalar string view now survives the checked-in assignment and print flow on the backend/runtime path. |
 | Mixed unset-scalar string and numeric views | `BEGIN { print x; print x + 1 }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes | Closed in `T-205`; the backend/runtime path now carries the representative string `""` and numeric `0` views for the same unset scalar. |
 | Plain scalar-name read after assignment | `BEGIN { x = 1; print x }` | none | yes | no | `supports_claimed_value_runtime_subset(program) == True` keeps public execution on the backend/runtime path | yes | Closed in `T-205`; a plain scalar-name print after simple assignment no longer stays host-assisted by default. |
-| String `-v` plus user-defined functions | `function f(y) { return y + 1 } BEGIN { print x; print f(1) }` | `-v x=hello` | yes | yes | `initial_variables_require_string_runtime(initial_variables) == True` and `has_function_definitions(program) == True` | no | The remaining special-case route is the combination of string-valued preassignment plus the direct function subset, not string `-v` by itself. |
+| String `-v` plus user-defined functions | `function f(y) { return y + 1 } BEGIN { print x; print f(1) }` | `-v x=hello` | yes | no | `supports_direct_function_backend_subset(program) == True` plus linked string preassignment setup keep public execution on the backend/runtime path | yes | Closed in `T-206`; the direct function backend now preserves the representative nonnumeric string preassignment for plain scalar prints while keeping the supported function call on the backend. |
 
 Current exclusions:
 
@@ -43,3 +42,4 @@ Current exclusions:
   current public path already keeps that case on the backend.
 - `-v x=12 'BEGIN { print x + 1; print x "a" }'` is also not part of this
   remaining matrix; it is already covered by the scalar-string backend path.
+- no representative row in this matrix now requires public host fallback.
