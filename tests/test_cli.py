@@ -172,6 +172,22 @@ def test_quawk_prints_unset_mixed_program_scalars_as_empty_strings() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_preserves_unset_scalar_assignment_string_view() -> None:
+    result = run_quawk("BEGIN { y = x; print y }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "\n"
+    assert result.stderr == ""
+
+
+def test_quawk_preserves_unset_scalar_string_and_numeric_views() -> None:
+    result = run_quawk("BEGIN { print x; print x + 1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "\n1\n"
+    assert result.stderr == ""
+
+
 def test_quawk_lex_flag_prints_tokens_and_stops() -> None:
     result = run_quawk("--lex", 'BEGIN { print "hello" }')
 
@@ -886,6 +902,14 @@ def test_quawk_executes_string_v_preassignments_through_backend() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "13\n12a\n"
+    assert result.stderr == ""
+
+
+def test_quawk_preserves_string_v_plus_function_value_behavior() -> None:
+    result = run_quawk("-v", "x=hello", "function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "hello\n2\n"
     assert result.stderr == ""
 
 

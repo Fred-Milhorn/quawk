@@ -77,6 +77,26 @@ Current inventory result:
 That leaves `T-204` to add focused routing regressions for these claimed rows,
 then `T-205` / `T-206` to remove the fallback rather than just inventory it.
 
+## T-204 Routing Regression Result
+
+Focused routing regressions now pin the representative claimed rows from the
+matrix.
+
+Current pinned state:
+
+- ordinary public execution still routes the representative unset-scalar and
+  plain scalar-name rows through the host evaluator today
+- the string-`-v` plus user-defined-function row also still routes through the
+  host evaluator today, but by the separate string-initial-variable plus
+  function-definition guard rather than by
+  `requires_host_runtime_value_execution()`
+- direct behavior regressions now pin the user-visible requirements those routes
+  currently preserve, including unset-scalar string views and the string-`-v`
+  plus function combination
+
+That leaves `T-205` to close the backend/runtime value-semantics gaps instead
+of only documenting the remaining host-assisted path.
+
 ## Required Outputs
 
 ### 1. Claimed Value-Fallback Inventory
