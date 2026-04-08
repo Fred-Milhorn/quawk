@@ -17,6 +17,6 @@ def test_t199_audit_doc_records_the_focused_routing_regression_result() -> None:
 def test_t199_roadmap_advances_the_immediate_next_list_to_t200() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`T-197`, `T-198`, and `T-199` are complete." in roadmap_text
-    assert "- `T-200`: classify residual host-routed forms and identify accidental AOT debt" in roadmap_text
+    assert "`T-197`, `T-198`, `T-199`, and `T-200` are complete." in roadmap_text
+    assert "- `T-201`: decide public behavior for unclaimed host-routed programs" in roadmap_text
     assert "| T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |" in roadmap_text

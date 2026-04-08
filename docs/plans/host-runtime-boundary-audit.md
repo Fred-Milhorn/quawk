@@ -260,3 +260,40 @@ Current pinned state:
 That leaves `T-200` to classify those residual forms as real AOT debt,
 backend-ready widening candidates, backend-incomplete work, or intentionally
 out-of-contract forms.
+
+## T-200 Classification Result
+
+The residual classification pass is now complete.
+
+Current result:
+
+- no new claimed family is currently classified as `AOT debt`
+- the representative residual forms tracked in the matrix are not currently
+  `unclaimed but backend-ready`
+- the representative logical-or, broader-comparison, broader-arithmetic,
+  ternary, match-operator, and `in` rows are all currently classified as
+  `unclaimed and backend-incomplete`
+
+Why they are not classified as `AOT debt`:
+
+- none of those representative forms are currently claimed in `SPEC.md`
+- the checked-in architecture audit still governs the claimed AOT-backed surface
+- the current residual host fallback is concentrated in the broader
+  intentionally unclaimed expression families
+
+Why they are not classified as `unclaimed but backend-ready`:
+
+- ordinary public execution still relies on host fallback for those
+  representative forms
+- `supports_runtime_backend_subset(program)` remains false for those rows
+- representative `--ir` and `--asm` requests still fail with the current
+  host-runtime-only backend error
+
+Current audit conclusion:
+
+- the residual boundary problem is a policy and implementation question about
+  intentionally unclaimed surface, not evidence of a hidden leak in the
+  currently claimed contract
+- that moves the next work to `T-201`: decide whether ordinary `quawk` should
+  keep temporary host fallback for those unclaimed forms or fail clearly
+  outside the AOT-backed contract

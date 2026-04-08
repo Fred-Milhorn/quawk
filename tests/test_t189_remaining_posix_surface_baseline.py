@@ -47,8 +47,8 @@ def test_t189_roadmap_marks_the_baseline_done_and_moves_to_t190() -> None:
 
     assert "Next deliverable: P19 residual host-runtime boundary audit" in roadmap_text
     assert "`T-192` is complete. The decision was to keep the broader intentionally" in roadmap_text
-    assert "`T-197`, `T-198`, and `T-199` are complete." in roadmap_text
-    assert "- `T-200`: classify residual host-routed forms and identify accidental AOT debt" in roadmap_text
+    assert "`T-197`, `T-198`, `T-199`, and `T-200` are complete." in roadmap_text
+    assert "- `T-201`: decide public behavior for unclaimed host-routed programs" in roadmap_text
     assert "- `T-189` author the remaining POSIX surface baseline and decision gate" not in roadmap_text
     assert "| T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | done |" in roadmap_text
     assert "| T-190 | P18 | P0 | Fix the remaining claimed `$0` / `NF` rebuild mismatch | T-189 | Public execution no longer diverges on the reviewed `$0` reconstruction cases after `NF` or field mutation, and direct tests pin the corrected behavior | done |" in roadmap_text
