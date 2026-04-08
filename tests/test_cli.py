@@ -643,6 +643,23 @@ def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_
             assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
 
 
+def test_quawk_rejects_the_current_host_only_p21_target_forms_under_ir_and_asm() -> None:
+    p21_host_only_programs = [
+        "BEGIN { print (1 || 0) }",
+        "BEGIN { print (1 <= 0) }",
+        "BEGIN { print (1 > 0) }",
+        "BEGIN { print (1 >= 0) }",
+        "BEGIN { print (1 != 0) }",
+    ]
+
+    for flag in ("--ir", "--asm"):
+        for source_text in p21_host_only_programs:
+            result = run_quawk(flag, source_text)
+
+            assert result.returncode == 4
+            assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
+
+
 def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None:
     representative_programs = [
         "BEGIN { print 1 || 0 }",
@@ -658,6 +675,23 @@ def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None
 
         assert result.returncode == 4
         assert result.stderr == "quawk: public execution does not support programs that still require the Python host runtime\n"
+
+
+def test_quawk_rejects_the_current_host_only_p21_target_forms_for_public_execution() -> None:
+    p21_host_only_programs = [
+        "BEGIN { print (1 || 0) }",
+        "BEGIN { print (1 <= 0) }",
+        "BEGIN { print (1 > 0) }",
+        "BEGIN { print (1 >= 0) }",
+        "BEGIN { print (1 != 0) }",
+    ]
+
+    for source_text in p21_host_only_programs:
+        result = run_quawk(source_text)
+
+        assert result.returncode == 4
+        assert result.stderr == "quawk: public execution does not support programs that still require the Python host runtime\n"
+
 
 
 def test_quawk_ir_flag_prints_backend_ir_for_supported_function_programs() -> None:

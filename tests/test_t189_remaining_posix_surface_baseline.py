@@ -46,7 +46,7 @@ def test_t189_roadmap_marks_the_baseline_done_and_moves_to_t190() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
-    assert "`T-197` through `T-207` are complete." in roadmap_text
+    assert "`T-197` through `T-207` are complete" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 |" in roadmap_text
     assert "- `T-189` author the remaining POSIX surface baseline and decision gate" not in roadmap_text
     assert "| T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | done |" in roadmap_text

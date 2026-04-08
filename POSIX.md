@@ -1084,6 +1084,31 @@ For every future phase, the rule is strict: any newly claimed form must be
 fully implemented in the compiled backend/runtime path, with no public Python
 host dependency for ordinary execution.
 
+### T-208 P21 Baseline Result
+
+The `P21` baseline now fixes the exact next widening target:
+
+- `||`
+- `<=`, `>`, `>=`, `!=`
+
+What is checked in for that baseline:
+
+- `SPEC.md` now has explicit planned rows for the `P21` target surface and its
+  backend or inspection gate
+- direct tests now pin those exact forms as the next widening target rather
+  than treating them as an undifferentiated part of the broader unclaimed
+  surface
+- the current starting point is pinned with parenthesized expression programs
+  so the direct tests exercise comparison semantics rather than `print`
+  redirection, and those representative `||`, `<=`, `>`, `>=`, and `!=` forms
+  still fail cleanly outside the claimed surface
+- the roadmap now treats `T-208` as complete and leaves `T-209` / `T-210` as
+  the first implementation work inside `P21`
+
+The contract rule remains strict: these forms do not become claimed until
+ordinary public execution, `--ir`, and `--asm` all stay on the compiled
+backend/runtime path with no public Python host dependency.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

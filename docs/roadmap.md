@@ -520,12 +520,13 @@ Target outcome:
 - `--ir` / `--asm` support and direct compatibility evidence must land before
   the widened claim is considered complete
 
-`T-197` through `T-207` are complete. The execution-model cleanup work closed
-the claimed public host-fallback debt, so the roadmap can now widen the
-intentionally unclaimed expression surface in ranked backend-first phases.
+`T-197` through `T-207` are complete, and `T-208` now fixes the exact `P21`
+target forms plus the backend-only claim rule. The execution-model cleanup
+work closed the claimed public host-fallback debt, so the roadmap can now
+widen the intentionally unclaimed expression surface in ranked backend-first
+phases.
 
 Immediate next tasks:
-- `T-208`: author the backend-only baseline, target `SPEC.md` rows, and direct tests for `P21`
 - `T-209`: implement backend/runtime support for `||`
 - `T-210`: implement backend/runtime support for `<=`, `>`, `>=`, and `!=`
 - `T-211`: close `--ir` / `--asm`, routing, and corroborating coverage for the widened `P21` surface
@@ -725,7 +726,7 @@ Priority values:
 | T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |
 | T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | done |
 | T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | done |
-| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
+| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |
 | T-209 | P21 | P0 | Implement backend/runtime support for logical-or | T-208 | Representative `||` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
 | T-210 | P21 | P0 | Implement backend/runtime support for broader comparisons | T-208 | Representative `<=`, `>`, `>=`, and `!=` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
 | T-211 | P21 | P1 | Close inspection parity, routing coverage, and corroboration for the widened logical-or and comparison surface | T-209, T-210 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P21` surface with no stale host-only gap | todo |

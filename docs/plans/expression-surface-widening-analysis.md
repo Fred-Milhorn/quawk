@@ -128,3 +128,27 @@ The main decision boundary is not parser readiness. The parser already admits
 most of the surface. The real question is whether the repo is ready to take on
 the backend/runtime, inspection, test, and corroboration cost for each ranked
 wave.
+
+## T-208 Baseline Result
+
+The checked-in `P21` baseline now makes the next widening wave explicit:
+
+- logical-or: `||`
+- broader comparisons: `<=`, `>`, `>=`, `!=`
+
+The current starting point is intentionally narrowed to representative
+expression cases, not `print` redirection ambiguities:
+
+- representative parenthesized `||`, `<=`, `>`, `>=`, and `!=` programs still
+  fail cleanly outside the current claimed surface
+- the broader comparison family remains unclaimed until the exact `P21`
+  surface is widened coherently under one backend-only contract
+
+The baseline also makes the backend-only claim rule explicit:
+
+- these forms remain unclaimed until ordinary public `quawk` execution runs
+  them through the compiled backend/runtime path
+- public Python host execution is not an acceptable dependency for a widened
+  claim
+- `--ir` / `--asm` support, focused routing coverage, and direct target tests
+  are part of the baseline before implementation begins
