@@ -203,7 +203,9 @@ AOT-oriented design goals:
 Current implementation model:
 - the parser and semantic layers target the current `docs/quawk.ebnf` surface rather than an older execution-only subset
 - the intended public execution model is AOT compilation plus backend/runtime execution; Python should compile, link, and invoke the generated program rather than interpret AWK semantics
-- all currently claimed language families now execute through the compiled backend/runtime path, as enforced by the checked-in architecture audit plus focused CLI/JIT parity tests
+- the checked-in architecture audit plus focused CLI/JIT parity tests now require every currently claimed execution family to have a compiled backend/runtime path
+- ordinary public `quawk` execution no longer keeps host fallback for representative unclaimed host-runtime-only forms from the broader intentionally unclaimed expression surface
+- a narrower claimed value-fallback path still remains for some public cases; that transition debt is tracked explicitly in `P20` rather than being treated as resolved backend parity
 - broader frontend-admitted but not yet claimed POSIX forms still exist outside that contract and remain intentionally unclaimed surface rather than active backend debt
 
 Current public execution surface:
@@ -219,11 +221,13 @@ Current public execution surface:
 - input records and file-backed `getline` follow a byte-tolerant text policy; the Python-side helper paths preserve undecodable bytes with `surrogateescape`, while AWK source files remain UTF-8 text
 
 Current backend and inspection surface:
-- the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md`, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
+- the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md` at the representative family level enforced by the architecture audit, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
 - `--ir` and `--asm` now cover that same claimed surface; broader frontend-admitted but unclaimed POSIX forms can still fail inspection because they remain outside the current contract
 
 Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
+- representative unclaimed host-runtime-only programs now fail clearly in ordinary public execution instead of silently falling back
+- a narrower claimed value-fallback path still remains for some public cases that depend on richer host-side value semantics; that remaining transition debt is the next planned cleanup wave rather than an accepted steady state
 - broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
 - those broader POSIX forms stay outside the current public contract unless future roadmap work explicitly widens the claim set again
 - ordinary public `quawk` execution should fail clearly for representative host-runtime-only programs from that unclaimed surface rather than silently falling back

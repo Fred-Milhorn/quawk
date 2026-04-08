@@ -20,8 +20,7 @@ def test_t203_roadmap_adds_p20_after_the_p19_rebaseline_task() -> None:
     audit_text = (ROOT / "docs" / "plans" / "host-runtime-boundary-audit.md").read_text(encoding="utf-8")
 
     assert "| P20 | Claimed Value-Fallback Cleanup |" in roadmap_text
-    assert "- `T-202`: rebaseline the public execution-model docs after the audit" in roadmap_text
-    assert "- after `T-202`, begin `P20`:" in roadmap_text
+    assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
     assert "- `T-203`: inventory the remaining claimed value-fallback cases" in roadmap_text
     assert "| T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 |" in roadmap_text
     assert "| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 |" in roadmap_text

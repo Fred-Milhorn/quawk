@@ -1022,8 +1022,31 @@ Residual host-runtime boundary follow-up:
   still needs a clearer inventory of where ordinary public execution can reach
   the Python host runtime
 - that follow-up audit is planned separately in:
-  - [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
-  - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
+- [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
+- [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
+
+### T-202 Execution-Model Rebaseline Result
+
+The `P19` host-boundary audit is now fully reflected in the public
+execution-model docs.
+
+What changed in the documented contract:
+
+- representative unclaimed host-runtime-only programs now fail clearly in
+  ordinary public execution instead of silently falling back
+- the broader intentionally unclaimed POSIX expression surface remains outside
+  the current AOT-backed contract
+- the stronger architectural statement is now narrowed correctly: every claimed
+  execution family has a compiled backend/runtime path, but a narrower claimed
+  value-fallback path still remains for some public cases
+- that remaining claimed value-fallback path is explicit transition debt and is
+  now the next ranked architecture wave in `P20`
+
+Supporting follow-on planning lives in:
+
+- [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
+- [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
+- [docs/plans/claimed-value-fallback-cleanup.md](docs/plans/claimed-value-fallback-cleanup.md)
 
 ## Notes
 

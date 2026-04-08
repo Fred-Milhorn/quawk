@@ -506,17 +506,17 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P19 residual host-runtime boundary audit
+Next deliverable: P20 claimed value-fallback cleanup
 
 Target outcome:
-- inventory and classify residual public host-runtime routing, then make the
-  backend-first boundary and next reduction wave explicit before any future
-  surface widening
+- inventory the remaining claimed public cases that still depend on richer
+  host-side value semantics, then remove that fallback so the claimed surface
+  is backend/runtime-only in ordinary public execution
 
-`T-197`, `T-198`, `T-199`, `T-200`, and `T-201` are complete. The
-host-runtime boundary baseline, residual inventory, routing regressions,
-classification, and no-fallback policy are now checked in, and the next
-planned work is the execution-model doc rebaseline tracked in `P19`.
+`T-197` through `T-202` are complete. The host-runtime boundary baseline,
+residual inventory, routing regressions, classification, no-fallback policy
+for representative unclaimed forms, and the resulting execution-model doc
+rebaseline are now checked in. `P19` is complete.
 
 `T-192` is complete. The decision was to keep the broader intentionally
 unclaimed POSIX expression surface out of scope for the current roadmap wave.
@@ -524,8 +524,6 @@ That leaves a follow-up architecture question: where ordinary public execution
 still reaches the Python host runtime, and what to do about it.
 
 Immediate next tasks:
-- `T-202`: rebaseline the public execution-model docs after the audit
-- after `T-202`, begin `P20`:
 - `T-203`: inventory the remaining claimed value-fallback cases
 - `T-204`: add focused routing regressions for those claimed cases
 - `T-205`: close the backend/runtime value-semantics gaps for the claimed cases
@@ -706,7 +704,7 @@ Priority values:
 | T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |
 | T-200 | P19 | P0 | Classify residual host-routed forms and identify accidental AOT debt | T-198, T-199 | Each residual host-routed form is marked as AOT debt, unclaimed but backend-ready, unclaimed and backend-incomplete, or host-only by design | done |
 | T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | done |
-| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | todo |
+| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | done |
 | T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 | A checked-in plan or matrix identifies every representative claimed public case that still depends on `requires_host_runtime_value_execution()` or equivalent host-assisted value semantics | todo |
 | T-204 | P20 | P1 | Add focused routing regressions for the claimed value-fallback cases | T-203 | Direct tests pin which claimed programs still rely on the host evaluator today and prove the behavioral requirement they preserve | todo |
 | T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | todo |

@@ -47,8 +47,8 @@ def test_t198_posix_and_roadmap_point_to_the_checked_in_inventory_and_next_work(
 
     assert "[docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)" in posix_text
     assert "### P19: Residual Host-Runtime Boundary Audit" in roadmap_text
-    assert "Next deliverable: P19 residual host-runtime boundary audit" in roadmap_text
-    assert "`T-197`, `T-198`, `T-199`, `T-200`, and `T-201` are complete." in roadmap_text
-    assert "- `T-202`: rebaseline the public execution-model docs after the audit" in roadmap_text
+    assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
+    assert "`T-197` through `T-202` are complete." in roadmap_text
+    assert "- `T-203`: inventory the remaining claimed value-fallback cases" in roadmap_text
     assert "| T-197 | P19 | P0 | Author the residual host-runtime boundary audit baseline and scope | T-192 | `docs/plans/host-runtime-boundary-audit.md`, `POSIX.md`, and the roadmap make the backend-first purpose, audit scope, and required outputs explicit before new implementation decisions start | done |" in roadmap_text
     assert "| T-198 | P19 | P0 | Inventory public routes to the Python host runtime and produce the residual host-only matrix | T-197 | A checked-in matrix identifies residual host-routed forms, their claimed status, backend/inspection status, and whether they are reachable from ordinary public execution | done |" in roadmap_text
