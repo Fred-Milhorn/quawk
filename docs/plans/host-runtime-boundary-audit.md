@@ -241,3 +241,22 @@ Preliminary boundary result:
 
 That claim-vs-residual classification is the subject of `T-200`; `T-198`
 records only the current inventory.
+
+## T-199 Routing Regression Result
+
+Focused routing regressions now pin the representative residual forms tracked in
+the matrix.
+
+Current pinned state:
+
+- ordinary public execution still uses host fallback for the representative
+  logical-or, broader-comparison, broader-arithmetic, ternary, match-operator,
+  and `in` forms
+- representative `--ir` and `--asm` requests still fail with the standard
+  host-runtime-only backend error for those same forms
+- this routing behavior is now explicit regression coverage rather than an
+  inferred property from the current implementation
+
+That leaves `T-200` to classify those residual forms as real AOT debt,
+backend-ready widening candidates, backend-incomplete work, or intentionally
+out-of-contract forms.

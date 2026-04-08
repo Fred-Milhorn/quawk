@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import io
+from typing import Callable
 
 from quawk import jit
 from quawk.lexer import lex
@@ -1310,6 +1311,45 @@ def test_execute_host_runtime_sequences_begin_regex_and_end(capsys, monkeypatch)
     captured = capsys.readouterr()
     assert captured.out == "start\nfoo\nfood\ndone\n"
     assert captured.err == ""
+
+
+def test_execute_routes_representative_residual_expression_forms_through_host_runtime(
+    monkeypatch,
+) -> None:
+    programs = {
+        "logical_or": "BEGIN { print 1 || 0 }",
+        "broader_comparison": "BEGIN { print 1 != 0 }",
+        "broader_arithmetic": "BEGIN { print 6 / 2 }",
+        "ternary": "BEGIN { print (1 ? 2 : 3) }",
+        "match_operator": 'BEGIN { print ("abc" ~ /b/) }',
+        "in_operator": 'BEGIN { a["x"] = 1; print ("x" in a) }',
+    }
+    parsed_programs = {name: parse_program(source_text) for name, source_text in programs.items()}
+    routed_to_host: list[str] = []
+
+    def fake_execute_host_runtime(
+        program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> int:
+        matched_name = next(name for name, parsed in parsed_programs.items() if parsed is program)
+        routed_to_host.append(matched_name)
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return 17
+
+    def fail_build_public_execution_llvm_ir(*args: object, **kwargs: object) -> str:
+        raise AssertionError("residual host-routed forms should not build public backend IR today")
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
+    monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fail_build_public_execution_llvm_ir)
+
+    for program in parsed_programs.values():
+        assert jit.execute(program) == 17
+
+    assert routed_to_host == list(programs)
 
 
 def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) -> None:
