@@ -1,0 +1,54 @@
+# Residual Host-Runtime Matrix
+
+This matrix records the current representative public forms that still reach the
+Python host runtime after `T-198`.
+
+Target interpretation:
+
+- the desired steady state for implemented AWK features is:
+  - host semantic execution exists: `no`
+  - public host fallback exists: `no`
+  - public backend execution exists: `yes`
+- rows in this matrix are transition debt relative to that target
+
+Scope notes:
+
+- these rows track representative residual forms, not every syntactic use of an
+  operator family
+- some narrower contexts inside these families already have claimed backend
+  support
+- this matrix is about the residual public boundary, not the full parser or
+  host-runtime capability surface
+
+Column meanings:
+
+- `Host semantic execution exists today`
+  The Python interpreter layer can execute the representative program.
+- `Public host fallback exists today`
+  Ordinary `quawk` can currently reach that Python interpreter path.
+- `Public backend executes today`
+  Ordinary `quawk` can keep the representative program on the compiled
+  backend/runtime path instead.
+
+| Family | Representative program | Reachable from ordinary `quawk` today | Host semantic execution exists today | Public host fallback exists today | Public backend executes today | `--ir` / `--asm` today | Claimed in `SPEC.md` today | Current direct evidence | Clean reference anchor today | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| Logical-or | `BEGIN { print 1 || 0 }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py`; negative `--ir` coverage in `tests/test_cli.py` | none identified | Narrower regex-term expression-pattern `||` support already exists; this row tracks the broader direct expression form that remains outside the current claim |
+| Broader comparisons | `BEGIN { print 1 != 0 }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | `==` and `<` are already claimed; this row tracks the broader comparison family outside the current claim |
+| Broader arithmetic | `BEGIN { print 6 / 2 }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Some arithmetic subexpressions already appear inside narrower claimed runtime-backed programs; this row tracks the broader direct arithmetic family outside the current claim |
+| Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Still fully outside the current claimed AOT-backed surface |
+| Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Regex-driven record selection is already claimed; binary `~` / `!~` operators are not |
+| `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | yes | no | no | no | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Arrays and `for ... in` are claimed separately; the binary `in` operator remains outside the current claim |
+
+Representative routing basis:
+
+- for each row, the current representative program satisfies
+  `requires_host_runtime_execution(program) == True`
+- ternary, match-operator, and `in` representatives also satisfy
+  `requires_host_runtime_value_execution(program) == True`
+- for each row, `supports_runtime_backend_subset(program) == False`
+- for each row, `lower_to_llvm_ir(program)` currently raises the standard
+  host-runtime-only backend error
+
+This matrix is intentionally descriptive, not normative. `T-200` will classify
+these rows as AOT debt, unclaimed but backend-ready, unclaimed and
+backend-incomplete, or host-only by design.

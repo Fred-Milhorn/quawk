@@ -1016,6 +1016,15 @@ Execution order for the next wave:
 2. leave the broader expression wave blocked until a future explicit widening
    decision reactivates it
 
+Residual host-runtime boundary follow-up:
+
+- the broader expression surface remains intentionally unclaimed, but the repo
+  still needs a clearer inventory of where ordinary public execution can reach
+  the Python host runtime
+- that follow-up audit is planned separately in:
+  - [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
+  - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

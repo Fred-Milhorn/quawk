@@ -37,6 +37,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P16 | Testing Surface Cleanup | Test entrypoints, markers, CI commands, and corpus surfaces are renamed and consolidated into a clearer workflow |
 | P17 | Compatibility Tooling Namespace Cleanup | Corpus and upstream-compatibility tooling move under `quawk.compat`, and the singleton script wrapper is removed |
 | P18 | Remaining POSIX Surface Closure And Widening Decisions | The last known claimed POSIX gap is closed, and any broader POSIX expression-surface expansion happens only through an explicit decision-gated wave |
+| P19 | Residual Host-Runtime Boundary Audit | Residual public host-runtime routing is inventoried, classified, and turned into an explicit backend-first follow-up plan |
 
 ## Phase Entry and Exit Rules
 
@@ -471,27 +472,61 @@ Exit criteria:
   broader operator families remain intentionally unclaimed rather than
   implicitly unfinished
 
+### P19: Residual Host-Runtime Boundary Audit
+
+Objective:
+- inventory the remaining public routes to the Python host runtime and turn
+  that residual boundary into an explicit backend-first follow-up plan
+
+In scope:
+- document the backend-first purpose and current host-runtime boundary
+- identify the public entry points that can still reach `execute_host_runtime()`
+- check in a residual host-only matrix for representative public forms
+- add routing regressions for representative residual host-routed forms
+- classify residual cases as claimed AOT debt, backend-ready widening
+  candidates, backend-incomplete work, or intentionally out-of-contract forms
+- make an explicit product decision about whether ordinary `quawk` should keep
+  temporary host fallback for unclaimed forms or fail clearly outside the
+  AOT-backed contract
+- implementation details for this phase live in
+  [plans/host-runtime-boundary-audit.md](plans/host-runtime-boundary-audit.md)
+  and [plans/residual-host-runtime-matrix.md](plans/residual-host-runtime-matrix.md)
+
+Exit criteria:
+- the current public host-runtime routes are explicitly inventoried and checked
+  in
+- the residual representative host-routed forms are pinned by direct tests
+- the roadmap and docs distinguish clearly between claimed AOT debt and
+  intentionally unclaimed host-routed surface
+- the repo has an explicit next-step policy for unclaimed host-routed programs
+  instead of relying on implicit behavior
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-Next deliverable: P18 remaining POSIX surface closure and widening decisions
+Next deliverable: P19 residual host-runtime boundary audit
 
 Target outcome:
-- close the remaining claimed `$0` / `NF` rebuild gap first, then make an
-  explicit product decision about whether to widen the broader currently
-  unclaimed POSIX expression surface
+- inventory and classify residual public host-runtime routing, then make the
+  backend-first boundary and next reduction wave explicit before any future
+  surface widening
 
-`P17` closeout is complete. The next planned work is the remaining POSIX
-surface cleanup and decision-gated widening tracked in `P18`.
+`T-197` and `T-198` are complete. The host-runtime boundary baseline and
+residual inventory are now checked in, and the next planned work is the
+classification and routing-regression follow-up tracked in `P19`.
 
-`T-192` is complete. The decision is to keep the broader intentionally
+`T-192` is complete. The decision was to keep the broader intentionally
 unclaimed POSIX expression surface out of scope for the current roadmap wave.
+That leaves a follow-up architecture question: where ordinary public execution
+still reaches the Python host runtime, and what to do about it.
 
 Immediate next tasks:
-- no active `P18` implementation tasks are approved after `T-192`
-- `T-193` through `T-196` stay blocked unless a future roadmap decision widens
-  the claimed expression surface
+- `T-199`: add focused routing regressions for representative residual
+  host-routed forms
+- `T-200`: classify residual host-routed forms and identify accidental AOT debt
+- `T-201`: decide public behavior for unclaimed host-routed programs
+- `T-202`: rebaseline the public execution-model docs after the audit
 
 ## Backlog
 
@@ -662,6 +697,12 @@ Priority values:
 | T-194 | P18 | P0 | Implement the chosen broader POSIX expression and operator wave | T-193 | The approved next operator/forms wave executes correctly through the public path with parser, runtime, and JIT coverage | blocked |
 | T-195 | P18 | P1 | Close backend/inspection parity and corroboration for newly claimed expression families | T-194 | Any newly claimed broader expression families support `--ir` / `--asm` as claimed and gain direct or upstream corroborating coverage where clean anchors exist | blocked |
 | T-196 | P18 | P1 | Rebaseline the public POSIX contract after the remaining gap and any approved widening land | T-191, T-192, T-195 | `SPEC.md`, `POSIX.md`, `docs/compatibility.md`, and the roadmap agree on the resulting claimed POSIX surface with no stale implied debt | blocked |
+| T-197 | P19 | P0 | Author the residual host-runtime boundary audit baseline and scope | T-192 | `docs/plans/host-runtime-boundary-audit.md`, `POSIX.md`, and the roadmap make the backend-first purpose, audit scope, and required outputs explicit before new implementation decisions start | done |
+| T-198 | P19 | P0 | Inventory public routes to the Python host runtime and produce the residual host-only matrix | T-197 | A checked-in matrix identifies residual host-routed forms, their claimed status, backend/inspection status, and whether they are reachable from ordinary public execution | done |
+| T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | todo |
+| T-200 | P19 | P0 | Classify residual host-routed forms and identify accidental AOT debt | T-198, T-199 | Each residual host-routed form is marked as AOT debt, unclaimed but backend-ready, unclaimed and backend-incomplete, or host-only by design | todo |
+| T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | todo |
+| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | todo |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

@@ -45,9 +45,10 @@ def test_t189_manifest_still_tracks_the_two_remaining_product_gap_anchors_as_rev
 def test_t189_roadmap_marks_the_baseline_done_and_moves_to_t190() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P18 remaining POSIX surface closure and widening decisions" in roadmap_text
-    assert "`T-192` is complete. The decision is to keep the broader intentionally" in roadmap_text
-    assert "- no active `P18` implementation tasks are approved after `T-192`" in roadmap_text
+    assert "Next deliverable: P19 residual host-runtime boundary audit" in roadmap_text
+    assert "`T-192` is complete. The decision was to keep the broader intentionally" in roadmap_text
+    assert "`T-197` and `T-198` are complete." in roadmap_text
+    assert "- `T-199`: add focused routing regressions for representative residual" in roadmap_text
     assert "- `T-189` author the remaining POSIX surface baseline and decision gate" not in roadmap_text
     assert "| T-189 | P18 | P0 | Author the remaining POSIX surface baseline and widening decision gate | T-188 | Tests and docs make the remaining claimed `$0` / `NF` rebuild gap, the `p.35` / `t.NF` corroboration targets, and the currently unclaimed broader POSIX expression families explicit before further implementation | done |" in roadmap_text
     assert "| T-190 | P18 | P0 | Fix the remaining claimed `$0` / `NF` rebuild mismatch | T-189 | Public execution no longer diverges on the reviewed `$0` reconstruction cases after `NF` or field mutation, and direct tests pin the corrected behavior | done |" in roadmap_text
