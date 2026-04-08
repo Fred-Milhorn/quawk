@@ -97,6 +97,31 @@ Current pinned state:
 That leaves `T-205` to close the backend/runtime value-semantics gaps instead
 of only documenting the remaining host-assisted path.
 
+## T-205 Value-Semantics Closure Result
+
+The representative claimed scalar-value rows from the matrix are now kept on
+the backend/runtime path in ordinary public execution.
+
+Current result:
+
+- `BEGIN { print x }` now stays on the backend/runtime path
+- `BEGIN { y = x; print y }` now stays on the backend/runtime path
+- `BEGIN { print x; print x + 1 }` now stays on the backend/runtime path
+- `BEGIN { x = 1; print x }` now stays on the backend/runtime path
+- the remaining tracked claimed public fallback is the narrower
+  string-`-v` plus user-defined-function row
+
+The backend/runtime closure for this task is intentionally narrow:
+
+- it covers the representative claimed BEGIN/END-only scalar-value forms from
+  the checked-in matrix
+- it does not yet eliminate the separate string-initial-variable plus function
+  route
+- it does not widen the intentionally unclaimed expression surface
+
+That leaves `T-206` to remove the remaining claimed public value fallback
+entirely instead of only narrowing it.
+
 ## Required Outputs
 
 ### 1. Claimed Value-Fallback Inventory

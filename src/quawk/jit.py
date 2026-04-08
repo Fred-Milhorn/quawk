@@ -362,7 +362,11 @@ def execute(program: Program, initial_variables: InitialVariables | None = None)
     string_initial_variables = initial_variables_require_string_runtime(initial_variables)
     ensure_public_execution_supported(program, initial_variables)
     if (
-        (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        (
+            requires_host_runtime_value_execution(program)
+            and not string_initial_variables
+            and not supports_claimed_value_runtime_subset(program)
+        )
         or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, [], None, initial_variables)
@@ -567,7 +571,13 @@ def build_public_execution_llvm_ir(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Build the IR module used by public execution and inspection paths."""
-    if initial_variables is None:
+    if (
+        not initial_variables
+        and requires_host_runtime_value_execution(program)
+        and supports_claimed_value_runtime_subset(program)
+    ):
+        llvm_ir = lower_reusable_program_to_llvm_ir(normalize_program_for_lowering(program))
+    elif not initial_variables:
         llvm_ir = lower_to_llvm_ir(program)
     else:
         llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
@@ -582,6 +592,12 @@ def program_requires_linked_execution_module(
 ) -> bool:
     """Report whether public execution/inspection needs the reusable driver module."""
     return (
+        (
+            not initial_variables
+            and requires_host_runtime_value_execution(program)
+            and supports_claimed_value_runtime_subset(program)
+        )
+        or
         supports_runtime_backend_subset(program)
         or requires_input_aware_execution(program)
         or initial_variables_require_string_runtime(initial_variables)
@@ -2553,7 +2569,11 @@ def execute_with_inputs(
     string_initial_variables = initial_variables_require_string_runtime(initial_variables)
     ensure_public_execution_supported(program, initial_variables)
     if (
-        (requires_host_runtime_value_execution(program) and not string_initial_variables)
+        (
+            requires_host_runtime_value_execution(program)
+            and not string_initial_variables
+            and not supports_claimed_value_runtime_subset(program)
+        )
         or (string_initial_variables and has_function_definitions(program))
     ):
         return execute_host_runtime(program, input_files, field_separator, initial_variables)
@@ -4767,6 +4787,68 @@ def requires_host_runtime_value_execution(program: Program) -> bool:
         if isinstance(item, PatternAction) and item.action is None:
             return True
     return False
+
+
+def supports_claimed_value_runtime_subset(program: Program) -> bool:
+    """Report whether one claimed BEGIN/END-only value-semantics case can use the reusable runtime path."""
+    normalized_program = normalize_program_for_lowering(program)
+    if normalized_program.record_items:
+        return False
+    if any(isinstance(item, FunctionDef) for item in program.items):
+        return False
+
+    def supports_numeric_value_expression(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr():
+                return True
+            case NameExpr():
+                return True
+            case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
+                return supports_numeric_value_expression(left) and supports_numeric_value_expression(right)
+            case _:
+                return False
+
+    def supports_assignment_value_expression(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr():
+                return True
+            case StringLiteralExpr():
+                return True
+            case NameExpr():
+                return True
+            case _:
+                return False
+
+    def supports_string_value_expression(expression: Expr) -> bool:
+        match expression:
+            case StringLiteralExpr():
+                return True
+            case NameExpr():
+                return True
+            case _:
+                return False
+
+    def supports_statement(statement: Stmt) -> bool:
+        match statement:
+            case AssignStmt(op=AssignOp.PLAIN, name=name, index=None, extra_indexes=(), field_index=None, value=value):
+                return name is not None and supports_assignment_value_expression(value)
+            case PrintStmt(arguments=arguments, redirect=None):
+                if not arguments:
+                    return False
+                return all(
+                    supports_numeric_value_expression(argument) or supports_string_value_expression(argument)
+                    for argument in arguments
+                )
+            case _:
+                return False
+
+    return all(
+        isinstance(item, PatternAction)
+        and item.action is not None
+        and all(supports_statement(statement) for statement in item.action.statements)
+        for item in program.items
+        if not isinstance(item, FunctionDef)
+    )
 
 
 def supports_runtime_backend_subset(program: Program) -> bool:

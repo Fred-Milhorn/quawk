@@ -458,6 +458,15 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_claimed_unset_scalar_value_cases() -> None:
+    result = run_quawk("--ir", "BEGIN { print x; print x + 1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_scalar_get(" in result.stdout
+    assert "@qk_scalar_get_number(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
     result = run_quawk("--ir", "{ print $1 }")
 

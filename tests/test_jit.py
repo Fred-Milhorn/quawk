@@ -1267,42 +1267,71 @@ def test_execute_routes_string_v_preassignments_through_backend(monkeypatch) -> 
     assert captured_ir["module"] == "; linked string-v backend module"
 
 
-def test_execute_routes_representative_claimed_value_fallback_programs_through_host_runtime(
+def test_execute_routes_representative_claimed_value_backend_subset_programs_through_backend(
     monkeypatch,
 ) -> None:
     cases = {
-        "unset_scalar_print": (parse_program("BEGIN { print x }"), None),
-        "unset_scalar_assignment": (parse_program("BEGIN { y = x; print y }"), None),
-        "unset_scalar_mixed_views": (parse_program("BEGIN { print x; print x + 1 }"), None),
-        "plain_scalar_name_after_assignment": (parse_program("BEGIN { x = 1; print x }"), None),
-        "string_v_plus_functions": (
-            parse_program("function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }"),
-            [("x", "hello")],
-        ),
+        "unset_scalar_print": parse_program("BEGIN { print x }"),
+        "unset_scalar_assignment": parse_program("BEGIN { y = x; print y }"),
+        "unset_scalar_mixed_views": parse_program("BEGIN { print x; print x + 1 }"),
+        "plain_scalar_name_after_assignment": parse_program("BEGIN { x = 1; print x }"),
     }
+    built: list[Program] = []
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("the representative claimed value rows should use the backend/runtime path now")
+
+    def fake_build_public_execution_llvm_ir(
+        program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        built.append(program)
+        return f"; claimed value backend module {len(built)}"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        assert llvm_ir.startswith("; claimed value backend module ")
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    for program in cases.values():
+        assert jit.execute(program) == 0
+
+    assert built == list(cases.values())
+
+
+def test_execute_routes_remaining_string_v_plus_function_claimed_value_case_through_host_runtime(
+    monkeypatch,
+) -> None:
+    program = parse_program("function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }")
     routed: list[tuple[Program, jit.InitialVariables | None]] = []
 
     def fake_execute_host_runtime(
-        program: Program,
+        routed_program: Program,
         input_files: list[str],
         field_separator: str | None,
         initial_variables: jit.InitialVariables | None = None,
     ) -> int:
         assert input_files == []
         assert field_separator is None
-        routed.append((program, initial_variables))
+        routed.append((routed_program, initial_variables))
         return 0
 
     def fail_build_public_execution_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("claimed value-fallback rows should still route to the host runtime today")
+        raise AssertionError("the remaining string-v plus function case should still route to the host runtime")
 
     monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
     monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fail_build_public_execution_llvm_ir)
 
-    for program, initial_variables in cases.values():
-        assert jit.execute(program, initial_variables) == 0
-
-    assert routed == list(cases.values())
+    assert jit.execute(program, [("x", "hello")]) == 0
+    assert routed == [(program, [("x", "hello")])]
 
 
 def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:

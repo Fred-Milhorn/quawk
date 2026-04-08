@@ -23,8 +23,8 @@ def test_t203_roadmap_adds_p20_after_the_p19_rebaseline_task() -> None:
 
     assert "| P20 | Claimed Value-Fallback Cleanup |" in roadmap_text
     assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
-    assert "`T-197` through `T-204` are complete." in roadmap_text
-    assert "- `T-205`: close the backend/runtime value-semantics gaps for the claimed cases" in roadmap_text
+    assert "`T-197` through `T-205` are complete." in roadmap_text
+    assert "- `T-206`: remove the remaining claimed public value fallback" in roadmap_text
     assert "| T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 | A checked-in plan or matrix identifies every representative claimed public case that still depends on `requires_host_runtime_value_execution()` or equivalent host-assisted value semantics | done |" in roadmap_text
     assert "| T-203 | P20 | P0 | Inventory the remaining claimed value-fallback cases | T-202 |" in roadmap_text
     assert "| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 |" in roadmap_text

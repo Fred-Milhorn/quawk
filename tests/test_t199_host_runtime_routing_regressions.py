@@ -18,6 +18,6 @@ def test_t199_audit_doc_records_the_focused_routing_regression_result() -> None:
 def test_t199_roadmap_advances_the_immediate_next_list_to_t200() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "`T-197` through `T-204` are complete." in roadmap_text
-    assert "- `T-205`: close the backend/runtime value-semantics gaps for the claimed cases" in roadmap_text
+    assert "`T-197` through `T-205` are complete." in roadmap_text
+    assert "- `T-206`: remove the remaining claimed public value fallback" in roadmap_text
     assert "| T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |" in roadmap_text
