@@ -51,6 +51,32 @@ Representative examples to audit first:
 The goal is to identify exactly which claimed cases still rely on that path and
 then remove it.
 
+## T-203 Inventory Result
+
+The first checked-in inventory pass is now complete.
+
+The current representative matrix lives in:
+
+- [claimed-value-fallback-matrix.md](claimed-value-fallback-matrix.md)
+
+Current inventory result:
+
+- the remaining claimed value-fallback path is real and narrower than the old
+  `P19` residual host-runtime matrix
+- the representative rows are concentrated in plain scalar-name reads and
+  unset-scalar value flows that still depend on the host evaluator's richer
+  AWK value model
+- a second smaller bucket remains for string-valued `-v` combined with
+  user-defined functions; that route is separate from
+  `requires_host_runtime_value_execution()` but still part of the same claimed
+  public fallback debt
+- simple string-valued `-v` programs without function definitions are not part
+  of the remaining matrix because the public path already keeps them on the
+  backend
+
+That leaves `T-204` to add focused routing regressions for these claimed rows,
+then `T-205` / `T-206` to remove the fallback rather than just inventory it.
+
 ## Required Outputs
 
 ### 1. Claimed Value-Fallback Inventory

@@ -1047,6 +1047,7 @@ Supporting follow-on planning lives in:
 - [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
 - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
 - [docs/plans/claimed-value-fallback-cleanup.md](docs/plans/claimed-value-fallback-cleanup.md)
+- [docs/plans/claimed-value-fallback-matrix.md](docs/plans/claimed-value-fallback-matrix.md)
 
 ## Notes
 
