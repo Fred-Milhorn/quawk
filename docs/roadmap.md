@@ -510,24 +510,23 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P21 logical-or and comparison widening
+Next deliverable: P22 arithmetic widening
 
 Target outcome:
-- the next widening wave claims only `||`, `<=`, `>`, `>=`, and `!=`
+- the next widening wave claims only `-`, `*`, `/`, `%`, and `^`
 - every newly claimed form must execute through the compiled backend/runtime
   path in ordinary public execution
 - no newly claimed form may depend on Python host semantics
 - `--ir` / `--asm` support and direct compatibility evidence must land before
   the widened claim is considered complete
 
-`T-197` through `T-207` are complete, and `T-208` through `T-211` now close
-the exact `P21` implementation, inspection, routing, and corroboration work.
-The execution-model cleanup closed the claimed public host-fallback debt, and
-the first widening wave now has its backend evidence in place before the claim
-rebaseline in `T-212`.
+`T-197` through `T-207` are complete, and `T-208` through `T-212` now close
+the full `P21` wave: baseline, backend implementation, inspection parity,
+routing, corroboration, and public-contract rebaseline. The execution-model
+cleanup closed the claimed public host-fallback debt, and the roadmap now
+advances to the broader arithmetic wave.
 
 Immediate next tasks:
-- `T-212`: rebaseline the public contract after `P21`
 - `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave
 - `T-214`: implement backend/runtime support for `-`, `*`, and `/`
 - `T-215`: implement backend/runtime support for `%` and `^`
@@ -727,7 +726,7 @@ Priority values:
 | T-209 | P21 | P0 | Implement backend/runtime support for logical-or | T-208 | Representative `||` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
 | T-210 | P21 | P0 | Implement backend/runtime support for broader comparisons | T-208 | Representative `<=`, `>`, `>=`, and `!=` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
 | T-211 | P21 | P1 | Close inspection parity, routing coverage, and corroboration for the widened logical-or and comparison surface | T-209, T-210 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P21` surface with no stale host-only gap | done |
-| T-212 | P21 | P1 | Rebaseline the public contract after logical-or and comparison widening | T-211 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P21` claim with no implied host dependency | todo |
+| T-212 | P21 | P1 | Rebaseline the public contract after logical-or and comparison widening | T-211 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P21` claim with no implied host dependency | done |
 | T-213 | P22 | P0 | Author the backend-only baseline, target claims, and direct tests for broader arithmetic | T-212 | Failing direct tests and explicit `SPEC.md` target rows define the exact `-`, `*`, `/`, `%`, and `^` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
 | T-214 | P22 | P0 | Implement backend/runtime support for subtraction, multiplication, and division | T-213 | Representative `-`, `*`, and `/` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
 | T-215 | P22 | P0 | Implement backend/runtime support for modulo and exponentiation | T-213 | Representative `%` and `^` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |

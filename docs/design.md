@@ -214,7 +214,7 @@ Current public execution surface:
 - bare `print`, single-argument `print`, multi-argument `print`, `printf`, `OFS` / `ORS`-driven print output, `OFMT` / `CONVFMT` formatting control, and `print` / `printf` output redirection with `close()`
 - field reads, dynamic field assignment, `getline`, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`
 - `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
-- the currently claimed expression subset: `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
+- the currently claimed expression subset: `+`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions
 - user-defined functions and returns
 - the current builtin subset, including `atan2`, `close`, `cos`, `exp`, `gsub`, `index`, `int`, `length`, `log`, `match`, `rand`, `sin`, `split`, `sqrt`, `srand`, `sprintf`, `sub`, `substr`, `system`, `tolower`, and `toupper`
 - `-F` field-separator support and both numeric and string-valued `-v` preassignment
@@ -228,7 +228,7 @@ Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
 - representative unclaimed host-runtime-only programs now fail clearly in ordinary public execution instead of silently falling back
 - claimed public execution no longer keeps temporary host fallback for richer value semantics; that transition debt is closed for the current claimed surface
-- broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
+- broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
 - those broader POSIX forms stay outside the current public contract unless future roadmap work explicitly widens the claim set again
 - ordinary public `quawk` execution should fail clearly for representative host-runtime-only programs from that unclaimed surface rather than silently falling back
 

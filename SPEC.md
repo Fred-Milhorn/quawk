@@ -41,8 +41,8 @@ Evidence:
 | Repeated `$0` reassignment and field rebuild | implemented | Direct tests now cover the remaining `p.35` / `t.NF` style rebuild shapes after `NF` and field mutation. The next step is corroborating-anchor re-audit, not a known product mismatch. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `==`, `&&`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. The `T-192` decision keeps broader arithmetic, comparison, logical-or, ternary, match, and `in` forms intentionally outside the current claimed AOT contract until a future roadmap wave explicitly widens them. |
-| P21 logical-or and broader comparison target | planned | The exact next widening wave is `||`, `<=`, `>`, `>=`, and `!=`. These forms do not become claimed until ordinary public execution runs them through the compiled backend/runtime path with no public Python host dependency. |
+| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. The remaining broader arithmetic, ternary, match, and `in` forms stay intentionally outside the current claimed AOT contract until future roadmap waves explicitly widen them. |
+| P21 logical-or and broader comparisons | implemented | `||`, `<=`, `>`, `>=`, and `!=` are now part of the claimed backend/runtime expression surface for ordinary public execution. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 
@@ -96,8 +96,8 @@ Evidence:
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
 | Backend parity for every claimed execution path | implemented | The checked-in architecture audit and focused CLI/JIT parity tests require every currently claimed execution family to have a compiled backend/runtime path, and ordinary public execution no longer uses host fallback for claimed behavior. |
-| Backend parity for broader frontend-admitted POSIX forms | partial | Frontend-admitted but unclaimed POSIX forms such as `-`, `*`, `/`, `%`, `^`, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in` are still outside the current AOT-backed contract. Ordinary public `quawk` execution now fails clearly for representative host-runtime-only programs from that unclaimed surface instead of silently falling back. |
-| P21 inspection and routing target | planned | `||`, `<=`, `>`, `>=`, and `!=` must gain ordinary public backend/runtime execution plus `--ir` / `--asm` support with no public Python host fallback before the `P21` claim widens. |
+| Backend parity for broader frontend-admitted POSIX forms | partial | Frontend-admitted but unclaimed POSIX forms such as `-`, `*`, `/`, `%`, `^`, ternary, match operators, and `in` are still outside the current AOT-backed contract. Ordinary public `quawk` execution now fails clearly for representative host-runtime-only programs from that unclaimed surface instead of silently falling back. |
+| P21 inspection and routing parity | implemented | `||`, `<=`, `>`, `>=`, and `!=` now support ordinary public backend/runtime execution plus `--ir` / `--asm` with no public Python host fallback. |
 | Representative user-defined functions through `--ir` / `--asm` | implemented | The direct-BEGIN numeric function subset now supports inspection output. |
 | Representative `nextfile`, `exit`, and scalar-string families through `--ir` / `--asm` | implemented | Inspection now works for the representative completed control and coercion families covered by the architecture audit. |
 

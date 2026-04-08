@@ -1141,6 +1141,25 @@ That leaves `T-212` as the public-contract step: widen the actual claimed
 surface only after the backend/runtime, inspection, and evidence closeout is
 already checked in.
 
+### T-212 P21 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P21` wave:
+
+- `SPEC.md` now includes `||`, `<=`, `>`, `>=`, and `!=` in the claimed
+  backend/runtime expression surface
+- the `P21` target rows are no longer planned; they are now recorded as
+  implemented execution and inspection parity
+- `docs/design.md` now lists logical-or and the broader comparison family
+  inside the currently claimed expression subset rather than inside the
+  remaining unclaimed surface
+- the roadmap now treats `P21` as complete and moves the next deliverable to
+  the broader arithmetic wave in `P22`
+
+The backend-only rule remains unchanged for every future widening phase: a form
+does not become claimed until ordinary public execution, `--ir`, and `--asm`
+all stay on the compiled backend/runtime path with no public Python host
+dependency.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

@@ -51,8 +51,9 @@ def test_t211_reference_subset_already_contains_clean_p21_corrobating_anchors() 
 def test_t211_roadmap_marks_p21_backend_work_done_and_advances_to_t212() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P21 logical-or and comparison widening" in roadmap_text
-    assert "- `T-212`: rebaseline the public contract after `P21`" in roadmap_text
+    assert "Next deliverable: P22 arithmetic widening" in roadmap_text
+    assert "- `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave" in roadmap_text
     assert "| T-209 | P21 | P0 | Implement backend/runtime support for logical-or | T-208 | Representative `||` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |" in roadmap_text
     assert "| T-210 | P21 | P0 | Implement backend/runtime support for broader comparisons | T-208 | Representative `<=`, `>`, `>=`, and `!=` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |" in roadmap_text
     assert "| T-211 | P21 | P1 | Close inspection parity, routing coverage, and corroboration for the widened logical-or and comparison surface | T-209, T-210 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P21` surface with no stale host-only gap | done |" in roadmap_text
+    assert "| T-212 | P21 | P1 | Rebaseline the public contract after logical-or and comparison widening | T-211 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P21` claim with no implied host dependency | done |" in roadmap_text
