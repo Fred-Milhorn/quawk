@@ -19,7 +19,7 @@ def test_t192_roadmap_blocks_follow_on_expression_tasks() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
     assert "`T-192` is complete. The decision was to keep the broader intentionally" in roadmap_text
-    assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
+    assert "Next deliverable: none currently scheduled" in roadmap_text
     assert "The decision was to keep the broader intentionally" in roadmap_text
     assert "| T-193 | P18 | P1 | Author tests and claim updates for the next POSIX expression wave if widening is approved | T-192 | If widening is approved, failing tests and explicit `SPEC.md` target rows are checked in for the exact next operator/forms wave before implementation starts | blocked |" in roadmap_text
     assert "| T-196 | P18 | P1 | Rebaseline the public POSIX contract after the remaining gap and any approved widening land | T-191, T-192, T-195 | `SPEC.md`, `POSIX.md`, `docs/compatibility.md`, and the roadmap agree on the resulting claimed POSIX surface with no stale implied debt | blocked |" in roadmap_text

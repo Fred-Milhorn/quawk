@@ -1036,11 +1036,9 @@ What changed in the documented contract:
   ordinary public execution instead of silently falling back
 - the broader intentionally unclaimed POSIX expression surface remains outside
   the current AOT-backed contract
-- the stronger architectural statement is now narrowed correctly: every claimed
-  execution family has a compiled backend/runtime path, but a narrower claimed
-  value-fallback path still remains for some public cases
-- that remaining claimed value-fallback path is explicit transition debt and is
-  now the next ranked architecture wave in `P20`
+- every claimed execution family now has a compiled backend/runtime public path
+- the former claimed value-fallback debt from `P20` is now closed for the
+  current claimed surface
 
 Supporting follow-on planning lives in:
 
@@ -1048,6 +1046,22 @@ Supporting follow-on planning lives in:
 - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
 - [docs/plans/claimed-value-fallback-cleanup.md](docs/plans/claimed-value-fallback-cleanup.md)
 - [docs/plans/claimed-value-fallback-matrix.md](docs/plans/claimed-value-fallback-matrix.md)
+
+### T-207 Execution-Model Final Rebaseline Result
+
+The execution-model docs now reflect the final post-`P20` state.
+
+What changed in the documented contract:
+
+- `SPEC.md` now treats backend parity for every claimed execution path as
+  implemented rather than partial
+- `docs/design.md` no longer describes any remaining claimed public host
+  fallback debt
+- the roadmap now records `T-207` and `P20` as complete instead of presenting
+  claimed value-fallback cleanup as the next deliverable
+- the remaining host-runtime discussion is limited to the broader intentionally
+  unclaimed expression surface, where public execution still fails clearly
+  rather than silently falling back
 
 ## Notes
 

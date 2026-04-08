@@ -20,7 +20,7 @@ def test_t206_plan_doc_records_the_final_claimed_value_fallback_removal() -> Non
 def test_t206_roadmap_advances_to_execution_model_doc_rebaseline() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P20 claimed value-fallback cleanup" in roadmap_text
-    assert "`T-197` through `T-206` are complete." in roadmap_text
-    assert "- `T-207`: rebaseline the execution-model docs after claimed fallback removal" in roadmap_text
+    assert "Next deliverable: none currently scheduled" in roadmap_text
+    assert "`T-197` through `T-207` are complete." in roadmap_text
+    assert "- none currently scheduled; define a new prioritized phase before adding more implementation work" in roadmap_text
     assert "| T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | done |" in roadmap_text

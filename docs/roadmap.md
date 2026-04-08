@@ -506,19 +506,19 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P20 claimed value-fallback cleanup
+Next deliverable: none currently scheduled
 
 Target outcome:
-- inventory the remaining claimed public cases that still depend on richer
-  host-side value semantics, then remove that fallback so the claimed surface
-  is backend/runtime-only in ordinary public execution
+- no active immediate implementation wave is scheduled; the claimed execution
+  surface is now backend/runtime-only in ordinary public execution, and any
+  future work requires a new prioritized phase
 
-`T-197` through `T-206` are complete. The host-runtime boundary baseline,
+`T-197` through `T-207` are complete. The host-runtime boundary baseline,
 residual inventory, routing regressions, classification, no-fallback policy
 for representative unclaimed forms, and the resulting execution-model doc
 rebaseline are now checked in. `P19` is complete, and the first checked-in
 claimed value-fallback inventory, focused routing regressions, and the first
-backend/runtime closure wave now start `P20`.
+backend/runtime closure wave are now complete in `P20`.
 
 `T-192` is complete. The decision was to keep the broader intentionally
 unclaimed POSIX expression surface out of scope for the current roadmap wave.
@@ -526,7 +526,7 @@ That leaves a follow-up architecture question: where ordinary public execution
 still reaches the Python host runtime, and what to do about it.
 
 Immediate next tasks:
-- `T-207`: rebaseline the execution-model docs after claimed fallback removal
+- none currently scheduled; define a new prioritized phase before adding more implementation work
 
 ## Backlog
 
@@ -707,7 +707,7 @@ Priority values:
 | T-204 | P20 | P1 | Add focused routing regressions for the claimed value-fallback cases | T-203 | Direct tests pin which claimed programs still rely on the host evaluator today and prove the behavioral requirement they preserve | done |
 | T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |
 | T-206 | P20 | P0 | Remove the remaining claimed public value fallback | T-205 | Ordinary public execution no longer routes claimed programs through the host evaluator for value semantics | done |
-| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | todo |
+| T-207 | P20 | P1 | Rebaseline the execution-model docs after claimed fallback removal | T-206 | `SPEC.md`, `docs/design.md`, the roadmap, and focused regressions agree that the full claimed surface no longer uses public host fallback | done |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

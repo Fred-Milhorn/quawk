@@ -205,7 +205,7 @@ Current implementation model:
 - the intended public execution model is AOT compilation plus backend/runtime execution; Python should compile, link, and invoke the generated program rather than interpret AWK semantics
 - the checked-in architecture audit plus focused CLI/JIT parity tests now require every currently claimed execution family to have a compiled backend/runtime path
 - ordinary public `quawk` execution no longer keeps host fallback for representative unclaimed host-runtime-only forms from the broader intentionally unclaimed expression surface
-- a narrower claimed value-fallback path still remains for some public cases; that transition debt is tracked explicitly in `P20` rather than being treated as resolved backend parity
+- ordinary public `quawk` execution no longer keeps host fallback for claimed behavior either; the claimed surface is now backend/runtime-only in public execution
 - broader frontend-admitted but not yet claimed POSIX forms still exist outside that contract and remain intentionally unclaimed surface rather than active backend debt
 
 Current public execution surface:
@@ -227,7 +227,7 @@ Current backend and inspection surface:
 Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
 - representative unclaimed host-runtime-only programs now fail clearly in ordinary public execution instead of silently falling back
-- a narrower claimed value-fallback path still remains for some public cases that depend on richer host-side value semantics; that remaining transition debt is the next planned cleanup wave rather than an accepted steady state
+- claimed public execution no longer keeps temporary host fallback for richer value semantics; that transition debt is closed for the current claimed surface
 - broader frontend-admitted but not yet claimed POSIX forms, such as subtraction/multiplication/division/modulo/power, `<=`, `>`, `>=`, `!=`, `||`, ternary, match operators, and `in`, still sit outside the current AOT-backed contract
 - those broader POSIX forms stay outside the current public contract unless future roadmap work explicitly widens the claim set again
 - ordinary public `quawk` execution should fail clearly for representative host-runtime-only programs from that unclaimed surface rather than silently falling back
