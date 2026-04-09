@@ -17,7 +17,7 @@ Legend:
 | `||` | yes | yes | yes | yes | yes | yes | short-circuit behavior, regex-term truthiness | medium | backend work complete; widen the public claim only in `T-212` |
 | Broader comparisons: `<=`, `>`, `>=`, `!=` | yes | yes | yes | yes | yes | yes | AWK string-vs-numeric comparison choice, mixed operand-shape handling | medium | backend work complete; widen the public claim only in `T-212` |
 | Broader arithmetic: `-`, `*`, `/`, `%`, `^` | yes | yes | yes | yes | yes | yes | precedence/associativity, coercion through numeric and string contexts, modulo/power edge cases | medium to high | backend work complete; widen the public claim only in `T-217` |
-| Ternary: `test ? a : b` | yes | yes | no | no | parse-only | no | branch coercion, string-vs-numeric branch result typing, backend lowering shape not yet public | medium | keep unclaimed |
+| Ternary: `test ? a : b` | yes | yes | yes | yes | yes | no | mixed side-effect branches remain intentionally outside the current pure-expression claim | medium | backend work complete; claim widened in `T-221` |
 | Match operators: `~`, `!~` | yes | yes | no | no | parse-only | no dedicated clean anchor yet | regex evaluation semantics, string coercion, current backend supports regex patterns but not the binary match operators as public expressions | high | keep unclaimed |
 | Membership: `expr in array` | yes | yes | no | no | parse-only | no dedicated clean anchor yet | array-key coercion, scalar-vs-array legality, backend lowering for membership tests is not public | high | keep unclaimed |
 
@@ -41,11 +41,15 @@ Legend:
 - `P21` has now closed the backend/runtime and inspection work for `||` plus
   broader comparisons, and `T-212` has already widened that claim.
 - `P22` has now closed the backend/runtime and inspection work for broader
-  arithmetic; the remaining step for that wave is the claim rebaseline in
-  `T-217`.
+  arithmetic, and `T-217` has already widened that claim.
+- `P23` has now closed the backend/runtime and inspection work for ternary, and
+  `T-221` has already widened that claim.
 - Runnable reference anchors already exist for `P21`, especially
   `one-true-awk:p.7`, `one-true-awk:p.8`, `one-true-awk:p.21a`, and
   `one-true-awk:t.next`.
 - Runnable reference anchors also already exist for `P22`, especially
   `one-true-awk:p.25`, `one-true-awk:p.34`, `one-true-awk:p.36`, and
   `one-true-awk:p.44`.
+- No clean checked-in reference anchor is pinned for `P23` yet; the ternary
+  wave is currently closed by direct backend, routing, inspection, and runtime
+  coverage instead.

@@ -234,3 +234,48 @@ The inspection and corroboration closeout for `P22` is now explicit:
 
 That leaves `T-217` as a pure public-contract rebaseline step, not an
 implementation or evidence gap.
+
+## T-218 P23 Baseline Result
+
+The checked-in `P23` baseline fixes the exact next ternary widening target:
+
+- pure ternary expressions over the current claimed numeric/string subset
+
+The direct baseline pins those forms as the next backend-only widening wave
+with representative ternary execution, inspection, and routing checks.
+
+## T-219 Backend Implementation Result
+
+The backend/runtime implementation work for the exact `P23` target forms is now
+checked in:
+
+- representative numeric ternary programs now execute through ordinary public
+  backend/runtime execution with no host fallback
+- representative string ternary programs now execute through ordinary public
+  backend/runtime execution with no host fallback
+- direct execution checks now pin representative nested ternary and branch
+  coercion behavior for the widened pure-expression family
+
+## T-220 Inspection And Corroboration Result
+
+The inspection and corroboration closeout for `P23` is now explicit:
+
+- representative ternary programs now succeed under `--ir` and `--asm`
+- focused routing regressions now pin those representative forms to the
+  compiled backend/runtime path rather than the residual host-boundary path
+- no clean checked-in reference anchor is pinned for `P23` yet, so this wave
+  is currently closed by direct backend, routing, inspection, and runtime
+  coverage instead
+
+That leaves `T-221` as a pure public-contract rebaseline step, not an
+implementation or evidence gap.
+
+## T-221 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P23` wave:
+
+- pure ternary expressions over the current claimed numeric/string subset are
+  now part of the claimed backend/runtime expression surface
+- the earlier `P23` target rows are no longer planned follow-on work
+- the remaining unclaimed expression surface now starts at match operators and
+  membership only because `P24` is the next widening wave

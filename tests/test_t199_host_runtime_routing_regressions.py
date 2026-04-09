@@ -18,8 +18,8 @@ def test_t199_audit_doc_records_the_focused_routing_regression_result() -> None:
 def test_t199_roadmap_now_points_at_the_p21_contract_rebaseline() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P23 ternary widening" in roadmap_text
+    assert "Next deliverable: P24 match and membership widening" in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "- `T-218`: author the backend-only baseline and direct tests for ternary expressions" in roadmap_text
+    assert "- `T-222`: author the backend-only baseline and direct tests for match operators and membership" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
     assert "| T-199 | P19 | P1 | Add focused routing regressions for representative residual host-routed forms | T-198 | Direct tests pin whether representative forms route to the backend, fall back to the host, or fail under `--ir` / `--asm` today | done |" in roadmap_text

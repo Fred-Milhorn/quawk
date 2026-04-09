@@ -628,7 +628,6 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_p21_logical_or_program() 
 
 def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_and_asm() -> None:
     representative_programs = [
-        "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
         'BEGIN { a["x"] = 1; print ("x" in a) }',
     ]
@@ -661,7 +660,6 @@ def test_quawk_supports_the_current_p21_target_forms_under_ir_and_asm() -> None:
 
 def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None:
     representative_programs = [
-        "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
         'BEGIN { a["x"] = 1; print ("x" in a) }',
     ]
@@ -768,6 +766,57 @@ def test_quawk_supports_p22_arithmetic_precedence_and_assignment_semantics() -> 
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "2\n2\n"
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_p23_ternary_program() -> None:
+    result = run_quawk("--ir", 'BEGIN { print (1 ? 2 : 3); print (0 ? "yes" : "no") }')
+
+    assert result.returncode == 0, result.stderr
+    assert "select i1" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p23_target_forms_under_ir_and_asm() -> None:
+    p23_programs = [
+        "BEGIN { print (1 ? 2 : 3) }",
+        "BEGIN { print (0 ? 2 : 3) }",
+        'BEGIN { print (1 ? "yes" : "no") }',
+        "BEGIN { print (1 ? (0 ? 2 : 3) : 4) }",
+    ]
+
+    for flag in ("--ir", "--asm"):
+        for source_text in p23_programs:
+            result = run_quawk(flag, source_text)
+
+            assert result.returncode == 0, result.stderr
+            assert result.stdout != ""
+            assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p23_target_forms_for_public_execution() -> None:
+    expected = {
+        "BEGIN { print (1 ? 2 : 3) }": "2\n",
+        "BEGIN { print (0 ? 2 : 3) }": "3\n",
+        'BEGIN { print (1 ? "yes" : "no") }': "yes\n",
+        "BEGIN { print (1 ? (0 ? 2 : 3) : 4) }": "3\n",
+    }
+
+    for source_text, stdout in expected.items():
+        result = run_quawk(source_text)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == stdout
+        assert result.stderr == ""
+
+
+def test_quawk_supports_p23_ternary_string_and_numeric_branch_semantics() -> None:
+    result = run_quawk(
+        'BEGIN { x = 1; print (x ? "left" : "right"); x = 0; print (x ? 10 : 20); print ((x ? 1 : 0) ? "a" : "b") }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "left\n20\nb\n"
     assert result.stderr == ""
 
 

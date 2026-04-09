@@ -273,6 +273,22 @@ def test_p22_arithmetic_precedence_executes() -> None:
     assert result.stderr == ""
 
 
+def test_p23_ternary_expressions_execute() -> None:
+    result = run_quawk('BEGIN { print (1 ? 2 : 3); print (0 ? 2 : 3); print (1 ? "yes" : "no") }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2\n3\nyes\n"
+    assert result.stderr == ""
+
+
+def test_p23_nested_ternary_and_condition_coercion_execute() -> None:
+    result = run_quawk('BEGIN { print (1 ? (0 ? 2 : 3) : 4); x = 0; print ((x ? 1 : 0) ? "a" : "b") }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\nb\n"
+    assert result.stderr == ""
+
+
 def test_split_and_substr_builtins_execute() -> None:
     result = run_quawk('BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }')
 

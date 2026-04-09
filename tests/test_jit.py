@@ -1400,7 +1400,6 @@ def test_execute_rejects_representative_residual_expression_forms_for_public_exe
     monkeypatch,
 ) -> None:
     programs = {
-        "ternary": "BEGIN { print (1 ? 2 : 3) }",
         "match_operator": 'BEGIN { print ("abc" ~ /b/) }',
         "in_operator": 'BEGIN { a["x"] = 1; print ("x" in a) }',
     }
@@ -1509,6 +1508,30 @@ def test_execute_routes_p22_arithmetic_program_through_backend(monkeypatch) -> N
     assert "fdiv double" in llvm_ir
     assert "@llvm.trunc.f64" in llvm_ir
     assert "@llvm.pow.f64" in llvm_ir
+
+
+def test_execute_routes_p23_ternary_program_through_backend(monkeypatch) -> None:
+    program = parse_program('BEGIN { print (1 ? 2 : 3); print (0 ? "yes" : "no") }')
+    captured_ir: dict[str, str] = {}
+
+    def fake_execute_host_runtime(
+        program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> int:
+        raise AssertionError("P23 ternary programs should not fall back to the Python host runtime now")
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    llvm_ir = captured_ir["module"]
+    assert "select i1" in llvm_ir
 
 
 def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) -> None:

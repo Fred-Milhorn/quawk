@@ -510,10 +510,10 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P23 ternary widening
+Next deliverable: P24 match and membership widening
 
 Target outcome:
-- the next widening wave claims only ternary expressions
+- the next widening wave claims only match operators and membership tests
 - every newly claimed form must execute through the compiled backend/runtime
   path in ordinary public execution
 - no newly claimed form may depend on Python host semantics
@@ -523,18 +523,16 @@ Target outcome:
 `T-197` through `T-207` are complete, `T-208` through `T-212` close the full
 `P21` wave, and `T-213` through `T-217` now close the full `P22` wave:
 baseline, backend implementation, inspection parity, routing, corroboration,
-and public-contract rebaseline. The roadmap now advances to ternary as the
-next widening wave.
+and public-contract rebaseline. `T-218` through `T-221` now close the full
+`P23` wave: baseline, backend implementation, inspection parity, routing,
+direct corroboration, and public-contract rebaseline. The roadmap now
+advances to match operators and membership as the next widening wave.
 
 Immediate next tasks:
-- `T-218`: author the backend-only baseline and direct tests for ternary expressions
-- `T-219`: implement backend/runtime support for ternary expressions
-- `T-220`: close `--ir` / `--asm`, routing, and corroborating coverage for ternary
-- `T-221`: rebaseline the public contract after `P23`
-- `T-222`: author the backend-only baseline and direct tests for match operators and `in`
-- `T-223`: implement backend/runtime support for `~` and `!~`
-- `T-224`: implement backend/runtime support for `in`
-- `T-225`: close `--ir` / `--asm`, routing, and corroborating coverage for the widened `P24` surface
+- `T-222`: author the backend-only baseline and direct tests for match operators and membership
+- `T-223`: implement backend/runtime support for match operators
+- `T-224`: implement backend/runtime support for membership tests
+- `T-225`: close `--ir` / `--asm`, routing, and corroborating coverage for match operators and membership
 - `T-226`: rebaseline the public contract after `P24`
 
 ## Backlog
@@ -687,7 +685,7 @@ Priority values:
 | T-175 | P15 | P1 | Fix the remaining `split` target-variable mismatch and re-audit corroboration | T-167 | `splitvar` becomes clean or is replaced by a narrower classified skip backed by direct repo-owned tests | done |
 | T-176 | P15 | P1 | Improve CLI-sensitive corroboration coverage | T-167 | `argarray` is either runnable with a clean adapter or superseded by an equivalent corroborating anchor for `ARGV` / multifile behavior | done |
 | T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | done |
-| T-178 | P16 | P0 | Author the testing-surface rename and consolidation baseline | T-177 | `docs/history/testing-refactor.md`, `docs/testing.md`, and focused regression tests make the current marker names, command surfaces, and overlap explicit before implementation | todo |
+| T-178 | P16 | P0 | Author the testing-surface rename and consolidation baseline | T-177 | `docs/history/testing-refactor.md`, `docs/testing.md`, and focused regression tests make the current marker names, command surfaces, and overlap explicit before implementation | done |
 | T-179 | P16 | P0 | Rename pytest markers and default suite selection to positive, accurate names | T-178 | `core`, `compat_reference`, and `compat_corpus` replace the old marker names in `pyproject.toml`, tests, and command documentation without leaving stale references | done |
 | T-180 | P16 | P0 | Update CI, contributor commands, and compatibility docs to the renamed testing surfaces | T-179 | `ci-fast`, the reference compatibility workflow, README, and testing/compatibility docs all use the new command vocabulary consistently | done |
 | T-181 | P16 | P1 | Merge the overlapping local differential corpus pytest files into one surface | T-179 | The two near-identical local differential corpus pytest entrypoints are replaced by one shared `compat_corpus` differential surface with stable case selection | done |
@@ -727,10 +725,10 @@ Priority values:
 | T-215 | P22 | P0 | Implement backend/runtime support for modulo and exponentiation | T-213 | Representative `%` and `^` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
 | T-216 | P22 | P1 | Close inspection parity, routing coverage, and corroboration for the widened arithmetic surface | T-214, T-215 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P22` surface with no stale host-only gap | done |
 | T-217 | P22 | P1 | Rebaseline the public contract after arithmetic widening | T-216 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P22` claim with no implied host dependency | done |
-| T-218 | P23 | P0 | Author the backend-only baseline, target claims, and direct tests for ternary expressions | T-217 | Failing direct tests and explicit `SPEC.md` target rows define the ternary forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
-| T-219 | P23 | P0 | Implement backend/runtime support for ternary expressions | T-218 | Representative ternary programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
-| T-220 | P23 | P1 | Close inspection parity, routing coverage, and corroboration for ternary | T-219 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover ternary with no stale host-only gap | todo |
-| T-221 | P23 | P1 | Rebaseline the public contract after ternary widening | T-220 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P23` claim with no implied host dependency | todo |
+| T-218 | P23 | P0 | Author the backend-only baseline, target claims, and direct tests for ternary expressions | T-217 | Failing direct tests and explicit `SPEC.md` target rows define the ternary forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |
+| T-219 | P23 | P0 | Implement backend/runtime support for ternary expressions | T-218 | Representative ternary programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
+| T-220 | P23 | P1 | Close inspection parity, routing coverage, and corroboration for ternary | T-219 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover ternary with no stale host-only gap | done |
+| T-221 | P23 | P1 | Rebaseline the public contract after ternary widening | T-220 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P23` claim with no implied host dependency | done |
 | T-222 | P24 | P0 | Author the backend-only baseline, target claims, and direct tests for match operators and membership | T-221 | Failing direct tests and explicit `SPEC.md` target rows define the `~`, `!~`, and `in` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
 | T-223 | P24 | P0 | Implement backend/runtime support for match operators | T-222 | Representative `~` and `!~` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
 | T-224 | P24 | P0 | Implement backend/runtime support for membership tests | T-222 | Representative `in` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |

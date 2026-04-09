@@ -32,7 +32,6 @@ further architecture-tightening work starts.
 The main residual host-heavy area is the broader intentionally unclaimed POSIX
 expression surface, including forms such as:
 
-- ternary
 - match operators
 - `in`
 
@@ -334,7 +333,7 @@ Current result:
 - representative logical-or and broader-comparison programs are no longer part
   of the residual host-runtime boundary
 - the residual matrix now starts at broader arithmetic and continues through
-  ternary, match operators, and `in`
+  match operators and `in`
 - the remaining host-boundary risk area is therefore smaller than the original
   `T-198` inventory
 
@@ -350,8 +349,16 @@ Current result:
 
 - representative broader-arithmetic programs are no longer part of the residual
   host-runtime boundary
-- the residual matrix now starts at ternary and continues through match
-  operators and `in`
+- the residual matrix now starts at match operators and continues through `in`
 
-That means future host-boundary work should focus on `P23` and `P24`, not
-revisit the now-backended `P22` surface.
+## T-220 Residual Boundary Narrowing Result
+
+`P23` has now lifted ternary out of the residual host-boundary follow-up:
+
+- representative pure ternary programs now execute through the public
+  backend/runtime path
+- the remaining residual host-boundary work now starts at match operators and
+  continues through `in`
+
+That means future host-boundary work should focus on `P24`, not revisit the
+now-backended `P22` and `P23` surface.

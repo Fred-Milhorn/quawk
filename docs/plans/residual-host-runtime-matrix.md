@@ -32,7 +32,6 @@ Column meanings:
 
 | Family | Representative program | Reachable from ordinary `quawk` today | Host semantic execution exists today | Public host fallback exists today | Public backend executes today | `--ir` / `--asm` today | Claimed in `SPEC.md` today | Classification | Current direct evidence | Clean reference anchor today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Still fully outside the current claimed AOT-backed surface |
 | Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Regex-driven record selection is already claimed; binary `~` / `!~` operators are not |
 | `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Arrays and `for ... in` are claimed separately; the binary `in` operator remains outside the current claim |
 
@@ -40,7 +39,7 @@ Representative routing basis:
 
 - for each row, the current representative program satisfies
   `requires_host_runtime_execution(program) == True`
-- ternary, match-operator, and `in` representatives also satisfy
+- match-operator and `in` representatives also satisfy
   `requires_host_runtime_value_execution(program) == True`
 - for each row, `supports_runtime_backend_subset(program) == False`
 - for each row, `lower_to_llvm_ir(program)` currently raises the standard
@@ -73,7 +72,6 @@ matrix:
 
 The remaining representative residual rows are now:
 
-- ternary
 - match operators
 - `in`
 
@@ -88,6 +86,19 @@ The remaining representative residual rows are now:
 
 The remaining representative residual rows are now:
 
-- ternary
+- match operators
+- `in`
+
+## T-220 Residual Narrowing Result
+
+`P23` has now lifted ternary out of this residual matrix:
+
+- representative pure ternary programs now execute through the public
+  backend/runtime path
+- those forms therefore no longer belong in the residual host-runtime boundary
+  inventory
+
+The remaining representative residual rows are now:
+
 - match operators
 - `in`

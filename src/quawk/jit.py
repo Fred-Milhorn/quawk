@@ -1669,6 +1669,14 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
             return temp
         raise RuntimeError(f"unsupported binary operator in numeric expression: {expression.op.name}")
 
+    if isinstance(expression, ConditionalExpr):
+        test_value = lower_condition_expression(expression.test, state)
+        true_operand = lower_numeric_expression(expression.if_true, state)
+        false_operand = lower_numeric_expression(expression.if_false, state)
+        select_value = state.next_temp("ternary.num")
+        state.instructions.append(f"  {select_value} = select i1 {test_value}, double {true_operand}, double {false_operand}")
+        return select_value
+
     raise RuntimeError(
         "the current backend only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
@@ -1824,6 +1832,15 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             temp = state.next_temp("boolnum")
             state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
             return temp
+        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+            test_value = lower_condition_expression(test, state)
+            true_operand = lower_runtime_numeric_expression(if_true, state)
+            false_operand = lower_runtime_numeric_expression(if_false, state)
+            select_value = state.next_temp("ternary.num")
+            state.instructions.append(
+                f"  {select_value} = select i1 {test_value}, double {true_operand}, double {false_operand}"
+            )
+            return select_value
         case _:
             if runtime_expression_has_string_result(expression, state):
                 string_value = lower_runtime_captured_string_expression(expression, state)
@@ -1984,6 +2001,15 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                 f"  {temp} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {left_value}, ptr {right_value})"
             )
             return temp
+        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+            test_value = lower_condition_expression(test, state)
+            true_value = lower_runtime_string_expression(if_true, state)
+            false_value = lower_runtime_string_expression(if_false, state)
+            select_value = state.next_temp("ternary.str")
+            state.instructions.append(
+                f"  {select_value} = select i1 {test_value}, ptr {true_value}, ptr {false_value}"
+            )
+            return select_value
         case _:
             numeric_value = lower_runtime_numeric_expression(expression, state)
             temp = state.next_temp("numstr")
@@ -2477,6 +2503,10 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
             return True
+        case ConditionalExpr(test=_, if_true=if_true, if_false=if_false):
+            return runtime_expression_has_string_result(if_true, state) and runtime_expression_has_string_result(
+                if_false, state
+            )
         case _:
             return False
 
@@ -2610,6 +2640,16 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 f"  {phi_temp} = phi i1 [ true, %{true_label} ], [ {right_condition}, %{rhs_label} ]"
             )
             return phi_temp
+
+    if isinstance(expression, ConditionalExpr):
+        test_value = lower_condition_expression(expression.test, state)
+        true_condition = lower_condition_expression(expression.if_true, state)
+        false_condition = lower_condition_expression(expression.if_false, state)
+        select_value = state.next_temp("cond")
+        state.instructions.append(
+            f"  {select_value} = select i1 {test_value}, i1 {true_condition}, i1 {false_condition}"
+        )
+        return select_value
 
     numeric_value = numeric_lowerer(expression, state)
     temp = state.next_temp("truthy")
@@ -4712,12 +4752,33 @@ def supports_direct_function_backend_subset(program: Program) -> bool:
         if isinstance(item, FunctionDef)
     }
 
+    def supports_pure_expression(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr() | NameExpr():
+                return True
+            case BinaryExpr(left=left, right=right):
+                return supports_pure_expression(left) and supports_pure_expression(right)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    supports_pure_expression(test)
+                    and supports_pure_expression(if_true)
+                    and supports_pure_expression(if_false)
+                )
+            case _:
+                return False
+
     def supports_expression(expression: Expr, local_names: frozenset[str] = frozenset()) -> bool:
         match expression:
             case NumericLiteralExpr():
                 return True
             case NameExpr():
                 return True
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    supports_pure_expression(test)
+                    and supports_pure_expression(if_true)
+                    and supports_pure_expression(if_false)
+                )
             case CallExpr(function=function_name, args=args):
                 if function_name not in function_defs:
                     return False
@@ -4952,6 +5013,31 @@ def supports_runtime_backend_subset(program: Program) -> bool:
     normalized_program = normalize_program_for_lowering(program)
     array_names = normalized_program.array_names | frozenset({"ARGV", "ENVIRON"})
 
+    def ternary_branch_is_side_effect_free(expression: Expr) -> bool:
+        match expression:
+            case NumericLiteralExpr() | StringLiteralExpr() | RegexLiteralExpr() | NameExpr():
+                return True
+            case FieldExpr(index=index):
+                return isinstance(index, int) or ternary_branch_is_side_effect_free(index)
+            case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
+                return ternary_branch_is_side_effect_free(index) and all(
+                    ternary_branch_is_side_effect_free(extra_index) for extra_index in extra_indexes
+                )
+            case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
+                return ternary_branch_is_side_effect_free(operand)
+            case BinaryExpr(left=left, right=right):
+                return ternary_branch_is_side_effect_free(left) and ternary_branch_is_side_effect_free(right)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    ternary_branch_is_side_effect_free(test)
+                    and ternary_branch_is_side_effect_free(if_true)
+                    and ternary_branch_is_side_effect_free(if_false)
+                )
+            case CallExpr(function="index" | "int" | "length" | "atan2" | "cos" | "exp" | "log" | "sin" | "sqrt" | "substr" | "sprintf" | "tolower" | "toupper", args=args):
+                return all(ternary_branch_is_side_effect_free(argument) for argument in args)
+            case _:
+                return False
+
     def supports_string_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
             case StringLiteralExpr():
@@ -4981,6 +5067,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return (
                     (supports_string_expression(left, string_bindings) or supports_numeric_expression(left))
                     and (supports_string_expression(right, string_bindings) or supports_numeric_expression(right))
+                )
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    supports_condition_expression(test, string_bindings)
+                    and supports_string_expression(if_true, string_bindings)
+                    and supports_string_expression(if_false, string_bindings)
+                    and ternary_branch_is_side_effect_free(if_true)
+                    and ternary_branch_is_side_effect_free(if_false)
                 )
             case _:
                 return False
@@ -5118,6 +5212,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return target_supported and (
                     source is None or supports_string_expression(source) or supports_numeric_expression(source)
                 )
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    supports_condition_expression(test)
+                    and supports_numeric_expression(if_true)
+                    and supports_numeric_expression(if_false)
+                    and ternary_branch_is_side_effect_free(if_true)
+                    and ternary_branch_is_side_effect_free(if_false)
+                )
             case _:
                 return False
 
@@ -5162,10 +5264,18 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return supports_condition_expression(left, string_bindings) and supports_condition_expression(
                     right, string_bindings
                 )
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    supports_condition_expression(test, string_bindings)
+                    and supports_condition_expression(if_true, string_bindings)
+                    and supports_condition_expression(if_false, string_bindings)
+                    and ternary_branch_is_side_effect_free(if_true)
+                    and ternary_branch_is_side_effect_free(if_false)
+                )
             case _:
                 return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
 
-    def expression_contains_p21_or_p22_operator(expression: Expr) -> bool:
+    def expression_contains_p21_or_p22_or_p23_operator(expression: Expr) -> bool:
         match expression:
             case BinaryExpr(
                 op=BinaryOp.LESS_EQUAL
@@ -5183,27 +5293,23 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             ):
                 return True
             case BinaryExpr(left=left, right=right):
-                return expression_contains_p21_or_p22_operator(left) or expression_contains_p21_or_p22_operator(right)
+                return expression_contains_p21_or_p22_or_p23_operator(left) or expression_contains_p21_or_p22_or_p23_operator(right)
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
-                return expression_contains_p21_or_p22_operator(operand)
-            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                return (
-                    expression_contains_p21_or_p22_operator(test)
-                    or expression_contains_p21_or_p22_operator(if_true)
-                    or expression_contains_p21_or_p22_operator(if_false)
-                )
+                return expression_contains_p21_or_p22_or_p23_operator(operand)
+            case ConditionalExpr():
+                return True
             case AssignExpr(value=value):
-                return expression_contains_p21_or_p22_operator(value)
+                return expression_contains_p21_or_p22_or_p23_operator(value)
             case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
-                return expression_contains_p21_or_p22_operator(index) or any(
-                    expression_contains_p21_or_p22_operator(extra_index) for extra_index in extra_indexes
+                return expression_contains_p21_or_p22_or_p23_operator(index) or any(
+                    expression_contains_p21_or_p22_or_p23_operator(extra_index) for extra_index in extra_indexes
                 )
             case FieldExpr(index=index):
-                return not isinstance(index, int) and expression_contains_p21_or_p22_operator(index)
+                return not isinstance(index, int) and expression_contains_p21_or_p22_or_p23_operator(index)
             case CallExpr(args=args):
-                return any(expression_contains_p21_or_p22_operator(argument) for argument in args)
+                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in args)
             case GetlineExpr(source=source):
-                return source is not None and expression_contains_p21_or_p22_operator(source)
+                return source is not None and expression_contains_p21_or_p22_or_p23_operator(source)
             case _:
                 return False
 
@@ -5287,55 +5393,55 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
-    def statement_contains_p21_or_p22_operator(statement: Stmt) -> bool:
+    def statement_contains_p21_or_p22_or_p23_operator(statement: Stmt) -> bool:
         match statement:
             case AssignStmt(target=target, value=value):
-                if expression_contains_p21_or_p22_operator(value):
+                if expression_contains_p21_or_p22_or_p23_operator(value):
                     return True
                 match target:
                     case ArrayLValue(subscripts=subscripts):
-                        return any(expression_contains_p21_or_p22_operator(subscript) for subscript in subscripts)
+                        return any(expression_contains_p21_or_p22_or_p23_operator(subscript) for subscript in subscripts)
                     case FieldLValue(index=index):
-                        return expression_contains_p21_or_p22_operator(index)
+                        return expression_contains_p21_or_p22_or_p23_operator(index)
                     case _:
                         return False
             case BlockStmt(statements=statements):
-                return any(statement_contains_p21_or_p22_operator(nested) for nested in statements)
+                return any(statement_contains_p21_or_p22_or_p23_operator(nested) for nested in statements)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
                 return (
-                    expression_contains_p21_or_p22_operator(condition)
-                    or statement_contains_p21_or_p22_operator(then_branch)
-                    or (else_branch is not None and statement_contains_p21_or_p22_operator(else_branch))
+                    expression_contains_p21_or_p22_or_p23_operator(condition)
+                    or statement_contains_p21_or_p22_or_p23_operator(then_branch)
+                    or (else_branch is not None and statement_contains_p21_or_p22_or_p23_operator(else_branch))
                 )
             case WhileStmt(condition=condition, body=body):
-                return expression_contains_p21_or_p22_operator(condition) or statement_contains_p21_or_p22_operator(body)
+                return expression_contains_p21_or_p22_or_p23_operator(condition) or statement_contains_p21_or_p22_or_p23_operator(body)
             case DoWhileStmt(body=body, condition=condition):
-                return statement_contains_p21_or_p22_operator(body) or expression_contains_p21_or_p22_operator(condition)
+                return statement_contains_p21_or_p22_or_p23_operator(body) or expression_contains_p21_or_p22_or_p23_operator(condition)
             case PrintStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_or_p22_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_or_p22_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_or_p23_operator(redirect.target)
                 )
             case PrintfStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_or_p22_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_or_p22_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_or_p23_operator(redirect.target)
                 )
             case ExprStmt(value=value):
-                return expression_contains_p21_or_p22_operator(value)
+                return expression_contains_p21_or_p22_or_p23_operator(value)
             case ExitStmt(value=value) | ReturnStmt(value=value):
-                return value is not None and expression_contains_p21_or_p22_operator(value)
+                return value is not None and expression_contains_p21_or_p22_or_p23_operator(value)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
-                    any(expression_contains_p21_or_p22_operator(expression) for expression in init)
-                    or (condition is not None and expression_contains_p21_or_p22_operator(condition))
-                    or any(expression_contains_p21_or_p22_operator(expression) for expression in update)
-                    or statement_contains_p21_or_p22_operator(body)
+                    any(expression_contains_p21_or_p22_or_p23_operator(expression) for expression in init)
+                    or (condition is not None and expression_contains_p21_or_p22_or_p23_operator(condition))
+                    or any(expression_contains_p21_or_p22_or_p23_operator(expression) for expression in update)
+                    or statement_contains_p21_or_p22_or_p23_operator(body)
                 )
             case ForInStmt(iterable=iterable, body=body):
-                return expression_contains_p21_or_p22_operator(iterable) or statement_contains_p21_or_p22_operator(body)
+                return expression_contains_p21_or_p22_or_p23_operator(iterable) or statement_contains_p21_or_p22_or_p23_operator(body)
             case DeleteStmt(index=index, extra_indexes=extra_indexes):
                 return (
-                    (index is not None and expression_contains_p21_or_p22_operator(index))
-                    or any(expression_contains_p21_or_p22_operator(extra_index) for extra_index in extra_indexes)
+                    (index is not None and expression_contains_p21_or_p22_or_p23_operator(index))
+                    or any(expression_contains_p21_or_p22_or_p23_operator(extra_index) for extra_index in extra_indexes)
                 )
             case _:
                 return False
@@ -5457,7 +5563,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             return False
         if any(statement_contains_runtime_builtin(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
-        if any(statement_contains_p21_or_p22_operator(statement) for statement in item.action.statements):
+        if any(statement_contains_p21_or_p22_or_p23_operator(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
         if isinstance(item.pattern, RangePattern):
             found_supported_runtime_feature = True
@@ -5515,7 +5621,13 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 return True
             case GetlineExpr():
                 return True
-            case ConditionalExpr() | AssignExpr() | UnaryExpr() | PostfixExpr():
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    expression_has_host_runtime_only_ops(test)
+                    or expression_has_host_runtime_only_ops(if_true)
+                    or expression_has_host_runtime_only_ops(if_false)
+                )
+            case AssignExpr() | UnaryExpr() | PostfixExpr():
                 return True
             case FieldExpr(index=index):
                 if isinstance(index, int):

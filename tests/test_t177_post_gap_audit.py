@@ -25,5 +25,5 @@ def test_t177_posix_plan_pins_the_remaining_reviewed_skips() -> None:
 def test_t177_roadmap_marks_p15_closeout_complete() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P23 ternary widening" in roadmap_text
+    assert "Next deliverable: P24 match and membership widening" in roadmap_text
     assert "| T-177 | P15 | P0 | Re-expand `SPEC.md` and complete the post-gap POSIX audit | T-169, T-170, T-171, T-172, T-173, T-174, T-175, T-176 | Public claims widen only for fixed families, unsuitable anchors such as `p.43`, `p.48b`, and `range1` remain explicit reviewed skips, and the docs plus manifest agree on the resulting surface | done |" in roadmap_text

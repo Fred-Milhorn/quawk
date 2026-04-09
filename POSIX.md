@@ -1230,6 +1230,70 @@ does not become claimed until ordinary public execution, `--ir`, and `--asm`
 all stay on the compiled backend/runtime path with no public Python host
 dependency.
 
+### T-218 P23 Baseline Result
+
+The `P23` baseline now fixes the exact next widening target:
+
+- pure ternary expressions over the current claimed numeric/string subset
+
+What is checked in for that baseline:
+
+- direct tests now pin those exact ternary forms as the next widening target
+- the widening analysis and decision table now treat ternary as the dedicated
+  next backend-only wave
+- the contract rule remains strict: these forms do not become claimed until
+  ordinary public execution, `--ir`, and `--asm` all stay on the compiled
+  backend/runtime path with no public Python host dependency
+
+### T-219 P23 Backend Result
+
+The backend/runtime implementation for the exact `P23` target forms is now
+complete:
+
+- representative numeric ternary programs now stay on the compiled
+  backend/runtime path in ordinary public execution
+- representative string ternary programs now stay on the compiled
+  backend/runtime path in ordinary public execution
+- the direct `P23` target tests now pin representative nested ternary and
+  branch-coercion behavior for the widened pure-expression family
+
+At the end of `T-219`, the remaining `P23` work is no longer implementation
+support. It is inspection, routing, direct corroboration, and then the claim
+rebaseline in `T-221`.
+
+### T-220 P23 Inspection And Corroboration Result
+
+The `P23` closeout evidence is now explicit:
+
+- representative ternary programs now succeed under `--ir` and `--asm`
+- focused routing regressions now pin those forms to the compiled
+  backend/runtime path instead of the residual host-boundary path
+- no clean checked-in reference anchor is pinned for `P23` yet, so the ternary
+  wave is currently closed by direct backend, routing, inspection, and runtime
+  coverage instead
+
+That leaves `T-221` as the public-contract step: widen the actual claimed
+surface only after the backend/runtime, inspection, and direct evidence
+closeout is already checked in.
+
+### T-221 P23 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P23` wave:
+
+- `SPEC.md` now includes pure ternary expressions over the current claimed
+  numeric/string subset in the claimed backend/runtime expression surface
+- the `P23` target rows are now recorded as implemented execution and
+  inspection parity
+- `docs/design.md` now lists ternary inside the currently claimed expression
+  subset rather than inside the remaining unclaimed surface
+- the roadmap now treats `P23` as complete and moves the next deliverable to
+  match operators and membership in `P24`
+
+The backend-only rule remains unchanged for every future widening phase: a form
+does not become claimed until ordinary public execution, `--ir`, and `--asm`
+all stay on the compiled backend/runtime path with no public Python host
+dependency.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:
