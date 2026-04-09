@@ -1010,7 +1010,7 @@ Decision-gated broader surface, not current product debt:
 - any work on that broader expression family should start only after an
   explicit future roadmap decision to widen the claimed surface
 
-Current follow-on plan:
+Completed widening plan:
 
 1. `P21`: logical-or and broader comparisons
 2. `P22`: broader arithmetic
@@ -1023,9 +1023,9 @@ dependency for ordinary execution.
 
 Residual host-runtime boundary follow-up:
 
-- the broader expression surface remains intentionally unclaimed, but the repo
-  still needs a clearer inventory of where ordinary public execution can reach
-  the Python host runtime
+- the broader expression surface originally remained intentionally unclaimed,
+  and the repo needed a clearer inventory of where ordinary public execution
+  could reach the Python host runtime
 - that follow-up audit is planned separately in:
 - [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
 - [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
@@ -1070,10 +1070,10 @@ What changed in the documented contract:
   unclaimed expression surface, where public execution still fails clearly
   rather than silently falling back
 
-### Future Widening Phases
+### Ranked Widening Phases
 
-The next planned work is the ranked widening of the intentionally unclaimed
-expression surface:
+The ranked widening of the intentionally unclaimed expression surface is now
+complete:
 
 1. `P21`: logical-or and broader comparisons
 2. `P22`: broader arithmetic
@@ -1159,6 +1159,63 @@ The backend-only rule remains unchanged for every future widening phase: a form
 does not become claimed until ordinary public execution, `--ir`, and `--asm`
 all stay on the compiled backend/runtime path with no public Python host
 dependency.
+
+### T-222 P24 Baseline Result
+
+The `P24` baseline now fixes the final ranked widening target:
+
+- `~`, `!~`
+- `expr in array`
+
+What is checked in for that baseline:
+
+- `SPEC.md` now has explicit target rows for the `P24` surface and its backend
+  or inspection gate
+- direct tests pin those exact forms as the final backend-only widening wave
+- the direct baseline covers representative public execution, routing, and
+  inspection expectations for `~`, `!~`, and `in`
+
+### T-223 And T-224 P24 Backend Result
+
+The backend/runtime implementation for the exact `P24` target forms is now
+complete:
+
+- representative `~` and `!~` programs now execute through ordinary public
+  backend/runtime execution with no host fallback
+- representative scalar-key `expr in array` programs now execute through
+  ordinary public backend/runtime execution with no host fallback
+- direct runtime checks now pin representative match and membership semantics
+  for the widened family
+
+### T-225 P24 Inspection And Corroboration Result
+
+The `P24` closeout evidence is now explicit:
+
+- representative `~`, `!~`, and `in` programs now succeed under `--ir` and
+  `--asm`
+- focused routing regressions now pin those forms to the compiled
+  backend/runtime path instead of the residual host-boundary path
+- no clean checked-in reference anchor is pinned for `P24` yet, so this wave
+  is currently closed by direct backend, routing, inspection, and runtime
+  coverage instead
+
+That leaves `T-226` as the public-contract step: widen the actual claimed
+surface only after the backend/runtime, inspection, and direct evidence
+closeout is already checked in.
+
+### T-226 P24 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P24` wave:
+
+- `SPEC.md` now includes `~`, `!~`, and scalar-key `expr in array`
+  membership in the claimed backend/runtime expression surface
+- the `P24` target rows are now recorded as implemented execution and
+  inspection parity
+- `docs/design.md` now lists match operators and membership inside the
+  currently claimed expression subset rather than inside the remaining
+  unclaimed surface
+- the roadmap now treats `P24` as complete and leaves no active widening phase
+  scheduled
 
 ### T-213 P22 Baseline Result
 

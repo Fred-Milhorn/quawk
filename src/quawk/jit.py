@@ -641,6 +641,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare void @qk_nextfile(ptr)",
         "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
+        "declare i1 @qk_regex_match_text(ptr, ptr)",
         "declare ptr @qk_scalar_get(ptr, ptr)",
         "declare double @qk_scalar_get_number(ptr, ptr)",
         "declare i1 @qk_scalar_truthy(ptr, ptr)",
@@ -678,6 +679,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         "declare ptr @qk_get_filename(ptr)",
         "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
         "declare ptr @qk_array_get(ptr, ptr, ptr)",
+        "declare i1 @qk_array_contains(ptr, ptr, ptr)",
         "declare void @qk_array_set_string(ptr, ptr, ptr, ptr)",
         "declare void @qk_array_set_number(ptr, ptr, ptr, double)",
         "declare void @qk_array_delete(ptr, ptr, ptr)",
@@ -1827,6 +1829,9 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             | BinaryOp.NOT_EQUAL
             | BinaryOp.LOGICAL_AND
             | BinaryOp.LOGICAL_OR
+            | BinaryOp.MATCH
+            | BinaryOp.NOT_MATCH
+            | BinaryOp.IN
         ):
             condition_value = lower_condition_expression(expression, state)
             temp = state.next_temp("boolnum")
@@ -2172,6 +2177,34 @@ def lower_runtime_regex_pattern(expression: Expr, state: LoweringState) -> str:
     return lower_runtime_captured_string_expression(expression, state)
 
 
+def lower_runtime_match_operator(expression: BinaryExpr, state: LoweringState) -> str:
+    """Lower one `~` / `!~` expression to an `i1` match result."""
+    assert state.runtime_param is not None
+    left_ptr = lower_runtime_captured_string_expression(expression.left, state)
+    pattern_ptr = lower_runtime_regex_pattern(expression.right, state)
+    match_result = state.next_temp("match")
+    state.instructions.append(f"  {match_result} = call i1 @qk_regex_match_text(ptr {left_ptr}, ptr {pattern_ptr})")
+    if expression.op is BinaryOp.MATCH:
+        return match_result
+    inverted = state.next_temp("notmatch")
+    state.instructions.append(f"  {inverted} = xor i1 {match_result}, true")
+    return inverted
+
+
+def lower_runtime_in_expression(expression: BinaryExpr, state: LoweringState) -> str:
+    """Lower one `expr in array` membership expression to an `i1` result."""
+    assert state.runtime_param is not None
+    if not isinstance(expression.right, NameExpr):
+        raise RuntimeError("the runtime-backed backend only supports `in` against a named array")
+    array_name_ptr = lower_runtime_constant_string(expression.right.name, state)
+    key_ptr = lower_runtime_captured_string_expression(expression.left, state)
+    contains_result = state.next_temp("contains")
+    state.instructions.append(
+        f"  {contains_result} = call i1 @qk_array_contains(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+    )
+    return contains_result
+
+
 def lower_runtime_index_builtin(expression: CallExpr, state: LoweringState) -> str:
     """Lower one `index` builtin call in the runtime-backed backend subset."""
     assert state.runtime_param is not None
@@ -2468,10 +2501,14 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
             return state.loop_string_bindings[name]
         case NumericLiteralExpr(value=value):
             temp = state.next_temp("array.key.num")
+            captured = state.next_temp("array.key.capture")
             state.instructions.append(
                 f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {format_double_literal(value)})"
             )
-            return temp
+            state.instructions.append(
+                f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {temp})"
+            )
+            return captured
         case StringLiteralExpr(value=value):
             return lower_runtime_constant_string(value, state)
         case _:
@@ -2640,6 +2677,10 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 f"  {phi_temp} = phi i1 [ true, %{true_label} ], [ {right_condition}, %{rhs_label} ]"
             )
             return phi_temp
+        if state.runtime_param is not None and expression.op in {BinaryOp.MATCH, BinaryOp.NOT_MATCH}:
+            return lower_runtime_match_operator(expression, state)
+        if state.runtime_param is not None and expression.op is BinaryOp.IN:
+            return lower_runtime_in_expression(expression, state)
 
     if isinstance(expression, ConditionalExpr):
         test_value = lower_condition_expression(expression.test, state)
@@ -5129,6 +5170,20 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 right=right,
             ):
                 return supports_numeric_expression(left) and supports_numeric_expression(right)
+            case BinaryExpr(op=BinaryOp.MATCH | BinaryOp.NOT_MATCH, left=left, right=right):
+                return (
+                    (supports_string_expression(left) or supports_numeric_expression(left))
+                    and (
+                        isinstance(right, RegexLiteralExpr)
+                        or supports_string_expression(right)
+                        or supports_numeric_expression(right)
+                    )
+                )
+            case BinaryExpr(op=BinaryOp.IN, left=left, right=NameExpr(name=array_name)):
+                return (
+                    array_name in array_names
+                    and (supports_string_expression(left) or supports_numeric_expression(left))
+                )
             case CallExpr(function="split", args=args):
                 if len(args) not in {2, 3}:
                     return False
@@ -5264,6 +5319,20 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return supports_condition_expression(left, string_bindings) and supports_condition_expression(
                     right, string_bindings
                 )
+            case BinaryExpr(op=BinaryOp.MATCH | BinaryOp.NOT_MATCH, left=left, right=right):
+                return (
+                    (supports_string_expression(left, string_bindings) or supports_numeric_expression(left))
+                    and (
+                        isinstance(right, RegexLiteralExpr)
+                        or supports_string_expression(right, string_bindings)
+                        or supports_numeric_expression(right)
+                    )
+                )
+            case BinaryExpr(op=BinaryOp.IN, left=left, right=NameExpr(name=array_name)):
+                return (
+                    array_name in array_names
+                    and (supports_string_expression(left, string_bindings) or supports_numeric_expression(left))
+                )
             case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
                 return (
                     supports_condition_expression(test, string_bindings)
@@ -5275,7 +5344,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
 
-    def expression_contains_p21_or_p22_or_p23_operator(expression: Expr) -> bool:
+    def expression_contains_p21_or_p22_or_p23_or_p24_operator(expression: Expr) -> bool:
         match expression:
             case BinaryExpr(
                 op=BinaryOp.LESS_EQUAL
@@ -5287,29 +5356,32 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 | BinaryOp.MUL
                 | BinaryOp.DIV
                 | BinaryOp.MOD
-                | BinaryOp.POW,
+                | BinaryOp.POW
+                | BinaryOp.MATCH
+                | BinaryOp.NOT_MATCH
+                | BinaryOp.IN,
                 left=left,
                 right=right,
             ):
                 return True
             case BinaryExpr(left=left, right=right):
-                return expression_contains_p21_or_p22_or_p23_operator(left) or expression_contains_p21_or_p22_or_p23_operator(right)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(left) or expression_contains_p21_or_p22_or_p23_or_p24_operator(right)
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
-                return expression_contains_p21_or_p22_or_p23_operator(operand)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(operand)
             case ConditionalExpr():
                 return True
             case AssignExpr(value=value):
-                return expression_contains_p21_or_p22_or_p23_operator(value)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(value)
             case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
-                return expression_contains_p21_or_p22_or_p23_operator(index) or any(
-                    expression_contains_p21_or_p22_or_p23_operator(extra_index) for extra_index in extra_indexes
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(index) or any(
+                    expression_contains_p21_or_p22_or_p23_or_p24_operator(extra_index) for extra_index in extra_indexes
                 )
             case FieldExpr(index=index):
-                return not isinstance(index, int) and expression_contains_p21_or_p22_or_p23_operator(index)
+                return not isinstance(index, int) and expression_contains_p21_or_p22_or_p23_or_p24_operator(index)
             case CallExpr(args=args):
-                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in args)
+                return any(expression_contains_p21_or_p22_or_p23_or_p24_operator(argument) for argument in args)
             case GetlineExpr(source=source):
-                return source is not None and expression_contains_p21_or_p22_or_p23_operator(source)
+                return source is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(source)
             case _:
                 return False
 
@@ -5393,55 +5465,55 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
-    def statement_contains_p21_or_p22_or_p23_operator(statement: Stmt) -> bool:
+    def statement_contains_p21_or_p22_or_p23_or_p24_operator(statement: Stmt) -> bool:
         match statement:
             case AssignStmt(target=target, value=value):
-                if expression_contains_p21_or_p22_or_p23_operator(value):
+                if expression_contains_p21_or_p22_or_p23_or_p24_operator(value):
                     return True
                 match target:
                     case ArrayLValue(subscripts=subscripts):
-                        return any(expression_contains_p21_or_p22_or_p23_operator(subscript) for subscript in subscripts)
+                        return any(expression_contains_p21_or_p22_or_p23_or_p24_operator(subscript) for subscript in subscripts)
                     case FieldLValue(index=index):
-                        return expression_contains_p21_or_p22_or_p23_operator(index)
+                        return expression_contains_p21_or_p22_or_p23_or_p24_operator(index)
                     case _:
                         return False
             case BlockStmt(statements=statements):
-                return any(statement_contains_p21_or_p22_or_p23_operator(nested) for nested in statements)
+                return any(statement_contains_p21_or_p22_or_p23_or_p24_operator(nested) for nested in statements)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
                 return (
-                    expression_contains_p21_or_p22_or_p23_operator(condition)
-                    or statement_contains_p21_or_p22_or_p23_operator(then_branch)
-                    or (else_branch is not None and statement_contains_p21_or_p22_or_p23_operator(else_branch))
+                    expression_contains_p21_or_p22_or_p23_or_p24_operator(condition)
+                    or statement_contains_p21_or_p22_or_p23_or_p24_operator(then_branch)
+                    or (else_branch is not None and statement_contains_p21_or_p22_or_p23_or_p24_operator(else_branch))
                 )
             case WhileStmt(condition=condition, body=body):
-                return expression_contains_p21_or_p22_or_p23_operator(condition) or statement_contains_p21_or_p22_or_p23_operator(body)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(condition) or statement_contains_p21_or_p22_or_p23_or_p24_operator(body)
             case DoWhileStmt(body=body, condition=condition):
-                return statement_contains_p21_or_p22_or_p23_operator(body) or expression_contains_p21_or_p22_or_p23_operator(condition)
+                return statement_contains_p21_or_p22_or_p23_or_p24_operator(body) or expression_contains_p21_or_p22_or_p23_or_p24_operator(condition)
             case PrintStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_or_p22_or_p23_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_or_p23_or_p24_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(redirect.target)
                 )
             case PrintfStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_or_p22_or_p23_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_or_p22_or_p23_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_or_p23_or_p24_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(redirect.target)
                 )
             case ExprStmt(value=value):
-                return expression_contains_p21_or_p22_or_p23_operator(value)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(value)
             case ExitStmt(value=value) | ReturnStmt(value=value):
-                return value is not None and expression_contains_p21_or_p22_or_p23_operator(value)
+                return value is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(value)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
-                    any(expression_contains_p21_or_p22_or_p23_operator(expression) for expression in init)
-                    or (condition is not None and expression_contains_p21_or_p22_or_p23_operator(condition))
-                    or any(expression_contains_p21_or_p22_or_p23_operator(expression) for expression in update)
-                    or statement_contains_p21_or_p22_or_p23_operator(body)
+                    any(expression_contains_p21_or_p22_or_p23_or_p24_operator(expression) for expression in init)
+                    or (condition is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(condition))
+                    or any(expression_contains_p21_or_p22_or_p23_or_p24_operator(expression) for expression in update)
+                    or statement_contains_p21_or_p22_or_p23_or_p24_operator(body)
                 )
             case ForInStmt(iterable=iterable, body=body):
-                return expression_contains_p21_or_p22_or_p23_operator(iterable) or statement_contains_p21_or_p22_or_p23_operator(body)
+                return expression_contains_p21_or_p22_or_p23_or_p24_operator(iterable) or statement_contains_p21_or_p22_or_p23_or_p24_operator(body)
             case DeleteStmt(index=index, extra_indexes=extra_indexes):
                 return (
-                    (index is not None and expression_contains_p21_or_p22_or_p23_operator(index))
-                    or any(expression_contains_p21_or_p22_or_p23_operator(extra_index) for extra_index in extra_indexes)
+                    (index is not None and expression_contains_p21_or_p22_or_p23_or_p24_operator(index))
+                    or any(expression_contains_p21_or_p22_or_p23_or_p24_operator(extra_index) for extra_index in extra_indexes)
                 )
             case _:
                 return False
@@ -5563,7 +5635,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             return False
         if any(statement_contains_runtime_builtin(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
-        if any(statement_contains_p21_or_p22_or_p23_operator(statement) for statement in item.action.statements):
+        if any(statement_contains_p21_or_p22_or_p23_or_p24_operator(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
         if isinstance(item.pattern, RangePattern):
             found_supported_runtime_feature = True
@@ -5649,6 +5721,9 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                     BinaryOp.NOT_EQUAL,
                     BinaryOp.LOGICAL_AND,
                     BinaryOp.LOGICAL_OR,
+                    BinaryOp.MATCH,
+                    BinaryOp.NOT_MATCH,
+                    BinaryOp.IN,
                 }:
                     return True
                 return expression_has_host_runtime_only_ops(left) or expression_has_host_runtime_only_ops(right)

@@ -717,6 +717,23 @@ static bool qk_compare_strings(const char *left, const char *right, int32_t op)
     }
 }
 
+static bool qk_regex_match_text_impl(const char *text, const char *pattern)
+{
+    regex_t regex;
+    int result;
+
+    if ((text == NULL) || (pattern == NULL)) {
+        return false;
+    }
+    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
+        return false;
+    }
+
+    result = regexec(&regex, text, 0, NULL, 0);
+    regfree(&regex);
+    return result == 0;
+}
+
 static uint32_t qk_normalize_seed(double value)
 {
     return ((uint32_t)((int64_t)trunc(value))) & QK_RAND_MASK;
@@ -2324,18 +2341,15 @@ double qk_system(qk_runtime *runtime, const char *command)
 
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern)
 {
-    if ((runtime == NULL) || (runtime->current_record == NULL) || (pattern == NULL)) {
+    if ((runtime == NULL) || (runtime->current_record == NULL)) {
         return false;
     }
+    return qk_regex_match_text_impl(runtime->current_record, pattern);
+}
 
-    regex_t regex;
-    if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
-        return false;
-    }
-
-    int result = regexec(&regex, runtime->current_record, 0, NULL, 0);
-    regfree(&regex);
-    return result == 0;
+bool qk_regex_match_text(const char *text, const char *pattern)
+{
+    return qk_regex_match_text_impl(text, pattern);
 }
 
 double qk_get_nr(qk_runtime *runtime)
@@ -2475,6 +2489,30 @@ const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char
         return QK_EMPTY_FIELD;
     }
     return qk_array_get_value(runtime, array_name, key);
+}
+
+bool qk_array_contains(qk_runtime *runtime, const char *array_name, const char *key)
+{
+    struct qk_array *array;
+    struct qk_array_entry *entry;
+
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return false;
+    }
+
+    array = qk_find_array(runtime, array_name, false);
+    if (array == NULL) {
+        return false;
+    }
+
+    entry = array->entries;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            return true;
+        }
+        entry = entry->next;
+    }
+    return false;
 }
 
 void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char *key, const char *value)

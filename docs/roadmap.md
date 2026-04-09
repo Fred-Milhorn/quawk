@@ -510,30 +510,23 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Next deliverable: P24 match and membership widening
+No active widening phase is currently scheduled.
 
-Target outcome:
-- the next widening wave claims only match operators and membership tests
-- every newly claimed form must execute through the compiled backend/runtime
-  path in ordinary public execution
-- no newly claimed form may depend on Python host semantics
-- `--ir` / `--asm` support and direct compatibility evidence must land before
-  the widened claim is considered complete
-
-`T-197` through `T-207` are complete, `T-208` through `T-212` close the full
-`P21` wave, and `T-213` through `T-217` now close the full `P22` wave:
-baseline, backend implementation, inspection parity, routing, corroboration,
-and public-contract rebaseline. `T-218` through `T-221` now close the full
-`P23` wave: baseline, backend implementation, inspection parity, routing,
-direct corroboration, and public-contract rebaseline. The roadmap now
-advances to match operators and membership as the next widening wave.
+Current state:
+- `T-197` through `T-207` are complete, `T-208` through `T-212` close the full
+  `P21` wave, `T-213` through `T-217` close the full `P22` wave, `T-218`
+  through `T-221` close the full `P23` wave, and `T-222` through `T-226` now
+  close the full `P24` wave
+- `T-208` through `T-212` close the full `P21` wave
+- `T-213` through `T-217` close the full `P22` wave
+- `T-218` through `T-221` close the full `P23` wave
+- `T-222` through `T-226` now close the full `P24` wave
+- the currently claimed widened expression surface executes through the
+  compiled backend/runtime path with `--ir` / `--asm` support and no public
+  Python host fallback
 
 Immediate next tasks:
-- `T-222`: author the backend-only baseline and direct tests for match operators and membership
-- `T-223`: implement backend/runtime support for match operators
-- `T-224`: implement backend/runtime support for membership tests
-- `T-225`: close `--ir` / `--asm`, routing, and corroborating coverage for match operators and membership
-- `T-226`: rebaseline the public contract after `P24`
+- none; future widening work should start with a new explicit roadmap phase and baseline
 
 ## Backlog
 
@@ -729,11 +722,11 @@ Priority values:
 | T-219 | P23 | P0 | Implement backend/runtime support for ternary expressions | T-218 | Representative ternary programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
 | T-220 | P23 | P1 | Close inspection parity, routing coverage, and corroboration for ternary | T-219 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover ternary with no stale host-only gap | done |
 | T-221 | P23 | P1 | Rebaseline the public contract after ternary widening | T-220 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P23` claim with no implied host dependency | done |
-| T-222 | P24 | P0 | Author the backend-only baseline, target claims, and direct tests for match operators and membership | T-221 | Failing direct tests and explicit `SPEC.md` target rows define the `~`, `!~`, and `in` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | todo |
-| T-223 | P24 | P0 | Implement backend/runtime support for match operators | T-222 | Representative `~` and `!~` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
-| T-224 | P24 | P0 | Implement backend/runtime support for membership tests | T-222 | Representative `in` programs execute correctly through ordinary public backend/runtime execution with no host fallback | todo |
-| T-225 | P24 | P1 | Close inspection parity, routing coverage, and corroboration for match operators and membership | T-223, T-224 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P24` surface with no stale host-only gap | todo |
-| T-226 | P24 | P1 | Rebaseline the public contract after match and membership widening | T-225 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P24` claim with no implied host dependency | todo |
+| T-222 | P24 | P0 | Author the backend-only baseline, target claims, and direct tests for match operators and membership | T-221 | Failing direct tests and explicit `SPEC.md` target rows define the `~`, `!~`, and `in` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |
+| T-223 | P24 | P0 | Implement backend/runtime support for match operators | T-222 | Representative `~` and `!~` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
+| T-224 | P24 | P0 | Implement backend/runtime support for membership tests | T-222 | Representative `in` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |
+| T-225 | P24 | P1 | Close inspection parity, routing coverage, and corroboration for match operators and membership | T-223, T-224 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P24` surface with no stale host-only gap | done |
+| T-226 | P24 | P1 | Rebaseline the public contract after match and membership widening | T-225 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P24` claim with no implied host dependency | done |
 | T-080 | P3 | P0 | Author end-to-end tests for mixed `BEGIN` / record / `END` execution | T-079 | CLI tests exist for the mixed-program deliverable before implementation | done |
 | T-081 | P3 | P0 | Extend token/span and AST support for `END` and multiple top-level items | T-080 | Frontend structures cleanly represent mixed-program execution | done |
 | T-082 | P3 | P0 | Extend the parser for multiple pattern-actions and `END` | T-081, T-080 | The parser accepts the mixed-program deliverable | done |

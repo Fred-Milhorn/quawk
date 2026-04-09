@@ -51,8 +51,8 @@ def test_t211_reference_subset_already_contains_clean_p21_corrobating_anchors() 
 def test_t211_roadmap_marks_p21_backend_work_done_and_advances_to_t212() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P24 match and membership widening" in roadmap_text
-    assert "- `T-222`: author the backend-only baseline and direct tests for match operators and membership" in roadmap_text
+    assert "No active widening phase is currently scheduled." in roadmap_text
+    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-209 | P21 | P0 | Implement backend/runtime support for logical-or | T-208 | Representative `||` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |" in roadmap_text
     assert "| T-210 | P21 | P0 | Implement backend/runtime support for broader comparisons | T-208 | Representative `<=`, `>`, `>=`, and `!=` programs execute correctly through ordinary public backend/runtime execution with no host fallback | done |" in roadmap_text
     assert "| T-211 | P21 | P1 | Close inspection parity, routing coverage, and corroboration for the widened logical-or and comparison surface | T-209, T-210 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P21` surface with no stale host-only gap | done |" in roadmap_text

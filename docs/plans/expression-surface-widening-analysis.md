@@ -102,12 +102,12 @@ rows for each candidate form and these columns:
 
 That is exactly what the companion decision table starts to provide.
 
-## Approved Future Phase Shape
+## Approved Widening Phase Shape
 
-The current recommendation is to widen the remaining unclaimed expression
-surface in ranked phases rather than as one large POSIX-expression wave.
+The widening work was intentionally structured as ranked backend-first phases
+rather than one large POSIX-expression wave.
 
-Planned phase order:
+Completed phase order:
 
 1. `P21`: logical-or and broader comparisons
 2. `P22`: broader arithmetic
@@ -279,3 +279,51 @@ The public contract now reflects the completed `P23` wave:
 - the earlier `P23` target rows are no longer planned follow-on work
 - the remaining unclaimed expression surface now starts at match operators and
   membership only because `P24` is the next widening wave
+
+## T-222 P24 Baseline Result
+
+The checked-in `P24` baseline fixes the exact final widening target from the
+ranked plan:
+
+- match operators: `~`, `!~`
+- membership: `expr in array`
+
+The direct baseline pins those forms as the next backend-only widening wave
+with representative execution, inspection, and routing checks.
+
+## T-223 And T-224 Backend Implementation Result
+
+The backend/runtime implementation work for the exact `P24` target forms is now
+checked in:
+
+- representative `~` and `!~` programs now execute through ordinary public
+  backend/runtime execution with no host fallback
+- representative scalar-key `expr in array` programs now execute through
+  ordinary public backend/runtime execution with no host fallback
+- direct execution checks now pin representative match and membership
+  semantics, including keeping `~` / `!~` separate from `match()` builtin side
+  effects
+
+## T-225 Inspection And Corroboration Result
+
+The inspection and corroboration closeout for `P24` is now explicit:
+
+- representative `~`, `!~`, and `in` programs now succeed under `--ir` and
+  `--asm`
+- focused routing regressions now pin those representative forms to the
+  compiled backend/runtime path rather than the residual host-boundary path
+- no clean checked-in reference anchor is pinned for `P24` yet, so this wave
+  is currently closed by direct backend, routing, inspection, and runtime
+  coverage instead
+
+That leaves `T-226` as a pure public-contract rebaseline step, not an
+implementation or evidence gap.
+
+## T-226 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P24` wave:
+
+- `~`, `!~`, and scalar-key `expr in array` membership are now part of the
+  claimed backend/runtime expression surface
+- the earlier `P24` target rows are no longer planned follow-on work
+- all currently scheduled widening waves `P21` through `P24` are now complete

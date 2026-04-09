@@ -32,18 +32,15 @@ Column meanings:
 
 | Family | Representative program | Reachable from ordinary `quawk` today | Host semantic execution exists today | Public host fallback exists today | Public backend executes today | `--ir` / `--asm` today | Claimed in `SPEC.md` today | Classification | Current direct evidence | Clean reference anchor today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Regex-driven record selection is already claimed; binary `~` / `!~` operators are not |
-| `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Arrays and `for ... in` are claimed separately; the binary `in` operator remains outside the current claim |
+
+No representative residual expression rows remain.
 
 Representative routing basis:
 
 - for each row, the current representative program satisfies
   `requires_host_runtime_execution(program) == True`
-- match-operator and `in` representatives also satisfy
-  `requires_host_runtime_value_execution(program) == True`
-- for each row, `supports_runtime_backend_subset(program) == False`
-- for each row, `lower_to_llvm_ir(program)` currently raises the standard
-  host-runtime-only backend error
+- the earlier representative rows for match operators and `in` have now been
+  removed by `P24`
 
 Current classification result:
 
@@ -54,9 +51,8 @@ Current classification result:
 - ordinary public execution no longer uses host fallback for these rows; they
   now fail clearly outside the current AOT-backed contract instead
 
-That result means the current residual host-routed surface is still outside the
-claimed AOT-backed contract, and the next decision is about public fallback
-policy rather than about re-expanding claims immediately.
+That result means the ranked expression-surface host-boundary cleanup is now
+complete for the currently scheduled widening waves.
 
 ## T-211 Residual Narrowing Result
 
@@ -74,6 +70,17 @@ The remaining representative residual rows are now:
 
 - match operators
 - `in`
+
+## T-225 Residual Narrowing Result
+
+`P24` has now lifted match operators and membership out of this residual
+matrix:
+
+- representative `~` and `!~` programs now execute through the public
+  backend/runtime path
+- representative scalar-key `expr in array` programs now execute through the
+  public backend/runtime path
+- no representative residual expression rows remain
 
 ## T-216 Residual Narrowing Result
 

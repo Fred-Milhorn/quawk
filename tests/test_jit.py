@@ -1396,41 +1396,38 @@ def test_execute_host_runtime_sequences_begin_regex_and_end(capsys, monkeypatch)
     assert captured.err == ""
 
 
-def test_execute_rejects_representative_residual_expression_forms_for_public_execution(
-    monkeypatch,
-) -> None:
+def test_execute_routes_p24_match_and_membership_programs_through_backend(monkeypatch) -> None:
     programs = {
-        "match_operator": 'BEGIN { print ("abc" ~ /b/) }',
-        "in_operator": 'BEGIN { a["x"] = 1; print ("x" in a) }',
+        "match_operator": 'BEGIN { print ("abc" ~ /b/); print ("abc" !~ /d/) }',
+        "in_operator": 'BEGIN { a["x"] = 1; print ("x" in a); print ("y" in a) }',
     }
-    parsed_programs = {name: parse_program(source_text) for name, source_text in programs.items()}
-    routed_to_host = False
 
-    def fake_execute_host_runtime(
+    def fail_execute_host_runtime(
         program: Program,
         input_files: list[str],
         field_separator: str | None,
         initial_variables: jit.InitialVariables | None = None,
     ) -> int:
-        nonlocal routed_to_host
-        routed_to_host = True
-        raise AssertionError("public execution should not fall back to the Python host runtime now")
+        raise AssertionError("P24 programs should not fall back to the Python host runtime now")
 
-    def fail_build_public_execution_llvm_ir(*args: object, **kwargs: object) -> str:
-        raise AssertionError("residual host-routed forms should fail before public backend IR building")
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
 
-    monkeypatch.setattr(jit, "execute_host_runtime", fake_execute_host_runtime)
-    monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fail_build_public_execution_llvm_ir)
+    for name, source_text in programs.items():
+        program = parse_program(source_text)
+        captured_ir: dict[str, str] = {}
 
-    for program in parsed_programs.values():
-        try:
-            jit.execute(program)
-        except RuntimeError as exc:
-            assert str(exc) == "public execution does not support programs that still require the Python host runtime"
+        def fake_execute_llvm_ir(llvm_ir: str) -> int:
+            captured_ir["module"] = llvm_ir
+            return 0
+
+        monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+        assert jit.execute(program) == 0
+        llvm_ir = captured_ir["module"]
+        if name == "match_operator":
+            assert "@qk_regex_match_text" in llvm_ir
         else:
-            raise AssertionError("residual host-routed public execution should fail clearly now")
-
-    assert routed_to_host is False
+            assert "@qk_array_contains" in llvm_ir
 
 
 def test_execute_routes_p21_logical_or_program_through_backend(monkeypatch) -> None:

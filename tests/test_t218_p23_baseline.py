@@ -10,7 +10,7 @@ def test_t218_spec_names_the_exact_p23_target_rows() -> None:
 
     assert "| P23 ternary | implemented |" in spec_text
     assert "pure ternary expressions over the current claimed numeric/string subset" in spec_text
-    assert "The remaining match and `in` forms stay intentionally outside the current claimed AOT contract" in spec_text
+    assert "| P24 match operators and membership | implemented |" in spec_text
 
 
 def test_t218_plan_and_posix_docs_record_the_backend_only_p23_baseline() -> None:
@@ -33,8 +33,7 @@ def test_t218_plan_and_posix_docs_record_the_backend_only_p23_baseline() -> None
 def test_t218_roadmap_marks_the_p23_baseline_done_and_advances_to_p24() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P24 match and membership widening" in roadmap_text
-    assert "`T-218` through `T-221` now close the full" in roadmap_text
-    assert "`P23` wave" in roadmap_text
-    assert "- `T-222`: author the backend-only baseline and direct tests for match operators and membership" in roadmap_text
+    assert "No active widening phase is currently scheduled." in roadmap_text
+    assert "- `T-218` through `T-221` close the full `P23` wave" in roadmap_text
+    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-218 | P23 | P0 | Author the backend-only baseline, target claims, and direct tests for ternary expressions | T-217 | Failing direct tests and explicit `SPEC.md` target rows define the ternary forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text

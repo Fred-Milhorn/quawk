@@ -362,3 +362,17 @@ Current result:
 
 That means future host-boundary work should focus on `P24`, not revisit the
 now-backended `P22` and `P23` surface.
+
+## T-225 Residual Boundary Narrowing Result
+
+`P24` has now lifted match operators and membership out of the residual
+host-boundary follow-up:
+
+- representative `~` and `!~` programs now execute through the public
+  backend/runtime path
+- representative scalar-key `expr in array` programs now execute through the
+  public backend/runtime path
+- no representative residual expression rows remain in the checked-in matrix
+
+That means the ranked expression-boundary cleanup from `P21` through `P24` is
+now complete.

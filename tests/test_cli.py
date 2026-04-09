@@ -626,18 +626,12 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_p21_logical_or_program() 
     assert result.stderr == ""
 
 
-def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_and_asm() -> None:
-    representative_programs = [
-        'BEGIN { print ("abc" ~ /b/) }',
-        'BEGIN { a["x"] = 1; print ("x" in a) }',
-    ]
+def test_quawk_ir_flag_prints_backend_ir_for_supported_p24_match_program() -> None:
+    result = run_quawk("--ir", 'BEGIN { print ("abc" ~ /b/); print ("abc" !~ /d/) }')
 
-    for flag in ("--ir", "--asm"):
-        for source_text in representative_programs:
-            result = run_quawk(flag, source_text)
-
-            assert result.returncode == 4
-            assert result.stderr == "quawk: host-runtime-only operations are not supported by the LLVM-backed backend\n"
+    assert result.returncode == 0, result.stderr
+    assert "@qk_regex_match_text(" in result.stdout
+    assert result.stderr == ""
 
 
 def test_quawk_supports_the_current_p21_target_forms_under_ir_and_asm() -> None:
@@ -658,17 +652,12 @@ def test_quawk_supports_the_current_p21_target_forms_under_ir_and_asm() -> None:
             assert result.stderr == ""
 
 
-def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None:
-    representative_programs = [
-        'BEGIN { print ("abc" ~ /b/) }',
-        'BEGIN { a["x"] = 1; print ("x" in a) }',
-    ]
+def test_quawk_ir_flag_prints_backend_ir_for_supported_p24_membership_program() -> None:
+    result = run_quawk("--ir", 'BEGIN { a["x"] = 1; print ("x" in a); print ("y" in a) }')
 
-    for source_text in representative_programs:
-        result = run_quawk(source_text)
-
-        assert result.returncode == 4
-        assert result.stderr == "quawk: public execution does not support programs that still require the Python host runtime\n"
+    assert result.returncode == 0, result.stderr
+    assert "@qk_array_contains(" in result.stdout
+    assert result.stderr == ""
 
 
 def test_quawk_supports_the_current_p21_target_forms_for_public_execution() -> None:
@@ -817,6 +806,47 @@ def test_quawk_supports_p23_ternary_string_and_numeric_branch_semantics() -> Non
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "left\n20\nb\n"
+    assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p24_target_forms_under_ir_and_asm() -> None:
+    p24_programs = [
+        'BEGIN { print ("abc" ~ /b/) }',
+        'BEGIN { print ("abc" !~ /d/) }',
+        'BEGIN { a["x"] = 1; print ("x" in a) }',
+    ]
+
+    for flag in ("--ir", "--asm"):
+        for source_text in p24_programs:
+            result = run_quawk(flag, source_text)
+
+            assert result.returncode == 0, result.stderr
+            assert result.stdout != ""
+            assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p24_target_forms_for_public_execution() -> None:
+    expected = {
+        'BEGIN { print ("abc" ~ /b/) }': "1\n",
+        'BEGIN { print ("abc" !~ /d/) }': "1\n",
+        'BEGIN { a["x"] = 1; print ("x" in a) }': "1\n",
+    }
+
+    for source_text, stdout in expected.items():
+        result = run_quawk(source_text)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == stdout
+        assert result.stderr == ""
+
+
+def test_quawk_supports_p24_match_and_membership_semantics() -> None:
+    result = run_quawk(
+        'BEGIN { a["x"] = 1; a[2] = 3; print ("abc" ~ /b/); print ("abc" !~ /d/); print ("y" in a); print (2 in a) }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1\n0\n1\n"
     assert result.stderr == ""
 
 

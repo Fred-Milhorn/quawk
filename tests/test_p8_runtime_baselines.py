@@ -495,3 +495,27 @@ def test_close_resets_getline_file_streams(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == "1\n1\nu\n"
     assert result.stderr == ""
+
+
+def test_match_operators_execute_in_public_runtime() -> None:
+    result = run_quawk('BEGIN { print ("abc" ~ /b/); print ("abc" !~ /d/) }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1\n"
+    assert result.stderr == ""
+
+
+def test_match_operator_does_not_update_match_result_builtins() -> None:
+    result = run_quawk('BEGIN { RSTART = 9; RLENGTH = 4; print ("abc" ~ /b/); print RSTART; print RLENGTH }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n9\n4\n"
+    assert result.stderr == ""
+
+
+def test_membership_operator_uses_awk_array_key_coercion() -> None:
+    result = run_quawk('BEGIN { a["2"] = 1; a["x"] = 3; print (2 in a); print ("y" in a) }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n0\n"
+    assert result.stderr == ""

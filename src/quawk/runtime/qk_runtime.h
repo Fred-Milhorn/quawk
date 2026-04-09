@@ -65,6 +65,7 @@ int32_t qk_exit_status(qk_runtime *runtime);
 
 /* Match one regular expression pattern against the current record text. */
 bool qk_regex_match_current_record(qk_runtime *runtime, const char *pattern);
+bool qk_regex_match_text(const char *text, const char *pattern);
 
 /* Builtin-variable and builtin-function support for backend parity. */
 const char *qk_scalar_get(qk_runtime *runtime, const char *name);
@@ -118,6 +119,7 @@ double qk_get_nf(qk_runtime *runtime);
 const char *qk_get_filename(qk_runtime *runtime);
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator);
 const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key);
+bool qk_array_contains(qk_runtime *runtime, const char *array_name, const char *key);
 void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char *key, const char *value);
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value);
 void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key);

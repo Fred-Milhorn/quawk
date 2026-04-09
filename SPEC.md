@@ -41,10 +41,11 @@ Evidence:
 | Repeated `$0` reassignment and field rebuild | implemented | Direct tests now cover the remaining `p.35` / `t.NF` style rebuild shapes after `NF` and field mutation. The next step is corroborating-anchor re-audit, not a known product mismatch. |
 | Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
-| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, pure ternary expressions over the current claimed numeric/string subset, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. The remaining match and `in` forms stay intentionally outside the current claimed AOT contract until future roadmap waves explicitly widen them. |
+| Expressions | partial | The currently claimed AOT-backed subset includes `+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, `~`, `!~`, pure ternary expressions over the current claimed numeric/string subset, `in`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, and plain assignment expressions. Broader parser-admitted corners still remain intentionally outside the current claim, including mixed side-effect ternary branches and other forms not yet widened explicitly in the roadmap. |
 | P21 logical-or and broader comparisons | implemented | `||`, `<=`, `>`, `>=`, and `!=` are now part of the claimed backend/runtime expression surface for ordinary public execution. |
 | P22 broader arithmetic | implemented | `-`, `*`, `/`, `%`, and `^` are now part of the claimed backend/runtime expression surface for ordinary public execution. |
 | P23 ternary | implemented | Pure ternary expressions over the current claimed numeric/string subset are now part of the claimed backend/runtime expression surface for ordinary public execution. |
+| P24 match operators and membership | implemented | `~`, `!~`, and scalar-key `expr in array` membership tests are now part of the claimed backend/runtime expression surface for ordinary public execution. |
 | User-defined functions | implemented | Public execution and semantic checks are present. |
 | POSIX-core grammar surface | implemented | Parser and semantic layer target the current `docs/quawk.ebnf` surface. |
 
@@ -98,9 +99,10 @@ Evidence:
 | Reusable LLVM lowering for representative record-driven programs | implemented | Mixed programs, regex filters, arrays, iteration, and selected builtins are covered. |
 | Backend parity for representative completed POSIX-core programs | implemented | Covered by the `P9` parity suite. |
 | Backend parity for every claimed execution path | implemented | The checked-in architecture audit and focused CLI/JIT parity tests require every currently claimed execution family to have a compiled backend/runtime path, and ordinary public execution no longer uses host fallback for claimed behavior. |
-| Backend parity for broader frontend-admitted POSIX forms | partial | Frontend-admitted but unclaimed POSIX forms such as match operators and `in` are still outside the current AOT-backed contract. Ordinary public `quawk` execution now fails clearly for representative host-runtime-only programs from that unclaimed surface instead of silently falling back. |
+| Backend parity for broader frontend-admitted POSIX forms | partial | Broader frontend-admitted but intentionally unclaimed POSIX corners still remain outside the current AOT-backed contract. Newly claimed widening waves are only rebaselined once ordinary public execution, `--ir`, and `--asm` all stay on the compiled backend/runtime path with no public Python host fallback. |
 | P21 inspection and routing parity | implemented | `||`, `<=`, `>`, `>=`, and `!=` now support ordinary public backend/runtime execution plus `--ir` / `--asm` with no public Python host fallback. |
 | P22 inspection and routing parity | implemented | `-`, `*`, `/`, `%`, and `^` now support ordinary public backend/runtime execution plus `--ir` / `--asm` with no public Python host fallback. |
+| P24 inspection and routing parity | implemented | `~`, `!~`, and scalar-key `expr in array` membership tests now support ordinary public backend/runtime execution plus `--ir` / `--asm` with no public Python host fallback. |
 | Representative user-defined functions through `--ir` / `--asm` | implemented | The direct-BEGIN numeric function subset now supports inspection output. |
 | Representative `nextfile`, `exit`, and scalar-string families through `--ir` / `--asm` | implemented | Inspection now works for the representative completed control and coercion families covered by the architecture audit. |
 

@@ -18,16 +18,12 @@ Legend:
 | Broader comparisons: `<=`, `>`, `>=`, `!=` | yes | yes | yes | yes | yes | yes | AWK string-vs-numeric comparison choice, mixed operand-shape handling | medium | backend work complete; widen the public claim only in `T-212` |
 | Broader arithmetic: `-`, `*`, `/`, `%`, `^` | yes | yes | yes | yes | yes | yes | precedence/associativity, coercion through numeric and string contexts, modulo/power edge cases | medium to high | backend work complete; widen the public claim only in `T-217` |
 | Ternary: `test ? a : b` | yes | yes | yes | yes | yes | no | mixed side-effect branches remain intentionally outside the current pure-expression claim | medium | backend work complete; claim widened in `T-221` |
-| Match operators: `~`, `!~` | yes | yes | no | no | parse-only | no dedicated clean anchor yet | regex evaluation semantics, string coercion, current backend supports regex patterns but not the binary match operators as public expressions | high | keep unclaimed |
-| Membership: `expr in array` | yes | yes | no | no | parse-only | no dedicated clean anchor yet | array-key coercion, scalar-vs-array legality, backend lowering for membership tests is not public | high | keep unclaimed |
+| Match operators: `~`, `!~` | yes | yes | yes | yes | yes | no | regex evaluation semantics, string coercion, and keeping match operators distinct from `match()` side effects | high | backend work complete; claim widened in `T-226` |
+| Membership: `expr in array` | yes | yes | yes | yes | yes | no | array-key coercion and scalar-vs-array legality remain the primary semantic edges | high | backend work complete; claim widened in `T-226` |
 
 ## Notes
 
-- The approved future roadmap order is:
-  - `P21`: `||` plus broader comparisons
-  - `P22`: broader arithmetic
-  - `P23`: ternary
-  - `P24`: match operators plus `in`
+- The currently scheduled widening waves `P21` through `P24` are now complete.
 - For every future phase, any newly claimed form must be fully implemented on
   the compiled backend/runtime path. Public Python host fallback is not an
   acceptable steady state for widened claims.
@@ -50,6 +46,6 @@ Legend:
 - Runnable reference anchors also already exist for `P22`, especially
   `one-true-awk:p.25`, `one-true-awk:p.34`, `one-true-awk:p.36`, and
   `one-true-awk:p.44`.
-- No clean checked-in reference anchor is pinned for `P23` yet; the ternary
-  wave is currently closed by direct backend, routing, inspection, and runtime
-  coverage instead.
+- No clean checked-in reference anchor is pinned for `P23` or `P24` yet; those
+  waves are currently closed by direct backend, routing, inspection, and
+  runtime coverage instead.
