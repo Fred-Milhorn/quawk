@@ -1613,6 +1613,46 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
             temp = state.next_temp("add")
             state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
             return temp
+        if expression.op is BinaryOp.SUB:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("sub")
+            state.instructions.append(f"  {temp} = fsub double {left_operand}, {right_operand}")
+            return temp
+        if expression.op is BinaryOp.MUL:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("mul")
+            state.instructions.append(f"  {temp} = fmul double {left_operand}, {right_operand}")
+            return temp
+        if expression.op is BinaryOp.DIV:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("div")
+            state.instructions.append(f"  {temp} = fdiv double {left_operand}, {right_operand}")
+            return temp
+        if expression.op is BinaryOp.MOD:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            quotient = state.next_temp("mod.div")
+            truncated = state.next_temp("mod.trunc")
+            product = state.next_temp("mod.mul")
+            remainder = state.next_temp("mod")
+            state.instructions.extend(
+                [
+                    f"  {quotient} = fdiv double {left_operand}, {right_operand}",
+                    f"  {truncated} = call double @llvm.trunc.f64(double {quotient})",
+                    f"  {product} = fmul double {truncated}, {right_operand}",
+                    f"  {remainder} = fsub double {left_operand}, {product}",
+                ]
+            )
+            return remainder
+        if expression.op is BinaryOp.POW:
+            left_operand = lower_numeric_expression(expression.left, state)
+            right_operand = lower_numeric_expression(expression.right, state)
+            temp = state.next_temp("pow")
+            state.instructions.append(f"  {temp} = call double @llvm.pow.f64(double {left_operand}, double {right_operand})")
+            return temp
         if expression.op in {
             BinaryOp.LESS,
             BinaryOp.LESS_EQUAL,
@@ -4686,6 +4726,11 @@ def supports_direct_function_backend_subset(program: Program) -> bool:
                 return all(supports_expression(argument, local_names) for argument in args)
             case BinaryExpr(
                 op=BinaryOp.ADD
+                | BinaryOp.SUB
+                | BinaryOp.MUL
+                | BinaryOp.DIV
+                | BinaryOp.MOD
+                | BinaryOp.POW
                 | BinaryOp.LESS
                 | BinaryOp.LESS_EQUAL
                 | BinaryOp.GREATER
@@ -4905,7 +4950,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
     """Report whether `program` fits the reusable backend's current runtime-backed subset."""
 
     normalized_program = normalize_program_for_lowering(program)
-    array_names = normalized_program.array_names
+    array_names = normalized_program.array_names | frozenset({"ARGV", "ENVIRON"})
 
     def supports_string_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
@@ -5120,40 +5165,45 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)
 
-    def expression_contains_p21_operator(expression: Expr) -> bool:
+    def expression_contains_p21_or_p22_operator(expression: Expr) -> bool:
         match expression:
             case BinaryExpr(
                 op=BinaryOp.LESS_EQUAL
                 | BinaryOp.GREATER
                 | BinaryOp.GREATER_EQUAL
                 | BinaryOp.NOT_EQUAL
-                | BinaryOp.LOGICAL_OR,
+                | BinaryOp.LOGICAL_OR
+                | BinaryOp.SUB
+                | BinaryOp.MUL
+                | BinaryOp.DIV
+                | BinaryOp.MOD
+                | BinaryOp.POW,
                 left=left,
                 right=right,
             ):
                 return True
             case BinaryExpr(left=left, right=right):
-                return expression_contains_p21_operator(left) or expression_contains_p21_operator(right)
+                return expression_contains_p21_or_p22_operator(left) or expression_contains_p21_or_p22_operator(right)
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
-                return expression_contains_p21_operator(operand)
+                return expression_contains_p21_or_p22_operator(operand)
             case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
                 return (
-                    expression_contains_p21_operator(test)
-                    or expression_contains_p21_operator(if_true)
-                    or expression_contains_p21_operator(if_false)
+                    expression_contains_p21_or_p22_operator(test)
+                    or expression_contains_p21_or_p22_operator(if_true)
+                    or expression_contains_p21_or_p22_operator(if_false)
                 )
             case AssignExpr(value=value):
-                return expression_contains_p21_operator(value)
+                return expression_contains_p21_or_p22_operator(value)
             case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
-                return expression_contains_p21_operator(index) or any(
-                    expression_contains_p21_operator(extra_index) for extra_index in extra_indexes
+                return expression_contains_p21_or_p22_operator(index) or any(
+                    expression_contains_p21_or_p22_operator(extra_index) for extra_index in extra_indexes
                 )
             case FieldExpr(index=index):
-                return not isinstance(index, int) and expression_contains_p21_operator(index)
+                return not isinstance(index, int) and expression_contains_p21_or_p22_operator(index)
             case CallExpr(args=args):
-                return any(expression_contains_p21_operator(argument) for argument in args)
+                return any(expression_contains_p21_or_p22_operator(argument) for argument in args)
             case GetlineExpr(source=source):
-                return source is not None and expression_contains_p21_operator(source)
+                return source is not None and expression_contains_p21_or_p22_operator(source)
             case _:
                 return False
 
@@ -5237,55 +5287,55 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
-    def statement_contains_p21_operator(statement: Stmt) -> bool:
+    def statement_contains_p21_or_p22_operator(statement: Stmt) -> bool:
         match statement:
             case AssignStmt(target=target, value=value):
-                if expression_contains_p21_operator(value):
+                if expression_contains_p21_or_p22_operator(value):
                     return True
                 match target:
                     case ArrayLValue(subscripts=subscripts):
-                        return any(expression_contains_p21_operator(subscript) for subscript in subscripts)
+                        return any(expression_contains_p21_or_p22_operator(subscript) for subscript in subscripts)
                     case FieldLValue(index=index):
-                        return expression_contains_p21_operator(index)
+                        return expression_contains_p21_or_p22_operator(index)
                     case _:
                         return False
             case BlockStmt(statements=statements):
-                return any(statement_contains_p21_operator(nested) for nested in statements)
+                return any(statement_contains_p21_or_p22_operator(nested) for nested in statements)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
                 return (
-                    expression_contains_p21_operator(condition)
-                    or statement_contains_p21_operator(then_branch)
-                    or (else_branch is not None and statement_contains_p21_operator(else_branch))
+                    expression_contains_p21_or_p22_operator(condition)
+                    or statement_contains_p21_or_p22_operator(then_branch)
+                    or (else_branch is not None and statement_contains_p21_or_p22_operator(else_branch))
                 )
             case WhileStmt(condition=condition, body=body):
-                return expression_contains_p21_operator(condition) or statement_contains_p21_operator(body)
+                return expression_contains_p21_or_p22_operator(condition) or statement_contains_p21_or_p22_operator(body)
             case DoWhileStmt(body=body, condition=condition):
-                return statement_contains_p21_operator(body) or expression_contains_p21_operator(condition)
+                return statement_contains_p21_or_p22_operator(body) or expression_contains_p21_or_p22_operator(condition)
             case PrintStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_operator(redirect.target)
                 )
             case PrintfStmt(arguments=arguments, redirect=redirect):
-                return any(expression_contains_p21_operator(argument) for argument in arguments) or (
-                    redirect is not None and expression_contains_p21_operator(redirect.target)
+                return any(expression_contains_p21_or_p22_operator(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_p21_or_p22_operator(redirect.target)
                 )
             case ExprStmt(value=value):
-                return expression_contains_p21_operator(value)
+                return expression_contains_p21_or_p22_operator(value)
             case ExitStmt(value=value) | ReturnStmt(value=value):
-                return value is not None and expression_contains_p21_operator(value)
+                return value is not None and expression_contains_p21_or_p22_operator(value)
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
-                    any(expression_contains_p21_operator(expression) for expression in init)
-                    or (condition is not None and expression_contains_p21_operator(condition))
-                    or any(expression_contains_p21_operator(expression) for expression in update)
-                    or statement_contains_p21_operator(body)
+                    any(expression_contains_p21_or_p22_operator(expression) for expression in init)
+                    or (condition is not None and expression_contains_p21_or_p22_operator(condition))
+                    or any(expression_contains_p21_or_p22_operator(expression) for expression in update)
+                    or statement_contains_p21_or_p22_operator(body)
                 )
             case ForInStmt(iterable=iterable, body=body):
-                return expression_contains_p21_operator(iterable) or statement_contains_p21_operator(body)
+                return expression_contains_p21_or_p22_operator(iterable) or statement_contains_p21_or_p22_operator(body)
             case DeleteStmt(index=index, extra_indexes=extra_indexes):
                 return (
-                    (index is not None and expression_contains_p21_operator(index))
-                    or any(expression_contains_p21_operator(extra_index) for extra_index in extra_indexes)
+                    (index is not None and expression_contains_p21_or_p22_operator(index))
+                    or any(expression_contains_p21_or_p22_operator(extra_index) for extra_index in extra_indexes)
                 )
             case _:
                 return False
@@ -5407,7 +5457,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             return False
         if any(statement_contains_runtime_builtin(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
-        if any(statement_contains_p21_operator(statement) for statement in item.action.statements):
+        if any(statement_contains_p21_or_p22_operator(statement) for statement in item.action.statements):
             found_supported_runtime_feature = True
         if isinstance(item.pattern, RangePattern):
             found_supported_runtime_feature = True
@@ -5427,6 +5477,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             if isinstance(statement, PrintStmt) and statement.arguments:
                 argument = statement.arguments[0]
                 if isinstance(argument, CallExpr) and argument.function == "length":
+                    found_supported_runtime_feature = True
+                if isinstance(argument, ArrayIndexExpr):
                     found_supported_runtime_feature = True
                 if isinstance(argument, BinaryExpr) and argument.op is BinaryOp.CONCAT:
                     found_supported_runtime_feature = True
@@ -5472,6 +5524,11 @@ def has_host_runtime_only_operations(program: Program) -> bool:
             case BinaryExpr(op=op, left=left, right=right):
                 if op not in {
                     BinaryOp.ADD,
+                    BinaryOp.SUB,
+                    BinaryOp.MUL,
+                    BinaryOp.DIV,
+                    BinaryOp.MOD,
+                    BinaryOp.POW,
                     BinaryOp.LESS,
                     BinaryOp.LESS_EQUAL,
                     BinaryOp.GREATER,

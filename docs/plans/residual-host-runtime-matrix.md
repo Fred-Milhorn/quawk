@@ -32,7 +32,6 @@ Column meanings:
 
 | Family | Representative program | Reachable from ordinary `quawk` today | Host semantic execution exists today | Public host fallback exists today | Public backend executes today | `--ir` / `--asm` today | Claimed in `SPEC.md` today | Classification | Current direct evidence | Clean reference anchor today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Broader arithmetic | `BEGIN { print 6 / 2 }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Some arithmetic subexpressions already appear inside narrower claimed runtime-backed programs; this row tracks the broader direct arithmetic family outside the current claim |
 | Ternary | `BEGIN { print (1 ? 2 : 3) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Still fully outside the current claimed AOT-backed surface |
 | Match operators | `BEGIN { print ("abc" ~ /b/) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Regex-driven record selection is already claimed; binary `~` / `!~` operators are not |
 | `in` | `BEGIN { a["x"] = 1; print ("x" in a) }` | yes | yes | no | no | no | no | unclaimed and backend-incomplete | parser coverage in `tests/test_p7_posix_core_frontend.py` | none identified | Arrays and `for ... in` are claimed separately; the binary `in` operator remains outside the current claim |
@@ -74,7 +73,21 @@ matrix:
 
 The remaining representative residual rows are now:
 
-- broader arithmetic
+- ternary
+- match operators
+- `in`
+
+## T-216 Residual Narrowing Result
+
+`P22` has now lifted broader arithmetic out of this residual matrix:
+
+- representative `-`, `*`, `/`, `%`, and `^` programs now execute through the
+  public backend/runtime path
+- those forms therefore no longer belong in the residual host-runtime boundary
+  inventory
+
+The remaining representative residual rows are now:
+
 - ternary
 - match operators
 - `in`

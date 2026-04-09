@@ -10,7 +10,8 @@ def test_t208_spec_names_the_exact_p21_target_rows() -> None:
 
     assert "| P21 logical-or and broader comparisons | implemented |" in spec_text
     assert "| P21 inspection and routing parity | implemented |" in spec_text
-    assert "`+`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`" in spec_text
+    assert "`!=`, `&&`, `||`" in spec_text
+    assert "`-`, `*`, `/`, `%`, `^`" in spec_text
 
 
 def test_t208_plan_and_posix_docs_record_the_backend_only_p21_baseline() -> None:
@@ -37,7 +38,7 @@ def test_t208_plan_and_posix_docs_record_the_backend_only_p21_baseline() -> None
 def test_t208_roadmap_marks_the_p21_baseline_done_and_advances_to_p22() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P22 arithmetic widening" in roadmap_text
-    assert "`T-197` through `T-207` are complete, and `T-208` through `T-212` now close" in roadmap_text
-    assert "- `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave" in roadmap_text
+    assert "Next deliverable: P23 ternary widening" in roadmap_text
+    assert "`T-197` through `T-207` are complete, `T-208` through `T-212` close" in roadmap_text
+    assert "- `T-218`: author the backend-only baseline and direct tests for ternary expressions" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text

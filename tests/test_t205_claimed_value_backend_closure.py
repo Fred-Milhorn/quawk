@@ -19,8 +19,8 @@ def test_t205_plan_doc_records_the_backend_closure_result() -> None:
 def test_t205_roadmap_advances_to_remaining_claimed_value_fallback_removal() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P22 arithmetic widening" in roadmap_text
+    assert "Next deliverable: P23 ternary widening" in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "- `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave" in roadmap_text
+    assert "- `T-218`: author the backend-only baseline and direct tests for ternary expressions" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
     assert "| T-205 | P20 | P0 | Close the backend/runtime value-semantics gaps for the claimed cases | T-204 | The backend/runtime path matches the claimed unset-value and coercion behavior for the inventoried cases | done |" in roadmap_text

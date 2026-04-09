@@ -1160,6 +1160,76 @@ does not become claimed until ordinary public execution, `--ir`, and `--asm`
 all stay on the compiled backend/runtime path with no public Python host
 dependency.
 
+### T-213 P22 Baseline Result
+
+The `P22` baseline now fixes the exact next widening target:
+
+- `-`
+- `*`
+- `/`
+- `%`
+- `^`
+
+What is checked in for that baseline:
+
+- direct tests now pin those exact arithmetic forms as the next widening
+  target
+- the widening analysis and decision table now treat broader arithmetic as the
+  dedicated next backend-only wave
+- the contract rule remains strict: these forms do not become claimed until
+  ordinary public execution, `--ir`, and `--asm` all stay on the compiled
+  backend/runtime path with no public Python host dependency
+
+### T-214 And T-215 P22 Backend Result
+
+The backend/runtime implementation for the exact `P22` target forms is now
+complete:
+
+- representative subtraction, multiplication, and division programs now stay
+  on the compiled backend/runtime path in ordinary public execution
+- representative modulo and exponentiation programs now stay on the compiled
+  backend/runtime path in ordinary public execution
+- the direct `P22` target tests now pin representative arithmetic precedence
+  and result semantics
+
+At the end of `T-215`, the remaining `P22` work is no longer implementation
+support. It is inspection, routing, corroboration, and then the claim
+rebaseline in `T-217`.
+
+### T-216 P22 Inspection And Corroboration Result
+
+The `P22` closeout evidence is now explicit:
+
+- representative `-`, `*`, `/`, `%`, and `^` programs now succeed under `--ir`
+  and `--asm`
+- focused routing regressions now pin those forms to the compiled
+  backend/runtime path instead of the residual host-boundary path
+- the existing runnable reference subset already corroborates this wave through
+  cases such as `one-true-awk:p.25`, `one-true-awk:p.34`,
+  `one-true-awk:p.36`, and `one-true-awk:p.44`
+
+That leaves `T-217` as the public-contract step: widen the actual claimed
+surface only after the backend/runtime, inspection, and evidence closeout is
+already checked in.
+
+### T-217 P22 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P22` wave:
+
+- `SPEC.md` now includes `-`, `*`, `/`, `%`, and `^` in the claimed
+  backend/runtime expression surface
+- the `P22` target rows are now recorded as implemented execution and
+  inspection parity
+- `docs/design.md` now lists broader arithmetic inside the currently claimed
+  expression subset rather than inside the remaining unclaimed surface
+- the roadmap now treats `P22` as complete and moves the next deliverable to
+  ternary in `P23`
+
+The backend-only rule remains unchanged for every future widening phase: a form
+does not become claimed until ordinary public execution, `--ir`, and `--asm`
+all stay on the compiled backend/runtime path with no public Python host
+dependency.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

@@ -21,11 +21,12 @@ def test_t202_docs_record_the_post_audit_execution_model_boundary() -> None:
 def test_t202_roadmap_closes_p19_and_sets_up_the_future_widening_wave() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "Next deliverable: P22 arithmetic widening" in roadmap_text
+    assert "Next deliverable: P23 ternary widening" in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "`T-208` through `T-212` now close" in roadmap_text
+    assert "`T-208` through `T-212` close the full" in roadmap_text
+    assert "`P21` wave" in roadmap_text
     assert "| P21 | Logical-Or and Comparison Widening |" in roadmap_text
     assert "| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 |" in roadmap_text
     assert "| T-202 | P19 | P1 | Rebaseline the execution-model docs after the host-boundary audit | T-201 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the resulting host-runtime boundary and the ranked next follow-up wave | done |" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 |" in roadmap_text
-    assert "- `T-213`: author the backend-only baseline and direct tests for the broader arithmetic wave" in roadmap_text
+    assert "- `T-218`: author the backend-only baseline and direct tests for ternary expressions" in roadmap_text

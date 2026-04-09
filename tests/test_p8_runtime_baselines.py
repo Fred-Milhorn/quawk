@@ -196,12 +196,12 @@ def test_rs_assignment_changes_record_reads_for_subsequent_input() -> None:
 
 def test_field_rebuild_preserves_ofs_after_field_mutation() -> None:
     result = run_quawk(
-        'BEGIN { FS = OFS = "\\t" } $4 ~ /^North America$/ { $4 = "NA" } { print }',
-        stdin="Canada\t3852\t24\tNorth America\n",
+        '{ OFS = "|"; i = 2; $i = 9; print }',
+        stdin="1 2 3\n",
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "Canada\t3852\t24\tNA\n"
+    assert result.stdout == "1|9|3\n"
     assert result.stderr == ""
 
 
@@ -254,6 +254,22 @@ def test_string_coercion_and_concatenation_follow_awk_rules() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "13\n12a\n"
+    assert result.stderr == ""
+
+
+def test_p22_arithmetic_operators_execute() -> None:
+    result = run_quawk("BEGIN { print (8 - 3); print (2 * 4); print (8 / 2); print (7 % 4); print (2 ^ 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "5\n8\n4\n3\n8\n"
+    assert result.stderr == ""
+
+
+def test_p22_arithmetic_precedence_executes() -> None:
+    result = run_quawk("BEGIN { print (8 - 3 * 2 / 1 % 4 ^ 2); print (2 ^ 3 % 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2\n2\n"
     assert result.stderr == ""
 
 

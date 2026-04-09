@@ -628,7 +628,6 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_p21_logical_or_program() 
 
 def test_quawk_reports_runtime_failures_for_residual_host_routed_forms_under_ir_and_asm() -> None:
     representative_programs = [
-        "BEGIN { print 6 / 2 }",
         "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
         'BEGIN { a["x"] = 1; print ("x" in a) }',
@@ -662,7 +661,6 @@ def test_quawk_supports_the_current_p21_target_forms_under_ir_and_asm() -> None:
 
 def test_quawk_rejects_residual_host_routed_forms_for_public_execution() -> None:
     representative_programs = [
-        "BEGIN { print 6 / 2 }",
         "BEGIN { print (1 ? 2 : 3) }",
         'BEGIN { print ("abc" ~ /b/) }',
         'BEGIN { a["x"] = 1; print ("x" in a) }',
@@ -707,6 +705,69 @@ def test_quawk_supports_p21_string_and_numeric_comparison_semantics() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "1\n0\n1\n1\n"
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_supported_p22_arithmetic_program() -> None:
+    result = run_quawk("--ir", "BEGIN { print (8 - 3); print (2 * 4); print (8 / 2); print (7 % 4); print (2 ^ 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fsub double" in result.stdout
+    assert "fmul double" in result.stdout
+    assert "fdiv double" in result.stdout
+    assert "@llvm.trunc.f64" in result.stdout
+    assert "@llvm.pow.f64" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p22_target_forms_under_ir_and_asm() -> None:
+    p22_programs = [
+        "BEGIN { print (8 - 3) }",
+        "BEGIN { print (2 * 4) }",
+        "BEGIN { print (8 / 2) }",
+        "BEGIN { print (7 % 4) }",
+        "BEGIN { print (2 ^ 3) }",
+    ]
+
+    for flag in ("--ir", "--asm"):
+        for source_text in p22_programs:
+            result = run_quawk(flag, source_text)
+
+            assert result.returncode == 0, result.stderr
+            assert result.stdout != ""
+            assert result.stderr == ""
+
+
+def test_quawk_supports_the_current_p22_target_forms_for_public_execution() -> None:
+    p22_programs = [
+        "BEGIN { print (8 - 3) }",
+        "BEGIN { print (2 * 4) }",
+        "BEGIN { print (8 / 2) }",
+        "BEGIN { print (7 % 4) }",
+        "BEGIN { print (2 ^ 3) }",
+    ]
+
+    expected = {
+        "BEGIN { print (8 - 3) }": "5\n",
+        "BEGIN { print (2 * 4) }": "8\n",
+        "BEGIN { print (8 / 2) }": "4\n",
+        "BEGIN { print (7 % 4) }": "3\n",
+        "BEGIN { print (2 ^ 3) }": "8\n",
+    }
+
+    for source_text in p22_programs:
+        result = run_quawk(source_text)
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected[source_text]
+        assert result.stderr == ""
+
+
+def test_quawk_supports_p22_arithmetic_precedence_and_assignment_semantics() -> None:
+    result = run_quawk("BEGIN { x = 8 - 3 * 2 / 1 % 4 ^ 2; print x; print (2 ^ 3 % 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2\n2\n"
     assert result.stderr == ""
 
 

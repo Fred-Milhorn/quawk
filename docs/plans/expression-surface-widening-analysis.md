@@ -183,3 +183,54 @@ The inspection and corroboration closeout for `P21` is now explicit:
 
 That leaves `T-212` as a pure public-contract rebaseline step, not an
 implementation or evidence gap.
+
+## T-212 Public-Contract Rebaseline Result
+
+The public contract now reflects the completed `P21` wave:
+
+- `||`, `<=`, `>`, `>=`, and `!=` are now part of the claimed
+  backend/runtime expression surface
+- the earlier `P21` target rows are no longer planned follow-on work
+- the remaining unclaimed expression surface now starts at broader arithmetic
+  only because `P22` is the next widening wave
+
+## T-213 P22 Baseline Result
+
+The checked-in `P22` baseline fixes the exact next arithmetic widening target:
+
+- `-`
+- `*`
+- `/`
+- `%`
+- `^`
+
+The direct baseline pins those forms as the next backend-only widening wave
+with representative arithmetic execution, inspection, and routing checks.
+
+## T-214 And T-215 Backend Implementation Result
+
+The backend/runtime implementation work for the exact `P22` target forms is now
+checked in:
+
+- representative subtraction, multiplication, and division programs now
+  execute through ordinary public backend/runtime execution with no host
+  fallback
+- representative modulo and exponentiation programs now execute through
+  ordinary public backend/runtime execution with no host fallback
+- direct execution checks now pin representative arithmetic precedence and
+  result semantics for the widened family
+
+## T-216 Inspection And Corroboration Result
+
+The inspection and corroboration closeout for `P22` is now explicit:
+
+- representative `-`, `*`, `/`, `%`, and `^` programs now succeed under `--ir`
+  and `--asm`
+- focused routing regressions now pin those representative forms to the
+  compiled backend/runtime path rather than the residual host-boundary path
+- the existing runnable reference subset already contains clean corroborating
+  anchors for this wave, especially `one-true-awk:p.25`,
+  `one-true-awk:p.34`, `one-true-awk:p.36`, and `one-true-awk:p.44`
+
+That leaves `T-217` as a pure public-contract rebaseline step, not an
+implementation or evidence gap.
