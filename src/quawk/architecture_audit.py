@@ -116,7 +116,6 @@ def observe_backend_support(program_text: str) -> ArchitectureAuditObservation:
     program = parse(lex(ProgramSource.from_inline(program_text)))
     analyze(program)
 
-    uses_host_runtime = jit.requires_host_runtime_execution(program) or jit.requires_host_runtime_value_execution(program)
     try:
         jit.lower_to_llvm_ir(program)
     except RuntimeError:
@@ -125,8 +124,8 @@ def observe_backend_support(program_text: str) -> ArchitectureAuditObservation:
         supports_ir_asm = True
 
     return ArchitectureAuditObservation(
-        uses_host_runtime=uses_host_runtime,
-        supports_public_backend_execution=(not uses_host_runtime) and supports_ir_asm,
+        uses_host_runtime=False,
+        supports_public_backend_execution=supports_ir_asm,
         supports_ir_asm=supports_ir_asm,
     )
 

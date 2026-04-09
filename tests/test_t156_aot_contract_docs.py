@@ -16,8 +16,8 @@ def test_t156_spec_rebaselines_the_claimed_aot_contract() -> None:
 
     assert "| `--ir` / `--asm` | partial | Supported for every currently claimed AOT-backed family." in spec_text
     assert "| Expressions | partial | The currently claimed AOT-backed subset includes" in spec_text
-    assert "| Backend parity for every claimed execution path | partial |" in spec_text
-    assert "A narrower claimed value-semantics fallback path still remains" in spec_text
+    assert "| Backend parity for every claimed execution path | implemented |" in spec_text
+    assert "ordinary public execution no longer uses host fallback for claimed behavior" in spec_text
     assert "some claimed language families are not lowered yet" not in spec_text
 
 
@@ -25,6 +25,6 @@ def test_t156_design_doc_states_claimed_behavior_is_backend_only() -> None:
     design_text = (ROOT / "docs" / "design.md").read_text(encoding="utf-8")
 
     assert "every currently claimed execution family to have a compiled backend/runtime path" in design_text
-    assert "a narrower claimed value-fallback path still remains for some public cases" in design_text
+    assert "no longer keeps host fallback for representative unclaimed host-runtime-only forms" in design_text
     assert "temporary host-runtime execution remains in a few language families" not in design_text
-    assert "broader frontend-admitted but not yet claimed POSIX forms" in design_text
+    assert "broader frontend-admitted but not yet claimed POSIX corners" in design_text

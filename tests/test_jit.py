@@ -38,298 +38,6 @@ def test_execute_with_inputs_runs_begin_and_end_without_input(capsys) -> None:
     assert captured.err == ""
 
 
-def test_execute_host_runtime_prints_equality_result(capsys) -> None:
-    program = parse_program("BEGIN { print 1 == 1 }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "1\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_prints_parenthesized_logical_and_result(capsys) -> None:
-    program = parse_program("BEGIN { print (1 < 2) && (2 < 3) }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "1\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_short_circuits_logical_and(capsys) -> None:
-    program = parse_program("BEGIN { print (1 == 2) && missing }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "0\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_calls_user_defined_function(capsys) -> None:
-    program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "3\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_keeps_function_parameters_local(capsys) -> None:
-    program = parse_program("function f(x) { x = x + 1; return x }\nBEGIN { x = 10; print f(2); print x }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "3\n10\n"
-    assert captured.err == ""
-
-
-def test_read_input_sources_decodes_non_utf8_files_with_surrogateescape(tmp_path) -> None:
-    input_path = tmp_path / "latin1.txt"
-    input_path.write_bytes(b"a\xffb c\n")
-
-    assert jit.read_input_sources([str(input_path)]) == [(str(input_path), "a\udcffb c\n")]
-
-
-def test_getline_input_stream_decodes_non_utf8_files_with_surrogateescape(tmp_path) -> None:
-    input_path = tmp_path / "latin1.txt"
-    input_path.write_bytes(b"a\xffb c\n")
-    state = jit.RuntimeState()
-
-    stream = jit.getline_input_stream(state, str(input_path))
-
-    assert stream.content == "a\udcffb c\n"
-
-
-def test_execute_host_runtime_prints_unset_globals_as_empty_strings(capsys) -> None:
-    program = parse_program("function f(x) { return x }\nBEGIN { print y }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_array_assignment_and_indexed_read(capsys) -> None:
-    program = parse_program('BEGIN { a["x"] = 1; print a["x"]; print a["missing"] }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "1\n\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_array_delete(capsys) -> None:
-    program = parse_program('BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_coerces_string_scalars_in_arithmetic_and_concat(capsys) -> None:
-    program = parse_program('BEGIN { x = "12"; print x + 1; print x "a" }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "13\n12a\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_uses_string_truthiness_and_string_comparison(capsys) -> None:
-    program = parse_program('BEGIN { x = "0"; y = ""; print x && 1; print !y; z = "2"; print z < 10 }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "1\n1\n1\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_classic_for_loops(capsys) -> None:
-    program = parse_program("BEGIN { for (i = 0; i < 3; i = i + 1) print i }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "0\n1\n2\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_classic_for_expression_lists(capsys) -> None:
-    program = parse_program("BEGIN { for (i = 0, j = 5; i < 3; i++, --j) print i }")
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "0\n1\n2\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_for_in_loops(capsys) -> None:
-    program = parse_program('BEGIN { a["x"] = 1; for (k in a) print k }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "x\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_parenthesized_for_in_iterable(capsys) -> None:
-    program = parse_program('BEGIN { a["x"] = 1; for (k in (a)) print k }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "x\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_length_builtin_for_strings_and_arrays(capsys) -> None:
-    program = parse_program('BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }')
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "5\n2\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_split_and_substr_builtins(capsys) -> None:
-    program = parse_program('BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }')
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "2\na\nell\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_split_with_regexp_separator_from_scalar(capsys) -> None:
-    program = parse_program('BEGIN { sep = "=+"; n = split("Here===Is=Some=====Data", a, sep); print n; print a[2]; print a[4] }')
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "4\nIs\nData\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_string_and_regex_builtins(capsys) -> None:
-    program = parse_program(
-        'BEGIN { x = "bananas"; print index(x, "na"); print match(x, /ana/); print RSTART; print RLENGTH; '
-        'print sub(/ana/, "[&]", x); print x; print gsub(/a/, "A", x); print x; '
-        'print sprintf("%s:%c", tolower("AbC"), 66); print toupper("ab") }'
-    )
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "3\n2\n2\n3\n1\nb[ana]nas\n3\nb[AnA]nAs\nabc:B\nAB\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_numeric_and_system_builtins(capsys) -> None:
-    program = parse_program(
-        "BEGIN { print int(3.9); print atan2(0, -1); print cos(0); print sin(0); "
-        'print srand(1); print rand(); print system("exit 7") }'
-    )
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "3\n3.14159\n1\n0\n1\n0.51387\n7\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_string_v_preassignments(capsys) -> None:
-    program = parse_program('BEGIN { print x; print x + 1 }')
-
-    assert jit.execute_host_runtime(program, [], None, [("x", "12")]) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "12\n13\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_getline_into_named_target(capsys, monkeypatch) -> None:
-    program = parse_program('BEGIN { print getline x; print x }')
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("alpha\n"))
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "1\nalpha\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_updates_nr_fnr_and_nf(capsys, monkeypatch) -> None:
-    program = parse_program("{ print NR; print FNR; print NF }")
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("a b\nc d\n"))
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "1\n1\n2\n2\n2\n2\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_do_while(capsys) -> None:
-    program = parse_program("BEGIN { x = 0; do { print x; x = x + 1 } while (x < 2) }")
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "0\n1\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_range_patterns_and_default_print(capsys, monkeypatch) -> None:
-    program = parse_program("/start/,/stop/")
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("skip\nstart\nkeep\nstop\nafter\n"))
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "start\nkeep\nstop\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_next_and_nextfile(capsys, monkeypatch, tmp_path) -> None:
-    first = tmp_path / "first.txt"
-    second = tmp_path / "second.txt"
-    first.write_text("a\nstop\nb\n", encoding="utf-8")
-    second.write_text("c\n", encoding="utf-8")
-
-    program = parse_program('/stop/ { nextfile }\n/skip/ { next }\n{ print $0 }')
-    monkeypatch.setattr("sys.stdin", io.StringIO(""))
-
-    assert jit.execute_host_runtime(program, [str(first), str(second)], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "a\nc\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_supports_printf_and_dynamic_field_assignment(capsys, monkeypatch) -> None:
-    program = parse_program('{ i = 2; $i = 9; print $0 }\nBEGIN { printf "%s:%g", "x", 1 }')
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("1 2 3\n"))
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "x:11 9 3\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_rebuilds_records_with_ofs_after_nf_and_field_updates(capsys, monkeypatch) -> None:
-    program = parse_program('{ OFS = "|"; print NF; NF = 2; print NF; print; $5 = "five"; print NF; print }')
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("one two three\n"))
-
-    assert jit.execute_host_runtime(program, [], None) == 0
-    captured = capsys.readouterr()
-    assert captured.out == "3\n2\none|two\n5\none|two|||five\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_returns_exit_status_and_runs_end(capsys) -> None:
-    program = parse_program('BEGIN { print "before"; exit 7 }\nEND { print "done" }')
-
-    assert jit.execute_host_runtime(program, [], None) == 7
-    captured = capsys.readouterr()
-    assert captured.out == "before\ndone\n"
-    assert captured.err == ""
-
-
 def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     program = parse_program('{ print $3 }')
 
@@ -1374,28 +1082,6 @@ def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:
     assert 'c"\\64\\65\\6C\\74\\61\\00"' not in llvm_ir
 
 
-def test_execute_host_runtime_filters_records_with_regex_pattern(capsys, monkeypatch) -> None:
-    program = parse_program("/foo/ { print $0 }")
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("foo\nbar\nfood\n"))
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "foo\nfood\n"
-    assert captured.err == ""
-
-
-def test_execute_host_runtime_sequences_begin_regex_and_end(capsys, monkeypatch) -> None:
-    program = parse_program('BEGIN { print "start" }\n/foo/ { print $0 }\nEND { print "done" }')
-
-    monkeypatch.setattr("sys.stdin", io.StringIO("foo\nbar\nfood\n"))
-
-    jit.execute_host_runtime(program, [], None)
-    captured = capsys.readouterr()
-    assert captured.out == "start\nfoo\nfood\ndone\n"
-    assert captured.err == ""
-
-
 def test_execute_routes_p24_match_and_membership_programs_through_backend(monkeypatch) -> None:
     programs = {
         "match_operator": 'BEGIN { print ("abc" ~ /b/); print ("abc" !~ /d/) }',
@@ -1581,8 +1267,12 @@ def test_execute_with_inputs_routes_mixed_programs_through_reusable_lowering(mon
     def fail_input_specialized_lowering(*args: object, **kwargs: object) -> str:
         raise AssertionError("public execution should not use input-specialized lowering")
 
-    def fake_lower_to_llvm_ir(lowered_program: Program) -> str:
+    def fake_lower_to_llvm_ir(
+        lowered_program: Program,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
         assert lowered_program is program
+        assert initial_variables is None
         return "; reusable mixed module"
 
     def fake_link_reusable_execution_module(
@@ -1623,8 +1313,12 @@ def test_execute_with_inputs_routes_regex_programs_through_reusable_lowering(mon
     def fail_input_specialized_lowering(*args: object, **kwargs: object) -> str:
         raise AssertionError("public execution should not use input-specialized lowering")
 
-    def fake_lower_to_llvm_ir(lowered_program: Program) -> str:
+    def fake_lower_to_llvm_ir(
+        lowered_program: Program,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
         assert lowered_program is program
+        assert initial_variables is None
         return "; reusable regex module"
 
     def fake_link_reusable_execution_module(

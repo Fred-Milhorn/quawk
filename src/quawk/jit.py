@@ -84,6 +84,8 @@ RAND_MODULUS = 2_147_483_648.0
 RAND_MASK = 0x7FFFFFFF
 RAND_MULTIPLIER = 1103515245
 RAND_INCREMENT = 12345
+FULL_NUMERIC_PATTERN = re.compile(r"^[ \t\r\n\f\v]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\r\n\f\v]*$")
+NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
 
 
 @dataclass
@@ -100,7 +102,6 @@ class LoweringState:
     uses_puts: bool = False
     uses_printf: bool = False
     numeric_format_declared: bool = False
-    current_record: RecordContext | None = None
     runtime_param: str | None = None
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
@@ -112,9 +113,11 @@ class LoweringState:
     loop_string_bindings: dict[str, str] = field(default_factory=dict)
     function_defs: dict[str, FunctionDef] = field(default_factory=dict)
     return_slot: str | None = None
+    return_string_slot: str | None = None
     return_label: str | None = None
     initial_string_values: dict[str, str] = field(default_factory=dict)
     local_names: frozenset[str] = field(default_factory=frozenset)
+    function_param_strings: dict[str, str] = field(default_factory=dict)
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -129,150 +132,9 @@ class LoweringState:
         return name
 
 
-@dataclass
-class RuntimeState:
-    """Mutable host-runtime state for the currently supported interpreter path."""
-
-    variables: dict[str, AwkValue] = field(default_factory=dict)
-    arrays: dict[str, dict[str, AwkValue]] = field(default_factory=dict)
-    functions: dict[str, FunctionDef] = field(default_factory=dict)
-    field_separator: str | None = None
-    record_separator: str = "\n"
-    current_filename: str = "-"
-    output_streams: dict[tuple[str, OutputRedirectKind], TextIO] = field(default_factory=dict)
-    output_processes: dict[tuple[str, OutputRedirectKind], subprocess.Popen[str]] = field(default_factory=dict)
-    random_seed: int = 1
-    random_state: int = 1
-    argv0: str = "quawk"
-    input_state: "HostInputState | None" = None
-    input_streams: dict[str, "HostGetlineInput"] = field(default_factory=dict)
-
-
-@dataclass
-class RecordContext:
-    """Host-side view of the current input record for field resolution."""
-
-    field0: str
-    fields: list[str]
-
-
-@dataclass
-class HostInputFile:
-    """One materialized input operand for host-side streaming."""
-
-    filename: str
-    content: str
-    index: int = 0
-
-
-@dataclass
-class MainInputLine:
-    """One streamed main-input line for host-side execution."""
-
-    filename: str
-    text: str
-    new_file: bool
-
-
-@dataclass
-class HostInputState:
-    """Host-side cursor shared by the record loop and `getline`."""
-
-    files: list[HostInputFile]
-    file_index: int = 0
-
-
-@dataclass
-class HostGetlineInput:
-    """One cached file-backed `getline` source for host-side streaming."""
-
-    content: str
-    index: int = 0
-
-
-@dataclass
-class HostRuntimeRecordItem:
-    """One record-phase item with optional range-pattern state."""
-
-    pattern: ExprPattern | RangePattern | None
-    action: Action | None
-    range_active: bool = False
-
-
-class ReturnSignal(Exception):
-    """Internal control-flow signal used to unwind one function return."""
-
-    def __init__(self, value: AwkValue):
-        super().__init__()
-        self.value = value
-
-
-class BreakSignal(Exception):
-    """Internal control-flow signal used to unwind one loop break."""
-
-
-class ContinueSignal(Exception):
-    """Internal control-flow signal used to skip to the next loop iteration."""
-
-
-class NextSignal(Exception):
-    """Internal control-flow signal used to skip to the next record."""
-
-
-class NextFileSignal(Exception):
-    """Internal control-flow signal used to skip the rest of the current file."""
-
-
-class ExitSignal(Exception):
-    """Internal control-flow signal used to terminate execution with a status."""
-
-    def __init__(self, status: int):
-        super().__init__()
-        self.status = status
-
-
 InitialVariableValue = float | str
 InitialVariables = list[tuple[str, InitialVariableValue]]
-
-
-class ValueKind(Enum):
-    """Classify the host runtime's scalar values by their primary AWK view."""
-
-    UNINITIALIZED = auto()
-    NUMBER = auto()
-    STRING = auto()
-
-
-@dataclass(frozen=True)
-class AwkValue:
-    """Host-runtime scalar cell with AWK-style numeric and string coercions."""
-
-    kind: ValueKind
-    number: float = 0.0
-    string: str = ""
-
-
-UNINITIALIZED_VALUE = AwkValue(ValueKind.UNINITIALIZED)
-NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
-FULL_NUMERIC_PATTERN = re.compile(r"^[ \t\r\n\f\v]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\r\n\f\v]*$")
 PRINTF_SPEC_PATTERN = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)([%aAcdeEfgGiosuxX])")
-
-LocalScope = dict[str, AwkValue]
-
-
-def normalize_rand_seed(value: float) -> int:
-    """Normalize one AWK numeric seed into the runtime RNG state domain."""
-    return int(math.trunc(value)) & RAND_MASK
-
-
-def next_rand_state(state: int) -> int:
-    """Advance the package-owned RNG state."""
-    return (RAND_MULTIPLIER * state + RAND_INCREMENT) & RAND_MASK
-
-
-def rand_value_from_state(state: int) -> float:
-    """Map one RNG state to the AWK-visible `[0, 1)` value."""
-    return state / RAND_MODULUS
 
 
 def initial_variables_require_string_runtime(initial_variables: InitialVariables | None) -> bool:
@@ -282,63 +144,51 @@ def initial_variables_require_string_runtime(initial_variables: InitialVariables
     return any(isinstance(value, str) for _, value in initial_variables)
 
 
-def normalize_field_separator(text: str) -> str | None:
-    """Normalize one AWK `FS` string to the current internal splitter mode."""
-    if text in {"", " "}:
-        return None
-    return text
+def awk_string_is_numeric(text: str) -> bool:
+    """Report whether one string is fully numeric under AWK comparison rules."""
+    return FULL_NUMERIC_PATTERN.fullmatch(text) is not None
 
 
-def builtin_field_separator_text(field_separator: str | None) -> str:
-    """Render the AWK-visible `FS` text for the current internal splitter mode."""
-    return " " if field_separator is None else field_separator
+def awk_numeric_prefix(text: str) -> float:
+    """Parse one AWK numeric prefix, returning `0.0` when none is present."""
+    match = NUMERIC_PREFIX_PATTERN.match(text)
+    if match is None:
+        return 0.0
+    return float(match.group(1))
 
 
-def normalize_record_separator(text: str) -> str:
-    """Normalize one AWK `RS` string to the current record-separator character."""
-    if text == "":
-        return "\n"
-    return text[0]
+def decode_regex_literal(raw_text: str) -> str:
+    """Decode one AWK regex literal body to the runtime regex text."""
+    inner = raw_text[1:-1]
+    result: list[str] = []
+    index = 0
 
+    while index < len(inner):
+        char = inner[index]
+        if char != "\\":
+            result.append(char)
+            index += 1
+            continue
 
-def next_text_record(text: str, start: int, separator: str) -> tuple[str, int] | None:
-    """Return one logical record plus the next offset under the current separator."""
-    if start >= len(text):
-        return None
+        index += 1
+        if index >= len(inner):
+            result.append("\\")
+            break
 
-    separator_index = text.find(separator, start)
-    if separator_index < 0:
-        return (text[start:], len(text))
-    return (text[start:separator_index], separator_index + len(separator))
+        escaped = inner[index]
+        match escaped:
+            case "\\" | "/":
+                result.append(escaped)
+            case "n":
+                result.append("\n")
+            case "t":
+                result.append("\t")
+            case _:
+                result.append("\\")
+                result.append(escaped)
+        index += 1
 
-
-def build_host_input_state(input_files: list[str]) -> HostInputState:
-    """Materialize the ordered main-input operands for host-side streaming."""
-    files = [HostInputFile(filename=filename, content=text) for filename, text in read_input_sources(input_files)]
-    return HostInputState(files=files)
-
-
-def next_main_input_line(input_state: HostInputState, record_separator: str) -> MainInputLine | None:
-    """Return the next record from the main input stream, if any."""
-    while input_state.file_index < len(input_state.files):
-        current = input_state.files[input_state.file_index]
-        new_file = current.index == 0
-        record = next_text_record(current.content, current.index, record_separator)
-        if record is not None:
-            line, next_index = record
-            current.index = next_index
-            return MainInputLine(filename=current.filename, text=line, new_file=new_file)
-        input_state.file_index += 1
-    return None
-
-
-def skip_remaining_main_input_file(input_state: HostInputState) -> None:
-    """Advance the main-input cursor to the next file operand."""
-    if input_state.file_index >= len(input_state.files):
-        return
-    current = input_state.files[input_state.file_index]
-    current.index = len(current.content)
-    input_state.file_index += 1
+    return "".join(result)
 
 
 def emit_assembly(llvm_ir: str) -> str:
@@ -361,16 +211,7 @@ def emit_assembly(llvm_ir: str) -> str:
 
 def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
-    string_initial_variables = initial_variables_require_string_runtime(initial_variables)
     ensure_public_execution_supported(program, initial_variables)
-    if (
-        (
-            requires_host_runtime_value_execution(program)
-            and not string_initial_variables
-            and not supports_claimed_value_runtime_subset(program)
-        )
-    ):
-        return execute_host_runtime(program, [], None, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables)
     return execute_llvm_ir(llvm_ir)
 
@@ -401,7 +242,9 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
-    if has_function_definitions(program) and not supports_direct_function_backend_subset(program):
+    if has_function_definitions(program) and not (
+        supports_direct_function_backend_subset(program) or supports_runtime_backend_subset(program)
+    ):
         raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
     if has_host_runtime_only_operations(program) and not (
         supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
@@ -411,11 +254,11 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     if supports_direct_function_backend_subset(program):
         return lower_direct_function_program_to_llvm_ir(program, normalized_program, initial_variables)
     if initial_variables_require_string_runtime(initial_variables):
-        return lower_reusable_program_to_llvm_ir(normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program)
     if supports_runtime_backend_subset(program):
-        return lower_reusable_program_to_llvm_ir(normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program)
     if requires_input_aware_execution(program):
-        return lower_reusable_program_to_llvm_ir(normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program)
 
     state = LoweringState()
     lower_initial_variables(initial_variables or [], state)
@@ -579,16 +422,7 @@ def build_public_execution_llvm_ir(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Build the IR module used by public execution and inspection paths."""
-    if (
-        not initial_variables
-        and requires_host_runtime_value_execution(program)
-        and supports_claimed_value_runtime_subset(program)
-    ):
-        llvm_ir = lower_reusable_program_to_llvm_ir(normalize_program_for_lowering(program))
-    elif not initial_variables:
-        llvm_ir = lower_to_llvm_ir(program)
-    else:
-        llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
+    llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
     if program_requires_linked_execution_module(program, initial_variables):
         return link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
     return llvm_ir
@@ -601,19 +435,70 @@ def program_requires_linked_execution_module(
     """Report whether public execution/inspection needs the reusable driver module."""
     direct_function_subset = supports_direct_function_backend_subset(program)
     return (
-        (
-            not initial_variables
-            and requires_host_runtime_value_execution(program)
-            and supports_claimed_value_runtime_subset(program)
-        )
-        or
-        supports_runtime_backend_subset(program)
+        (supports_runtime_backend_subset(program) and not direct_function_subset)
         or requires_input_aware_execution(program)
         or (initial_variables_require_string_runtime(initial_variables) and not direct_function_subset)
     )
 
 
-def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProgram) -> str:
+def lower_runtime_user_functions_to_ir(
+    program: Program,
+    variable_indexes: dict[str, int],
+    array_names: frozenset[str],
+) -> tuple[list[str], list[str], int]:
+    """Lower supported runtime-backed user-defined functions."""
+    function_defs = {
+        item.name: item
+        for item in program.items
+        if isinstance(item, FunctionDef)
+    }
+    if not function_defs:
+        return [], [], 0
+
+    globals_out: list[str] = []
+    bodies: list[str] = []
+    string_index = 0
+
+    for function_def in function_defs.values():
+        function_state = LoweringState(
+            runtime_param="%rt",
+            state_param="%state",
+            variable_indexes=variable_indexes,
+            array_names=array_names,
+            function_defs=function_defs,
+            string_index=string_index,
+            function_param_strings={param: f"%arg.{index}" for index, param in enumerate(function_def.params)},
+            local_names=frozenset(function_def.params),
+        )
+        return_slot = function_state.next_temp("retval")
+        function_state.allocas.append(f"  {return_slot} = alloca ptr")
+        empty_value = lower_runtime_constant_string("", function_state)
+        function_state.instructions.append(f"  store ptr {empty_value}, ptr {return_slot}")
+        function_state.return_string_slot = return_slot
+        function_state.return_label = function_state.next_label("return")
+        terminated = False
+        for statement in function_def.body.statements:
+            lower_statement(statement, function_state)
+            if isinstance(statement, ReturnStmt | ExitStmt):
+                terminated = True
+                break
+        if not terminated:
+            function_state.instructions.append(f"  br label %{function_state.return_label}")
+        function_state.instructions.extend(
+            [
+                f"{function_state.return_label}:",
+                f"  %retval.load = load ptr, ptr {return_slot}",
+                "  ret ptr %retval.load",
+            ]
+        )
+        bodies.append(render_runtime_user_function(function_def, function_state))
+        globals_out.extend(function_state.globals)
+        string_index = function_state.string_index
+
+    return globals_out, bodies, string_index
+
+
+def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: NormalizedLoweringProgram) -> str:
     """Lower a record-driven program into reusable BEGIN/record/END LLVM IR."""
     begin_actions = normalized_program.begin_actions
     record_items = normalized_program.record_items
@@ -699,15 +584,21 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
     if state_type is not None:
         declarations.append(state_type)
 
+    function_globals, function_bodies, function_string_index = lower_runtime_user_functions_to_ir(
+        program, variable_indexes, array_names
+    )
+
     begin_state = LoweringState(
         runtime_param="%rt",
         state_param="%state",
         variable_indexes=variable_indexes,
         array_names=array_names,
+        function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
+        string_index=function_string_index,
     )
     begin_state.phase_exit_label = begin_state.next_label("phase.exit")
     for action in begin_actions:
-        lower_action(action, begin_state, record=None)
+        lower_action(action, begin_state)
 
     record_state = LoweringState(
         runtime_param="%rt",
@@ -715,6 +606,7 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         variable_indexes=variable_indexes,
         string_index=begin_state.string_index,
         array_names=array_names,
+        function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
     )
     record_state.phase_exit_label = record_state.next_label("phase.exit")
     for record_item in record_items:
@@ -726,18 +618,22 @@ def lower_reusable_program_to_llvm_ir(normalized_program: NormalizedLoweringProg
         variable_indexes=variable_indexes,
         string_index=record_state.string_index,
         array_names=array_names,
+        function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
     )
     end_state.phase_exit_label = end_state.next_label("phase.exit")
     for action in end_actions:
-        lower_action(action, end_state, record=None)
+        lower_action(action, end_state)
 
     return "\n".join(
         [
             *declarations,
             "",
+            *function_globals,
             *begin_state.globals,
             *record_state.globals,
             *end_state.globals,
+            "",
+            *function_bodies,
             "",
             render_reusable_function("quawk_begin", begin_state),
             "",
@@ -797,46 +693,6 @@ def lower_record_program_to_llvm_ir(program: Program) -> str:
     )
 
 
-def lower_input_aware_program_to_llvm_ir(
-    program: Program,
-    records: list[RecordContext],
-) -> str:
-    """Lower one concrete input-aware execution into a single `quawk_main` module."""
-    state = LoweringState()
-    begin_actions, record_items, end_actions = partition_runtime_items(program)
-
-    for action in begin_actions:
-        lower_action(action, state, record=None)
-    for record in records:
-        for pattern, action in record_items:
-            if record_matches_pattern(pattern, record):
-                lower_action(action, state, record=record)
-    for action in end_actions:
-        lower_action(action, state, record=None)
-
-    declarations: list[str] = []
-    if state.uses_puts:
-        declarations.append("declare i32 @puts(ptr)")
-    if state.uses_printf:
-        declarations.append("declare i32 @printf(ptr, ...)")
-
-    return "\n".join(
-        [
-            *declarations,
-            "",
-            *state.globals,
-            "",
-            "define i32 @quawk_main() {",
-            "entry:",
-            *state.allocas,
-            *state.instructions,
-            "  ret i32 0",
-            "}",
-            "",
-        ]
-    )
-
-
 def lower_statement(statement: Stmt, state: LoweringState) -> None:
     """Lower one supported statement into side-effecting IR."""
     match statement:
@@ -875,7 +731,25 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 raise RuntimeError("for-in statements are not supported by the direct LLVM-backed backend")
             lower_runtime_for_in_statement(statement, state)
         case ReturnStmt():
-            if state.return_label is None or state.return_slot is None:
+            if state.return_label is None:
+                raise RuntimeError("return statements are not supported by the LLVM-backed backend")
+            if state.return_string_slot is not None:
+                if statement.value is None:
+                    return_value = lower_runtime_constant_string("", state)
+                elif runtime_expression_has_string_result(statement.value, state):
+                    return_value = lower_runtime_string_expression(statement.value, state)
+                else:
+                    return_value = lower_runtime_string_from_numeric_value(
+                        lower_runtime_numeric_expression(statement.value, state), state
+                    )
+                state.instructions.extend(
+                    [
+                        f"  store ptr {return_value}, ptr {state.return_string_slot}",
+                        f"  br label %{state.return_label}",
+                    ]
+                )
+                return
+            if state.return_slot is None:
                 raise RuntimeError("return statements are not supported by the LLVM-backed backend")
             return_value = (
                 "0.000000000000000e+00"
@@ -917,7 +791,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 ]
             )
         case ExitStmt(value=value):
-            if state.runtime_param is None or state.phase_exit_label is None:
+            if state.runtime_param is None:
                 raise RuntimeError("exit is not supported by the direct LLVM-backed backend")
             status_value = "0"
             if value is not None:
@@ -925,12 +799,19 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 status_temp = state.next_temp("exit.status")
                 state.instructions.append(f"  {status_temp} = fptosi double {numeric_value} to i32")
                 status_value = status_temp
-            state.instructions.extend(
-                [
-                    f"  call void @qk_request_exit(ptr {state.runtime_param}, i32 {status_value})",
-                    f"  br label %{state.phase_exit_label}",
-                ]
-            )
+            state.instructions.append(f"  call void @qk_request_exit(ptr {state.runtime_param}, i32 {status_value})")
+            if state.phase_exit_label is not None:
+                state.instructions.append(f"  br label %{state.phase_exit_label}")
+            elif state.return_string_slot is not None and state.return_label is not None:
+                empty_value = lower_runtime_constant_string("", state)
+                state.instructions.extend(
+                    [
+                        f"  store ptr {empty_value}, ptr {state.return_string_slot}",
+                        f"  br label %{state.return_label}",
+                    ]
+                )
+            else:
+                raise RuntimeError("exit is not supported in this LLVM-backed backend context")
         case _:
             raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
 
@@ -938,7 +819,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
 def lower_record_item(pattern: ExprPattern | None, action: Action, state: LoweringState) -> None:
     """Lower one record-phase item in the reusable runtime model."""
     if pattern is None:
-        lower_action(action, state, record=None)
+        lower_action(action, state)
         return
 
     condition = lower_record_pattern(pattern, state)
@@ -946,7 +827,7 @@ def lower_record_item(pattern: ExprPattern | None, action: Action, state: Loweri
     end_label = state.next_label("record.next")
     state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{end_label}")
     state.instructions.append(f"{then_label}:")
-    lower_action(action, state, record=None)
+    lower_action(action, state)
     state.instructions.append(f"  br label %{end_label}")
     state.instructions.append(f"{end_label}:")
 
@@ -991,7 +872,7 @@ def lower_runtime_action_or_default(action: Action | None, state: LoweringState)
             ]
         )
         return
-    lower_action(action, state, record=None)
+    lower_action(action, state)
 
 
 def lower_runtime_range_record_item(
@@ -1049,11 +930,9 @@ def lower_runtime_range_record_item(
     )
 
 
-def lower_action(action: Action, state: LoweringState, record: RecordContext | None) -> None:
-    """Lower one action block with an optional active input record."""
-    previous_record = state.current_record
+def lower_action(action: Action, state: LoweringState) -> None:
+    """Lower one action block."""
     previous_exit_label = state.action_exit_label
-    state.current_record = record
     if state.runtime_param is not None:
         state.action_exit_label = state.next_label("action.exit")
     try:
@@ -1068,7 +947,6 @@ def lower_action(action: Action, state: LoweringState, record: RecordContext | N
                 state.instructions.append(f"  br label %{state.action_exit_label}")
             state.instructions.append(f"{state.action_exit_label}:")
     finally:
-        state.current_record = previous_record
         state.action_exit_label = previous_exit_label
 
 
@@ -1152,20 +1030,61 @@ def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> N
 
 def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
     """Lower one runtime-backed assignment in the reusable backend subset."""
-    if statement.op is not statement.op.PLAIN:
-        raise RuntimeError("compound assignments are not supported by the runtime-backed backend")
     assert state.runtime_param is not None
+
+    def combine_numeric_assignment(current_value: str, update_value: str) -> str:
+        if statement.op is AssignOp.PLAIN:
+            return update_value
+        result = state.next_temp("assign.op")
+        if statement.op is AssignOp.ADD:
+            state.instructions.append(f"  {result} = fadd double {current_value}, {update_value}")
+            return result
+        if statement.op is AssignOp.SUB:
+            state.instructions.append(f"  {result} = fsub double {current_value}, {update_value}")
+            return result
+        if statement.op is AssignOp.MUL:
+            state.instructions.append(f"  {result} = fmul double {current_value}, {update_value}")
+            return result
+        if statement.op is AssignOp.DIV:
+            state.instructions.append(f"  {result} = fdiv double {current_value}, {update_value}")
+            return result
+        if statement.op is AssignOp.MOD:
+            quotient = state.next_temp("assign.mod.div")
+            truncated = state.next_temp("assign.mod.trunc")
+            product = state.next_temp("assign.mod.mul")
+            state.instructions.extend(
+                [
+                    f"  {quotient} = fdiv double {current_value}, {update_value}",
+                    f"  {truncated} = call double @llvm.trunc.f64(double {quotient})",
+                    f"  {product} = fmul double {truncated}, {update_value}",
+                    f"  {result} = fsub double {current_value}, {product}",
+                ]
+            )
+            return result
+        state.instructions.append(
+            f"  {result} = call double @llvm.pow.f64(double {current_value}, double {update_value})"
+        )
+        return result
 
     field_index = statement.field_index
     if field_index is not None:
         index_value = lower_runtime_field_index(field_index, state)
-        if runtime_assignment_preserves_string(statement.value, state):
+        if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
             string_value = lower_runtime_string_expression(statement.value, state)
             state.instructions.append(
                 f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
             )
         else:
+            current_field = state.next_temp("field.current")
+            current_value = state.next_temp("field.current.num")
+            state.instructions.extend(
+                [
+                    f"  {current_field} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {index_value})",
+                    f"  {current_value} = call double @qk_parse_number_text(ptr {current_field})",
+                ]
+            )
             numeric_value = lower_runtime_numeric_expression(statement.value, state)
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
             state.instructions.append(
                 f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
             )
@@ -1178,7 +1097,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
     if statement.index is not None:
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
         key_ptr = lower_runtime_array_key(statement.index, state)
-        if runtime_assignment_preserves_string(statement.value, state):
+        if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
             string_value = lower_runtime_string_expression(statement.value, state)
             state.instructions.append(
                 (
@@ -1187,7 +1106,16 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
                 )
             )
         else:
+            current_entry = state.next_temp("array.current")
+            current_value = state.next_temp("array.current.num")
+            state.instructions.extend(
+                [
+                    f"  {current_entry} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
+                    f"  {current_value} = call double @qk_parse_number_text(ptr {current_entry})",
+                ]
+            )
             numeric_value = lower_runtime_numeric_expression(statement.value, state)
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
             state.instructions.append(
                 (
                     f"  call void @qk_array_set_number("
@@ -1198,24 +1126,33 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
     if is_reusable_runtime_state_name(statement.name):
         slot_name = variable_address(statement.name, state)
         numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        if statement.op is not AssignOp.PLAIN:
+            current_value = state.next_temp("state.current")
+            state.instructions.append(f"  {current_value} = load double, ptr {slot_name}")
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
         state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
         return
 
     target_name = lower_runtime_scalar_name(statement.name, state)
-    if isinstance(statement.value, NameExpr) and runtime_name_uses_scalar_runtime(statement.value.name, state):
+    if statement.op is AssignOp.PLAIN and isinstance(statement.value, NameExpr) and runtime_name_uses_scalar_runtime(statement.value.name, state):
         source_name = lower_runtime_scalar_name(statement.value.name, state)
         state.instructions.append(
             f"  call void @qk_scalar_copy(ptr {state.runtime_param}, ptr {target_name}, ptr {source_name})"
         )
         return
-    if runtime_assignment_preserves_string(statement.value, state):
+    if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
         string_value = lower_runtime_string_expression(statement.value, state)
         state.instructions.append(
             f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {target_name}, ptr {string_value})"
         )
         return
 
+    current_value = state.next_temp("scalar.current")
+    state.instructions.append(
+        f"  {current_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {target_name})"
+    )
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
+    numeric_value = combine_numeric_assignment(current_value, numeric_value)
     state.instructions.append(
         f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {target_name}, double {numeric_value})"
     )
@@ -1399,22 +1336,7 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
         )
         return
     if isinstance(expression, FieldExpr):
-        if state.current_record is None:
-            raise RuntimeError("field expressions require an active input record in the current backend")
-        state.uses_puts = True
-        global_name, byte_length = declare_string(
-            state,
-            resolve_field_value(static_field_index(expression), state.current_record),
-        )
-        string_ptr = state.next_temp("strptr")
-        call_temp = state.next_temp("call")
-        state.instructions.extend(
-            [
-                emit_gep(string_ptr, byte_length, global_name),
-                f"  {call_temp} = call i32 @puts(ptr {string_ptr})",
-            ]
-        )
-        return
+        raise RuntimeError("field expressions require the reusable runtime backend")
 
     state.uses_printf = True
     format_name, format_length = ensure_numeric_format(state)
@@ -1582,6 +1504,9 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
     if isinstance(expression, NumericLiteralExpr):
         return format_double_literal(expression.value)
 
+    if isinstance(expression, StringLiteralExpr):
+        return format_double_literal(awk_numeric_prefix(expression.value))
+
     if isinstance(expression, ArrayIndexExpr):
         raise RuntimeError("array reads are not supported by the LLVM-backed backend")
 
@@ -1690,6 +1615,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
     match expression:
         case NumericLiteralExpr(value=value):
             return format_double_literal(value)
+        case StringLiteralExpr(value=value):
+            return format_double_literal(awk_numeric_prefix(value))
         case NameExpr(name="NR"):
             temp = state.next_temp("nr")
             state.instructions.append(f"  {temp} = call double @qk_get_nr(ptr {state.runtime_param})")
@@ -1703,6 +1630,12 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             state.instructions.append(f"  {temp} = call double @qk_get_nf(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
+            if name in state.function_param_strings:
+                temp = state.next_temp("param.num")
+                state.instructions.append(
+                    f"  {temp} = call double @qk_parse_number_text(ptr {state.function_param_strings[name]})"
+                )
+                return temp
             if is_reusable_runtime_state_name(name):
                 slot_name = variable_address(name, state)
                 temp = state.next_temp("load")
@@ -1730,14 +1663,14 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
                 f"  {temp} = select i1 {condition_value}, double 0.000000000000000e+00, double 1.000000000000000e+00"
             )
             return temp
-        case UnaryExpr(op=UnaryOp.PRE_INC, operand=NameExpr(name=name)):
-            return lower_runtime_increment_expression(name, 1.0, return_old=False, state=state)
-        case UnaryExpr(op=UnaryOp.PRE_DEC, operand=NameExpr(name=name)):
-            return lower_runtime_increment_expression(name, -1.0, return_old=False, state=state)
-        case PostfixExpr(op=PostfixOp.POST_INC, operand=NameExpr(name=name)):
-            return lower_runtime_increment_expression(name, 1.0, return_old=True, state=state)
-        case PostfixExpr(op=PostfixOp.POST_DEC, operand=NameExpr(name=name)):
-            return lower_runtime_increment_expression(name, -1.0, return_old=True, state=state)
+        case UnaryExpr(op=UnaryOp.PRE_INC, operand=operand):
+            return lower_runtime_increment_expression(operand, 1.0, return_old=False, state=state)
+        case UnaryExpr(op=UnaryOp.PRE_DEC, operand=operand):
+            return lower_runtime_increment_expression(operand, -1.0, return_old=False, state=state)
+        case PostfixExpr(op=PostfixOp.POST_INC, operand=operand):
+            return lower_runtime_increment_expression(operand, 1.0, return_old=True, state=state)
+        case PostfixExpr(op=PostfixOp.POST_DEC, operand=operand):
+            return lower_runtime_increment_expression(operand, -1.0, return_old=True, state=state)
         case CallExpr(function="split"):
             return lower_runtime_split_builtin(expression, state)
         case CallExpr(function="close"):
@@ -1766,6 +1699,11 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_substitute_builtin(expression, state, global_replace=False)
         case CallExpr(function="system"):
             return lower_runtime_system_builtin(expression, state)
+        case CallExpr(function=function_name, args=args) if function_name in state.function_defs:
+            string_value = lower_runtime_user_function_call(function_name, args, state)
+            temp = state.next_temp("fncall.num")
+            state.instructions.append(f"  {temp} = call double @qk_parse_number_text(ptr {string_value})")
+            return temp
         case CallExpr(function="atan2"):
             return lower_runtime_binary_numeric_builtin(expression, state, "@qk_atan2", "atan2")
         case CallExpr(function="cos"):
@@ -1916,30 +1854,62 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
     return numeric_value
 
 
-def lower_runtime_increment_expression(name: str, delta: float, *, return_old: bool, state: LoweringState) -> str:
-    """Lower one scalar pre/post increment or decrement expression."""
-    if is_reusable_runtime_state_name(name):
-        slot_name = variable_address(name, state)
-        old_value = state.next_temp("inc.old")
-        new_value = state.next_temp("inc.new")
-        state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
-        opcode = "fadd" if delta >= 0 else "fsub"
-        amount = format_double_literal(abs(delta))
-        state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-        state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
-        return old_value if return_old else new_value
-
-    scalar_name = lower_runtime_scalar_name(name, state)
-    old_value = state.next_temp("inc.old")
-    new_value = state.next_temp("inc.new")
-    state.instructions.append(f"  {old_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})")
+def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_old: bool, state: LoweringState) -> str:
+    """Lower one runtime-backed pre/post increment or decrement expression."""
     opcode = "fadd" if delta >= 0 else "fsub"
     amount = format_double_literal(abs(delta))
-    state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-    state.instructions.append(
-        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {new_value})"
-    )
-    return old_value if return_old else new_value
+
+    match operand:
+        case NameExpr(name=name):
+            if is_reusable_runtime_state_name(name):
+                slot_name = variable_address(name, state)
+                old_value = state.next_temp("inc.old")
+                new_value = state.next_temp("inc.new")
+                state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
+                state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+                state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
+                return old_value if return_old else new_value
+
+            scalar_name = lower_runtime_scalar_name(name, state)
+            old_value = state.next_temp("inc.old")
+            new_value = state.next_temp("inc.new")
+            state.instructions.append(
+                f"  {old_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+            )
+            state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+            state.instructions.append(
+                f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {new_value})"
+            )
+            return old_value if return_old else new_value
+        case FieldExpr(index=index):
+            field_index = lower_runtime_field_index(index, state)
+            field_ptr = state.next_temp("inc.field.ptr")
+            old_value = state.next_temp("inc.old")
+            new_value = state.next_temp("inc.new")
+            state.instructions.append(f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {field_index})")
+            state.instructions.append(f"  {old_value} = call double @qk_parse_number_text(ptr {field_ptr})")
+            state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+            state.instructions.append(
+                f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {field_index}, double {new_value})"
+            )
+            return old_value if return_old else new_value
+        case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=()):
+            array_name_ptr = lower_runtime_constant_string(array_name, state)
+            key_ptr = lower_runtime_array_key(index, state)
+            entry_ptr = state.next_temp("inc.array.ptr")
+            old_value = state.next_temp("inc.old")
+            new_value = state.next_temp("inc.new")
+            state.instructions.append(
+                f"  {entry_ptr} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+            )
+            state.instructions.append(f"  {old_value} = call double @qk_parse_number_text(ptr {entry_ptr})")
+            state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+            state.instructions.append(
+                f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {new_value})"
+            )
+            return old_value if return_old else new_value
+        case _:
+            raise RuntimeError("unsupported increment expression in runtime-backed backend")
 
 
 def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> str:
@@ -1953,6 +1923,8 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             return string_ptr
         case NameExpr(name=name) if name in state.loop_string_bindings:
             return state.loop_string_bindings[name]
+        case NameExpr(name=name) if name in state.function_param_strings:
+            return state.function_param_strings[name]
         case NameExpr(name="FILENAME"):
             temp = state.next_temp("filename")
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
@@ -1988,12 +1960,51 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                 f"  {temp} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
             )
             return temp
+        case AssignExpr(op=AssignOp.PLAIN, target=target, value=value):
+            match target:
+                case FieldLValue(index=index) if runtime_assignment_preserves_string(value, state):
+                    field_index = lower_runtime_field_index(index, state)
+                    string_value = lower_runtime_string_expression(value, state)
+                    state.instructions.append(
+                        f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {field_index}, ptr {string_value})"
+                    )
+                    return string_value
+                case ArrayLValue(name=name, subscripts=(subscript,)) if runtime_assignment_preserves_string(value, state):
+                    array_name_ptr = lower_runtime_constant_string(name, state)
+                    key_ptr = lower_runtime_array_key(subscript, state)
+                    string_value = lower_runtime_string_expression(value, state)
+                    state.instructions.append(
+                        f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
+                    )
+                    return string_value
+                case NameLValue(name=name) if runtime_assignment_preserves_string(value, state):
+                    if is_reusable_runtime_state_name(name):
+                        raise RuntimeError(
+                            "string-valued assignment expressions are not supported for reusable numeric state"
+                        )
+                    scalar_name = lower_runtime_scalar_name(name, state)
+                    string_value = lower_runtime_string_expression(value, state)
+                    state.instructions.append(
+                        f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
+                    )
+                    stored_value = state.next_temp("assign.str")
+                    state.instructions.append(
+                        f"  {stored_value} = call ptr @qk_scalar_get(ptr {state.runtime_param}, ptr {scalar_name})"
+                    )
+                    return stored_value
         case CallExpr(function="substr"):
             return lower_runtime_substr_builtin(expression, state)
         case CallExpr(function="sprintf"):
             return lower_runtime_sprintf_builtin(expression, state)
         case CallExpr(function="length"):
-            raise RuntimeError("length lowers as a numeric expression in the runtime-backed backend")
+            numeric_value = lower_runtime_numeric_expression(expression, state)
+            temp = state.next_temp("numstr")
+            state.instructions.append(
+                f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})"
+            )
+            return temp
+        case CallExpr(function=function_name, args=args) if function_name in state.function_defs:
+            return lower_runtime_user_function_call(function_name, args, state)
         case CallExpr(function="tolower"):
             return lower_runtime_case_builtin(expression, state, upper=False)
         case CallExpr(function="toupper"):
@@ -2173,7 +2184,7 @@ def lower_runtime_captured_string_expression(expression: Expr, state: LoweringSt
 def lower_runtime_regex_pattern(expression: Expr, state: LoweringState) -> str:
     """Lower one regex-oriented builtin pattern argument to a runtime string pointer."""
     if isinstance(expression, RegexLiteralExpr):
-        return lower_runtime_constant_string(expression.raw_text[1:-1], state)
+        return lower_runtime_constant_string(decode_regex_literal(expression.raw_text), state)
     return lower_runtime_captured_string_expression(expression, state)
 
 
@@ -2445,9 +2456,45 @@ def lower_runtime_scalar_name(name: str, state: LoweringState) -> str:
     return lower_runtime_constant_string(name, state)
 
 
+def lower_runtime_string_from_numeric_value(numeric_value: str, state: LoweringState) -> str:
+    """Format one numeric runtime value as a captured string pointer."""
+    formatted = state.next_temp("numstr")
+    captured = state.next_temp("numstr.capture")
+    state.instructions.append(f"  {formatted} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})")
+    state.instructions.append(f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {formatted})")
+    return captured
+
+
+def lower_runtime_argument_string(expression: Expr, state: LoweringState) -> str:
+    """Lower one runtime-backed call argument to a captured string pointer."""
+    if runtime_expression_has_string_result(expression, state):
+        return lower_runtime_captured_string_expression(expression, state)
+    return lower_runtime_string_from_numeric_value(lower_runtime_numeric_expression(expression, state), state)
+
+
+def lower_runtime_user_function_call(function_name: str, args: tuple[Expr, ...], state: LoweringState) -> str:
+    """Lower one runtime-backed user-defined function call to a string result pointer."""
+    function_def = state.function_defs.get(function_name)
+    if function_def is None:
+        raise RuntimeError(f"unsupported function call in runtime-backed backend: {function_name}")
+    if len(args) != len(function_def.params):
+        raise RuntimeError(f"function {function_name} expects {len(function_def.params)} arguments, got {len(args)}")
+    call_args = [f"ptr {state.runtime_param}", f"ptr {state.state_param or 'null'}"]
+    for argument in args:
+        call_args.append(f"ptr {lower_runtime_argument_string(argument, state)}")
+    result = state.next_temp("fncall")
+    state.instructions.append(f"  {result} = call ptr @qk_fn_{function_name}({', '.join(call_args)})")
+    return result
+
+
 def runtime_name_uses_scalar_runtime(name: str, state: LoweringState) -> bool:
     """Report whether one `NameExpr` should route through the runtime scalar ABI."""
-    return name not in {"NR", "FNR", "NF", "FILENAME"} and name not in state.loop_string_bindings and not is_reusable_runtime_state_name(name)
+    return (
+        name not in {"NR", "FNR", "NF", "FILENAME"}
+        and name not in state.loop_string_bindings
+        and name not in state.function_param_strings
+        and not is_reusable_runtime_state_name(name)
+    )
 
 
 def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -> bool:
@@ -2458,11 +2505,54 @@ def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -
         case NameExpr(name="FILENAME"):
             return True
         case NameExpr(name=name):
-            return name in state.loop_string_bindings
+            return name in state.loop_string_bindings or name in state.function_param_strings
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
             return True
+        case AssignExpr(op=AssignOp.PLAIN, target=_, value=value):
+            return runtime_assignment_preserves_string(value, state)
+        case _:
+            return False
+
+
+def runtime_expression_is_definitely_numeric(expression: Expr, state: LoweringState) -> bool:
+    """Report whether one runtime expression is known numeric without string semantics."""
+    match expression:
+        case NumericLiteralExpr():
+            return True
+        case StringLiteralExpr(value=value):
+            return awk_string_is_numeric(value)
+        case NameExpr(name="NR" | "FNR" | "NF"):
+            return True
+        case NameExpr(name=name):
+            return is_reusable_runtime_state_name(name)
+        case AssignExpr(op=AssignOp.PLAIN, target=NameLValue(name=name), value=value):
+            return is_reusable_runtime_state_name(name) and runtime_expression_is_definitely_numeric(value, state)
+        case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
+            return runtime_expression_is_definitely_numeric(operand, state)
+        case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
+            return True
+        case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
+            return True
+        case BinaryExpr(
+            op=BinaryOp.ADD
+            | BinaryOp.SUB
+            | BinaryOp.MUL
+            | BinaryOp.DIV
+            | BinaryOp.MOD
+            | BinaryOp.POW,
+            left=left,
+            right=right,
+        ):
+            return runtime_expression_is_definitely_numeric(left, state) and runtime_expression_is_definitely_numeric(
+                right, state
+            )
+        case CallExpr(
+            function="int" | "length" | "rand" | "srand" | "atan2" | "cos" | "exp" | "log" | "match" | "sin" | "sqrt" | "split" | "sub" | "gsub" | "system",
+            args=args,
+        ):
+            return all(runtime_expression_is_definitely_numeric(argument, state) for argument in args)
         case _:
             return False
 
@@ -2512,7 +2602,18 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
         case StringLiteralExpr(value=value):
             return lower_runtime_constant_string(value, state)
         case _:
-            raise RuntimeError("unsupported array index in runtime-backed backend")
+            if runtime_expression_has_string_result(expression, state):
+                return lower_runtime_captured_string_expression(expression, state)
+            numeric_value = lower_runtime_numeric_expression(expression, state)
+            formatted = state.next_temp("array.key.num")
+            captured = state.next_temp("array.key.capture")
+            state.instructions.append(
+                f"  {formatted} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})"
+            )
+            state.instructions.append(
+                f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {formatted})"
+            )
+            return captured
 
 
 def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
@@ -2534,12 +2635,16 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
             return True
         case NameExpr(name=name):
             return state is not None and (
-                name in state.loop_string_bindings or runtime_name_uses_scalar_runtime(name, state)
+                name in state.loop_string_bindings
+                or name in state.function_param_strings
+                or runtime_name_uses_scalar_runtime(name, state)
             )
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
             return True
+        case AssignExpr(op=AssignOp.PLAIN, target=_, value=value):
+            return state is not None and runtime_assignment_preserves_string(value, state)
         case ConditionalExpr(test=_, if_true=if_true, if_false=if_false):
             return runtime_expression_has_string_result(if_true, state) and runtime_expression_has_string_result(
                 if_false, state
@@ -2570,7 +2675,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
     if state.runtime_param is not None:
         match expression:
             case RegexLiteralExpr(raw_text=raw_text):
-                pattern_text = raw_text[1:-1]
+                pattern_text = decode_regex_literal(raw_text)
                 global_name, byte_length = declare_string(state, pattern_text)
                 string_ptr = state.next_temp("regexptr")
                 match_result = state.next_temp("match")
@@ -2602,6 +2707,25 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             BinaryOp.NOT_EQUAL,
         }:
             if state.runtime_param is not None:
+                if (
+                    not expression_forces_string_comparison(expression.left)
+                    and not expression_forces_string_comparison(expression.right)
+                    and runtime_expression_is_definitely_numeric(expression.left, state)
+                    and runtime_expression_is_definitely_numeric(expression.right, state)
+                ):
+                    left_operand = lower_runtime_numeric_expression(expression.left, state)
+                    right_operand = lower_runtime_numeric_expression(expression.right, state)
+                    temp = state.next_temp("cmp")
+                    predicate = {
+                        BinaryOp.LESS: "olt",
+                        BinaryOp.LESS_EQUAL: "ole",
+                        BinaryOp.GREATER: "ogt",
+                        BinaryOp.GREATER_EQUAL: "oge",
+                        BinaryOp.EQUAL: "oeq",
+                        BinaryOp.NOT_EQUAL: "one",
+                    }[expression.op]
+                    state.instructions.append(f"  {temp} = fcmp {predicate} double {left_operand}, {right_operand}")
+                    return temp
                 left_string = lower_runtime_captured_string_expression(expression.left, state)
                 left_number = lower_runtime_numeric_expression(expression.left, state)
                 right_string = lower_runtime_captured_string_expression(expression.right, state)
@@ -2701,7 +2825,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
 def lower_record_pattern(pattern: ExprPattern, state: LoweringState) -> str:
     """Lower one supported record-selection pattern in the reusable runtime model."""
     if isinstance(pattern.test, RegexLiteralExpr):
-        pattern_text = pattern.test.raw_text[1:-1]
+        pattern_text = decode_regex_literal(pattern.test.raw_text)
         global_name, byte_length = declare_string(state, pattern_text)
         string_ptr = state.next_temp("regexptr")
         match_result = state.next_temp("match")
@@ -2725,17 +2849,8 @@ def execute_with_inputs(
     field_separator: str | None,
     initial_variables: InitialVariables | None = None,
 ) -> int:
-    """Execute the current program, routing record-driven programs through the host loop."""
-    string_initial_variables = initial_variables_require_string_runtime(initial_variables)
+    """Execute the current program through the compiled backend/runtime path."""
     ensure_public_execution_supported(program, initial_variables)
-    if (
-        (
-            requires_host_runtime_value_execution(program)
-            and not string_initial_variables
-            and not supports_claimed_value_runtime_subset(program)
-        )
-    ):
-        return execute_host_runtime(program, input_files, field_separator, initial_variables)
     llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)
     return execute_llvm_ir(llvm_ir)
 
@@ -2744,12 +2859,16 @@ def ensure_public_execution_supported(
     program: Program,
     initial_variables: InitialVariables | None = None,
 ) -> None:
-    """Reject public execution for unclaimed programs that still require host-runtime-only support."""
+    """Reject public execution for programs the compiled backend cannot execute."""
     _ = initial_variables
-    if requires_host_runtime_execution(program):
-        raise RuntimeError(
-            "public execution does not support programs that still require the Python host runtime"
-        )
+    if has_function_definitions(program) and not (
+        supports_direct_function_backend_subset(program) or supports_runtime_backend_subset(program)
+    ):
+        raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
+    if has_host_runtime_only_operations(program) and not (
+        supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
+    ):
+        raise RuntimeError("public execution does not support programs outside the compiled backend/runtime subset")
 
 
 def link_reusable_execution_module(
@@ -3056,1716 +3175,6 @@ def has_end_pattern(program: Program) -> bool:
     return any(isinstance(item, PatternAction) and isinstance(item.pattern, EndPattern) for item in program.items)
 
 
-def execute_host_runtime(
-    program: Program,
-    input_files: list[str],
-    field_separator: str | None,
-    initial_variables: InitialVariables | None = None,
-) -> int:
-    """Execute the supported subset with explicit BEGIN/record/END sequencing."""
-    begin_actions, record_items, end_actions = partition_host_runtime_items(program)
-    state = RuntimeState(
-        variables={name: make_initial_value(value) for name, value in (initial_variables or [])},
-        functions=collect_function_definitions(program),
-        field_separator=field_separator,
-        input_state=build_host_input_state(input_files),
-    )
-    initialize_builtin_variables(state)
-    exit_status = 0
-    terminated = False
-    try:
-        for action in begin_actions:
-            execute_action(action, state, record=None, locals_scope=None)
-    except ExitSignal as signal:
-        exit_status = signal.status
-        terminated = True
-
-    try:
-        should_consume_main_input = bool(record_items or end_actions)
-        if not terminated and should_consume_main_input and state.input_state is not None:
-            while True:
-                next_line = next_main_input_line(state.input_state, state.record_separator)
-                if next_line is None:
-                    break
-                if next_line.new_file:
-                    state.variables["FNR"] = make_numeric_value(0.0)
-                state.current_filename = next_line.filename
-                record = RecordContext(
-                    field0=next_line.text,
-                    fields=split_fields(next_line.text, state.field_separator),
-                )
-                update_record_builtin_variables(state, record)
-                try:
-                    for item in record_items:
-                        if record_item_matches(item, state, record):
-                            execute_record_item(item, state, record)
-                except NextSignal:
-                    continue
-                except NextFileSignal:
-                    skip_remaining_main_input_file(state.input_state)
-                    continue
-                except ExitSignal as signal:
-                    exit_status = signal.status
-                    terminated = True
-                    break
-
-        for action in end_actions:
-            try:
-                execute_action(action, state, record=None, locals_scope=None)
-            except ExitSignal as signal:
-                return signal.status
-        return exit_status
-    finally:
-        close_all_outputs(state)
-        close_all_inputs(state)
-
-
-def collect_record_contexts(
-    program: Program,
-    input_files: list[str],
-    field_separator: str | None,
-) -> list[RecordContext]:
-    """Materialize concrete input records for the active program execution."""
-    _, record_items, _ = partition_runtime_items(program)
-    if not record_items:
-        return []
-
-    records: list[RecordContext] = []
-    for line in iter_input_records(input_files):
-        record_text = line.rstrip("\n")
-        records.append(RecordContext(
-            field0=record_text,
-            fields=split_fields(record_text, field_separator),
-        ))
-    return records
-
-
-def partition_host_runtime_items(
-    program: Program,
-) -> tuple[
-    list[Action],
-    list[HostRuntimeRecordItem],
-    list[Action],
-]:
-    """Split items into ordered BEGIN actions, record items, and END actions for the host runtime."""
-    begin_actions: list[Action] = []
-    record_items: list[HostRuntimeRecordItem] = []
-    end_actions: list[Action] = []
-
-    for item in program.items:
-        if isinstance(item, FunctionDef):
-            continue
-        if not isinstance(item, PatternAction):
-            raise RuntimeError("the current runtime only supports pattern-action items")
-
-        if item.pattern is None:
-            if item.action is None:
-                raise RuntimeError("bare record rules require an action in the current runtime")
-            record_items.append(HostRuntimeRecordItem(pattern=None, action=item.action))
-            continue
-        if isinstance(item.pattern, BeginPattern):
-            if item.action is None:
-                raise RuntimeError("BEGIN rules require an action in the current runtime")
-            begin_actions.append(item.action)
-            continue
-        if isinstance(item.pattern, EndPattern):
-            if item.action is None:
-                raise RuntimeError("END rules require an action in the current runtime")
-            end_actions.append(item.action)
-            continue
-        if isinstance(item.pattern, ExprPattern | RangePattern):
-            record_items.append(HostRuntimeRecordItem(pattern=item.pattern, action=item.action))
-            continue
-        raise RuntimeError("unsupported pattern in current runtime")
-
-    return begin_actions, record_items, end_actions
-
-
-def partition_runtime_items(
-    program: Program,
-) -> tuple[
-        list[Action],
-        list[tuple[ExprPattern | None, Action]],
-        list[Action],
-]:
-    """Split items into ordered BEGIN actions, per-record items, and END actions."""
-    begin_actions: list[Action] = []
-    record_items: list[tuple[ExprPattern | None, Action]] = []
-    end_actions: list[Action] = []
-
-    for item in program.items:
-        if isinstance(item, FunctionDef):
-            continue
-        if not isinstance(item, PatternAction):
-            raise RuntimeError("the current runtime only supports pattern-action items")
-        if not isinstance(item.action, Action):
-            raise RuntimeError("the current runtime requires an action block for each supported item")
-
-        if item.pattern is None:
-            record_items.append((None, item.action))
-            continue
-        if isinstance(item.pattern, BeginPattern):
-            begin_actions.append(item.action)
-            continue
-        if isinstance(item.pattern, EndPattern):
-            end_actions.append(item.action)
-            continue
-        if isinstance(item.pattern, ExprPattern):
-            record_items.append((item.pattern, item.action))
-            continue
-        raise RuntimeError("the current runtime only supports BEGIN, END, and regex expression patterns")
-
-    return begin_actions, record_items, end_actions
-
-
-def partition_runtime_actions(program: Program) -> tuple[list[Action], list[Action], list[Action]]:
-    """Split top-level items into ordered BEGIN, record, and END action lists."""
-    begin_actions, record_items, end_actions = partition_runtime_items(program)
-    record_actions = [action for pattern, action in record_items if pattern is None]
-    if len(record_actions) != len(record_items):
-        raise RuntimeError("regex-driven filtering is not supported in the current LLVM lowering path")
-    return begin_actions, record_actions, end_actions
-
-
-def iter_input_files(input_files: list[str]) -> list[tuple[str, list[str]]]:
-    """Collect logical input records grouped by input source."""
-    if not input_files:
-        try:
-            return [("-", sys.stdin.readlines())]
-        except OSError:
-            return []
-
-    grouped_records: list[tuple[str, list[str]]] = []
-    for path in input_files:
-        if path == "-":
-            try:
-                grouped_records.append(("-", sys.stdin.readlines()))
-            except OSError:
-                grouped_records.append(("-", []))
-            continue
-        with Path(path).open("r", encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS) as handle:
-            grouped_records.append((path, handle.readlines()))
-    return grouped_records
-
-
-def read_input_sources(input_files: list[str]) -> list[tuple[str, str]]:
-    """Collect raw input text grouped by input source for record streaming."""
-    if not input_files:
-        try:
-            return [("-", sys.stdin.read())]
-        except OSError:
-            return []
-
-    grouped_sources: list[tuple[str, str]] = []
-    for path in input_files:
-        if path == "-":
-            try:
-                grouped_sources.append(("-", sys.stdin.read()))
-            except OSError:
-                grouped_sources.append(("-", ""))
-            continue
-        with Path(path).open("r", encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS) as handle:
-            grouped_sources.append((path, handle.read()))
-    return grouped_sources
-
-
-def iter_input_records(input_files: list[str]) -> list[str]:
-    """Collect logical input records from files or standard input."""
-    records: list[str] = []
-    for _, grouped_records in iter_input_files(input_files):
-        records.extend(grouped_records)
-    return records
-
-
-def split_fields(line: str, field_separator: str | None) -> list[str]:
-    """Split one input record into AWK fields for the current supported subset."""
-    if field_separator is None:
-        return line.split()
-    return line.split(field_separator)
-
-
-def split_builtin_fields(text: str, separator: str | None, field_separator: str | None) -> list[str]:
-    """Split one string for the `split()` builtin using current supported rules."""
-    if separator is None:
-        return split_fields(text, field_separator)
-    if separator == "":
-        return [text]
-    return re.split(separator, text)
-
-
-def record_matches_pattern(pattern: ExprPattern | None, record: RecordContext) -> bool:
-    """Report whether the current record matches a supported record-selection pattern."""
-    if pattern is None:
-        return True
-    if isinstance(pattern.test, RegexLiteralExpr):
-        return regex_matches_record(pattern.test, record)
-    raise RuntimeError("the current runtime only supports regex expression patterns for record selection")
-
-
-def record_item_matches(
-    item: HostRuntimeRecordItem,
-    state: RuntimeState,
-    record: RecordContext,
-) -> bool:
-    """Report whether one host-runtime record item should fire for the current record."""
-    pattern = item.pattern
-    if pattern is None:
-        return True
-    if isinstance(pattern, RangePattern):
-        if item.range_active:
-            if pattern_matches_record(pattern.right, state, record):
-                item.range_active = False
-            return True
-        if pattern_matches_record(pattern.left, state, record):
-            item.range_active = not pattern_matches_record(pattern.right, state, record)
-            return True
-        return False
-    return pattern_matches_record(pattern, state, record)
-
-
-def pattern_matches_record(
-    pattern: ExprPattern | BeginPattern | EndPattern | RangePattern,
-    state: RuntimeState,
-    record: RecordContext,
-) -> bool:
-    """Evaluate one record-phase pattern against the current record."""
-    if isinstance(pattern, ExprPattern):
-        if isinstance(pattern.test, RegexLiteralExpr):
-            return regex_matches_record(pattern.test, record)
-        return evaluate_condition(pattern.test, state, record, locals_scope=None)
-    raise RuntimeError("BEGIN, END, and nested range patterns are not supported in record-phase matching")
-
-
-def execute_record_item(
-    item: HostRuntimeRecordItem,
-    state: RuntimeState,
-    record: RecordContext,
-) -> None:
-    """Execute one record item, applying AWK's default print when no action is present."""
-    if item.action is None:
-        sys.stdout.write(render_print_output((), state, record, locals_scope=None))
-        return
-    execute_action(item.action, state, record=record, locals_scope=None)
-
-
-def regex_matches_record(expression: RegexLiteralExpr, record: RecordContext) -> bool:
-    """Report whether `expression` matches the current record text."""
-    raw_text = expression.raw_text
-    if len(raw_text) < 2 or not raw_text.startswith("/") or not raw_text.endswith("/"):
-        raise RuntimeError("invalid regex literal in current runtime")
-    pattern_text = raw_text[1:-1]
-    return re.search(pattern_text, record.field0) is not None
-
-
-def execute_action(
-    action: Action,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Execute one action block in the host runtime."""
-    for statement in action.statements:
-        execute_statement(statement, state, record, locals_scope)
-
-
-def execute_statement(
-    statement: Stmt,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Execute one statement in the currently supported host-runtime subset."""
-    match statement:
-        case AssignStmt(target=target, op=op, value=value, span=span):
-            _ = evaluate_assignment_expression(
-                AssignExpr(target=target, op=op, value=value, span=span),
-                state,
-                record,
-                locals_scope,
-            )
-        case BlockStmt(statements=statements):
-            for nested in statements:
-                execute_statement(nested, state, record, locals_scope)
-        case BreakStmt():
-            raise BreakSignal()
-        case ContinueStmt():
-            raise ContinueSignal()
-        case DeleteStmt():
-            array_name = statement.array_name
-            index = statement.index
-            if array_name is None:
-                raise RuntimeError("non-array delete targets are not supported by the current runtime")
-            if statement.extra_indexes:
-                raise RuntimeError("multi-subscript delete targets are not supported by the current runtime")
-            if index is None:
-                state.arrays.pop(array_name, None)
-                return
-            key = evaluate_array_index(index, state, record, locals_scope)
-            target_array = state.arrays.get(array_name)
-            if target_array is not None:
-                target_array.pop(key, None)
-        case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-            if evaluate_condition(condition, state, record, locals_scope):
-                execute_statement(then_branch, state, record, locals_scope)
-            elif else_branch is not None:
-                execute_statement(else_branch, state, record, locals_scope)
-        case WhileStmt(condition=condition, body=body):
-            while evaluate_condition(condition, state, record, locals_scope):
-                try:
-                    execute_statement(body, state, record, locals_scope)
-                except ContinueSignal:
-                    continue
-                except BreakSignal:
-                    break
-        case DoWhileStmt(body=body, condition=condition):
-            while True:
-                try:
-                    execute_statement(body, state, record, locals_scope)
-                except ContinueSignal:
-                    pass
-                except BreakSignal:
-                    break
-                if not evaluate_condition(condition, state, record, locals_scope):
-                    break
-        case ForStmt(init=init, condition=condition, update=update, body=body):
-            for expression in init:
-                evaluate_value_expression(expression, state, record, locals_scope)
-            while condition is None or evaluate_condition(condition, state, record, locals_scope):
-                should_continue = False
-                try:
-                    execute_statement(body, state, record, locals_scope)
-                except ContinueSignal:
-                    should_continue = True
-                except BreakSignal:
-                    break
-                for expression in update:
-                    evaluate_value_expression(expression, state, record, locals_scope)
-                if should_continue:
-                    continue
-        case ForInStmt(name=name, iterable=iterable, body=body):
-            if not isinstance(iterable, NameExpr):
-                raise RuntimeError("for-in iteration requires an array name in the current runtime")
-            array_name = iterable.name
-            keys = tuple(state.arrays.get(array_name, {}).keys())
-            for key in keys:
-                assign_scalar_value(name, make_string_value(key), state, record, locals_scope)
-                try:
-                    execute_statement(body, state, record, locals_scope)
-                except ContinueSignal:
-                    continue
-                except BreakSignal:
-                    break
-        case ReturnStmt(value=value):
-            if locals_scope is None:
-                raise RuntimeError("return is only valid inside a function")
-            if value is None:
-                raise ReturnSignal(UNINITIALIZED_VALUE)
-            raise ReturnSignal(evaluate_value_expression(value, state, record, locals_scope))
-        case PrintStmt(arguments=arguments, redirect=redirect):
-            rendered = render_print_output(arguments, state, record, locals_scope)
-            if redirect is None:
-                sys.stdout.write(rendered)
-            else:
-                stream = open_output_stream(redirect, state, record, locals_scope)
-                stream.write(rendered)
-                stream.flush()
-        case PrintfStmt(arguments=arguments, redirect=redirect):
-            if not arguments:
-                raise RuntimeError("printf requires at least a format string")
-            rendered = render_printf_output(arguments, state, record, locals_scope)
-            if redirect is None:
-                print(rendered, end="")
-            else:
-                stream = open_output_stream(redirect, state, record, locals_scope)
-                stream.write(rendered)
-                stream.flush()
-        case ExprStmt(value=value):
-            evaluate_value_expression(value, state, record, locals_scope)
-        case NextStmt():
-            raise NextSignal()
-        case NextFileStmt():
-            raise NextFileSignal()
-        case ExitStmt(value=value):
-            status = 0 if value is None else int(evaluate_numeric_expression(value, state, record, locals_scope))
-            raise ExitSignal(status)
-        case _:
-            raise RuntimeError("the current runtime only supports print with one argument")
-
-
-def evaluate_value_expression(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Evaluate an expression into the host runtime's AWK value model."""
-    match expression:
-        case NumericLiteralExpr(value=literal_value):
-            return make_numeric_value(literal_value)
-        case StringLiteralExpr(value=literal_value):
-            return make_string_value(literal_value)
-        case AssignExpr():
-            return evaluate_assignment_expression(expression, state, record, locals_scope)
-        case FieldExpr(index=index):
-            if record is None:
-                raise RuntimeError("field expressions require an active input record")
-            field_index = index if isinstance(index, int) else evaluate_field_index(index, state, record, locals_scope)
-            return make_string_value(resolve_field_value(field_index, record))
-        case ArrayIndexExpr(array_name=array_name, index=index):
-            key = evaluate_array_index(index, state, record, locals_scope)
-            array = state.arrays.get(array_name)
-            if array is None:
-                return UNINITIALIZED_VALUE
-            return array.get(key, UNINITIALIZED_VALUE)
-        case GetlineExpr():
-            return evaluate_getline_expression(expression, state, record, locals_scope)
-        case NameExpr(name=name):
-            return read_scalar_value(name, state, record, locals_scope)
-        case CallExpr():
-            return call_function(expression, state, record, locals_scope)
-        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-            if evaluate_condition(test, state, record, locals_scope):
-                return evaluate_value_expression(if_true, state, record, locals_scope)
-            return evaluate_value_expression(if_false, state, record, locals_scope)
-        case UnaryExpr(op=op, operand=operand):
-            match op:
-                case UnaryOp.UPLUS:
-                    return make_numeric_value(evaluate_numeric_expression(operand, state, record, locals_scope))
-                case UnaryOp.UMINUS:
-                    return make_numeric_value(-evaluate_numeric_expression(operand, state, record, locals_scope))
-                case UnaryOp.NOT:
-                    return make_numeric_value(0.0 if evaluate_condition(operand, state, record, locals_scope) else 1.0)
-                case UnaryOp.PRE_INC:
-                    return evaluate_increment_expression(
-                        operand, 1.0, return_old=False, state=state, record=record, locals_scope=locals_scope
-                    )
-                case UnaryOp.PRE_DEC:
-                    return evaluate_increment_expression(
-                        operand, -1.0, return_old=False, state=state, record=record, locals_scope=locals_scope
-                    )
-                case _:
-                    raise RuntimeError(f"unsupported unary operator in current runtime: {op.name}")
-        case PostfixExpr(op=PostfixOp.POST_INC, operand=operand):
-            return evaluate_increment_expression(
-                operand, 1.0, return_old=True, state=state, record=record, locals_scope=locals_scope
-            )
-        case PostfixExpr(op=PostfixOp.POST_DEC, operand=operand):
-            return evaluate_increment_expression(
-                operand, -1.0, return_old=True, state=state, record=record, locals_scope=locals_scope
-            )
-        case BinaryExpr(op=op, left=left, right=right):
-            match op:
-                case BinaryOp.ADD:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        + evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.SUB:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        - evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.MUL:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        * evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.DIV:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        / evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.MOD:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        % evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.POW:
-                    return make_numeric_value(
-                        evaluate_numeric_expression(left, state, record, locals_scope)
-                        ** evaluate_numeric_expression(right, state, record, locals_scope)
-                    )
-                case BinaryOp.LESS | BinaryOp.LESS_EQUAL | BinaryOp.GREATER | BinaryOp.GREATER_EQUAL:
-                    return make_numeric_value(
-                        1.0 if compare_values(op, left, right, state, record, locals_scope) else 0.0
-                    )
-                case BinaryOp.EQUAL | BinaryOp.NOT_EQUAL:
-                    return make_numeric_value(
-                        1.0 if compare_values(op, left, right, state, record, locals_scope) else 0.0
-                    )
-                case BinaryOp.LOGICAL_AND:
-                    if not evaluate_condition(left, state, record, locals_scope):
-                        return make_numeric_value(0.0)
-                    return make_numeric_value(1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0)
-                case BinaryOp.LOGICAL_OR:
-                    if evaluate_condition(left, state, record, locals_scope):
-                        return make_numeric_value(1.0)
-                    return make_numeric_value(1.0 if evaluate_condition(right, state, record, locals_scope) else 0.0)
-                case BinaryOp.CONCAT:
-                    return make_string_value(
-                        coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope), state)
-                        + coerce_scalar_to_string(evaluate_value_expression(right, state, record, locals_scope), state)
-                    )
-                case BinaryOp.MATCH:
-                    return make_numeric_value(
-                        1.0 if evaluate_match_expression(left, right, state, record, locals_scope) else 0.0
-                    )
-                case BinaryOp.NOT_MATCH:
-                    return make_numeric_value(
-                        0.0 if evaluate_match_expression(left, right, state, record, locals_scope) else 1.0
-                    )
-                case BinaryOp.IN:
-                    return make_numeric_value(
-                        1.0 if evaluate_in_expression(left, right, state, record, locals_scope) else 0.0
-                    )
-                case _:
-                    raise RuntimeError(f"unsupported binary operator in current runtime: {op.name}")
-        case RegexLiteralExpr(raw_text=raw_text):
-            return make_string_value(raw_text)
-        case _:
-            raise RuntimeError("unsupported expression in current runtime")
-
-
-def evaluate_numeric_expression(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> float:
-    """Evaluate a numeric expression in the current host-runtime subset."""
-    return coerce_scalar_to_number(evaluate_value_expression(expression, state, record, locals_scope))
-
-
-def evaluate_condition(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> bool:
-    """Evaluate a condition expression using the supported truthiness rules."""
-    if isinstance(expression, RegexLiteralExpr):
-        if record is None:
-            return False
-        return regex_matches_record(expression, record)
-    return coerce_scalar_to_truthy(evaluate_value_expression(expression, state, record, locals_scope))
-
-
-def call_function(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    caller_locals: LocalScope | None,
-) -> AwkValue:
-    """Execute one user-defined function call in the current host runtime."""
-    function_def = state.functions.get(expression.function)
-    if function_def is None and is_builtin_function_name(expression.function):
-        return call_builtin_function(expression, state, record, caller_locals)
-    if function_def is None:
-        raise RuntimeError(f"undefined function in current runtime: {expression.function}")
-    if len(expression.args) != len(function_def.params):
-        raise RuntimeError(
-            f"function {expression.function} expects {len(function_def.params)} arguments, got {len(expression.args)}"
-        )
-
-    locals_scope: LocalScope = {
-        param: evaluate_value_expression(argument, state, record, caller_locals)
-        for param, argument in zip(function_def.params, expression.args, strict=True)
-    }
-    try:
-        for statement in function_def.body.statements:
-            execute_statement(statement, state, record, locals_scope)
-    except ReturnSignal as signal:
-        return signal.value
-    return UNINITIALIZED_VALUE
-
-
-def replace_active_record(record: RecordContext, text: str, state: RuntimeState) -> None:
-    """Replace the active `$0` view with one freshly read record."""
-    record.field0 = text
-    record.fields = split_fields(text, state.field_separator)
-    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
-
-
-def main_getline_line(state: RuntimeState) -> MainInputLine | None:
-    """Read one line from the main input stream for host-side `getline`."""
-    if state.input_state is None:
-        return None
-    return next_main_input_line(state.input_state, state.record_separator)
-
-
-def file_getline_line(state: RuntimeState, target: str) -> str | None:
-    """Read one record from one `getline < file` source."""
-    stream = getline_input_stream(state, target)
-    record = next_text_record(stream.content, stream.index, state.record_separator)
-    if record is None:
-        return None
-    line, next_index = record
-    stream.index = next_index
-    return line
-
-
-def evaluate_getline_expression(
-    expression: GetlineExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the currently claimed `getline` forms in the host runtime."""
-    try:
-        if expression.source is None:
-            line = main_getline_line(state)
-            if line is None:
-                return make_numeric_value(0.0)
-            if line.new_file:
-                state.variables["FNR"] = make_numeric_value(0.0)
-            state.current_filename = line.filename
-            state.variables["NR"] = make_numeric_value(coerce_scalar_to_number(state.variables["NR"]) + 1.0)
-            state.variables["FNR"] = make_numeric_value(coerce_scalar_to_number(state.variables["FNR"]) + 1.0)
-            state.variables["FILENAME"] = make_string_value(line.filename)
-            if expression.target is None:
-                if record is None:
-                    raise RuntimeError("bare getline requires an active record when used outside BEGIN/END is not implemented")
-                replace_active_record(record, line.text, state)
-            else:
-                assign_lvalue_value(expression.target, make_string_value(line.text), state, record, locals_scope)
-            return make_numeric_value(1.0)
-
-        target_text = evaluate_string_expression(expression.source, state, record, locals_scope)
-        line_text = file_getline_line(state, target_text)
-        if line_text is None:
-            return make_numeric_value(0.0)
-        if expression.target is None:
-            if record is None:
-                raise RuntimeError("getline < file requires an active record when used outside BEGIN/END is not implemented")
-            replace_active_record(record, line_text, state)
-        else:
-            assign_lvalue_value(expression.target, make_string_value(line_text), state, record, locals_scope)
-        return make_numeric_value(1.0)
-    except OSError:
-        return make_numeric_value(-1.0)
-
-
-def call_builtin_function(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute one supported builtin function call in the current host runtime."""
-    match expression.function:
-        case "atan2":
-            return call_binary_math_builtin(expression, state, record, locals_scope, math.atan2, "atan2")
-        case "close":
-            return call_close_builtin(expression, state, record, locals_scope)
-        case "cos":
-            return call_unary_math_builtin(expression, state, record, locals_scope, math.cos, "cos")
-        case "exp":
-            return call_unary_math_builtin(expression, state, record, locals_scope, math.exp, "exp")
-        case "gsub":
-            return call_substitute_builtin(expression, state, record, locals_scope, global_replace=True)
-        case "index":
-            return call_index_builtin(expression, state, record, locals_scope)
-        case "int":
-            return call_int_builtin(expression, state, record, locals_scope)
-        case "length":
-            return call_length_builtin(expression, state, record, locals_scope)
-        case "log":
-            return call_unary_math_builtin(expression, state, record, locals_scope, math.log, "log")
-        case "match":
-            return call_match_builtin(expression, state, record, locals_scope)
-        case "rand":
-            return call_rand_builtin(expression, state, record, locals_scope)
-        case "sin":
-            return call_unary_math_builtin(expression, state, record, locals_scope, math.sin, "sin")
-        case "split":
-            return call_split_builtin(expression, state, record, locals_scope)
-        case "sqrt":
-            return call_unary_math_builtin(expression, state, record, locals_scope, math.sqrt, "sqrt")
-        case "srand":
-            return call_srand_builtin(expression, state, record, locals_scope)
-        case "sprintf":
-            return call_sprintf_builtin(expression, state, record, locals_scope)
-        case "sub":
-            return call_substitute_builtin(expression, state, record, locals_scope, global_replace=False)
-        case "substr":
-            return call_substr_builtin(expression, state, record, locals_scope)
-        case "system":
-            return call_system_builtin(expression, state, record, locals_scope)
-        case "tolower":
-            return call_tolower_builtin(expression, state, record, locals_scope)
-        case "toupper":
-            return call_toupper_builtin(expression, state, record, locals_scope)
-        case _:
-            raise RuntimeError(f"unsupported builtin in current runtime: {expression.function}")
-
-
-def call_unary_math_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-    operator: Callable[[float], float],
-    builtin_name: str,
-) -> AwkValue:
-    """Execute one one-argument numeric builtin in the host runtime."""
-    if len(expression.args) != 1:
-        raise RuntimeError(f"builtin {builtin_name} expects one argument")
-    value = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
-    return make_numeric_value(operator(value))
-
-
-def call_binary_math_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-    operator: Callable[[float, float], float],
-    builtin_name: str,
-) -> AwkValue:
-    """Execute one two-argument numeric builtin in the host runtime."""
-    if len(expression.args) != 2:
-        raise RuntimeError(f"builtin {builtin_name} expects two arguments")
-    left = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
-    right = evaluate_numeric_expression(expression.args[1], state, record, locals_scope)
-    return make_numeric_value(operator(left, right))
-
-
-def call_close_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the current subset's `close` builtin."""
-    if len(expression.args) != 1:
-        raise RuntimeError("builtin close expects one argument")
-    target = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    return make_numeric_value(close_io_target(state, target))
-
-
-def call_index_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `index` builtin."""
-    if len(expression.args) != 2:
-        raise RuntimeError("builtin index expects two arguments")
-    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    search_text = evaluate_string_expression(expression.args[1], state, record, locals_scope)
-    if search_text == "":
-        return make_numeric_value(1.0)
-    position = source_text.find(search_text)
-    return make_numeric_value(0.0 if position < 0 else float(position + 1))
-
-
-def call_int_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `int` builtin."""
-    if len(expression.args) != 1:
-        raise RuntimeError("builtin int expects one argument")
-    value = evaluate_numeric_expression(expression.args[0], state, record, locals_scope)
-    return make_numeric_value(float(math.trunc(value)))
-
-
-def call_length_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the current subset's `length` builtin."""
-    if len(expression.args) > 1:
-        raise RuntimeError("builtin length expects zero or one argument")
-    if not expression.args:
-        return make_numeric_value(float(len(record.field0)) if record is not None else 0.0)
-
-    argument = expression.args[0]
-    if isinstance(argument, NameExpr):
-        scalar_value = read_scalar_value(argument.name, state, record, locals_scope)
-        if scalar_value.kind is ValueKind.UNINITIALIZED and argument.name in state.arrays:
-            return make_numeric_value(float(len(state.arrays[argument.name])))
-    return make_numeric_value(float(len(evaluate_string_expression(argument, state, record, locals_scope))))
-
-
-def regex_pattern_text(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Return the regex source text used by AWK regex-oriented builtins."""
-    if isinstance(expression, RegexLiteralExpr):
-        return expression.raw_text[1:-1]
-    return evaluate_string_expression(expression, state, record, locals_scope)
-
-
-def call_match_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `match` builtin and update `RSTART`/`RLENGTH`."""
-    if len(expression.args) != 2:
-        raise RuntimeError("builtin match expects two arguments")
-
-    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    pattern_text = regex_pattern_text(expression.args[1], state, record, locals_scope)
-    match = re.search(pattern_text, source_text)
-    if match is None:
-        state.variables["RSTART"] = make_numeric_value(0.0)
-        state.variables["RLENGTH"] = make_numeric_value(-1.0)
-        return make_numeric_value(0.0)
-
-    state.variables["RSTART"] = make_numeric_value(float(match.start() + 1))
-    state.variables["RLENGTH"] = make_numeric_value(float(match.end() - match.start()))
-    return make_numeric_value(float(match.start() + 1))
-
-
-def call_rand_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `rand` builtin with the package-owned RNG state."""
-    del record, locals_scope
-    if expression.args:
-        raise RuntimeError("builtin rand expects zero arguments")
-    state.random_state = next_rand_state(state.random_state)
-    return make_numeric_value(rand_value_from_state(state.random_state))
-
-
-def call_srand_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `srand` builtin and return the previous seed."""
-    previous_seed = state.random_seed
-    if len(expression.args) > 1:
-        raise RuntimeError("builtin srand expects zero or one argument")
-    if not expression.args:
-        new_seed = int(time.time())
-    else:
-        new_seed = normalize_rand_seed(evaluate_numeric_expression(expression.args[0], state, record, locals_scope))
-    state.random_seed = new_seed
-    state.random_state = new_seed
-    return make_numeric_value(float(previous_seed))
-
-
-def call_split_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the current subset's `split` builtin."""
-    if len(expression.args) not in {2, 3}:
-        raise RuntimeError("builtin split expects two or three arguments")
-    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    target_expr = expression.args[1]
-    if not isinstance(target_expr, NameExpr):
-        raise RuntimeError("builtin split requires a named array target in the current runtime")
-
-    separator = None
-    if len(expression.args) == 3:
-        separator = evaluate_string_expression(expression.args[2], state, record, locals_scope)
-
-    parts = split_builtin_fields(source_text, separator, state.field_separator)
-    target_array: dict[str, AwkValue] = {}
-    for index, part in enumerate(parts, start=1):
-        target_array[str(index)] = make_string_value(part)
-    state.arrays[target_expr.name] = target_array
-    return make_numeric_value(float(len(parts)))
-
-
-def call_substr_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the current subset's `substr` builtin."""
-    if len(expression.args) not in {2, 3}:
-        raise RuntimeError("builtin substr expects two or three arguments")
-    source_text = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    start = int(evaluate_numeric_expression(expression.args[1], state, record, locals_scope))
-    start_index = max(start - 1, 0)
-    if len(expression.args) == 2:
-        return make_string_value(source_text[start_index:])
-
-    length = int(evaluate_numeric_expression(expression.args[2], state, record, locals_scope))
-    if length <= 0:
-        return make_string_value("")
-    return make_string_value(source_text[start_index : start_index + length])
-
-
-def call_system_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `system` builtin through the host shell."""
-    if len(expression.args) != 1:
-        raise RuntimeError("builtin system expects one argument")
-    command = evaluate_string_expression(expression.args[0], state, record, locals_scope)
-    result = subprocess.run(command, shell=True, check=False)
-    return make_numeric_value(float(result.returncode))
-
-
-def apply_substitution_replacement(replacement: str, matched_text: str) -> str:
-    """Apply AWK-style `sub`/`gsub` replacement semantics for one match."""
-    result: list[str] = []
-    index = 0
-
-    while index < len(replacement):
-        current = replacement[index]
-        if current == "&":
-            result.append(matched_text)
-            index += 1
-            continue
-        if current == "\\" and index + 1 < len(replacement):
-            escaped = replacement[index + 1]
-            if escaped in {"&", "\\"}:
-                result.append(escaped)
-                index += 2
-                continue
-        result.append(current)
-        index += 1
-
-    return "".join(result)
-
-
-def assign_builtin_target_text(
-    target: NameLValue | ArrayLValue | FieldLValue,
-    text: str,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Assign one substituted string result back through a builtin target."""
-    assign_lvalue_value(target, make_string_value(text), state, record, locals_scope)
-
-
-def call_substitute_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-    *,
-    global_replace: bool,
-) -> AwkValue:
-    """Execute the POSIX `sub` and `gsub` builtins."""
-    builtin_name = "gsub" if global_replace else "sub"
-    if len(expression.args) not in {2, 3}:
-        raise RuntimeError(f"builtin {builtin_name} expects two or three arguments")
-
-    pattern_text = regex_pattern_text(expression.args[0], state, record, locals_scope)
-    replacement_text = evaluate_string_expression(expression.args[1], state, record, locals_scope)
-    regex = re.compile(pattern_text)
-    target_lvalue: NameLValue | ArrayLValue | FieldLValue | None
-    if len(expression.args) == 3:
-        target_lvalue = expression_to_lvalue(expression.args[2])
-        if target_lvalue is None:
-            raise RuntimeError(f"builtin {builtin_name} requires an assignable third argument")
-        current_text = coerce_scalar_to_string(read_lvalue_value(target_lvalue, state, record, locals_scope), state)
-    else:
-        target_lvalue = None if record is None else FieldLValue(index=NumericLiteralExpr(value=0.0, raw_text="0", span=expression.span), span=expression.span)
-        current_text = "" if record is None else record.field0
-    count = 0
-
-    def replace(match: re.Match[str]) -> str:
-        nonlocal count
-        count += 1
-        return apply_substitution_replacement(replacement_text, match.group(0))
-
-    if global_replace:
-        substituted = regex.sub(replace, current_text)
-    else:
-        substituted = regex.sub(replace, current_text, count=1)
-    if count == 0:
-        return make_numeric_value(0.0)
-
-    if target_lvalue is not None:
-        assign_builtin_target_text(target_lvalue, substituted, state, record, locals_scope)
-    return make_numeric_value(float(count))
-
-
-def call_sprintf_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `sprintf` builtin."""
-    if not expression.args:
-        raise RuntimeError("builtin sprintf expects at least a format argument")
-    return make_string_value(render_printf_output(expression.args, state, record, locals_scope))
-
-
-def call_tolower_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `tolower` builtin."""
-    if len(expression.args) != 1:
-        raise RuntimeError("builtin tolower expects one argument")
-    return make_string_value(evaluate_string_expression(expression.args[0], state, record, locals_scope).lower())
-
-
-def call_toupper_builtin(
-    expression: CallExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Execute the POSIX `toupper` builtin."""
-    if len(expression.args) != 1:
-        raise RuntimeError("builtin toupper expects one argument")
-    return make_string_value(evaluate_string_expression(expression.args[0], state, record, locals_scope).upper())
-
-
-def evaluate_array_index(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Evaluate one associative-array index using the current subset's coercions."""
-    if isinstance(expression, FieldExpr):
-        if record is None:
-            raise RuntimeError("field expressions require an active input record")
-        field_index = (
-            expression.index
-            if isinstance(expression.index, int)
-            else evaluate_field_index(expression.index, state, record, locals_scope)
-        )
-        return resolve_field_value(field_index, record)
-    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope), state)
-
-
-def evaluate_string_expression(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Evaluate an expression into the string view needed by string-oriented builtins."""
-    return coerce_scalar_to_string(evaluate_value_expression(expression, state, record, locals_scope), state)
-
-
-def read_scalar_value(
-    name: str,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Read one scalar from the active local scope first, then globals."""
-    if locals_scope is not None and name in locals_scope:
-        return locals_scope[name]
-    if name == "NF":
-        return make_numeric_value(float(len(record.fields)) if record is not None else 0.0)
-    if is_builtin_variable_name(name):
-        return state.variables.get(name, UNINITIALIZED_VALUE)
-    return state.variables.get(name, UNINITIALIZED_VALUE)
-
-
-def rebuild_record_from_fields(record: RecordContext, state: RuntimeState, target_fields: int | None = None) -> None:
-    """Rebuild `$0` from the current field view using the effective `OFS`."""
-    if target_fields is not None:
-        record.fields = record.fields[:target_fields]
-        if len(record.fields) < target_fields:
-            record.fields.extend([""] * (target_fields - len(record.fields)))
-    record.field0 = output_variable_text(state, "OFS", " ").join(record.fields)
-    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
-
-
-def assign_scalar_value(
-    name: str,
-    value: AwkValue,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Assign one scalar value to the local scope when present, otherwise globals."""
-    if locals_scope is not None and name in locals_scope:
-        locals_scope[name] = value
-        return
-    if name == "FS":
-        state.field_separator = normalize_field_separator(coerce_scalar_to_string(value, state))
-    elif name == "RS":
-        state.record_separator = normalize_record_separator(coerce_scalar_to_string(value, state))
-    elif name == "NF" and record is not None:
-        target_fields = int(coerce_scalar_to_number(value))
-        if target_fields < 0:
-            raise RuntimeError("negative NF assignments are not supported by the current runtime")
-        rebuild_record_from_fields(record, state, target_fields)
-        state.variables[name] = make_numeric_value(float(len(record.fields)))
-        return
-    state.variables[name] = value
-
-
-def read_lvalue_value(
-    target: NameLValue | ArrayLValue | FieldLValue,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Read one assignable target through the current runtime value model."""
-    match target:
-        case NameLValue(name=name):
-            return read_scalar_value(name, state, record, locals_scope)
-        case ArrayLValue(name=name, subscripts=subscripts):
-            if len(subscripts) != 1:
-                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
-            key = evaluate_array_index(subscripts[0], state, record, locals_scope)
-            array = state.arrays.get(name)
-            if array is None:
-                return UNINITIALIZED_VALUE
-            return array.get(key, UNINITIALIZED_VALUE)
-        case FieldLValue(index=index):
-            if record is None:
-                raise RuntimeError("field assignments require an active input record")
-            field_index = evaluate_field_index(index, state, record, locals_scope)
-            return make_string_value(resolve_field_value(field_index, record))
-
-
-def assign_lvalue_value(
-    target: NameLValue | ArrayLValue | FieldLValue,
-    value: AwkValue,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Assign one runtime value through a validated lvalue target."""
-    match target:
-        case NameLValue(name=name):
-            assign_scalar_value(name, value, state, record, locals_scope)
-        case ArrayLValue(name=name, subscripts=subscripts):
-            if len(subscripts) != 1:
-                raise RuntimeError("multi-subscript assignments are not supported by the current runtime")
-            key = evaluate_array_index(subscripts[0], state, record, locals_scope)
-            state.arrays.setdefault(name, {})[key] = value
-        case FieldLValue(index=index):
-            if record is None:
-                raise RuntimeError("field assignments require an active input record")
-            assign_field_value(index, value, state, record, locals_scope)
-
-
-def apply_numeric_assign_op(op: AssignOp, current: float, rhs: float) -> float:
-    """Apply one numeric assignment operator."""
-    match op:
-        case AssignOp.PLAIN:
-            return rhs
-        case AssignOp.ADD:
-            return current + rhs
-        case AssignOp.SUB:
-            return current - rhs
-        case AssignOp.MUL:
-            return current * rhs
-        case AssignOp.DIV:
-            return current / rhs
-        case AssignOp.MOD:
-            return current % rhs
-        case AssignOp.POW:
-            return current**rhs
-
-
-def evaluate_assignment_expression(
-    expression: AssignExpr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Evaluate one assignment expression and return the assigned value."""
-    value = evaluate_value_expression(expression.value, state, record, locals_scope)
-    if expression.op is AssignOp.PLAIN:
-        assigned = value
-    else:
-        current = read_lvalue_value(expression.target, state, record, locals_scope)
-        assigned = make_numeric_value(
-            apply_numeric_assign_op(
-                expression.op,
-                coerce_scalar_to_number(current),
-                coerce_scalar_to_number(value),
-            )
-        )
-    assign_lvalue_value(expression.target, assigned, state, record, locals_scope)
-    return assigned
-
-
-def evaluate_increment_expression(
-    operand: Expr,
-    delta: float,
-    *,
-    return_old: bool,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> AwkValue:
-    """Evaluate one pre/post increment or decrement expression."""
-    target = expression_to_lvalue(operand)
-    if target is None:
-        raise RuntimeError("increment and decrement require an assignable expression")
-    current = read_lvalue_value(target, state, record, locals_scope)
-    current_number = coerce_scalar_to_number(current)
-    updated = make_numeric_value(current_number + delta)
-    assign_lvalue_value(target, updated, state, record, locals_scope)
-    if return_old:
-        return make_numeric_value(current_number)
-    return updated
-
-
-def coerce_scalar_to_number(value: AwkValue) -> float:
-    """Coerce the current scalar subset into its numeric value."""
-    match value.kind:
-        case ValueKind.UNINITIALIZED:
-            return 0.0
-        case ValueKind.NUMBER:
-            return value.number
-        case ValueKind.STRING:
-            return parse_awk_numeric_prefix(value.string)
-
-
-def numeric_format_text(state: RuntimeState | None, variable_name: str, default: str) -> str:
-    """Return one numeric-format control variable, falling back to the default."""
-    if state is None:
-        return default
-    value = state.variables.get(variable_name)
-    if value is None or value.kind is not ValueKind.STRING:
-        return default
-    return value.string
-
-
-def format_numeric_value(value: float, format_text: str = DEFAULT_CONVFMT) -> str:
-    """Render one numeric value using the supplied AWK format string."""
-    try:
-        return format_text % value
-    except (TypeError, ValueError):
-        if format_text != DEFAULT_CONVFMT:
-            return format_numeric_value(value, DEFAULT_CONVFMT)
-        return f"{value:.6g}"
-
-
-def coerce_scalar_to_string(value: AwkValue, state: RuntimeState | None = None) -> str:
-    """Coerce one runtime value into its string view."""
-    match value.kind:
-        case ValueKind.UNINITIALIZED:
-            return ""
-        case ValueKind.NUMBER:
-            return format_numeric_value(value.number, numeric_format_text(state, "CONVFMT", DEFAULT_CONVFMT))
-        case ValueKind.STRING:
-            return value.string
-
-
-def coerce_scalar_to_truthy(value: AwkValue) -> bool:
-    """Apply AWK-style truthiness to one runtime value."""
-    match value.kind:
-        case ValueKind.UNINITIALIZED:
-            return False
-        case ValueKind.NUMBER:
-            return value.number != 0.0
-        case ValueKind.STRING:
-            return value.string != ""
-
-
-def output_variable_text(state: RuntimeState, name: str, default: str) -> str:
-    """Return the current string view of one output-affecting runtime variable."""
-    value = state.variables.get(name)
-    if value is None:
-        return default
-    if value.kind is ValueKind.NUMBER and name in {"OFMT", "CONVFMT"}:
-        return default
-    return coerce_scalar_to_string(value, state)
-
-
-def coerce_print_value_to_string(value: AwkValue, state: RuntimeState | None = None) -> str:
-    """Coerce one runtime value to the text used by `print`."""
-    match value.kind:
-        case ValueKind.UNINITIALIZED:
-            return ""
-        case ValueKind.NUMBER:
-            return format_numeric_value(value.number, numeric_format_text(state, "OFMT", DEFAULT_OFMT))
-        case ValueKind.STRING:
-            return value.string
-
-
-def output_redirect_target_text(
-    redirect: OutputRedirect,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Render one output redirect target using AWK string coercions."""
-    return evaluate_string_expression(redirect.target, state, record, locals_scope)
-
-
-def open_output_stream(
-    redirect: OutputRedirect,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> TextIO:
-    """Open or reuse one redirected output stream."""
-    target = output_redirect_target_text(redirect, state, record, locals_scope)
-    key = (target, redirect.kind)
-    existing = state.output_streams.get(key)
-    if existing is not None:
-        return existing
-
-    if redirect.kind is OutputRedirectKind.PIPE:
-        process = subprocess.Popen(
-            target,
-            shell=True,
-            text=True,
-            encoding=RUNTIME_TEXT_ENCODING,
-            errors=RUNTIME_TEXT_ERRORS,
-            stdin=subprocess.PIPE,
-        )
-        if process.stdin is None:
-            raise RuntimeError(f"failed to open pipe output: {target}")
-        state.output_processes[key] = process
-        state.output_streams[key] = process.stdin
-        return process.stdin
-
-    mode = "w" if redirect.kind is OutputRedirectKind.WRITE else "a"
-    stream = open(target, mode, encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS)
-    state.output_streams[key] = stream
-    return stream
-
-
-def close_output_key(state: RuntimeState, key: tuple[str, OutputRedirectKind]) -> float:
-    """Close one cached output stream and return its close status."""
-    stream = state.output_streams.pop(key, None)
-    process = state.output_processes.pop(key, None)
-    if stream is None:
-        return -1.0
-
-    stream.close()
-    if process is None:
-        return 0.0
-    return float(process.wait())
-
-
-def close_output_target(state: RuntimeState, target: str) -> float:
-    """Close every cached output bound to one AWK redirection string."""
-    result = -1.0
-    matched = False
-    for key in tuple(state.output_streams):
-        if key[0] != target:
-            continue
-        matched = True
-        result = close_output_key(state, key)
-    return result if matched else -1.0
-
-
-def getline_input_stream(state: RuntimeState, target: str) -> HostGetlineInput:
-    """Open or reuse one file-backed `getline < file` input source."""
-    existing = state.input_streams.get(target)
-    if existing is not None:
-        return existing
-    stream = HostGetlineInput(content=Path(target).read_text(encoding=RUNTIME_TEXT_ENCODING, errors=RUNTIME_TEXT_ERRORS))
-    state.input_streams[target] = stream
-    return stream
-
-
-def close_input_target(state: RuntimeState, target: str) -> float:
-    """Close one cached `getline` file source."""
-    if state.input_streams.pop(target, None) is None:
-        return -1.0
-    return 0.0
-
-
-def close_io_target(state: RuntimeState, target: str) -> float:
-    """Close one cached output or `getline` file stream."""
-    output_result = close_output_target(state, target)
-    input_result = close_input_target(state, target)
-    if output_result >= 0.0:
-        return output_result
-    return input_result
-
-
-def close_all_outputs(state: RuntimeState) -> None:
-    """Best-effort close of all cached redirected outputs."""
-    for key in tuple(state.output_streams):
-        _ = close_output_key(state, key)
-
-
-def close_all_inputs(state: RuntimeState) -> None:
-    """Best-effort close of all cached `getline` file streams."""
-    for target in tuple(state.input_streams):
-        _ = close_input_target(state, target)
-
-
-def render_print_output(
-    arguments: tuple[Expr, ...],
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Render one `print` statement using the current output-separator variables."""
-    ors = output_variable_text(state, "ORS", "\n")
-    if not arguments:
-        return (record.field0 if record is not None else "") + ors
-
-    ofs = output_variable_text(state, "OFS", " ")
-    rendered = [
-        coerce_print_value_to_string(evaluate_value_expression(argument, state, record, locals_scope), state)
-        for argument in arguments
-    ]
-    return ofs.join(rendered) + ors
-
-
-def initialize_builtin_variables(state: RuntimeState) -> None:
-    """Seed the builtin variables tracked by the host runtime."""
-    argc = 1 + (0 if state.input_state is None else len(state.input_state.files))
-    initial_fs = state.variables.get("FS")
-    initial_rs = state.variables.get("RS")
-    state.variables["NR"] = make_numeric_value(0.0)
-    state.variables["FNR"] = make_numeric_value(0.0)
-    state.variables["NF"] = make_numeric_value(0.0)
-    state.variables["ARGC"] = make_numeric_value(float(argc))
-    state.variables["FILENAME"] = make_string_value(state.current_filename)
-    state.variables["FS"] = make_string_value(builtin_field_separator_text(state.field_separator))
-    state.variables["RS"] = make_string_value(state.record_separator)
-    state.variables["OFS"] = make_string_value(" ")
-    state.variables["ORS"] = make_string_value("\n")
-    state.variables["OFMT"] = make_string_value(DEFAULT_OFMT)
-    state.variables["CONVFMT"] = make_string_value(DEFAULT_CONVFMT)
-    state.variables["RSTART"] = make_numeric_value(0.0)
-    state.variables["RLENGTH"] = make_numeric_value(-1.0)
-    state.variables["SUBSEP"] = make_string_value("\x1c")
-    state.arrays["ARGV"] = build_argv_array(state)
-    state.arrays["ENVIRON"] = build_environ_array()
-    if initial_fs is not None:
-        assign_scalar_value("FS", initial_fs, state, record=None, locals_scope=None)
-    if initial_rs is not None:
-        assign_scalar_value("RS", initial_rs, state, record=None, locals_scope=None)
-
-
-def update_record_builtin_variables(state: RuntimeState, record: RecordContext) -> None:
-    """Refresh builtin variables for the active input record."""
-    current_nr = coerce_scalar_to_number(state.variables.get("NR", make_numeric_value(0.0)))
-    current_fnr = coerce_scalar_to_number(state.variables.get("FNR", make_numeric_value(0.0)))
-    state.variables["NR"] = make_numeric_value(current_nr + 1.0)
-    state.variables["FNR"] = make_numeric_value(current_fnr + 1.0)
-    state.variables["NF"] = make_numeric_value(float(len(record.fields)))
-    state.variables["FILENAME"] = make_string_value(state.current_filename)
-
-
-def build_argv_array(state: RuntimeState) -> dict[str, AwkValue]:
-    """Build the POSIX `ARGV` builtin array for the current CLI input operands."""
-    entries: dict[str, AwkValue] = {"0": make_string_value(state.argv0)}
-    if state.input_state is None:
-        return entries
-    for index, file_entry in enumerate(state.input_state.files, start=1):
-        entries[str(index)] = make_string_value(file_entry.filename)
-    return entries
-
-
-def build_environ_array() -> dict[str, AwkValue]:
-    """Build the POSIX `ENVIRON` builtin array from the process environment."""
-    return {name: make_string_value(value) for name, value in os.environ.items()}
-
-
-def make_numeric_value(value: float) -> AwkValue:
-    """Create one numeric runtime value."""
-    return AwkValue(ValueKind.NUMBER, number=value)
-
-
-def make_string_value(value: str) -> AwkValue:
-    """Create one string runtime value."""
-    return AwkValue(ValueKind.STRING, string=value)
-
-
-def make_initial_value(value: InitialVariableValue) -> AwkValue:
-    """Create one preassigned runtime value from the CLI-facing type."""
-    if isinstance(value, str):
-        return make_string_value(value)
-    return make_numeric_value(value)
-
-
-def parse_awk_numeric_prefix(text: str) -> float:
-    """Parse the numeric prefix AWK would use when coercing a string to a number."""
-    match = NUMERIC_PREFIX_PATTERN.match(text)
-    if match is None:
-        return 0.0
-    return float(match.group(1))
-
-
-def awk_string_is_numeric(text: str) -> bool:
-    """Report whether one AWK string should count as a full numeric string."""
-    return FULL_NUMERIC_PATTERN.fullmatch(text) is not None
-
-
-def compare_values(
-    op: BinaryOp,
-    left: Expr,
-    right: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> bool:
-    """Evaluate one comparison operator with AWK-style string/number coercions."""
-    left_value = evaluate_value_expression(left, state, record, locals_scope)
-    right_value = evaluate_value_expression(right, state, record, locals_scope)
-
-    left_forces_string = expression_forces_string_comparison(left)
-    right_forces_string = expression_forces_string_comparison(right)
-    left_numericish = left_value.kind is not ValueKind.STRING or awk_string_is_numeric(left_value.string)
-    right_numericish = right_value.kind is not ValueKind.STRING or awk_string_is_numeric(right_value.string)
-
-    if left_forces_string or right_forces_string or not (left_numericish and right_numericish):
-        left_string = coerce_scalar_to_string(left_value, state)
-        right_string = coerce_scalar_to_string(right_value, state)
-        match op:
-            case BinaryOp.LESS:
-                return left_string < right_string
-            case BinaryOp.LESS_EQUAL:
-                return left_string <= right_string
-            case BinaryOp.GREATER:
-                return left_string > right_string
-            case BinaryOp.GREATER_EQUAL:
-                return left_string >= right_string
-            case BinaryOp.EQUAL:
-                return left_string == right_string
-            case BinaryOp.NOT_EQUAL:
-                return left_string != right_string
-            case _:
-                raise RuntimeError(f"unsupported comparison operator in current runtime: {op.name}")
-
-    left_number = coerce_scalar_to_number(left_value)
-    right_number = coerce_scalar_to_number(right_value)
-    match op:
-        case BinaryOp.LESS:
-            return left_number < right_number
-        case BinaryOp.LESS_EQUAL:
-            return left_number <= right_number
-        case BinaryOp.GREATER:
-            return left_number > right_number
-        case BinaryOp.GREATER_EQUAL:
-            return left_number >= right_number
-        case BinaryOp.EQUAL:
-            return left_number == right_number
-        case BinaryOp.NOT_EQUAL:
-            return left_number != right_number
-        case _:
-            raise RuntimeError(f"unsupported comparison operator in current runtime: {op.name}")
-
-
-def evaluate_match_expression(
-    left: Expr,
-    right: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> bool:
-    """Evaluate one string/regex match expression in the host runtime."""
-    left_string = evaluate_string_expression(left, state, record, locals_scope)
-    right_value = evaluate_value_expression(right, state, record, locals_scope)
-    pattern_text = coerce_scalar_to_string(right_value, state)
-    if isinstance(right, RegexLiteralExpr):
-        pattern_text = right.raw_text[1:-1]
-    return re.search(pattern_text, left_string) is not None
-
-
-def evaluate_in_expression(
-    left: Expr,
-    right: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> bool:
-    """Evaluate the current subset's array-membership operator."""
-    if not isinstance(right, NameExpr):
-        raise RuntimeError("the current runtime only supports `in` against a named array")
-    key = coerce_scalar_to_string(evaluate_value_expression(left, state, record, locals_scope), state)
-    return key in state.arrays.get(right.name, {})
-
-
-def evaluate_field_index(
-    expression: Expr,
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> int:
-    """Evaluate one dynamic field reference into an integer field index."""
-    return int(evaluate_numeric_expression(expression, state, record, locals_scope))
-
-
-def assign_field_value(
-    index_expression: Expr,
-    value: AwkValue,
-    state: RuntimeState,
-    record: RecordContext,
-    locals_scope: LocalScope | None,
-) -> None:
-    """Assign one value through a field lvalue and update `$0`/field views."""
-    field_index = evaluate_field_index(index_expression, state, record, locals_scope)
-    string_value = coerce_scalar_to_string(value, state)
-    if field_index == 0:
-        record.field0 = string_value
-        record.fields = split_fields(string_value, state.field_separator)
-        return
-    if field_index < 0:
-        raise RuntimeError("negative field indexes are not supported by the current runtime")
-
-    while len(record.fields) < field_index:
-        record.fields.append("")
-    record.fields[field_index - 1] = string_value
-    rebuild_record_from_fields(record, state)
-
-
-def render_printf_output(
-    arguments: tuple[Expr, ...],
-    state: RuntimeState,
-    record: RecordContext | None,
-    locals_scope: LocalScope | None,
-) -> str:
-    """Render one `printf` call using the current subset's format support."""
-    format_text = evaluate_string_expression(arguments[0], state, record, locals_scope)
-    specifiers = [match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_text) if match.group(1) != "%"]
-    if len(specifiers) != len(arguments) - 1:
-        raise RuntimeError("printf argument count does not match the format string in the current runtime")
-
-    formatted_args: list[object] = []
-    for specifier, argument in zip(specifiers, arguments[1:], strict=True):
-        value = evaluate_value_expression(argument, state, record, locals_scope)
-        if specifier in {"s"}:
-            formatted_args.append(coerce_scalar_to_string(value, state))
-            continue
-        if specifier in {"c", "d", "i", "o", "u", "x", "X"}:
-            formatted_args.append(int(coerce_scalar_to_number(value)))
-            continue
-        formatted_args.append(coerce_scalar_to_number(value))
-
-    if not formatted_args:
-        return format_text % ()
-    if len(formatted_args) == 1:
-        return format_text % formatted_args[0]
-    return format_text % tuple(formatted_args)
-
-def resolve_field_value(index: int, record: RecordContext) -> str:
-    """Resolve the value of a supported field expression."""
-    if index == 0:
-        return record.field0
-    field_position = index - 1
-    if 0 <= field_position < len(record.fields):
-        return record.fields[field_position]
-    return ""
-
-
 def static_field_index(expression: FieldExpr) -> int:
     """Return the current subset's literal field index or raise for dynamic fields."""
     if not isinstance(expression.index, int):
@@ -4895,164 +3304,16 @@ def supports_direct_function_backend_subset(program: Program) -> bool:
     return all(supports_statement(statement, in_function=False, local_names=frozenset()) for statement in direct_begin_statements)
 
 
-def requires_host_runtime_execution(program: Program) -> bool:
-    """Report whether execution must use the host runtime instead of LLVM lowering."""
-    return (
-        has_function_definitions(program)
-        and not supports_direct_function_backend_subset(program)
-    ) or (
-        has_host_runtime_only_operations(program)
-        and not supports_runtime_backend_subset(program)
-        and not supports_direct_function_backend_subset(program)
-    )
-
-
-def requires_host_runtime_value_execution(program: Program) -> bool:
-    """Report whether public execution needs the host runtime's richer value semantics."""
-    if supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program):
-        return False
-
-    def expression_needs_value_runtime(expression: Expr, *, allow_string_literal: bool) -> bool:
-        match expression:
-            case NumericLiteralExpr():
-                return False
-            case StringLiteralExpr():
-                return not allow_string_literal
-            case NameExpr():
-                return True
-            case FieldExpr(index=index):
-                return not isinstance(index, int)
-            case ArrayIndexExpr() | CallExpr() | ConditionalExpr() | AssignExpr() | UnaryExpr() | PostfixExpr():
-                return True
-            case RegexLiteralExpr():
-                return False
-            case BinaryExpr(op=op, left=left, right=right):
-                if op is BinaryOp.CONCAT:
-                    return True
-                return (
-                    expression_needs_value_runtime(left, allow_string_literal=False)
-                    or expression_needs_value_runtime(right, allow_string_literal=False)
-                )
-            case _:
-                return True
-
-    def statement_needs_value_runtime(statement: Stmt) -> bool:
-        match statement:
-            case AssignStmt(value=value):
-                return expression_needs_value_runtime(value, allow_string_literal=False)
-            case BlockStmt(statements=statements):
-                return any(statement_needs_value_runtime(nested) for nested in statements)
-            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-                if expression_needs_value_runtime(condition, allow_string_literal=False):
-                    return True
-                if statement_needs_value_runtime(then_branch):
-                    return True
-                return else_branch is not None and statement_needs_value_runtime(else_branch)
-            case WhileStmt(condition=condition, body=body):
-                return (
-                    expression_needs_value_runtime(condition, allow_string_literal=False)
-                    or statement_needs_value_runtime(body)
-                )
-            case DoWhileStmt(body=body, condition=condition):
-                return (
-                    statement_needs_value_runtime(body)
-                    or expression_needs_value_runtime(condition, allow_string_literal=False)
-                )
-            case PrintStmt(arguments=arguments):
-                return any(
-                    expression_needs_value_runtime(argument, allow_string_literal=True) for argument in arguments
-                )
-            case PrintfStmt(arguments=arguments):
-                return any(
-                    expression_needs_value_runtime(argument, allow_string_literal=False) for argument in arguments
-                )
-            case ExprStmt(value=value):
-                return expression_needs_value_runtime(value, allow_string_literal=False)
-            case ReturnStmt(value=value):
-                return value is not None and expression_needs_value_runtime(value, allow_string_literal=False)
-            case _:
-                return False
-
-    for item in program.items:
-        if isinstance(item, FunctionDef):
-            if any(statement_needs_value_runtime(statement) for statement in item.body.statements):
-                return True
-            continue
-        if isinstance(item, PatternAction) and item.action is not None:
-            if any(statement_needs_value_runtime(statement) for statement in item.action.statements):
-                return True
-        if isinstance(item, PatternAction) and item.action is None:
-            return True
-    return False
-
-
-def supports_claimed_value_runtime_subset(program: Program) -> bool:
-    """Report whether one claimed BEGIN/END-only value-semantics case can use the reusable runtime path."""
-    normalized_program = normalize_program_for_lowering(program)
-    if normalized_program.record_items:
-        return False
-    if any(isinstance(item, FunctionDef) for item in program.items):
-        return False
-
-    def supports_numeric_value_expression(expression: Expr) -> bool:
-        match expression:
-            case NumericLiteralExpr():
-                return True
-            case NameExpr():
-                return True
-            case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
-                return supports_numeric_value_expression(left) and supports_numeric_value_expression(right)
-            case _:
-                return False
-
-    def supports_assignment_value_expression(expression: Expr) -> bool:
-        match expression:
-            case NumericLiteralExpr():
-                return True
-            case StringLiteralExpr():
-                return True
-            case NameExpr():
-                return True
-            case _:
-                return False
-
-    def supports_string_value_expression(expression: Expr) -> bool:
-        match expression:
-            case StringLiteralExpr():
-                return True
-            case NameExpr():
-                return True
-            case _:
-                return False
-
-    def supports_statement(statement: Stmt) -> bool:
-        match statement:
-            case AssignStmt(op=AssignOp.PLAIN, name=name, index=None, extra_indexes=(), field_index=None, value=value):
-                return name is not None and supports_assignment_value_expression(value)
-            case PrintStmt(arguments=arguments, redirect=None):
-                if not arguments:
-                    return False
-                return all(
-                    supports_numeric_value_expression(argument) or supports_string_value_expression(argument)
-                    for argument in arguments
-                )
-            case _:
-                return False
-
-    return all(
-        isinstance(item, PatternAction)
-        and item.action is not None
-        and all(supports_statement(statement) for statement in item.action.statements)
-        for item in program.items
-        if not isinstance(item, FunctionDef)
-    )
-
-
 def supports_runtime_backend_subset(program: Program) -> bool:
     """Report whether `program` fits the reusable backend's current runtime-backed subset."""
 
     normalized_program = normalize_program_for_lowering(program)
     array_names = normalized_program.array_names | frozenset({"ARGV", "ENVIRON"})
+    function_defs = {
+        item.name: item
+        for item in program.items
+        if isinstance(item, FunctionDef)
+    }
 
     def ternary_branch_is_side_effect_free(expression: Expr) -> bool:
         match expression:
@@ -5096,6 +3357,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     supports_string_expression(argument, string_bindings) or supports_numeric_expression(argument)
                     for argument in args[1:]
                 )
+            case CallExpr(function=function_name, args=args) if function_name in function_defs:
+                return all(
+                    supports_string_expression(argument, string_bindings) or supports_numeric_expression(argument)
+                    for argument in args
+                )
             case CallExpr(function="substr", args=args):
                 return len(args) in {2, 3} and supports_string_expression(args[0], string_bindings) and all(
                     supports_numeric_expression(argument) for argument in args[1:]
@@ -5122,21 +3388,23 @@ def supports_runtime_backend_subset(program: Program) -> bool:
 
     def supports_array_key(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
-            case NameExpr(name=name):
-                return name in string_bindings
+            case NameExpr():
+                return True
             case NumericLiteralExpr() | StringLiteralExpr():
                 return True
             case _:
-                return False
+                return supports_string_expression(expression, string_bindings) or supports_numeric_expression(expression)
 
     def supports_numeric_expression(expression: Expr) -> bool:
         match expression:
-            case NumericLiteralExpr():
+            case NumericLiteralExpr() | StringLiteralExpr():
                 return True
             case NameExpr(name="NR" | "FNR" | "NF"):
                 return True
             case NameExpr():
                 return True
+            case FieldExpr(index=index):
+                return isinstance(index, int) or supports_numeric_expression(index)
             case AssignExpr(op=AssignOp.PLAIN, target=target, value=value):
                 match target:
                     case NameLValue() | FieldLValue():
@@ -5147,9 +3415,9 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         return False
             case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
                 return supports_numeric_expression(operand)
-            case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr()):
+            case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
                 return True
-            case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr()):
+            case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
                 return True
             case BinaryExpr(
                 op=BinaryOp.ADD
@@ -5157,33 +3425,25 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 | BinaryOp.MUL
                 | BinaryOp.DIV
                 | BinaryOp.MOD
-                | BinaryOp.POW
-                | BinaryOp.LESS
+                | BinaryOp.POW,
+                left=left,
+                right=right,
+            ):
+                return supports_numeric_expression(left) and supports_numeric_expression(right)
+            case BinaryExpr(
+                op=BinaryOp.LESS
                 | BinaryOp.LESS_EQUAL
                 | BinaryOp.GREATER
                 | BinaryOp.GREATER_EQUAL
                 | BinaryOp.EQUAL
                 | BinaryOp.NOT_EQUAL
                 | BinaryOp.LOGICAL_AND
-                | BinaryOp.LOGICAL_OR,
-                left=left,
-                right=right,
+                | BinaryOp.LOGICAL_OR
+                | BinaryOp.MATCH
+                | BinaryOp.NOT_MATCH
+                | BinaryOp.IN,
             ):
-                return supports_numeric_expression(left) and supports_numeric_expression(right)
-            case BinaryExpr(op=BinaryOp.MATCH | BinaryOp.NOT_MATCH, left=left, right=right):
-                return (
-                    (supports_string_expression(left) or supports_numeric_expression(left))
-                    and (
-                        isinstance(right, RegexLiteralExpr)
-                        or supports_string_expression(right)
-                        or supports_numeric_expression(right)
-                    )
-                )
-            case BinaryExpr(op=BinaryOp.IN, left=left, right=NameExpr(name=array_name)):
-                return (
-                    array_name in array_names
-                    and (supports_string_expression(left) or supports_numeric_expression(left))
-                )
+                return supports_condition_expression(expression)
             case CallExpr(function="split", args=args):
                 if len(args) not in {2, 3}:
                     return False
@@ -5252,6 +3512,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 )
             case CallExpr(function="atan2", args=args):
                 return len(args) == 2 and all(supports_numeric_expression(argument) for argument in args)
+            case CallExpr(function=function_name, args=args):
+                return function_name in function_defs and all(
+                    supports_string_expression(argument) or supports_numeric_expression(argument) for argument in args
+                )
             case GetlineExpr(target=target, source=source):
                 target_supported = True
                 if target is not None:
@@ -5296,7 +3560,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
 
     def supports_condition_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         def supports_comparison_operand(operand: Expr) -> bool:
-            return isinstance(operand, NumericLiteralExpr | StringLiteralExpr | FieldExpr | NameExpr)
+            return (
+                supports_string_expression(operand, string_bindings)
+                or runtime_expression_has_string_result(operand)
+                or supports_numeric_expression(operand)
+            )
 
         match expression:
             case RegexLiteralExpr():
@@ -5521,22 +3789,31 @@ def supports_runtime_backend_subset(program: Program) -> bool:
     def supports_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
             case AssignStmt(op=op, target=target, value=value):
-                if op is not AssignOp.PLAIN:
-                    return False
                 match target:
                     case NameLValue():
-                        return supports_numeric_expression(value) or supports_string_expression(value)
+                        if op is AssignOp.PLAIN:
+                            return supports_numeric_expression(value) or supports_string_expression(value)
+                        return supports_numeric_expression(value)
                     case ArrayLValue(name=name, subscripts=subscripts):
-                        return (
+                        if not (
                             name in array_names
                             and len(subscripts) == 1
                             and supports_array_key(subscripts[0], string_bindings)
-                            and (supports_numeric_expression(value) or supports_string_expression(value, string_bindings))
-                        )
+                        ):
+                            return False
+                        if op is AssignOp.PLAIN:
+                            return supports_numeric_expression(value) or supports_string_expression(
+                                value, string_bindings
+                            )
+                        return supports_numeric_expression(value)
                     case FieldLValue(index=index):
-                        return supports_numeric_expression(index) and (
-                            supports_numeric_expression(value) or supports_string_expression(value, string_bindings)
-                        )
+                        if not supports_numeric_expression(index):
+                            return False
+                        if op is AssignOp.PLAIN:
+                            return supports_numeric_expression(value) or supports_string_expression(
+                                value, string_bindings
+                            )
+                        return supports_numeric_expression(value)
                     case _:
                         return False
             case BlockStmt(statements=statements):
@@ -5618,10 +3895,28 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
+    def supports_function_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
+        match statement:
+            case BlockStmt(statements=statements):
+                return all(supports_function_statement(nested, string_bindings) for nested in statements)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                return supports_condition_expression(condition, string_bindings) and supports_function_statement(
+                    then_branch, string_bindings
+                ) and (else_branch is None or supports_function_statement(else_branch, string_bindings))
+            case ReturnStmt(value=value):
+                return value is None or supports_string_expression(value, string_bindings) or supports_numeric_expression(value)
+            case ExitStmt(value=value):
+                return value is None or supports_numeric_expression(value)
+            case _:
+                return False
+
     found_supported_runtime_feature = False
     for item in program.items:
         if isinstance(item, FunctionDef):
-            return False
+            if not all(supports_function_statement(statement) for statement in item.body.statements):
+                return False
+            found_supported_runtime_feature = True
+            continue
         if not isinstance(item, PatternAction):
             return False
         if not supports_pattern(item.pattern):
@@ -5646,6 +3941,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and statement.field_index is not None:
                 found_supported_runtime_feature = True
+            if isinstance(statement, AssignStmt) and isinstance(statement.target, NameLValue):
+                if isinstance(statement.value, NameExpr):
+                    found_supported_runtime_feature = True
+                if isinstance(statement.value, StringLiteralExpr):
+                    found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and isinstance(statement.value, CallExpr):
                 found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and isinstance(statement.target, ArrayLValue):
@@ -5654,6 +3954,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 found_supported_runtime_feature = True
             if isinstance(statement, PrintStmt) and statement.arguments:
                 argument = statement.arguments[0]
+                if isinstance(argument, NameExpr):
+                    found_supported_runtime_feature = True
+                if isinstance(argument, FieldExpr) and not isinstance(argument.index, int):
+                    found_supported_runtime_feature = True
                 if isinstance(argument, CallExpr) and argument.function == "length":
                     found_supported_runtime_feature = True
                 if isinstance(argument, ArrayIndexExpr):
@@ -5862,6 +4166,20 @@ def render_user_function(function_def: FunctionDef, state: LoweringState) -> str
     return "\n".join(
         [
             f"define double @qk_fn_{function_def.name}({arguments}) {{",
+            "entry:",
+            *state.allocas,
+            *state.instructions,
+            "}",
+        ]
+    )
+
+
+def render_runtime_user_function(function_def: FunctionDef, state: LoweringState) -> str:
+    """Render one lowered runtime-backed user-defined function."""
+    arguments = ", ".join(["ptr %rt", "ptr %state", *(f"ptr %arg.{index}" for index, _ in enumerate(function_def.params))])
+    return "\n".join(
+        [
+            f"define ptr @qk_fn_{function_def.name}({arguments}) {{",
             "entry:",
             *state.allocas,
             *state.instructions,

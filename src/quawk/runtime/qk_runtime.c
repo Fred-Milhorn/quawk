@@ -973,14 +973,14 @@ static bool qk_rebuild_current_record(
     if (runtime == NULL) {
         return false;
     }
-    if (runtime->current_record == NULL) {
-        return true;
-    }
     if (index == 0) {
         if (!qk_replace_current_record(runtime, value)) {
             return false;
         }
         return qk_rebuild_fields(runtime);
+    }
+    if (runtime->current_record == NULL) {
+        return true;
     }
 
     if ((index > 0) && (target_fields < (size_t)index)) {

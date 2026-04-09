@@ -451,10 +451,9 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { x = 1 + 2; print x }")
 
     assert result.returncode == 0, result.stderr
-    assert "alloca double" in result.stdout
-    assert "store double %add.1, ptr %var.x.0" in result.stdout
-    assert "load double, ptr %var.x.0" in result.stdout
-    assert "call i32 (ptr, ...) @printf(" in result.stdout
+    assert "@qk_scalar_set_number(" in result.stdout
+    assert "@qk_scalar_get(" in result.stdout
+    assert "@qk_print_number(" in result.stdout
     assert result.stderr == ""
 
 
@@ -704,6 +703,35 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_p22_arithmetic_program() 
     assert "fdiv double" in result.stdout
     assert "@llvm.trunc.f64" in result.stdout
     assert "@llvm.pow.f64" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_prints_backend_ir_for_runtime_compound_assignment_program() -> None:
+    result = run_quawk("--ir", '{ total += $2; $2 /= 1000; print total; print $2 }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_set_field_number(" in result.stdout
+    assert "@qk_scalar_set_number(" in result.stdout
+    assert "@qk_parse_number_text(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_supports_runtime_compound_assignment_and_concat_comparison_programs() -> None:
+    result = run_quawk(
+        '{ total += $2; $2 /= 1000; print ($1 "" == $1 ""); print $2; print total }',
+        stdin="alpha 2000\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n2\n2000\n"
+    assert result.stderr == ""
+
+
+def test_quawk_supports_numeric_begin_field_zero_assignment() -> None:
+    result = run_quawk("BEGIN { $0 = 1; print $1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n"
     assert result.stderr == ""
 
 

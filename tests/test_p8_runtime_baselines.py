@@ -378,6 +378,25 @@ def test_dynamic_field_assignment_updates_the_selected_field() -> None:
     assert result.stderr == ""
 
 
+def test_compound_assignments_execute_in_runtime_backed_programs() -> None:
+    result = run_quawk(
+        '{ total += $2; $2 /= 1000; print ($1 "" == $1 ""); print $2; print total }',
+        stdin="alpha 2000\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n2\n2000\n"
+    assert result.stderr == ""
+
+
+def test_numeric_begin_field_zero_assignment_initializes_the_current_record() -> None:
+    result = run_quawk("BEGIN { $0 = 1; print $1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n"
+    assert result.stderr == ""
+
+
 def test_builtin_variables_nr_fnr_and_nf_update_per_record() -> None:
     result = run_quawk("{ print NR; print FNR; print NF }", stdin="a b\nc d\n")
 

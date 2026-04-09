@@ -81,6 +81,6 @@ def test_t188_roadmap_records_p17_complete() -> None:
 
     assert "| T-187 | P17 | P1 | Update imports, tests, docs, and CI references to the new namespace and commands | T-185, T-186 | Internal imports, pytest modules, contributor docs, and CI bootstrap commands all use `quawk.compat` and the package-owned entrypoints consistently | done |" in roadmap_text
     assert "| T-188 | P17 | P1 | Rebaseline repo layout docs and final namespace audit after the refactor lands | T-187 | `docs/history/repo-refactor.md`, roadmap/docs, and focused compatibility-tooling regressions agree on the final layout, and no stale flat-module or wrapper-script references remain | done |" in roadmap_text
-    assert "`P17` closeout is complete. No further compatibility-tooling namespace" in roadmap_text
+    assert "| P17 | Compatibility Tooling Namespace Cleanup | Corpus and upstream-compatibility tooling move under `quawk.compat`, and the singleton script wrapper is removed |" in roadmap_text
     assert "Next deliverable: P17 compatibility tooling namespace cleanup" not in roadmap_text
-    assert "Immediate next tasks:" not in roadmap_text
+    assert "Immediate next tasks:" in roadmap_text
