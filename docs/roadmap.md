@@ -630,6 +630,7 @@ Current state:
 - `T-231` updates lowering to use runtime slot indexes for known variables
 - `T-232` preserves hash fallback when slot-allocation storage is `hash`
 - `T-233` adds slot-based variable access tests for IR and execution behavior
+- `T-234` adds a slot-vs-hash microbenchmark, showing `2.66x` median slot speedup in local runs
 - `T-197` through `T-207` are complete
 - `T-208` through `T-212` close the full `P21` wave
 - `T-213` through `T-217` close the full `P22` wave
@@ -641,7 +642,9 @@ Current state:
 - performance optimization planning is complete; implementation begins with P25
 
 Immediate next tasks:
-- `T-234`: benchmark slot vs hash access performance
+- `T-235`: define type lattice and join operation
+- `T-236`: implement expression type inference
+- `T-237`: implement variable type propagation
 
 P25 entry criteria:
 - `T-227` through `T-233` must complete before P26 type inference begins
@@ -882,7 +885,7 @@ Priority values:
 | T-231 | P25 | P0 | Update lowering to use slot addresses for known variables | T-228, T-229 | Numeric variables use direct slot access in generated IR | done |
 | T-232 | P25 | P1 | Preserve fallback to hash lookup for dynamic variables | T-231 | Dynamic/unknown variables still work via string-named hash | done |
 | T-233 | P25 | P1 | Add tests for slot-based variable access | T-231 | Variable access tests pass with slot-based implementation | done |
-| T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | todo |
+| T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | done |
 | T-235 | P26 | P0 | Define type lattice and join operation | - | `TypeLattice` class with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | todo |
 | T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | todo |
 | T-237 | P26 | P0 | Implement variable type propagation | T-236 | Variables get consistent types across assignments | todo |

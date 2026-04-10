@@ -165,6 +165,20 @@ Required coverage:
 
 Do not add tests that assert specific timing or memory thresholds.
 
+## T-234 Slot vs Hash Microbenchmark
+
+For `T-234`, the repo now includes a focused microbenchmark script:
+
+```sh
+uv run python scripts/benchmark_slot_vs_hash.py
+```
+
+Sample run on April 10, 2026 (`--iterations 2000000 --repetitions 7 --warmups 2`):
+
+- slot median: `12.688 ms`
+- hash median: `33.801 ms`
+- median speedup (`slot` vs `hash`): `2.66x`
+
 ## Assumptions
 
 - the benchmark is a local engineering tool, not a release gate
