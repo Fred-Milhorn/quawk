@@ -43,6 +43,11 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P22 | Arithmetic Widening | The broader arithmetic family becomes claimed only when it executes through the compiled backend/runtime path with inspection parity and no public host fallback |
 | P23 | Ternary Widening | Ternary expressions become claimed only when they execute through the compiled backend/runtime path with inspection parity and no public host fallback |
 | P24 | Match and Membership Widening | Match operators and `in` become claimed only when they execute through the compiled backend/runtime path with inspection parity and no public host fallback |
+| P25 | Static Variable Slots | Compile-time allocation of typed variable slots in state struct instead of string-named hash table entries |
+| P26 | Type Inference | Static inference of numeric vs string types for variables to enable specialized code generation |
+| P27 | Specialized Operations | Type-aware code generation for numeric/string fast paths in comparisons, arithmetic, and variable access |
+| P28 | LLVM Optimization Integration | Optional optimization passes for generated IR to enable constant folding and register allocation |
+| P29 | Runtime ABI Refinement | Direct-call convention improvements for hot paths to reduce function call overhead |
 
 ## Phase Entry and Exit Rules
 
@@ -506,27 +511,141 @@ Exit criteria:
 - the repo has an explicit next-step policy for unclaimed host-routed programs
   instead of relying on implicit behavior
 
+### P25: Static Variable Slots
+
+Objective:
+- allocate known variables in fixed struct offsets instead of string-named
+  hash table entries, enabling direct memory access for compile-time-known
+  variables
+
+In scope:
+- design slot allocation data structures (`VariableSlot`, `SlotAllocation`)
+- implement slot allocation pass over normalized AST
+- generate LLVM struct type with typed variable slots for the state struct
+- add runtime slot accessor functions for numeric and string slots
+- update lowering to emit slot addresses for known variables
+- preserve fallback to string-named hash for dynamic/unknown variables
+- implementation details live in [performance-implementation.md](performance-implementation.md)
+
+Exit criteria:
+- all scalar variables in `BEGIN` blocks use static slots in generated IR
+- slot-based variable access tests pass
+- string-based hash access still works for dynamic cases
+- `--ir` output shows direct slot access for simple programs
+
+### P26: Type Inference
+
+Objective:
+- infer whether variables are numeric-only, string-only, or mixed at compile
+  time, enabling type-aware code generation
+
+In scope:
+- define type lattice with `UNKNOWN`, `NUMERIC`, `STRING`, `MIXED`
+- implement type inference pass over AST
+- propagate types through assignments and expressions
+- handle control flow conservatively (assume any execution count)
+- classify field access (`$1`) and user input as `MIXED`
+- store type annotations in lowering state for use during code generation
+- implementation details live in [performance-implementation.md](performance-implementation.md)
+
+Exit criteria:
+- type inference pass produces type annotations for all variables
+- numeric-only variables identified in simple programs (e.g., `for (i=1; i<=10; i++)`)
+- inference tests cover numeric, string, mixed, and unknown cases
+- no regression in correctness for mixed-type programs
+
+### P27: Specialized Operations
+
+Objective:
+- generate type-specialized IR for operations where types are known
+
+In scope:
+- numeric fast path for arithmetic on known-numeric variables
+- numeric fast path for comparisons where both operands are numeric
+- string fast path for concatenation where strings are known
+- slot-based direct load/store for known-type variables
+- fallback to full AWK semantics for mixed/unknown types
+- implementation details live in [performance-implementation.md](performance-implementation.md)
+
+Exit criteria:
+- numeric-only loops show direct `fcmp` instructions in `--ir` output
+- arithmetic on numeric variables uses direct `fadd`/`fsub`/`fmul`/`fdiv`
+- full AWK semantics preserved for mixed/unknown types
+- performance benchmarks show measurable improvement
+
+### P28: LLVM Optimization Integration
+
+Objective:
+- apply LLVM optimization passes to generated IR for constant folding, dead
+  code elimination, and register allocation
+
+In scope:
+- add `--optimize` / `-O` CLI flag
+- implement IR optimization using LLVM `opt` tool
+- define pass pipeline for level 1 (basic) and level 2 (aggressive)
+- integrate optimization into public execution path
+- add `--ir=optimized` mode for inspection
+- handle missing `opt` gracefully with fallback
+- implementation details live in [performance-implementation.md](performance-implementation.md)
+
+Exit criteria:
+- `quawk -O program.awk` produces optimized IR
+- constant expressions like `1 + 2` are folded by optimizer
+- dead variable stores are eliminated
+- optimization is optional and does not affect correctness
+
+### P29: Runtime ABI Refinement
+
+Objective:
+- reduce function call overhead for hot operations through inline-able fast
+  paths and optimized calling conventions
+
+In scope:
+- profile current hot paths to identify top-called runtime functions
+- add slot storage arrays to runtime struct for slot-based variables
+- add inline slot accessor functions for hot variable operations
+- create slot-aware runtime entry point
+- generate IR calls to fast-path entry points where applicable
+- document ABI stability guarantees
+- implementation details live in [performance-implementation.md](performance-implementation.md)
+
+Exit criteria:
+- hot paths identified with profiling data
+- slot-based inline accessors available in runtime
+- generated IR uses fast-path calls for slot variables
+- microbenchmarks show reduced call overhead
+- runtime ABI documented for future stability
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-No active widening phase is currently scheduled.
+Performance optimization phase P25 is now active. The P20-P24 widening waves are complete.
 
 Current state:
 - `T-197` through `T-207` are complete, `T-208` through `T-212` close the full
   `P21` wave, `T-213` through `T-217` close the full `P22` wave, `T-218`
   through `T-221` close the full `P23` wave, and `T-222` through `T-226` now
   close the full `P24` wave
-- `T-208` through `T-212` close the full `P21` wave
-- `T-213` through `T-217` close the full `P22` wave
-- `T-218` through `T-221` close the full `P23` wave
-- `T-222` through `T-226` now close the full `P24` wave
 - the currently claimed widened expression surface executes through the
   compiled backend/runtime path with `--ir` / `--asm` support and no public
   Python host fallback
+- performance optimization planning is complete; implementation begins with P25
 
 Immediate next tasks:
-- none; future widening work should start with a new explicit roadmap phase and baseline
+- `T-227`: design slot allocation data structures for compile-time variable slots
+- `T-228`: implement slot allocation pass over normalized AST
+- `T-229`: generate LLVM struct type for extended state
+- `T-230`: add runtime slot accessor functions in C
+- `T-231`: update lowering to use slot addresses for known variables
+- `T-232`: preserve fallback to hash lookup for dynamic variables
+- `T-233`: add tests for slot-based variable access
+- `T-234`: benchmark slot vs hash access performance
+
+P25 entry criteria:
+- `T-227` through `T-233` must complete before P26 type inference begins
+- implementation details for all performance phases live in
+  [performance-implementation.md](performance-implementation.md)
 
 ## Backlog
 
@@ -754,6 +873,46 @@ Priority values:
 | T-098 | P4 | P0 | Extend runtime support for boolean results, equality, and logical AND | T-097, T-106 | Runtime executes `==` and `&&` correctly for the planned `BEGIN` programs on the reusable streaming backend | done |
 | T-099 | P4 | P0 | Extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions | T-098 | `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` execute through the reusable LLVM-backed path | done |
 | T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of broader expression support | T-099 | Integration tests pass for the planned equality/logical-expression programs on the reusable runtime path | done |
+
+| T-227 | P25 | P0 | Design slot allocation data structures for compile-time variable slots | T-226 | `VariableSlot` and `SlotAllocation` structs are defined and reviewed in `docs/performance-implementation.md` | todo |
+| T-228 | P25 | P0 | Implement slot allocation pass over normalized AST | T-227 | Pass produces `SlotAllocation` with variable slot indices | todo |
+| T-229 | P25 | P0 | Generate LLVM struct type for extended state | T-228 | `--ir` shows `%quawk.state` struct with variable slots | todo |
+| T-230 | P25 | P1 | Add runtime slot accessor functions in C | - | `qk_slot_get_number`, `qk_slot_set_number`, etc. compile and link | todo |
+| T-231 | P25 | P0 | Update lowering to use slot addresses for known variables | T-228, T-229 | Numeric variables use direct slot access in generated IR | todo |
+| T-232 | P25 | P1 | Preserve fallback to hash lookup for dynamic variables | T-231 | Dynamic/unknown variables still work via string-named hash | todo |
+| T-233 | P25 | P1 | Add tests for slot-based variable access | T-231 | Variable access tests pass with slot-based implementation | todo |
+| T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | todo |
+| T-235 | P26 | P0 | Define type lattice and join operation | - | `TypeLattice` class with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | todo |
+| T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | todo |
+| T-237 | P26 | P0 | Implement variable type propagation | T-236 | Variables get consistent types across assignments | todo |
+| T-238 | P26 | P1 | Handle control flow conservatively in type inference | T-237 | Loops and conditionals don't lose type information incorrectly | todo |
+| T-239 | P26 | P1 | Add field access type (always mixed) | T-236 | Field expressions typed as `MIXED` | todo |
+| T-240 | P26 | P1 | Store type annotations in lowering state | T-237, T-238, T-239 | `LoweringState` has `type_info` member | todo |
+| T-241 | P26 | P2 | Add tests for type inference correctness | T-237, T-238 | All inference tests pass | todo |
+| T-242 | P27 | P0 | Implement numeric comparison fast path | T-25, P26-T02 | Direct `fcmp` instruction emitted for `numeric <op> numeric` | todo |
+| T-243 | P27 | P0 | Implement numeric arithmetic fast path | T-25, P26-T02 | Direct `fadd`/`fsub`/`fmul`/`fdiv` for numeric ops | todo |
+| T-244 | P27 | P1 | Implement string concat fast path | T-26 | Direct `qk_concat` call for string operands without coercion overhead | todo |
+| T-245 | P27 | P0 | Implement slot-based numeric variable read/write | P25, P26 | Direct `load`/`store` for slot-based numeric variables | todo |
+| T-246 | P27 | P1 | Implement slot-based string variable read/write | P25, P26 | Direct string slot access for known-string variables | todo |
+| T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | todo |
+| T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | todo |
+| T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | todo |
+| T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | todo |
+| T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | todo |
+| T-252 | P28 | P0 | Integrate optimization into execute path | T-251 | Programs run with `-O` show optimized IR | todo |
+| T-253 | P28 | P1 | Add `--ir=optimized` for inspection mode | T-251, T-250 | Shows optimized IR when requested | todo |
+| T-254 | P28 | P1 | Define pass pipeline for each optimization level | T-251 | Level 1 (basic) and level 2 (aggressive) pipelines documented | todo |
+| T-255 | P28 | P2 | Handle opt not found gracefully | T-251 | Warning emitted, fallback to unoptimized | todo |
+| T-256 | P28 | P2 | Add tests for optimization flag behavior | T-252 | Tests pass with optimization enabled | todo |
+| T-257 | P28 | P2 | Benchmark optimized vs unoptimized performance | T-256 | Numbers show benefit of optimization passes | todo |
+| T-258 | P29 | P1 | Profile current hot paths in runtime | - | Top 10 called functions identified with call counts | todo |
+| T-259 | P29 | P0 | Add slot storage arrays to runtime struct | P25 | `qk_runtime` has `numeric_slots`, `string_slots` arrays | todo |
+| T-260 | P29 | P0 | Add inline slot accessor functions | T-259 | `qk_slot_get_number_inline`, etc. defined in header | todo |
+| T-261 | P29 | P0 | Create slot-based runtime entry point | T-259 | `qk_runtime_create_with_slots()` available | todo |
+| T-262 | P29 | P1 | Add inline fast-path versions of hot functions | T-258, T-260 | Inline-able fast paths for top hot paths | todo |
+| T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | todo |
+| T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | todo |
+| T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | todo |
 
 ## Cross-Cutting Tracks
 
