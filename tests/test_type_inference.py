@@ -7,7 +7,15 @@ import pytest
 from quawk.lexer import lex
 from quawk.parser import PatternAction, PrintStmt, parse
 from quawk.source import ProgramSource
-from quawk.type_inference import LatticeType, can_be_numeric, can_be_string, infer_expression_type, join, join_all
+from quawk.type_inference import (
+    LatticeType,
+    can_be_numeric,
+    can_be_string,
+    infer_expression_type,
+    infer_variable_types,
+    join,
+    join_all,
+)
 
 
 def parse_begin_print_expr(source_expression: str):
@@ -19,6 +27,10 @@ def parse_begin_print_expr(source_expression: str):
     assert isinstance(statement, PrintStmt)
     assert statement.arguments
     return statement.arguments[0]
+
+
+def parse_program(source_text: str):
+    return parse(lex(ProgramSource.from_inline(source_text)))
 
 
 # ---------------------------------------------------------------------------
@@ -206,3 +218,37 @@ class TestInferExpressionType:
     def test_ternary_joins_branch_types(self) -> None:
         expression = parse_begin_print_expr('1 ? "x" : 2')
         assert infer_expression_type(expression) is LatticeType.MIXED
+
+
+# ---------------------------------------------------------------------------
+# infer_variable_types (T-237)
+# ---------------------------------------------------------------------------
+
+class TestInferVariableTypes:
+
+    def test_single_numeric_assignment(self) -> None:
+        program = parse_program("BEGIN { x = 1 }")
+        assert infer_variable_types(program) == {"x": LatticeType.NUMERIC}
+
+    def test_single_string_assignment(self) -> None:
+        program = parse_program('BEGIN { x = "hello" }')
+        assert infer_variable_types(program) == {"x": LatticeType.STRING}
+
+    def test_reassignment_joins_to_mixed(self) -> None:
+        program = parse_program('BEGIN { x = 1; x = "hello" }')
+        assert infer_variable_types(program) == {"x": LatticeType.MIXED}
+
+    def test_propagates_types_across_name_reads(self) -> None:
+        program = parse_program("BEGIN { x = 1; y = x + 1 }")
+        assert infer_variable_types(program) == {
+            "x": LatticeType.NUMERIC,
+            "y": LatticeType.NUMERIC,
+        }
+
+    def test_compound_assignment_contributes_numeric(self) -> None:
+        program = parse_program('BEGIN { x = "1"; x += 2 }')
+        assert infer_variable_types(program) == {"x": LatticeType.MIXED}
+
+    def test_if_branches_join_assignments(self) -> None:
+        program = parse_program('BEGIN { if (1) x = 1; else x = "no" }')
+        assert infer_variable_types(program) == {"x": LatticeType.MIXED}
