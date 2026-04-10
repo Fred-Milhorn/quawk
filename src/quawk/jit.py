@@ -106,6 +106,7 @@ class LoweringState:
     runtime_param: str | None = None
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
+    slot_allocation: SlotAllocation | None = None
     action_exit_label: str | None = None
     phase_exit_label: str | None = None
     break_label: str | None = None
@@ -445,6 +446,7 @@ def program_requires_linked_execution_module(
 def lower_runtime_user_functions_to_ir(
     program: Program,
     variable_indexes: dict[str, int],
+    slot_allocation: SlotAllocation,
     array_names: frozenset[str],
 ) -> tuple[list[str], list[str], int]:
     """Lower supported runtime-backed user-defined functions."""
@@ -465,6 +467,7 @@ def lower_runtime_user_functions_to_ir(
             runtime_param="%rt",
             state_param="%state",
             variable_indexes=variable_indexes,
+            slot_allocation=slot_allocation,
             array_names=array_names,
             function_defs=function_defs,
             string_index=string_index,
@@ -590,13 +593,14 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         declarations.append(state_type)
 
     function_globals, function_bodies, function_string_index = lower_runtime_user_functions_to_ir(
-        program, variable_indexes, array_names
+        program, variable_indexes, normalized_program.slot_allocation, array_names
     )
 
     begin_state = LoweringState(
         runtime_param="%rt",
         state_param="%state",
         variable_indexes=variable_indexes,
+        slot_allocation=normalized_program.slot_allocation,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
         string_index=function_string_index,
@@ -609,6 +613,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         runtime_param="%rt",
         state_param="%state",
         variable_indexes=variable_indexes,
+        slot_allocation=normalized_program.slot_allocation,
         string_index=begin_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
@@ -621,6 +626,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         runtime_param="%rt",
         state_param="%state",
         variable_indexes=variable_indexes,
+        slot_allocation=normalized_program.slot_allocation,
         string_index=record_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
@@ -2593,6 +2599,11 @@ def runtime_name_slot_index(name: str, state: LoweringState) -> int | None:
         or is_reusable_runtime_state_name(name)
     ):
         return None
+    if state.slot_allocation is not None:
+        slot = state.slot_allocation.get_slot(name)
+        if slot is None or slot.storage != "slot":
+            return None
+        return slot.index
     return state.variable_indexes.get(name)
 
 
@@ -3054,7 +3065,9 @@ def build_execution_driver_llvm_ir(
     consumes_main_input = bool(normalized_program.record_items or normalized_program.end_actions)
     state_type = extract_state_type_declaration(program_llvm_ir)
     state_variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
-    slot_variable_indexes = runtime_slot_indexes(normalized_program.variable_indexes)
+    slot_variable_indexes = runtime_slot_indexes(
+        normalized_program.variable_indexes, normalized_program.slot_allocation
+    )
 
     globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
     state_setup = render_driver_state_setup(state_variable_indexes, initial_variables or [])
@@ -4259,8 +4272,19 @@ def reusable_runtime_state_indexes(variable_indexes: dict[str, int]) -> dict[str
     }
 
 
-def runtime_slot_indexes(variable_indexes: dict[str, int]) -> dict[str, int]:
+def runtime_slot_indexes(
+    variable_indexes: dict[str, int],
+    slot_allocation: SlotAllocation | None = None,
+) -> dict[str, int]:
     """Return runtime slot indexes for known scalar names tracked by lowering."""
+    if slot_allocation is not None:
+        return {
+            slot.name: slot.index
+            for slot in slot_allocation.slots
+            if slot.storage == "slot"
+            and not is_builtin_variable_name(slot.name)
+            and not is_reusable_runtime_state_name(slot.name)
+        }
     return {
         name: index
         for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
