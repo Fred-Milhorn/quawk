@@ -627,6 +627,7 @@ Current state:
 - `T-228` implements slot allocation over normalized AST
 - `T-229` generates `%quawk.state` from slot-allocation metadata
 - `T-230` adds C runtime slot accessors for numeric and string slots
+- `T-231` updates lowering to use runtime slot indexes for known variables
 - `T-197` through `T-207` are complete
 - `T-208` through `T-212` close the full `P21` wave
 - `T-213` through `T-217` close the full `P22` wave
@@ -638,7 +639,6 @@ Current state:
 - performance optimization planning is complete; implementation begins with P25
 
 Immediate next tasks:
-- `T-231`: update lowering to use slot addresses for known variables
 - `T-232`: preserve fallback to hash lookup for dynamic variables
 - `T-233`: add tests for slot-based variable access
 - `T-234`: benchmark slot vs hash access performance
@@ -879,7 +879,7 @@ Priority values:
 | T-228 | P25 | P0 | Implement slot allocation pass over normalized AST | T-227 | Pass produces `SlotAllocation` with variable slot indices | done |
 | T-229 | P25 | P0 | Generate LLVM struct type for extended state | T-228 | `--ir` shows `%quawk.state` struct with variable slots | done |
 | T-230 | P25 | P1 | Add runtime slot accessor functions in C | - | `qk_slot_get_number`, `qk_slot_set_number`, etc. compile and link | done |
-| T-231 | P25 | P0 | Update lowering to use slot addresses for known variables | T-228, T-229 | Numeric variables use direct slot access in generated IR | todo |
+| T-231 | P25 | P0 | Update lowering to use slot addresses for known variables | T-228, T-229 | Numeric variables use direct slot access in generated IR | done |
 | T-232 | P25 | P1 | Preserve fallback to hash lookup for dynamic variables | T-231 | Dynamic/unknown variables still work via string-named hash | todo |
 | T-233 | P25 | P1 | Add tests for slot-based variable access | T-231 | Variable access tests pass with slot-based implementation | todo |
 | T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | todo |

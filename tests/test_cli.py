@@ -451,6 +451,8 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { x = 1 + 2; print x }")
 
     assert result.returncode == 0, result.stderr
+    assert "@qk_slot_set_number(" in result.stdout
+    assert "@qk_slot_get_number(" in result.stdout
     assert "@qk_scalar_set_number(" in result.stdout
     assert "@qk_scalar_get(" in result.stdout
     assert "@qk_print_number(" in result.stdout
@@ -462,7 +464,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_claimed_unset_scalar_value_cases() 
 
     assert result.returncode == 0, result.stderr
     assert "@qk_scalar_get(" in result.stdout
-    assert "@qk_scalar_get_number(" in result.stdout
+    assert "@qk_slot_get_number(" in result.stdout
     assert result.stderr == ""
 
 
@@ -940,6 +942,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_string_v_preassignments() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "@qk_scalar_set_string(" in result.stdout
+    assert "@qk_slot_set_number(" in result.stdout
     assert "@.driver.scalar.value.0" in result.stdout
     assert result.stderr == ""
 
