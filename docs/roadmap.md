@@ -638,16 +638,16 @@ Current state:
 - `T-242` emits direct `fcmp` comparisons for inferred numeric operands
 - `T-243` confirms direct `fadd`/`fsub`/`fmul`/`fdiv` arithmetic lowering paths
 - `T-244` adds known-string concat fast path without capture/coercion overhead
+- `T-245` adds direct `%quawk.state` numeric slot load/store for inferred numeric names
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P27 specialization work proceeds with `T-245` (slot-based numeric variable read/write)
+- P27 specialization work proceeds with `T-246` (slot-based string variable read/write)
 
 Immediate next tasks:
-- `T-245`: implement slot-based numeric variable read/write
 - `T-246`: implement slot-based string variable read/write
 - `T-247`: add slow-path fallback for mixed-type operations
 - `T-248`: add tests for specialized operations
@@ -904,7 +904,7 @@ Priority values:
 | T-242 | P27 | P0 | Implement numeric comparison fast path | T-25, P26-T02 | Direct `fcmp` instruction emitted for `numeric <op> numeric` | done |
 | T-243 | P27 | P0 | Implement numeric arithmetic fast path | T-25, P26-T02 | Direct `fadd`/`fsub`/`fmul`/`fdiv` for numeric ops | done |
 | T-244 | P27 | P1 | Implement string concat fast path | T-26 | Direct `qk_concat` call for string operands without coercion overhead | done |
-| T-245 | P27 | P0 | Implement slot-based numeric variable read/write | P25, P26 | Direct `load`/`store` for slot-based numeric variables | todo |
+| T-245 | P27 | P0 | Implement slot-based numeric variable read/write | P25, P26 | Direct `load`/`store` for slot-based numeric variables | done |
 | T-246 | P27 | P1 | Implement slot-based string variable read/write | P25, P26 | Direct string slot access for known-string variables | todo |
 | T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | todo |
 | T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | todo |

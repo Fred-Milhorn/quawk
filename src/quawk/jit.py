@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Callable, TextIO
+from typing import Callable, Mapping, TextIO
 
 from . import runtime_support
 from .builtins import BUILTIN_ARRAY_NAMES, is_builtin_function_name, is_builtin_variable_name
@@ -1158,6 +1158,15 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             numeric_value = combine_numeric_assignment(current_value, numeric_value)
         state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
         return
+    if runtime_name_uses_numeric_slot_state(statement.name, state):
+        slot_name = variable_address(statement.name, state)
+        numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        if statement.op is not AssignOp.PLAIN:
+            current_value = state.next_temp("state.current")
+            state.instructions.append(f"  {current_value} = load double, ptr {slot_name}")
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
+        state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+        return
 
     slot_index = runtime_name_slot_index(statement.name, state)
     target_name = lower_runtime_scalar_name(statement.name, state)
@@ -1692,6 +1701,11 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
                 temp = state.next_temp("load")
                 state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
                 return temp
+            if runtime_name_uses_numeric_slot_state(name, state):
+                slot_name = variable_address(name, state)
+                temp = state.next_temp("slot.num")
+                state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
+                return temp
             slot_index = runtime_name_slot_index(name, state)
             if slot_index is not None:
                 temp = state.next_temp("slot.num")
@@ -1882,6 +1896,10 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                 numeric_value = lower_runtime_numeric_expression(expression.value, state)
                 slot_name = variable_address(name, state)
                 state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+            elif runtime_name_uses_numeric_slot_state(name, state):
+                numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                slot_name = variable_address(name, state)
+                state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
             else:
                 slot_index = runtime_name_slot_index(name, state)
                 scalar_name = lower_runtime_scalar_name(name, state)
@@ -1960,6 +1978,14 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
     match operand:
         case NameExpr(name=name):
             if is_reusable_runtime_state_name(name):
+                slot_name = variable_address(name, state)
+                old_value = state.next_temp("inc.old")
+                new_value = state.next_temp("inc.new")
+                state.instructions.append(f"  {old_value} = load double, ptr {slot_name}")
+                state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+                state.instructions.append(f"  store double {new_value}, ptr {slot_name}")
+                return old_value if return_old else new_value
+            if runtime_name_uses_numeric_slot_state(name, state):
                 slot_name = variable_address(name, state)
                 old_value = state.next_temp("inc.old")
                 new_value = state.next_temp("inc.new")
@@ -2636,6 +2662,21 @@ def runtime_name_uses_scalar_runtime(name: str, state: LoweringState) -> bool:
     )
 
 
+def runtime_name_is_inferred_numeric(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name is inferred numeric in the current lowering state."""
+    return state.type_info.get(name) is LatticeType.NUMERIC
+
+
+def runtime_name_uses_numeric_slot_state(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name should use direct `%quawk.state` numeric slot access."""
+    return (
+        state.state_param is not None
+        and runtime_name_uses_scalar_runtime(name, state)
+        and runtime_name_is_inferred_numeric(name, state)
+        and runtime_name_slot_index(name, state) is not None
+    )
+
+
 def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -> bool:
     """Report whether one runtime-backed expression has string truthiness semantics."""
     match expression:
@@ -2721,7 +2762,7 @@ def runtime_assignment_preserves_string(expression: Expr, state: LoweringState) 
         case NameExpr(name=name) if name in state.loop_string_bindings:
             return True
         case NameExpr(name=name):
-            return runtime_name_uses_scalar_runtime(name, state)
+            return runtime_name_uses_scalar_runtime(name, state) and not runtime_name_is_inferred_numeric(name, state)
         case _:
             return runtime_expression_is_known_string(expression, state)
 
@@ -2779,7 +2820,7 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
             return state is not None and (
                 name in state.loop_string_bindings
                 or name in state.function_param_strings
-                or runtime_name_uses_scalar_runtime(name, state)
+                or (runtime_name_uses_scalar_runtime(name, state) and not runtime_name_is_inferred_numeric(name, state))
             )
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
@@ -3083,6 +3124,7 @@ def build_execution_driver_llvm_ir(
 ) -> str:
     """Build the reusable execution driver that invokes runtime and program phases."""
     normalized_program = normalize_program_for_lowering(program)
+    type_info = infer_variable_types(program)
     has_record_phase = bool(normalized_program.record_items)
     consumes_main_input = bool(normalized_program.record_items or normalized_program.end_actions)
     state_type = extract_state_type_declaration(program_llvm_ir)
@@ -3090,11 +3132,17 @@ def build_execution_driver_llvm_ir(
     slot_variable_indexes = runtime_slot_indexes(
         normalized_program.variable_indexes, normalized_program.slot_allocation
     )
+    numeric_slot_variable_indexes = runtime_numeric_slot_indexes(
+        normalized_program.variable_indexes,
+        type_info,
+        normalized_program.slot_allocation,
+    )
+    state_storage_indexes = dict(sorted((state_variable_indexes | numeric_slot_variable_indexes).items(), key=lambda item: item[1]))
 
     globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
-    state_setup = render_driver_state_setup(state_variable_indexes, initial_variables or [])
+    state_setup = render_driver_state_setup(state_storage_indexes, initial_variables or [])
     scalar_preassignments = render_driver_scalar_preassignments(
-        state_variable_indexes, slot_variable_indexes, initial_variables or []
+        state_storage_indexes, slot_variable_indexes, initial_variables or []
     )
     record_loop = render_driver_record_loop(consumes_main_input, has_record_phase)
 
@@ -3211,13 +3259,14 @@ def render_driver_state_setup(
         if variable_index is None:
             continue
         slot_name = f"%state.preassign.{name}"
+        numeric_value = format_double_literal(awk_numeric_prefix(value)) if isinstance(value, str) else format_double_literal(value)
         setup.extend(
             [
                 (
                     f"  {slot_name} = getelementptr inbounds %quawk.state, ptr %state, "
                     f"i32 0, i32 {variable_index}"
                 ),
-                f"  store double {format_double_literal(value)}, ptr {slot_name}",
+                f"  store double {numeric_value}, ptr {slot_name}",
             ]
         )
     return setup
@@ -4311,6 +4360,20 @@ def runtime_slot_indexes(
         name: index
         for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
         if not is_builtin_variable_name(name) and not is_reusable_runtime_state_name(name)
+    }
+
+
+def runtime_numeric_slot_indexes(
+    variable_indexes: dict[str, int],
+    type_info: Mapping[str, LatticeType],
+    slot_allocation: SlotAllocation | None = None,
+) -> dict[str, int]:
+    """Return runtime slot indexes for names inferred as numeric."""
+    slot_indexes = runtime_slot_indexes(variable_indexes, slot_allocation)
+    return {
+        name: index
+        for name, index in slot_indexes.items()
+        if type_info.get(name) is LatticeType.NUMERIC
     }
 
 
