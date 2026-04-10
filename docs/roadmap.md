@@ -629,6 +629,8 @@ Current state:
 - `T-236` implements expression type inference for literals, names, arithmetic,
   concat, and conditionals
 - `T-237` propagates variable lattice types across assignment-driven program flow
+- `T-238` adds conservative fixed-point handling for loop/control-flow inference
+- `T-239` marks field expressions as `MIXED` in lattice inference
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
@@ -638,9 +640,9 @@ Current state:
 - P26 type inference begins with `T-235` (type lattice definition)
 
 Immediate next tasks:
-- `T-238`: handle control flow conservatively in type inference
-- `T-239`: add field access type (always mixed)
 - `T-240`: store type annotations in lowering state
+- `T-241`: add tests for type inference correctness
+- `T-242`: implement numeric comparison fast path
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -886,8 +888,8 @@ Priority values:
 | T-235 | P26 | P0 | Define type lattice and join operation | - | `LatticeType` enum with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | done |
 | T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | done |
 | T-237 | P26 | P0 | Implement variable type propagation | T-236 | Variables get consistent types across assignments | done |
-| T-238 | P26 | P1 | Handle control flow conservatively in type inference | T-237 | Loops and conditionals don't lose type information incorrectly | todo |
-| T-239 | P26 | P1 | Add field access type (always mixed) | T-236 | Field expressions typed as `MIXED` | todo |
+| T-238 | P26 | P1 | Handle control flow conservatively in type inference | T-237 | Loops and conditionals don't lose type information incorrectly | done |
+| T-239 | P26 | P1 | Add field access type (always mixed) | T-236 | Field expressions typed as `MIXED` | done |
 | T-240 | P26 | P1 | Store type annotations in lowering state | T-237, T-238, T-239 | `LoweringState` has `type_info` member | todo |
 | T-241 | P26 | P2 | Add tests for type inference correctness | T-237, T-238 | All inference tests pass | todo |
 | T-242 | P27 | P0 | Implement numeric comparison fast path | T-25, P26-T02 | Direct `fcmp` instruction emitted for `numeric <op> numeric` | todo |

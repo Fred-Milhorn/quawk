@@ -219,6 +219,10 @@ class TestInferExpressionType:
         expression = parse_begin_print_expr('1 ? "x" : 2')
         assert infer_expression_type(expression) is LatticeType.MIXED
 
+    def test_field_expression_is_mixed(self) -> None:
+        expression = parse_begin_print_expr("$1")
+        assert infer_expression_type(expression) is LatticeType.MIXED
+
 
 # ---------------------------------------------------------------------------
 # infer_variable_types (T-237)
@@ -252,3 +256,23 @@ class TestInferVariableTypes:
     def test_if_branches_join_assignments(self) -> None:
         program = parse_program('BEGIN { if (1) x = 1; else x = "no" }')
         assert infer_variable_types(program) == {"x": LatticeType.MIXED}
+
+    def test_field_assignment_propagates_mixed_type(self) -> None:
+        program = parse_program("BEGIN { x = $1 }")
+        assert infer_variable_types(program) == {"x": LatticeType.MIXED}
+
+    def test_while_loop_propagation_converges_conservatively(self) -> None:
+        program = parse_program("BEGIN { i = 0; while (i < 2) { y = 1; x = y; i++ } }")
+        assert infer_variable_types(program) == {
+            "i": LatticeType.NUMERIC,
+            "y": LatticeType.NUMERIC,
+            "x": LatticeType.NUMERIC,
+        }
+
+    def test_for_loop_propagation_converges_conservatively(self) -> None:
+        program = parse_program("BEGIN { for (i = 0; i < 2; i++) { y = 1; x = y } }")
+        assert infer_variable_types(program) == {
+            "i": LatticeType.NUMERIC,
+            "y": LatticeType.NUMERIC,
+            "x": LatticeType.NUMERIC,
+        }
