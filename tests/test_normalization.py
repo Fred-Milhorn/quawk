@@ -19,6 +19,9 @@ def test_normalize_begin_only_program_exposes_direct_begin_statements() -> None:
     assert normalized.record_items == ()
     assert normalized.end_actions == ()
     assert normalized.variable_indexes == {"x": 0}
+    assert normalized.slot_allocation.variable_count == 1
+    assert normalized.slot_allocation.get_slot("x") is not None
+    assert normalized.slot_allocation.get_slot("x").index == 0
 
 
 def test_normalize_mixed_program_partitions_runtime_phases() -> None:
@@ -32,6 +35,8 @@ def test_normalize_mixed_program_partitions_runtime_phases() -> None:
     assert isinstance(normalized.record_items[0].pattern, ExprPattern)
     assert len(normalized.end_actions) == 1
     assert normalized.variable_indexes == {"x": 0}
+    assert normalized.slot_allocation.get_slot("x") is not None
+    assert normalized.slot_allocation.get_slot("x").index == 0
 
 
 def test_normalize_multiple_begin_actions_do_not_use_direct_begin_form() -> None:
@@ -39,3 +44,12 @@ def test_normalize_multiple_begin_actions_do_not_use_direct_begin_form() -> None
 
     assert normalized.direct_begin_statements is None
     assert len(normalized.begin_actions) == 2
+
+
+def test_normalize_range_program_includes_range_state_slot_allocation() -> None:
+    normalized = normalize_program_for_lowering(parse_program("/a/,/b/ { print $0 }"))
+
+    assert "__range.0" in normalized.variable_indexes
+    range_slot = normalized.slot_allocation.get_slot("__range.0")
+    assert range_slot is not None
+    assert range_slot.index == normalized.variable_indexes["__range.0"]

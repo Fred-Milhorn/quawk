@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.slot_allocation import SlotAllocation, VariableSlot
+from quawk.slot_allocation import (
+    SlotAllocation,
+    VariableSlot,
+    allocate_slots_for_variable_indexes,
+    render_slot_state_struct_type,
+)
 
 
 def test_variable_slot_keeps_the_declared_metadata() -> None:
@@ -54,3 +59,16 @@ def test_slot_allocation_rejects_typed_counts_larger_than_slots() -> None:
             mixed_count=0,
             state_struct_type="%quawk.state = type { double }",
         )
+
+
+def test_allocate_slots_for_variable_indexes_preserves_index_order() -> None:
+    allocation = allocate_slots_for_variable_indexes({"z": 2, "x": 0, "y": 1})
+
+    assert tuple(slot.name for slot in allocation.slots) == ("x", "y", "z")
+    assert tuple(slot.index for slot in allocation.slots) == (0, 1, 2)
+    assert allocation.get_slot("y") == VariableSlot(name="y", index=1, inferred_type="unknown", storage="slot")
+
+
+def test_render_slot_state_struct_type_handles_empty_and_non_empty() -> None:
+    assert render_slot_state_struct_type(0) == "%quawk.state = type {}"
+    assert render_slot_state_struct_type(2) == "%quawk.state = type { double, double }"

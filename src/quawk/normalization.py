@@ -42,6 +42,7 @@ from .parser import (
     WhileStmt,
 )
 from .builtins import BUILTIN_ARRAY_NAMES
+from .slot_allocation import SlotAllocation, allocate_slots_for_variable_indexes
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class NormalizedLoweringProgram:
     record_items: tuple[NormalizedRecordItem, ...]
     end_actions: tuple[Action, ...]
     variable_indexes: dict[str, int]
+    slot_allocation: SlotAllocation
     array_names: frozenset[str]
 
 
@@ -105,12 +107,14 @@ def normalize_program_for_lowering(program: Program) -> NormalizedLoweringProgra
             continue
         raise RuntimeError("the current lowering path only supports BEGIN, END, expression, and range patterns")
 
+    variable_indexes = collect_variable_indexes(program, extra_names=tuple(range_state_names))
     return NormalizedLoweringProgram(
         direct_begin_statements=collect_direct_begin_statements(program),
         begin_actions=tuple(begin_actions),
         record_items=tuple(record_items),
         end_actions=tuple(end_actions),
-        variable_indexes=collect_variable_indexes(program, extra_names=tuple(range_state_names)),
+        variable_indexes=variable_indexes,
+        slot_allocation=allocate_slots_for_variable_indexes(variable_indexes),
         array_names=collect_array_names(program),
     )
 

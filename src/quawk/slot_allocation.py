@@ -1,9 +1,4 @@
-"""Compile-time slot allocation data structures.
-
-`T-227` defines the foundational records used by the upcoming slot-allocation
-and typed-lowering phases. This module intentionally ships data structures and
-validation only; allocation behavior lands in `T-228`.
-"""
+"""Compile-time slot allocation structures and pass helpers."""
 
 from __future__ import annotations
 
@@ -79,3 +74,28 @@ class SlotAllocation:
             if slot.name == name:
                 return slot
         return None
+
+
+def render_slot_state_struct_type(slot_count: int, *, state_name: str = "%quawk.state") -> str:
+    """Render one LLVM state type declaration for a fixed slot count."""
+    if slot_count < 0:
+        raise ValueError("slot_count must be non-negative")
+    if slot_count == 0:
+        return f"{state_name} = type {{}}"
+    fields = ", ".join("double" for _ in range(slot_count))
+    return f"{state_name} = type {{ {fields} }}"
+
+
+def allocate_slots_for_variable_indexes(variable_indexes: dict[str, int]) -> SlotAllocation:
+    """Build deterministic slot allocation metadata from stable variable indexes."""
+    slots = tuple(
+        VariableSlot(name=name, index=index, inferred_type="unknown", storage="slot")
+        for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
+    )
+    return SlotAllocation(
+        slots=slots,
+        numeric_count=0,
+        string_count=0,
+        mixed_count=0,
+        state_struct_type=render_slot_state_struct_type(len(slots)),
+    )
