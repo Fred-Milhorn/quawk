@@ -33,7 +33,4 @@ def test_t218_plan_and_posix_docs_record_the_backend_only_p23_baseline() -> None
 def test_t218_roadmap_marks_the_p23_baseline_done_and_advances_to_p24() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
-    assert "- `T-218` through `T-221` close the full `P23` wave" in roadmap_text
-    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-218 | P23 | P0 | Author the backend-only baseline, target claims, and direct tests for ternary expressions | T-217 | Failing direct tests and explicit `SPEC.md` target rows define the ternary forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text

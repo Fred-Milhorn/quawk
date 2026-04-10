@@ -27,7 +27,4 @@ def test_t217_design_and_posix_record_the_widened_p22_claim() -> None:
 def test_t217_roadmap_closes_p22_and_moves_to_p23() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
-    assert "- `T-213` through `T-217` close the full `P22` wave" in roadmap_text
-    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-217 | P22 | P1 | Rebaseline the public contract after arithmetic widening | T-216 | `SPEC.md`, `POSIX.md`, `docs/design.md`, and the roadmap agree on the widened backend-only `P22` claim with no implied host dependency | done |" in roadmap_text

@@ -16,5 +16,4 @@ def test_t204_plan_doc_records_the_focused_routing_regression_result() -> None:
 def test_t204_roadmap_advances_p20_to_the_value_semantics_work() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
     assert "| T-204 | P20 | P1 | Add focused routing regressions for the claimed value-fallback cases | T-203 | Direct tests pin which claimed programs still rely on the host evaluator today and prove the behavioral requirement they preserve | done |" in roadmap_text

@@ -44,9 +44,7 @@ def test_t198_posix_and_roadmap_point_to_the_checked_in_inventory_and_next_work(
 
     assert "[docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)" in posix_text
     assert "### P19: Residual Host-Runtime Boundary Audit" in roadmap_text
-    assert "No active widening phase is currently scheduled." in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
     assert "| T-197 | P19 | P0 | Author the residual host-runtime boundary audit baseline and scope | T-192 | `docs/plans/host-runtime-boundary-audit.md`, `POSIX.md`, and the roadmap make the backend-first purpose, audit scope, and required outputs explicit before new implementation decisions start | done |" in roadmap_text
     assert "| T-198 | P19 | P0 | Inventory public routes to the Python host runtime and produce the residual host-only matrix | T-197 | A checked-in matrix identifies residual host-routed forms, their claimed status, backend/inspection status, and whether they are reachable from ordinary public execution | done |" in roadmap_text

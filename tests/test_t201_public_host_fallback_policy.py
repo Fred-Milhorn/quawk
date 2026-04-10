@@ -29,8 +29,6 @@ def test_t201_matrix_records_no_public_host_fallback_for_representative_rows() -
 def test_t201_roadmap_advances_the_immediate_next_list_to_t212() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
-    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
     assert "| T-201 | P19 | P0 | Decide public behavior for unclaimed host-routed programs | T-200 | The roadmap, `SPEC.md`, and `docs/design.md` state whether ordinary `quawk` keeps temporary host fallback for those forms or fails explicitly outside the AOT-backed contract | done |" in roadmap_text

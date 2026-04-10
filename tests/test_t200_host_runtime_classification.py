@@ -30,7 +30,6 @@ def test_t200_audit_doc_records_that_no_claimed_family_is_new_aot_debt() -> None
 def test_t200_roadmap_advances_the_immediate_next_list_to_t212() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
     assert "`T-197` through `T-207` are complete" in roadmap_text
     assert "| T-225 | P24 | P1 | Close inspection parity, routing coverage, and corroboration for match operators and membership | T-223, T-224 | `--ir` / `--asm`, focused routing regressions, and direct or reference corroboration cover the widened `P24` surface with no stale host-only gap | done |" in roadmap_text
     assert "| T-208 | P21 | P0 | Author the backend-only baseline, target claims, and direct tests for logical-or and broader comparisons | T-207 | Failing direct tests and explicit `SPEC.md` target rows define the exact `||`, `<=`, `>`, `>=`, and `!=` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text

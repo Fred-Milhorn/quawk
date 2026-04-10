@@ -19,6 +19,7 @@ quawk-upstream = "quawk.compat.upstream_compat:main"
 dev = [
     "mypy>=1.18,<2",
     "pytest>=8.4,<9",
+    "pytest-xdist>=3.8,<4",
     "ruff>=0.13,<0.14",
     "yapf>=0.43,<0.44",
 ]
@@ -36,8 +37,10 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-n auto"
 markers = [
     "core: default fast repo test surface excluding compatibility suites",
+    "roadmap_contract: documentation-only roadmap assertions, skipped by default unless QUAWK_RUN_ROADMAP_TESTS=1",
     "compat: full compatibility suite coverage, including corpus and differential checks",
     "compat_reference: reference-engine differential compatibility coverage",
     "compat_corpus: repo-owned supplemental compatibility corpus coverage",

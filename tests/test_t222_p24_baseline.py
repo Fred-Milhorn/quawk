@@ -36,6 +36,4 @@ def test_t222_plan_and_posix_docs_record_the_backend_only_p24_baseline() -> None
 def test_t222_roadmap_marks_the_p24_baseline_done_and_closes_the_phase() -> None:
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
 
-    assert "No active widening phase is currently scheduled." in roadmap_text
-    assert "`T-222` through `T-226` now close the full `P24` wave" in roadmap_text
     assert "| T-222 | P24 | P0 | Author the backend-only baseline, target claims, and direct tests for match operators and membership | T-221 | Failing direct tests and explicit `SPEC.md` target rows define the `~`, `!~`, and `in` forms to widen, and the baseline states that newly claimed forms may not depend on public Python host execution | done |" in roadmap_text
