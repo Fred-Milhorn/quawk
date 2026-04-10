@@ -1170,7 +1170,12 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
 
     slot_index = runtime_name_slot_index(statement.name, state)
     target_name = lower_runtime_scalar_name(statement.name, state)
-    if statement.op is AssignOp.PLAIN and isinstance(statement.value, NameExpr) and runtime_name_uses_scalar_runtime(statement.value.name, state):
+    if (
+        statement.op is AssignOp.PLAIN
+        and isinstance(statement.value, NameExpr)
+        and runtime_name_uses_scalar_runtime(statement.value.name, state)
+        and not runtime_name_uses_string_slot_runtime(statement.name, state)
+    ):
         source_name = lower_runtime_scalar_name(statement.value.name, state)
         state.instructions.append(
             f"  call void @qk_scalar_copy(ptr {state.runtime_param}, ptr {target_name}, ptr {source_name})"
@@ -1187,6 +1192,17 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         return
     if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
         string_value = lower_runtime_string_expression(statement.value, state)
+        if runtime_name_uses_string_slot_runtime(statement.name, state):
+            assert slot_index is not None
+            numeric_value = state.next_temp("slot.assign.str")
+            state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+            state.instructions.append(
+                f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+            )
+            state.instructions.append(
+                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
+            )
+            return
         state.instructions.append(
             f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {target_name}, ptr {string_value})"
         )
@@ -1903,7 +1919,11 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
             else:
                 slot_index = runtime_name_slot_index(name, state)
                 scalar_name = lower_runtime_scalar_name(name, state)
-                if isinstance(expression.value, NameExpr) and runtime_name_uses_scalar_runtime(expression.value.name, state):
+                if (
+                    isinstance(expression.value, NameExpr)
+                    and runtime_name_uses_scalar_runtime(expression.value.name, state)
+                    and not runtime_name_uses_string_slot_runtime(name, state)
+                ):
                     source_name = lower_runtime_scalar_name(expression.value.name, state)
                     state.instructions.append(
                         f"  call void @qk_scalar_copy(ptr {state.runtime_param}, ptr {scalar_name}, ptr {source_name})"
@@ -1933,26 +1953,37 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                         )
                 elif runtime_assignment_preserves_string(expression.value, state):
                     string_value = lower_runtime_string_expression(expression.value, state)
-                    state.instructions.append(
-                        f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
-                    )
-                    if slot_index is not None:
-                        numeric_value = state.next_temp("assign.str.slot")
+                    if runtime_name_uses_string_slot_runtime(name, state):
+                        assert slot_index is not None
+                        state.instructions.append(
+                            f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+                        )
+                        numeric_value = state.next_temp("assign.str.num")
                         state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
                         state.instructions.append(
-                            (
-                                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
-                                f"i64 {slot_index}, double {numeric_value})"
-                            )
+                            f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
                         )
                     else:
-                        numeric_value = state.next_temp("assign.str.num")
                         state.instructions.append(
-                            (
-                                f"  {numeric_value} = call double @qk_scalar_get_number("
-                                f"ptr {state.runtime_param}, ptr {scalar_name})"
-                            )
+                            f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
                         )
+                        if slot_index is not None:
+                            numeric_value = state.next_temp("assign.str.slot")
+                            state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                            state.instructions.append(
+                                (
+                                    f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
+                                    f"i64 {slot_index}, double {numeric_value})"
+                                )
+                            )
+                        else:
+                            numeric_value = state.next_temp("assign.str.num")
+                            state.instructions.append(
+                                (
+                                    f"  {numeric_value} = call double @qk_scalar_get_number("
+                                    f"ptr {state.runtime_param}, ptr {scalar_name})"
+                                )
+                            )
                 else:
                     numeric_value = lower_runtime_numeric_expression(expression.value, state)
                     if slot_index is not None:
@@ -2064,6 +2095,14 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
+            if runtime_name_uses_string_slot_runtime(name, state):
+                slot_index = runtime_name_slot_index(name, state)
+                assert slot_index is not None
+                temp = state.next_temp("slot.str")
+                state.instructions.append(
+                    f"  {temp} = call ptr @qk_slot_get_string(ptr {state.runtime_param}, i64 {slot_index})"
+                )
+                return temp
             if runtime_name_uses_scalar_runtime(name, state):
                 scalar_name = lower_runtime_scalar_name(name, state)
                 temp = state.next_temp("scalar.str")
@@ -2117,8 +2156,23 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                             "string-valued assignment expressions are not supported for reusable numeric state"
                         )
                     slot_index = runtime_name_slot_index(name, state)
-                    scalar_name = lower_runtime_scalar_name(name, state)
                     string_value = lower_runtime_string_expression(value, state)
+                    if runtime_name_uses_string_slot_runtime(name, state):
+                        assert slot_index is not None
+                        numeric_value = state.next_temp("assign.str.slot")
+                        state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                        state.instructions.append(
+                            f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+                        )
+                        state.instructions.append(
+                            f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
+                        )
+                        stored_value = state.next_temp("assign.str")
+                        state.instructions.append(
+                            f"  {stored_value} = call ptr @qk_slot_get_string(ptr {state.runtime_param}, i64 {slot_index})"
+                        )
+                        return stored_value
+                    scalar_name = lower_runtime_scalar_name(name, state)
                     state.instructions.append(
                         f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
                     )
@@ -2470,10 +2524,22 @@ def lower_runtime_assign_string_lvalue(target: NameLValue | ArrayLValue | FieldL
     assert state.runtime_param is not None
     match target:
         case NameLValue(name=name):
-            scalar_name = lower_runtime_scalar_name(name, state)
-            state.instructions.append(
-                f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
-            )
+            slot_index = runtime_name_slot_index(name, state)
+            if runtime_name_uses_string_slot_runtime(name, state):
+                assert slot_index is not None
+                numeric_value = state.next_temp("assign.str.slot")
+                state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                state.instructions.append(
+                    f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+                )
+                state.instructions.append(
+                    f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
+                )
+            else:
+                scalar_name = lower_runtime_scalar_name(name, state)
+                state.instructions.append(
+                    f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
+                )
         case FieldLValue(index=index):
             index_value = lower_runtime_field_index(index, state)
             state.instructions.append(
@@ -2673,6 +2739,15 @@ def runtime_name_uses_numeric_slot_state(name: str, state: LoweringState) -> boo
         state.state_param is not None
         and runtime_name_uses_scalar_runtime(name, state)
         and runtime_name_is_inferred_numeric(name, state)
+        and runtime_name_slot_index(name, state) is not None
+    )
+
+
+def runtime_name_uses_string_slot_runtime(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name should use runtime string-slot access."""
+    return (
+        runtime_name_uses_scalar_runtime(name, state)
+        and state.type_info.get(name) is LatticeType.STRING
         and runtime_name_slot_index(name, state) is not None
     )
 
@@ -3137,12 +3212,17 @@ def build_execution_driver_llvm_ir(
         type_info,
         normalized_program.slot_allocation,
     )
+    string_slot_variable_indexes = runtime_string_slot_indexes(
+        normalized_program.variable_indexes,
+        type_info,
+        normalized_program.slot_allocation,
+    )
     state_storage_indexes = dict(sorted((state_variable_indexes | numeric_slot_variable_indexes).items(), key=lambda item: item[1]))
 
     globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
     state_setup = render_driver_state_setup(state_storage_indexes, initial_variables or [])
     scalar_preassignments = render_driver_scalar_preassignments(
-        state_storage_indexes, slot_variable_indexes, initial_variables or []
+        state_storage_indexes, slot_variable_indexes, string_slot_variable_indexes, initial_variables or []
     )
     record_loop = render_driver_record_loop(consumes_main_input, has_record_phase)
 
@@ -3156,6 +3236,7 @@ def build_execution_driver_llvm_ir(
             "declare void @qk_scalar_set_number(ptr, ptr, double)",
             "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
             "declare void @qk_slot_set_number(ptr, i64, double)",
+            "declare void @qk_slot_set_string(ptr, i64, ptr)",
             "declare void @quawk_begin(ptr, ptr)",
             "declare void @quawk_record(ptr, ptr)",
             "declare void @quawk_end(ptr, ptr)",
@@ -3275,6 +3356,7 @@ def render_driver_state_setup(
 def render_driver_scalar_preassignments(
     state_variable_indexes: dict[str, int],
     slot_variable_indexes: dict[str, int],
+    string_slot_variable_indexes: dict[str, int],
     initial_variables: InitialVariables,
 ) -> list[str]:
     """Render runtime scalar preassignments for names not stored in `%quawk.state`."""
@@ -3293,6 +3375,11 @@ def render_driver_scalar_preassignments(
                     f"  call void @qk_scalar_set_string(ptr %rt, ptr %preassign.name.{index}, ptr %preassign.value.{index})",
                 ]
             )
+            string_slot_index = string_slot_variable_indexes.get(name)
+            if string_slot_index is not None:
+                setup.append(
+                    f"  call void @qk_slot_set_string(ptr %rt, i64 {string_slot_index}, ptr %preassign.value.{index})"
+                )
             if slot_index is not None:
                 setup.append(
                     (
@@ -4374,6 +4461,20 @@ def runtime_numeric_slot_indexes(
         name: index
         for name, index in slot_indexes.items()
         if type_info.get(name) is LatticeType.NUMERIC
+    }
+
+
+def runtime_string_slot_indexes(
+    variable_indexes: dict[str, int],
+    type_info: Mapping[str, LatticeType],
+    slot_allocation: SlotAllocation | None = None,
+) -> dict[str, int]:
+    """Return runtime slot indexes for names inferred as string."""
+    slot_indexes = runtime_slot_indexes(variable_indexes, slot_allocation)
+    return {
+        name: index
+        for name, index in slot_indexes.items()
+        if type_info.get(name) is LatticeType.STRING
     }
 
 

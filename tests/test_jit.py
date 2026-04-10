@@ -1294,6 +1294,16 @@ def test_lower_to_llvm_ir_uses_state_load_store_for_inferred_numeric_slot_names(
     assert "call void @qk_slot_set_number" not in llvm_ir
 
 
+def test_lower_to_llvm_ir_uses_string_slots_for_inferred_string_names() -> None:
+    program = parse_program('{ s = "hello"; t = s; print t }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call void @qk_slot_set_string" in llvm_ir
+    assert "call ptr @qk_slot_get_string" in llvm_ir
+    assert "call void @qk_scalar_set_string" not in llvm_ir
+    assert "call ptr @qk_scalar_get(" not in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}
