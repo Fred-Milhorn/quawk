@@ -1257,6 +1257,60 @@ def test_lower_to_llvm_ir_supports_reusable_regex_program_lowering() -> None:
     assert "@qk_regex_match_current_record" in llvm_ir
 
 
+def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
+    program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
+    inferred_types = {"x": object()}
+    captured: dict[str, object] = {}
+
+    def fake_infer_variable_types(lowered_program: Program) -> dict[str, object]:
+        assert lowered_program is program
+        return inferred_types
+
+    def fake_lower_direct_function_program_to_llvm_ir(
+        lowered_program: Program,
+        normalized_program: object,
+        type_info: dict[str, object],
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert lowered_program is program
+        assert type_info is inferred_types
+        assert initial_variables is None
+        captured["ok"] = True
+        return "; direct function module"
+
+    monkeypatch.setattr(jit, "infer_variable_types", fake_infer_variable_types)
+    monkeypatch.setattr(jit, "lower_direct_function_program_to_llvm_ir", fake_lower_direct_function_program_to_llvm_ir)
+
+    assert jit.lower_to_llvm_ir(program) == "; direct function module"
+    assert captured["ok"] is True
+
+
+def test_lower_to_llvm_ir_passes_inferred_type_info_to_reusable_lowering(monkeypatch) -> None:
+    program = parse_program('BEGIN { a["x"] = 1; print a["x"] }')
+    inferred_types = {"a": object()}
+    captured: dict[str, object] = {}
+
+    def fake_infer_variable_types(lowered_program: Program) -> dict[str, object]:
+        assert lowered_program is program
+        return inferred_types
+
+    def fake_lower_reusable_program_to_llvm_ir(
+        lowered_program: Program,
+        normalized_program: object,
+        type_info: dict[str, object],
+    ) -> str:
+        assert lowered_program is program
+        assert type_info is inferred_types
+        captured["ok"] = True
+        return "; reusable module"
+
+    monkeypatch.setattr(jit, "infer_variable_types", fake_infer_variable_types)
+    monkeypatch.setattr(jit, "lower_reusable_program_to_llvm_ir", fake_lower_reusable_program_to_llvm_ir)
+
+    assert jit.lower_to_llvm_ir(program) == "; reusable module"
+    assert captured["ok"] is True
+
+
 def test_execute_with_inputs_routes_mixed_programs_through_reusable_lowering(monkeypatch) -> None:
     program = parse_program('BEGIN { print "start" }\n{ print $2 }\nEND { print "done" }')
     captured_ir: dict[str, str] = {}

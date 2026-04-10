@@ -276,3 +276,15 @@ class TestInferVariableTypes:
             "y": LatticeType.NUMERIC,
             "x": LatticeType.NUMERIC,
         }
+
+    def test_getline_target_is_inferred_as_string(self) -> None:
+        program = parse_program("BEGIN { getline x }")
+        assert infer_variable_types(program) == {"x": LatticeType.STRING}
+
+    def test_for_in_loop_variable_stays_string_even_if_reassigned_in_body(self) -> None:
+        program = parse_program('BEGIN { arr["a"] = 1; for (k in arr) { k = 1 } }')
+        assert infer_variable_types(program) == {"k": LatticeType.STRING}
+
+    def test_function_parameters_do_not_update_global_variable_types(self) -> None:
+        program = parse_program("function f(x) { x = 1 }\nBEGIN { y = 2 }")
+        assert infer_variable_types(program) == {"y": LatticeType.NUMERIC}

@@ -73,6 +73,7 @@ from .parser import (
     expression_to_lvalue,
 )
 from .slot_allocation import SlotAllocation
+from .type_inference import LatticeType, infer_variable_types
 
 DEFAULT_OFMT = "%.6g"
 DEFAULT_CONVFMT = "%.6g"
@@ -107,6 +108,7 @@ class LoweringState:
     state_param: str | None = None
     variable_indexes: dict[str, int] = field(default_factory=dict)
     slot_allocation: SlotAllocation | None = None
+    type_info: dict[str, LatticeType] = field(default_factory=dict)
     action_exit_label: str | None = None
     phase_exit_label: str | None = None
     break_label: str | None = None
@@ -253,16 +255,17 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
     ):
         raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
+    type_info = infer_variable_types(program)
     if supports_direct_function_backend_subset(program):
-        return lower_direct_function_program_to_llvm_ir(program, normalized_program, initial_variables)
+        return lower_direct_function_program_to_llvm_ir(program, normalized_program, type_info, initial_variables)
     if initial_variables_require_string_runtime(initial_variables):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
     if supports_runtime_backend_subset(program):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
     if requires_input_aware_execution(program):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
 
-    state = LoweringState()
+    state = LoweringState(type_info=type_info)
     lower_initial_variables(initial_variables or [], state)
     statements = normalized_program.direct_begin_statements
     if statements is None:
@@ -296,6 +299,7 @@ def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | Non
 def lower_direct_function_program_to_llvm_ir(
     program: Program,
     normalized_program: NormalizedLoweringProgram,
+    type_info: dict[str, LatticeType],
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Lower one direct-BEGIN program with backend-supported user-defined functions."""
@@ -322,6 +326,7 @@ def lower_direct_function_program_to_llvm_ir(
         function_state = LoweringState(
             state_param="%state",
             variable_indexes=variable_indexes,
+            type_info=type_info,
             function_defs=function_defs,
             string_index=string_index,
             numeric_format_declared=numeric_format_declared,
@@ -365,6 +370,7 @@ def lower_direct_function_program_to_llvm_ir(
     main_state = LoweringState(
         state_param=state_param,
         variable_indexes=variable_indexes,
+        type_info=type_info,
         function_defs=function_defs,
         string_index=string_index,
         uses_printf=uses_printf,
@@ -447,6 +453,7 @@ def lower_runtime_user_functions_to_ir(
     program: Program,
     variable_indexes: dict[str, int],
     slot_allocation: SlotAllocation,
+    type_info: dict[str, LatticeType],
     array_names: frozenset[str],
 ) -> tuple[list[str], list[str], int]:
     """Lower supported runtime-backed user-defined functions."""
@@ -468,6 +475,7 @@ def lower_runtime_user_functions_to_ir(
             state_param="%state",
             variable_indexes=variable_indexes,
             slot_allocation=slot_allocation,
+            type_info=type_info,
             array_names=array_names,
             function_defs=function_defs,
             string_index=string_index,
@@ -502,7 +510,11 @@ def lower_runtime_user_functions_to_ir(
     return globals_out, bodies, string_index
 
 
-def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: NormalizedLoweringProgram) -> str:
+def lower_reusable_program_to_llvm_ir(
+    program: Program,
+    normalized_program: NormalizedLoweringProgram,
+    type_info: dict[str, LatticeType],
+) -> str:
     """Lower a record-driven program into reusable BEGIN/record/END LLVM IR."""
     begin_actions = normalized_program.begin_actions
     record_items = normalized_program.record_items
@@ -593,7 +605,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         declarations.append(state_type)
 
     function_globals, function_bodies, function_string_index = lower_runtime_user_functions_to_ir(
-        program, variable_indexes, normalized_program.slot_allocation, array_names
+        program, variable_indexes, normalized_program.slot_allocation, type_info, array_names
     )
 
     begin_state = LoweringState(
@@ -601,6 +613,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         state_param="%state",
         variable_indexes=variable_indexes,
         slot_allocation=normalized_program.slot_allocation,
+        type_info=type_info,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
         string_index=function_string_index,
@@ -614,6 +627,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         state_param="%state",
         variable_indexes=variable_indexes,
         slot_allocation=normalized_program.slot_allocation,
+        type_info=type_info,
         string_index=begin_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
@@ -627,6 +641,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
         state_param="%state",
         variable_indexes=variable_indexes,
         slot_allocation=normalized_program.slot_allocation,
+        type_info=type_info,
         string_index=record_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
