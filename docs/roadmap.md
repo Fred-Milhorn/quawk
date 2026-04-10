@@ -620,36 +620,29 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Performance optimization phase P25 is now active. The P20-P24 widening waves are complete.
+Type inference phase P26 is now active. P25 (static variable slots) is complete.
 
 Current state:
-- `T-227` defines the initial checked-in slot-allocation data structures
-- `T-228` implements slot allocation over normalized AST
-- `T-229` generates `%quawk.state` from slot-allocation metadata
-- `T-230` adds C runtime slot accessors for numeric and string slots
-- `T-231` updates lowering to use runtime slot indexes for known variables
-- `T-232` preserves hash fallback when slot-allocation storage is `hash`
-- `T-233` adds slot-based variable access tests for IR and execution behavior
-- `T-234` adds a slot-vs-hash microbenchmark, showing `2.66x` median slot speedup in local runs
-- `T-197` through `T-207` are complete
-- `T-208` through `T-212` close the full `P21` wave
-- `T-213` through `T-217` close the full `P22` wave
-- `T-218` through `T-221` close the full `P23` wave
-- `T-222` through `T-226` close the full `P24` wave
-- the currently claimed widened expression surface executes through the
-  compiled backend/runtime path with `--ir` / `--asm` support and no public
-  Python host fallback
-- performance optimization planning is complete; implementation begins with P25
+- `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
+  generation, runtime slot accessors, lowering updates, hash fallback, tests,
+  and microbenchmark (`2.66x` median slot speedup)
+- `T-197` through `T-226` complete: P21–P24 widening waves all closed
+- the claimed widened expression surface executes through the compiled
+  backend/runtime path with `--ir` / `--asm` support and no public Python
+  host fallback
+- implementation details for all performance phases live in
+  [performance-implementation.md](performance-implementation.md)
+- P26 type inference begins with `T-235` (type lattice definition)
 
 Immediate next tasks:
-- `T-235`: define type lattice and join operation
 - `T-236`: implement expression type inference
 - `T-237`: implement variable type propagation
 
-P25 entry criteria:
-- `T-227` through `T-233` must complete before P26 type inference begins
+P26 entry criteria:
+- `T-227` through `T-234` (P25) are complete ✓
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
+
 
 ## Backlog
 
@@ -886,7 +879,7 @@ Priority values:
 | T-232 | P25 | P1 | Preserve fallback to hash lookup for dynamic variables | T-231 | Dynamic/unknown variables still work via string-named hash | done |
 | T-233 | P25 | P1 | Add tests for slot-based variable access | T-231 | Variable access tests pass with slot-based implementation | done |
 | T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | done |
-| T-235 | P26 | P0 | Define type lattice and join operation | - | `TypeLattice` class with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | todo |
+| T-235 | P26 | P0 | Define type lattice and join operation | - | `LatticeType` enum with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | done |
 | T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | todo |
 | T-237 | P26 | P0 | Implement variable type propagation | T-236 | Variables get consistent types across assignments | todo |
 | T-238 | P26 | P1 | Handle control flow conservatively in type inference | T-237 | Loops and conditionals don't lose type information incorrectly | todo |
