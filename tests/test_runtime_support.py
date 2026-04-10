@@ -35,6 +35,10 @@ def test_runtime_support_header_and_abi_link_cleanly(tmp_path: Path) -> None:
                 "    (void)qk_next_record(runtime);",
                 "    (void)qk_get_field(runtime, 0);",
                 '    qk_set_field_string(runtime, 0, "field0");',
+                "    qk_slot_set_number(runtime, 3, 42.5);",
+                "    (void)qk_slot_get_number(runtime, 3);",
+                '    qk_slot_set_string(runtime, 5, "slot-value");',
+                "    (void)qk_slot_get_string(runtime, 5);",
                 '    qk_print_string(runtime, "hello");',
                 "    qk_print_number(runtime, 1.0);",
                 '    qk_print_string_fragment(runtime, "x");',
@@ -100,3 +104,68 @@ def test_runtime_support_header_and_abi_link_cleanly(tmp_path: Path) -> None:
     )
 
     assert executable_path.is_file()
+
+
+def test_runtime_slot_accessors_round_trip(tmp_path: Path) -> None:
+    harness_path = tmp_path / "runtime_slot_harness.c"
+    executable_path = tmp_path / "runtime_slot_harness"
+    harness_path.write_text(
+        "\n".join(
+            [
+                '#include "qk_runtime.h"',
+                "",
+                '#include <math.h>',
+                '#include <stdio.h>',
+                '#include <string.h>',
+                "",
+                "int main(void)",
+                "{",
+                "    qk_runtime *runtime = qk_runtime_create(0, (char **)0, (const char *)0);",
+                "    if (runtime == NULL) {",
+                "        return 1;",
+                "    }",
+                "    if (qk_slot_get_number(runtime, 10) != 0.0) {",
+                "        qk_runtime_destroy(runtime);",
+                "        return 2;",
+                "    }",
+                "    qk_slot_set_number(runtime, 10, 12.25);",
+                "    if (fabs(qk_slot_get_number(runtime, 10) - 12.25) > 1e-12) {",
+                "        qk_runtime_destroy(runtime);",
+                "        return 3;",
+                "    }",
+                '    if (strcmp(qk_slot_get_string(runtime, 7), "") != 0) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 4;",
+                "    }",
+                '    qk_slot_set_string(runtime, 7, "hello-slot");',
+                '    if (strcmp(qk_slot_get_string(runtime, 7), "hello-slot") != 0) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 5;",
+                "    }",
+                "    qk_runtime_destroy(runtime);",
+                "    return 0;",
+                "}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            runtime_support.find_clang(),
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            str(runtime_support.runtime_source_path()),
+            str(harness_path),
+            "-I",
+            str(runtime_support.runtime_directory()),
+            "-o",
+            str(executable_path),
+            "-lm",
+        ],
+        check=True,
+    )
+    subprocess.run([str(executable_path)], check=True)

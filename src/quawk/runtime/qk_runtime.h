@@ -38,6 +38,10 @@ bool qk_next_record(qk_runtime *runtime);
 const char *qk_get_field(qk_runtime *runtime, int64_t index);
 void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value);
 void qk_set_field_number(qk_runtime *runtime, int64_t index, double value);
+double qk_slot_get_number(qk_runtime *runtime, int64_t slot_index);
+void qk_slot_set_number(qk_runtime *runtime, int64_t slot_index, double value);
+const char *qk_slot_get_string(qk_runtime *runtime, int64_t slot_index);
+void qk_slot_set_string(qk_runtime *runtime, int64_t slot_index, const char *value);
 
 /* Print a string or number using the same newline-terminated formatting as AWK print. */
 void qk_print_string(qk_runtime *runtime, const char *value);

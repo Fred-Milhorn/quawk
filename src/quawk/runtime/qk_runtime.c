@@ -51,6 +51,10 @@ struct qk_runtime {
     uint32_t random_state;
     struct qk_scalar_entry *scalars;
     struct qk_array *arrays;
+    double *numeric_slots;
+    size_t numeric_slot_count;
+    char **string_slots;
+    size_t string_slot_count;
     struct qk_output_entry *outputs;
     struct qk_input_entry *inputs;
 };
@@ -113,6 +117,9 @@ static bool qk_rebuild_current_record(qk_runtime *runtime, size_t target_fields,
 static const char *qk_scalar_string_view(qk_runtime *runtime, struct qk_scalar_entry *entry);
 static bool qk_update_field_separator(qk_runtime *runtime, const char *text);
 static void qk_update_record_separator(qk_runtime *runtime, const char *text);
+static bool qk_ensure_numeric_slot_capacity(qk_runtime *runtime, size_t required_count);
+static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_count);
+static void qk_free_slot_strings(qk_runtime *runtime);
 extern char **environ;
 
 static char *qk_strdup_or_null(const char *text)
@@ -157,6 +164,81 @@ static bool qk_replace_current_record(qk_runtime *runtime, const char *text)
     runtime->current_record = copy;
     runtime->current_record_capacity = capacity;
     return true;
+}
+
+static bool qk_ensure_numeric_slot_capacity(qk_runtime *runtime, size_t required_count)
+{
+    size_t old_count;
+    size_t new_count;
+    double *resized;
+
+    if ((runtime == NULL) || (required_count <= runtime->numeric_slot_count)) {
+        return true;
+    }
+
+    old_count = runtime->numeric_slot_count;
+    new_count = old_count == 0U ? 8U : old_count;
+    while (new_count < required_count) {
+        size_t next_count = new_count * 2U;
+        if (next_count <= new_count) {
+            new_count = required_count;
+            break;
+        }
+        new_count = next_count;
+    }
+
+    resized = realloc(runtime->numeric_slots, new_count * sizeof(*resized));
+    if (resized == NULL) {
+        return false;
+    }
+    memset(resized + old_count, 0, (new_count - old_count) * sizeof(*resized));
+    runtime->numeric_slots = resized;
+    runtime->numeric_slot_count = new_count;
+    return true;
+}
+
+static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_count)
+{
+    size_t old_count;
+    size_t new_count;
+    char **resized;
+
+    if ((runtime == NULL) || (required_count <= runtime->string_slot_count)) {
+        return true;
+    }
+
+    old_count = runtime->string_slot_count;
+    new_count = old_count == 0U ? 8U : old_count;
+    while (new_count < required_count) {
+        size_t next_count = new_count * 2U;
+        if (next_count <= new_count) {
+            new_count = required_count;
+            break;
+        }
+        new_count = next_count;
+    }
+
+    resized = realloc(runtime->string_slots, new_count * sizeof(*resized));
+    if (resized == NULL) {
+        return false;
+    }
+    memset(resized + old_count, 0, (new_count - old_count) * sizeof(*resized));
+    runtime->string_slots = resized;
+    runtime->string_slot_count = new_count;
+    return true;
+}
+
+static void qk_free_slot_strings(qk_runtime *runtime)
+{
+    size_t index;
+
+    if ((runtime == NULL) || (runtime->string_slots == NULL)) {
+        return;
+    }
+
+    for (index = 0U; index < runtime->string_slot_count; index += 1U) {
+        free(runtime->string_slots[index]);
+    }
 }
 
 static void qk_close_current_handle(qk_runtime *runtime)
@@ -1436,6 +1518,9 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->temp_strings);
     qk_free_scalars(runtime->scalars);
     qk_free_arrays(runtime->arrays);
+    free(runtime->numeric_slots);
+    qk_free_slot_strings(runtime);
+    free(runtime->string_slots);
     qk_free_outputs(runtime->outputs);
     qk_free_inputs(runtime->inputs);
     free(runtime);
@@ -1484,6 +1569,76 @@ void qk_set_field_string(qk_runtime *runtime, int64_t index, const char *value)
 void qk_set_field_number(qk_runtime *runtime, int64_t index, double value)
 {
     qk_set_field_string(runtime, index, qk_format_number(runtime, value));
+}
+
+double qk_slot_get_number(qk_runtime *runtime, int64_t slot_index)
+{
+    size_t index;
+
+    if ((runtime == NULL) || (slot_index < 0)) {
+        return 0.0;
+    }
+
+    index = (size_t)slot_index;
+    if (index >= runtime->numeric_slot_count) {
+        return 0.0;
+    }
+    return runtime->numeric_slots[index];
+}
+
+void qk_slot_set_number(qk_runtime *runtime, int64_t slot_index, double value)
+{
+    size_t required_count;
+
+    if ((runtime == NULL) || (slot_index < 0)) {
+        return;
+    }
+
+    required_count = (size_t)slot_index + 1U;
+    if (!qk_ensure_numeric_slot_capacity(runtime, required_count)) {
+        return;
+    }
+    runtime->numeric_slots[(size_t)slot_index] = value;
+}
+
+const char *qk_slot_get_string(qk_runtime *runtime, int64_t slot_index)
+{
+    size_t index;
+
+    if ((runtime == NULL) || (slot_index < 0)) {
+        return QK_EMPTY_FIELD;
+    }
+
+    index = (size_t)slot_index;
+    if ((index >= runtime->string_slot_count) || (runtime->string_slots[index] == NULL)) {
+        return QK_EMPTY_FIELD;
+    }
+    return runtime->string_slots[index];
+}
+
+void qk_slot_set_string(qk_runtime *runtime, int64_t slot_index, const char *value)
+{
+    size_t required_count;
+    size_t index;
+    char *copy;
+
+    if ((runtime == NULL) || (slot_index < 0)) {
+        return;
+    }
+
+    required_count = (size_t)slot_index + 1U;
+    if (!qk_ensure_string_slot_capacity(runtime, required_count)) {
+        return;
+    }
+
+    index = (size_t)slot_index;
+    copy = qk_strdup_or_null(value == NULL ? QK_EMPTY_FIELD : value);
+    if (copy == NULL) {
+        return;
+    }
+
+    free(runtime->string_slots[index]);
+    runtime->string_slots[index] = copy;
 }
 
 FILE *qk_open_output(qk_runtime *runtime, const char *target, int32_t mode)
