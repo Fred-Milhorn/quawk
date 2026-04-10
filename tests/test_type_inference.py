@@ -4,7 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.type_inference import LatticeType, can_be_numeric, can_be_string, join, join_all
+from quawk.lexer import lex
+from quawk.parser import PatternAction, PrintStmt, parse
+from quawk.source import ProgramSource
+from quawk.type_inference import LatticeType, can_be_numeric, can_be_string, infer_expression_type, join, join_all
+
+
+def parse_begin_print_expr(source_expression: str):
+    program = parse(lex(ProgramSource.from_inline(f"BEGIN {{ print {source_expression} }}")))
+    item = program.items[0]
+    assert isinstance(item, PatternAction)
+    assert item.action is not None
+    statement = item.action.statements[0]
+    assert isinstance(statement, PrintStmt)
+    assert statement.arguments
+    return statement.arguments[0]
 
 
 # ---------------------------------------------------------------------------
@@ -153,3 +167,42 @@ class TestCanBeString:
 
     def test_mixed(self) -> None:
         assert can_be_string(LatticeType.MIXED) is True
+
+
+# ---------------------------------------------------------------------------
+# infer_expression_type (T-236)
+# ---------------------------------------------------------------------------
+
+class TestInferExpressionType:
+
+    def test_numeric_literal_is_numeric(self) -> None:
+        expression = parse_begin_print_expr("1")
+        assert infer_expression_type(expression) is LatticeType.NUMERIC
+
+    def test_string_literal_is_string(self) -> None:
+        expression = parse_begin_print_expr('"x"')
+        assert infer_expression_type(expression) is LatticeType.STRING
+
+    def test_name_defaults_to_unknown(self) -> None:
+        expression = parse_begin_print_expr("x")
+        assert infer_expression_type(expression) is LatticeType.UNKNOWN
+
+    def test_name_uses_variable_environment(self) -> None:
+        expression = parse_begin_print_expr("x")
+        assert infer_expression_type(expression, {"x": LatticeType.NUMERIC}) is LatticeType.NUMERIC
+
+    def test_addition_over_unknown_name_and_numeric_literal_is_numeric(self) -> None:
+        expression = parse_begin_print_expr("x + 1")
+        assert infer_expression_type(expression) is LatticeType.NUMERIC
+
+    def test_addition_with_known_string_operand_is_mixed(self) -> None:
+        expression = parse_begin_print_expr("x + 1")
+        assert infer_expression_type(expression, {"x": LatticeType.STRING}) is LatticeType.MIXED
+
+    def test_concat_is_string(self) -> None:
+        expression = parse_begin_print_expr('"a" "b"')
+        assert infer_expression_type(expression) is LatticeType.STRING
+
+    def test_ternary_joins_branch_types(self) -> None:
+        expression = parse_begin_print_expr('1 ? "x" : 2')
+        assert infer_expression_type(expression) is LatticeType.MIXED

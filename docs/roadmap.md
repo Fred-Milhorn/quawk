@@ -626,6 +626,8 @@ Current state:
 - `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
   generation, runtime slot accessors, lowering updates, hash fallback, tests,
   and microbenchmark (`2.66x` median slot speedup)
+- `T-236` implements expression type inference for literals, names, arithmetic,
+  concat, and conditionals
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
@@ -635,8 +637,9 @@ Current state:
 - P26 type inference begins with `T-235` (type lattice definition)
 
 Immediate next tasks:
-- `T-236`: implement expression type inference
 - `T-237`: implement variable type propagation
+- `T-238`: handle control flow conservatively in type inference
+- `T-239`: add field access type (always mixed)
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -880,7 +883,7 @@ Priority values:
 | T-233 | P25 | P1 | Add tests for slot-based variable access | T-231 | Variable access tests pass with slot-based implementation | done |
 | T-234 | P25 | P2 | Benchmark slot vs hash access performance | T-233 | Microbenchmarks show measurable improvement | done |
 | T-235 | P26 | P0 | Define type lattice and join operation | - | `LatticeType` enum with `NUMERIC`, `STRING`, `MIXED`, `UNKNOWN` and join semantics | done |
-| T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | todo |
+| T-236 | P26 | P0 | Implement expression type inference | T-235 | Simple expressions (`1`, `"x"`, `x + 1`) infer correct types | done |
 | T-237 | P26 | P0 | Implement variable type propagation | T-236 | Variables get consistent types across assignments | todo |
 | T-238 | P26 | P1 | Handle control flow conservatively in type inference | T-237 | Loops and conditionals don't lose type information incorrectly | todo |
 | T-239 | P26 | P1 | Add field access type (always mixed) | T-236 | Field expressions typed as `MIXED` | todo |

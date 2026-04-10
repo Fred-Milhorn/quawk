@@ -3,6 +3,25 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Mapping
+
+from .parser import (
+    ArrayIndexExpr,
+    AssignExpr,
+    AssignOp,
+    BinaryExpr,
+    BinaryOp,
+    CallExpr,
+    ConditionalExpr,
+    Expr,
+    GetlineExpr,
+    NameExpr,
+    NumericLiteralExpr,
+    PostfixExpr,
+    RegexLiteralExpr,
+    StringLiteralExpr,
+    UnaryExpr,
+)
 
 
 class LatticeType(Enum):
@@ -60,3 +79,76 @@ def join_all(types: list[LatticeType] | tuple[LatticeType, ...]) -> LatticeType:
     for t in types:
         result = join(result, t)
     return result
+
+
+def infer_expression_type(
+    expression: Expr,
+    variable_types: Mapping[str, LatticeType] | None = None,
+) -> LatticeType:
+    """Infer the lattice type for one expression under the current variable types."""
+    env = {} if variable_types is None else variable_types
+    match expression:
+        case NumericLiteralExpr():
+            return LatticeType.NUMERIC
+        case StringLiteralExpr() | RegexLiteralExpr():
+            return LatticeType.STRING
+        case NameExpr(name=name):
+            return env.get(name, LatticeType.UNKNOWN)
+        case ArrayIndexExpr():
+            return LatticeType.UNKNOWN
+        case GetlineExpr():
+            return LatticeType.NUMERIC
+        case UnaryExpr(operand=operand):
+            operand_type = infer_expression_type(operand, env)
+            if operand_type is LatticeType.STRING:
+                return LatticeType.MIXED
+            return LatticeType.NUMERIC
+        case PostfixExpr():
+            return LatticeType.NUMERIC
+        case ConditionalExpr(if_true=if_true, if_false=if_false):
+            return join(
+                infer_expression_type(if_true, env),
+                infer_expression_type(if_false, env),
+            )
+        case AssignExpr(op=AssignOp.PLAIN, value=value):
+            return infer_expression_type(value, env)
+        case AssignExpr():
+            return LatticeType.NUMERIC
+        case BinaryExpr(op=op, left=left, right=right):
+            left_type = infer_expression_type(left, env)
+            right_type = infer_expression_type(right, env)
+            if op in {
+                BinaryOp.ADD,
+                BinaryOp.SUB,
+                BinaryOp.MUL,
+                BinaryOp.DIV,
+                BinaryOp.MOD,
+                BinaryOp.POW,
+            }:
+                if left_type is LatticeType.STRING or right_type is LatticeType.STRING:
+                    return LatticeType.MIXED
+                return LatticeType.NUMERIC
+            if op is BinaryOp.CONCAT:
+                return LatticeType.STRING
+            if op in {
+                BinaryOp.LESS,
+                BinaryOp.LESS_EQUAL,
+                BinaryOp.GREATER,
+                BinaryOp.GREATER_EQUAL,
+                BinaryOp.EQUAL,
+                BinaryOp.NOT_EQUAL,
+                BinaryOp.LOGICAL_AND,
+                BinaryOp.LOGICAL_OR,
+                BinaryOp.MATCH,
+                BinaryOp.NOT_MATCH,
+                BinaryOp.IN,
+            }:
+                return LatticeType.NUMERIC
+            return LatticeType.UNKNOWN
+        case CallExpr(function=function_name):
+            if function_name in {"index", "int", "length", "match", "split", "sub", "gsub", "system"}:
+                return LatticeType.NUMERIC
+            if function_name in {"sprintf", "substr", "tolower", "toupper"}:
+                return LatticeType.STRING
+            return LatticeType.UNKNOWN
+    return LatticeType.UNKNOWN
