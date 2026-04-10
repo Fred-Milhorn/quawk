@@ -2128,8 +2128,12 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
         case CallExpr(function="toupper"):
             return lower_runtime_case_builtin(expression, state, upper=True)
         case BinaryExpr(op=BinaryOp.CONCAT, left=left, right=right):
-            left_value = lower_runtime_captured_string_expression(left, state)
-            right_value = lower_runtime_captured_string_expression(right, state)
+            if runtime_expression_is_known_string(left, state) and runtime_expression_is_known_string(right, state):
+                left_value = lower_runtime_string_expression(left, state)
+                right_value = lower_runtime_string_expression(right, state)
+            else:
+                left_value = lower_runtime_captured_string_expression(left, state)
+                right_value = lower_runtime_captured_string_expression(right, state)
             temp = state.next_temp("concat")
             state.instructions.append(
                 f"  {temp} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {left_value}, ptr {right_value})"

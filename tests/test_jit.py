@@ -1275,6 +1275,15 @@ def test_lower_to_llvm_ir_emits_numeric_arithmetic_fast_path_ops() -> None:
     assert "fdiv double" in llvm_ir
 
 
+def test_lower_to_llvm_ir_emits_string_concat_fast_path_without_capture_for_known_strings() -> None:
+    program = parse_program('{ print ("foo" "bar") }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call ptr @qk_concat" in llvm_ir
+    assert "call ptr @qk_capture_string_arg" not in llvm_ir
+    assert "call ptr @qk_format_number" not in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}
