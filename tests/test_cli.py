@@ -482,6 +482,31 @@ def test_quawk_ir_flag_prints_backend_ir_for_claimed_unset_scalar_value_cases() 
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_uses_slot_calls_for_scalar_compound_assignment() -> None:
+    result = run_quawk("--ir", "BEGIN { x = 1; x += 2; print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_slot_get_number(" in result.stdout
+    assert "@qk_slot_set_number(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_executes_slot_based_scalar_reads_writes_and_increments() -> None:
+    result = run_quawk("BEGIN { x = 1; y = x + 2; x++; print x; print y; print x + y }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2\n3\n5\n"
+    assert result.stderr == ""
+
+
+def test_quawk_executes_slot_based_for_loop_accumulator() -> None:
+    result = run_quawk("BEGIN { total = 0; for (i = 1; i <= 3; i++) total += i; print total }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "6\n"
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
     result = run_quawk("--ir", "{ print $1 }")
 
