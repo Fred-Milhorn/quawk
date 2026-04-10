@@ -636,16 +636,16 @@ Current state:
 - `T-241` expands type inference correctness tests (including `getline`,
   `for ... in`, and function-parameter isolation)
 - `T-242` emits direct `fcmp` comparisons for inferred numeric operands
+- `T-243` confirms direct `fadd`/`fsub`/`fmul`/`fdiv` arithmetic lowering paths
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P27 specialization work proceeds with `T-243` (numeric arithmetic fast path)
+- P27 specialization work proceeds with `T-244` (string concat fast path)
 
 Immediate next tasks:
-- `T-243`: implement numeric arithmetic fast path
 - `T-244`: implement string concat fast path
 - `T-245`: implement slot-based numeric variable read/write
 - `T-246`: implement slot-based string variable read/write
@@ -902,7 +902,7 @@ Priority values:
 | T-240 | P26 | P1 | Store type annotations in lowering state | T-237, T-238, T-239 | `LoweringState` has `type_info` member | done |
 | T-241 | P26 | P2 | Add tests for type inference correctness | T-237, T-238 | All inference tests pass | done |
 | T-242 | P27 | P0 | Implement numeric comparison fast path | T-25, P26-T02 | Direct `fcmp` instruction emitted for `numeric <op> numeric` | done |
-| T-243 | P27 | P0 | Implement numeric arithmetic fast path | T-25, P26-T02 | Direct `fadd`/`fsub`/`fmul`/`fdiv` for numeric ops | todo |
+| T-243 | P27 | P0 | Implement numeric arithmetic fast path | T-25, P26-T02 | Direct `fadd`/`fsub`/`fmul`/`fdiv` for numeric ops | done |
 | T-244 | P27 | P1 | Implement string concat fast path | T-26 | Direct `qk_concat` call for string operands without coercion overhead | todo |
 | T-245 | P27 | P0 | Implement slot-based numeric variable read/write | P25, P26 | Direct `load`/`store` for slot-based numeric variables | todo |
 | T-246 | P27 | P1 | Implement slot-based string variable read/write | P25, P26 | Direct string slot access for known-string variables | todo |

@@ -1265,6 +1265,16 @@ def test_lower_to_llvm_ir_emits_numeric_comparison_fast_path_for_inferred_numeri
     assert "call i1 @qk_compare_values" not in llvm_ir
 
 
+def test_lower_to_llvm_ir_emits_numeric_arithmetic_fast_path_ops() -> None:
+    program = parse_program("{ x = 8; y = 2; print (x + y); print (x - y); print (x * y); print (x / y) }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "fadd double" in llvm_ir
+    assert "fsub double" in llvm_ir
+    assert "fmul double" in llvm_ir
+    assert "fdiv double" in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}
