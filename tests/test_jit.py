@@ -1257,6 +1257,14 @@ def test_lower_to_llvm_ir_supports_reusable_regex_program_lowering() -> None:
     assert "@qk_regex_match_current_record" in llvm_ir
 
 
+def test_lower_to_llvm_ir_emits_numeric_comparison_fast_path_for_inferred_numeric_names() -> None:
+    program = parse_program("{ x = 1; y = 2; print (x < y) }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "fcmp olt double" in llvm_ir
+    assert "call i1 @qk_compare_values" not in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}

@@ -2661,7 +2661,10 @@ def runtime_expression_is_definitely_numeric(expression: Expr, state: LoweringSt
         case NameExpr(name="NR" | "FNR" | "NF"):
             return True
         case NameExpr(name=name):
-            return is_reusable_runtime_state_name(name)
+            if is_reusable_runtime_state_name(name):
+                return True
+            inferred_type = state.type_info.get(name)
+            return inferred_type is LatticeType.NUMERIC and runtime_name_uses_scalar_runtime(name, state)
         case AssignExpr(op=AssignOp.PLAIN, target=NameLValue(name=name), value=value):
             return is_reusable_runtime_state_name(name) and runtime_expression_is_definitely_numeric(value, state)
         case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
