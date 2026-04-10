@@ -37,6 +37,7 @@ Awk and gawk references with `uv run quawk-upstream bootstrap`.
 - Prefer separate PRs for broad doc reorgs versus implementation work.
 - When references disagree, cite POSIX text before locking expected behavior.
 - Keep links relative. Do not add absolute local filesystem paths.
+- For agent-oriented local workflow details (including commit-message temp-file usage and `uv`-first commands), see [docs/agent-workflow.md](docs/agent-workflow.md).
 
 ## Coding and Documentation Standards
 

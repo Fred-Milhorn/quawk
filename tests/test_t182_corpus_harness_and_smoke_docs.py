@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
+pytestmark = pytest.mark.docs_contract
 
 
 def test_t182_testing_doc_reclassifies_corpus_as_a_manual_harness() -> None:

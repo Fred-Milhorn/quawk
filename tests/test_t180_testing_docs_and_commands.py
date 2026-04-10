@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
+pytestmark = pytest.mark.docs_contract
 
 
 def test_t180_readme_uses_the_renamed_test_surface_vocabulary() -> None:
