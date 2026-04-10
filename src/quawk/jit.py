@@ -2587,7 +2587,7 @@ def lower_runtime_user_function_call(function_name: str, args: tuple[Expr, ...],
 def runtime_name_slot_index(name: str, state: LoweringState) -> int | None:
     """Return the runtime numeric-slot index for one known scalar variable name."""
     if (
-        name in {"NR", "FNR", "NF", "FILENAME"}
+        is_builtin_variable_name(name)
         or name in state.loop_string_bindings
         or name in state.function_param_strings
         or is_reusable_runtime_state_name(name)
@@ -4264,7 +4264,7 @@ def runtime_slot_indexes(variable_indexes: dict[str, int]) -> dict[str, int]:
     return {
         name: index
         for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
-        if name not in {"NR", "FNR", "NF", "FILENAME"} and not is_reusable_runtime_state_name(name)
+        if not is_builtin_variable_name(name) and not is_reusable_runtime_state_name(name)
     }
 
 

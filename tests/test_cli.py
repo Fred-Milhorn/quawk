@@ -105,6 +105,20 @@ def test_quawk_treats_first_positional_after_f_as_input_file(tmp_path) -> None:
     assert result.stderr == ""
 
 
+def test_quawk_supports_argv_and_argc_iteration(tmp_path) -> None:
+    input_path = tmp_path / "input.txt"
+    input_path.write_text("x\n", encoding="utf-8")
+    result = run_quawk(
+        'BEGIN { for (i = 1; i < ARGC; i++) printf "%s ", ARGV[i]; printf "\\n"; exit }',
+        str(input_path),
+        str(input_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"{input_path} {input_path} \n"
+    assert result.stderr == ""
+
+
 def test_quawk_dash_dash_stops_option_parsing_for_input_files(tmp_path) -> None:
     input_path = tmp_path / "--records.txt"
     input_path.write_text("alpha beta\n", encoding="utf-8")
