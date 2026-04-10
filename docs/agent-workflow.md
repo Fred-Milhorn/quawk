@@ -95,3 +95,10 @@ Notes:
 - confirm no temporary files are staged
 - check final commit message:
   - `git log -1 --pretty=format:%B`
+
+## Task Close-Out Rule
+
+After finishing any roadmap task:
+
+- update `docs/roadmap.md` to reflect completion in the backlog status
+- update the `Immediate next tasks:` list so completed items are removed and the next pending items are current

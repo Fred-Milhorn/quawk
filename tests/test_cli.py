@@ -880,11 +880,21 @@ def test_quawk_supports_p24_match_and_membership_semantics() -> None:
 
 
 def test_quawk_ir_flag_prints_backend_ir_for_supported_function_programs() -> None:
-    result = run_quawk("--ir", "function f(x) { return x + 1 }\nBEGIN { print f(2) }")
+    result = run_quawk("--ir", "function f(x) { return x + 1 }\nBEGIN { y = 2; print f(y) }")
 
     assert result.returncode == 0, result.stderr
+    assert "%quawk.state = type { double }" in result.stdout
     assert "define double @qk_fn_f(" in result.stdout
     assert "call double @qk_fn_f(" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_uses_full_slot_layout_for_range_program_state() -> None:
+    result = run_quawk("--ir", '/a/,/b/ { x = x + 1; print x }')
+
+    assert result.returncode == 0, result.stderr
+    assert "%quawk.state = type { double, double }" in result.stdout
+    assert "getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 1" in result.stdout
     assert result.stderr == ""
 
 

@@ -625,6 +625,7 @@ Performance optimization phase P25 is now active. The P20-P24 widening waves are
 Current state:
 - `T-227` defines the initial checked-in slot-allocation data structures
 - `T-228` implements slot allocation over normalized AST
+- `T-229` generates `%quawk.state` from slot-allocation metadata
 - `T-197` through `T-207` are complete
 - `T-208` through `T-212` close the full `P21` wave
 - `T-213` through `T-217` close the full `P22` wave
@@ -636,7 +637,6 @@ Current state:
 - performance optimization planning is complete; implementation begins with P25
 
 Immediate next tasks:
-- `T-229`: generate LLVM struct type for extended state
 - `T-230`: add runtime slot accessor functions in C
 - `T-231`: update lowering to use slot addresses for known variables
 - `T-232`: preserve fallback to hash lookup for dynamic variables
@@ -877,7 +877,7 @@ Priority values:
 
 | T-227 | P25 | P0 | Design slot allocation data structures for compile-time variable slots | T-226 | `VariableSlot` and `SlotAllocation` structs are defined and reviewed in `docs/performance-implementation.md` | done |
 | T-228 | P25 | P0 | Implement slot allocation pass over normalized AST | T-227 | Pass produces `SlotAllocation` with variable slot indices | done |
-| T-229 | P25 | P0 | Generate LLVM struct type for extended state | T-228 | `--ir` shows `%quawk.state` struct with variable slots | todo |
+| T-229 | P25 | P0 | Generate LLVM struct type for extended state | T-228 | `--ir` shows `%quawk.state` struct with variable slots | done |
 | T-230 | P25 | P1 | Add runtime slot accessor functions in C | - | `qk_slot_get_number`, `qk_slot_set_number`, etc. compile and link | todo |
 | T-231 | P25 | P0 | Update lowering to use slot addresses for known variables | T-228, T-229 | Numeric variables use direct slot access in generated IR | todo |
 | T-232 | P25 | P1 | Preserve fallback to hash lookup for dynamic variables | T-231 | Dynamic/unknown variables still work via string-named hash | todo |

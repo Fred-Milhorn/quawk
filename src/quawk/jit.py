@@ -72,6 +72,7 @@ from .parser import (
     WhileStmt,
     expression_to_lvalue,
 )
+from .slot_allocation import SlotAllocation
 
 DEFAULT_OFMT = "%.6g"
 DEFAULT_CONVFMT = "%.6g"
@@ -307,7 +308,7 @@ def lower_direct_function_program_to_llvm_ir(
         if isinstance(item, FunctionDef)
     }
     variable_indexes = normalized_program.variable_indexes
-    state_type = render_state_type(variable_indexes)
+    state_type = render_state_type(normalized_program.slot_allocation)
     state_param = "%state" if state_type is not None else "null"
     string_index = 0
     globals_out: list[str] = []
@@ -505,7 +506,7 @@ def lower_reusable_program_to_llvm_ir(program: Program, normalized_program: Norm
     end_actions = normalized_program.end_actions
     variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
     array_names = normalized_program.array_names
-    state_type = render_state_type(variable_indexes)
+    state_type = render_state_type(normalized_program.slot_allocation)
 
     declarations = [
         "declare ptr @qk_get_field(ptr, i64)",
@@ -4125,21 +4126,19 @@ def is_reusable_runtime_state_name(name: str) -> bool:
 
 
 def reusable_runtime_state_indexes(variable_indexes: dict[str, int]) -> dict[str, int]:
-    """Return the contiguous `%quawk.state` layout for reusable runtime-only slots."""
-    names = [
-        name
-        for name, _ in sorted(variable_indexes.items(), key=lambda item: item[1])
+    """Return `%quawk.state` indexes for reusable runtime-only names."""
+    return {
+        name: index
+        for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
         if is_reusable_runtime_state_name(name)
-    ]
-    return {name: index for index, name in enumerate(names)}
+    }
 
 
-def render_state_type(variable_indexes: dict[str, int]) -> str | None:
-    """Render the reusable state-struct declaration when variables are present."""
-    if not variable_indexes:
+def render_state_type(slot_allocation: SlotAllocation) -> str | None:
+    """Render `%quawk.state` from slot-allocation metadata when slots exist."""
+    if slot_allocation.variable_count == 0:
         return None
-    fields = ", ".join("double" for _ in variable_indexes)
-    return f"%quawk.state = type {{ {fields} }}"
+    return slot_allocation.state_struct_type
 
 
 def render_reusable_function(name: str, state: LoweringState) -> str:
