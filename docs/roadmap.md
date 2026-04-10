@@ -623,10 +623,11 @@ Start here unless priorities change:
 Performance optimization phase P25 is now active. The P20-P24 widening waves are complete.
 
 Current state:
-- `T-197` through `T-207` are complete, `T-208` through `T-212` close the full
-  `P21` wave, `T-213` through `T-217` close the full `P22` wave, `T-218`
-  through `T-221` close the full `P23` wave, and `T-222` through `T-226` now
-  close the full `P24` wave
+- `T-197` through `T-207` are complete
+- `T-208` through `T-212` close the full `P21` wave
+- `T-213` through `T-217` close the full `P22` wave
+- `T-218` through `T-221` close the full `P23` wave
+- `T-222` through `T-226` close the full `P24` wave
 - the currently claimed widened expression surface executes through the
   compiled backend/runtime path with `--ir` / `--asm` support and no public
   Python host fallback
