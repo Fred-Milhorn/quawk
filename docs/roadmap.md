@@ -623,6 +623,7 @@ Start here unless priorities change:
 Performance optimization phase P25 is now active. The P20-P24 widening waves are complete.
 
 Current state:
+- `T-227` defines the initial checked-in slot-allocation data structures
 - `T-197` through `T-207` are complete
 - `T-208` through `T-212` close the full `P21` wave
 - `T-213` through `T-217` close the full `P22` wave
@@ -634,7 +635,6 @@ Current state:
 - performance optimization planning is complete; implementation begins with P25
 
 Immediate next tasks:
-- `T-227`: design slot allocation data structures for compile-time variable slots
 - `T-228`: implement slot allocation pass over normalized AST
 - `T-229`: generate LLVM struct type for extended state
 - `T-230`: add runtime slot accessor functions in C
@@ -875,7 +875,7 @@ Priority values:
 | T-099 | P4 | P0 | Extend LLVM lowering for `==`, `&&`, and parenthesized boolean expressions | T-098 | `BEGIN { print 1 == 1 }` and `BEGIN { print (1 < 2) && (2 < 3) }` execute through the reusable LLVM-backed path | done |
 | T-100 | P4 | P1 | Add integration tests for stdout/stderr/exit status of broader expression support | T-099 | Integration tests pass for the planned equality/logical-expression programs on the reusable runtime path | done |
 
-| T-227 | P25 | P0 | Design slot allocation data structures for compile-time variable slots | T-226 | `VariableSlot` and `SlotAllocation` structs are defined and reviewed in `docs/performance-implementation.md` | todo |
+| T-227 | P25 | P0 | Design slot allocation data structures for compile-time variable slots | T-226 | `VariableSlot` and `SlotAllocation` structs are defined and reviewed in `docs/performance-implementation.md` | done |
 | T-228 | P25 | P0 | Implement slot allocation pass over normalized AST | T-227 | Pass produces `SlotAllocation` with variable slot indices | todo |
 | T-229 | P25 | P0 | Generate LLVM struct type for extended state | T-228 | `--ir` shows `%quawk.state` struct with variable slots | todo |
 | T-230 | P25 | P1 | Add runtime slot accessor functions in C | - | `qk_slot_get_number`, `qk_slot_set_number`, etc. compile and link | todo |
