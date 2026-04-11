@@ -193,6 +193,24 @@ Sample run on April 10, 2026 (`--iterations 120000 --repetitions 7 --warmups 2`)
 - mixed-fallback median: `536.320 ms`
 - median speedup (`fast` vs `fallback`): `1.09x`
 
+## T-257 Optimized IR Microbenchmark
+
+For `T-257`, the repo now includes a focused benchmark script:
+
+```sh
+uv run python scripts/benchmark_optimized_vs_unoptimized.py
+```
+
+This benchmark builds optimized and unoptimized IR once, then times `lli`
+execution of both modules on the same loop workload while using the level 2
+optimization pipeline for the optimized module.
+
+Sample run on April 11, 2026 (`--iterations 250000 --repetitions 7 --warmups 2`):
+
+- unoptimized median: `226.014 ms`
+- optimized median: `230.983 ms`
+- median speedup (`optimized` vs `unoptimized`): `0.98x`
+
 ## Assumptions
 
 - the benchmark is a local engineering tool, not a release gate
