@@ -566,8 +566,14 @@ qk_runtime *qk_runtime_create_with_slots(
 | P29-T04 | Create slot-based runtime entry point | P29-T03 | `qk_runtime_create_with_slots` works | done |
 | P29-T05 | Add inline versions of hot paths | P29-T03 | Inline-able functions defined | done |
 | P29-T06 | Update generated IR to use fast paths | P27, P29-T05 | IR emits fast-path calls | done |
-| P29-T07 | Benchmark fast-path improvements | P29-T06 | Measurable speedup |
+| P29-T07 | Benchmark fast-path improvements | P29-T06 | Measurable speedup | done |
 | P29-T08 | Document ABI stability guarantees | P29-T05 | ABI documented |
+
+The fast-path benchmark runner compares the same linked hot-path modules with
+the inline helper symbols intact and with those symbols rewritten back to the
+base helper entry points:
+
+`uv run python scripts/benchmark_runtime_fast_paths.py --dataset-scale medium`
 
 ---
 
