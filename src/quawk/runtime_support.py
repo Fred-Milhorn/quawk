@@ -47,6 +47,11 @@ def find_llvm_link() -> str:
     return find_tool("llvm-link", "LLVM linker")
 
 
+def find_llvm_opt() -> str:
+    """Return the `opt` executable used to optimize generated IR modules."""
+    return find_tool("opt", "LLVM optimization tool")
+
+
 def compile_runtime_object(output_dir: Path) -> Path:
     """Compile the C runtime support layer into one object file and return its path."""
     output_dir.mkdir(parents=True, exist_ok=True)

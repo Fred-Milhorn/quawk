@@ -651,12 +651,12 @@ Current state:
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P28 optimization work proceeds with `T-251` (`optimize_ir()` subprocess integration)
+- P28 optimization work proceeds with `T-252` (`integrate optimization into execute path`)
 
 Immediate next tasks:
-- `T-251`: implement `optimize_ir()` function with opt subprocess
 - `T-252`: integrate optimization into execute path
 - `T-253`: add `--ir=optimized` for inspection mode
+- `T-254`: define pass pipeline for each optimization level
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -915,7 +915,7 @@ Priority values:
 | T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | done |
 | T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | done |
 | T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | done |
-| T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | todo |
+| T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | done |
 | T-252 | P28 | P0 | Integrate optimization into execute path | T-251 | Programs run with `-O` show optimized IR | todo |
 | T-253 | P28 | P1 | Add `--ir=optimized` for inspection mode | T-251, T-250 | Shows optimized IR when requested | todo |
 | T-254 | P28 | P1 | Define pass pipeline for each optimization level | T-251 | Level 1 (basic) and level 2 (aggressive) pipelines documented | todo |

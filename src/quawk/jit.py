@@ -436,13 +436,31 @@ def build_public_execution_llvm_ir(
     if program_requires_linked_execution_module(program, initial_variables):
         llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
     if optimize:
-        return enable_optimization_mode(llvm_ir)
+        return optimize_ir(llvm_ir)
     return llvm_ir
 
 
-def enable_optimization_mode(llvm_ir: str) -> str:
-    """Mark one generated module as optimization-enabled until pass integration lands."""
-    return "; optimization-mode enabled\n" + llvm_ir
+OPTIMIZATION_PASS_PIPELINES: dict[int, list[str]] = {
+    1: ["-passes=mem2reg,instcombine,simplifycfg,gvn"],
+    2: ["-O2"],
+    3: ["-O3", "-vectorize-loops"],
+}
+
+
+def optimize_ir(llvm_ir: str, level: int = 1) -> str:
+    """Run LLVM `opt` over one generated IR module and return optimized text."""
+    opt_path = runtime_support.find_llvm_opt()
+    passes = OPTIMIZATION_PASS_PIPELINES.get(level, OPTIMIZATION_PASS_PIPELINES[1])
+    result = subprocess.run(
+        [opt_path, *passes, "-S"],
+        input=llvm_ir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "opt failed to optimize generated IR")
+    return result.stdout
 
 
 def program_requires_linked_execution_module(

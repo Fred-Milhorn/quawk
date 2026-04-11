@@ -470,12 +470,12 @@ def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
     assert result.stderr == ""
 
 
-def test_quawk_ir_flag_with_optimize_emits_optimization_marker() -> None:
+def test_quawk_ir_flag_with_optimize_runs_llvm_opt() -> None:
     result = run_quawk("--ir", "-O", "BEGIN { print 1 }")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.startswith("; optimization-mode enabled\n")
     assert "define i32 @quawk_main()" in result.stdout
+    assert "; optimization-mode enabled" not in result.stdout
     assert result.stderr == ""
 
 
