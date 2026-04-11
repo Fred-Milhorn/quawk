@@ -651,12 +651,12 @@ Current state:
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P28 optimization work proceeds with `T-254` (`define pass pipeline for each optimization level`)
+- P28 optimization work proceeds with `T-255` (`handle opt not found gracefully`)
 
 Immediate next tasks:
-- `T-254`: define pass pipeline for each optimization level
 - `T-255`: handle opt not found gracefully
 - `T-256`: add tests for optimization flag behavior
+- `T-257`: benchmark optimized vs unoptimized performance
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -918,7 +918,7 @@ Priority values:
 | T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | done |
 | T-252 | P28 | P0 | Integrate optimization into execute path | T-251 | Programs run with `-O` show optimized IR | done |
 | T-253 | P28 | P1 | Add `--ir=optimized` for inspection mode | T-251, T-250 | Shows optimized IR when requested | done |
-| T-254 | P28 | P1 | Define pass pipeline for each optimization level | T-251 | Level 1 (basic) and level 2 (aggressive) pipelines documented | todo |
+| T-254 | P28 | P1 | Define pass pipeline for each optimization level | T-251 | Level 1 (basic) and level 2 (aggressive) pipelines documented | done |
 | T-255 | P28 | P2 | Handle opt not found gracefully | T-251 | Warning emitted, fallback to unoptimized | todo |
 | T-256 | P28 | P2 | Add tests for optimization flag behavior | T-252 | Tests pass with optimization enabled | todo |
 | T-257 | P28 | P2 | Benchmark optimized vs unoptimized performance | T-256 | Numbers show benefit of optimization passes | todo |

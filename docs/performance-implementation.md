@@ -375,9 +375,8 @@ def optimize_ir(ir: str, level: int = 1) -> str:
         return ir
     
     passes_by_level = {
-        1: ['-mem2reg', '-instcombine', '-simplifycfg', '-gvn'],
-        2: ['-O2'],  # Standard optimization
-        3: ['-O3', '-vectorize-loops'],  # Aggressive optimization
+        1: ['-passes=mem2reg,instcombine,simplifycfg,gvn'],
+        2: ['-O2', '-vectorize-loops'],  # Aggressive optimization
     }
     
     passes = passes_by_level.get(level, passes_by_level[1])
@@ -435,7 +434,7 @@ inspection alias requests optimized IR explicitly.
 | P28-T02 | Implement `optimize_ir()` function | - | Function invokes opt |
 | P28-T03 | Integrate optimization into execute path | P28-T02 | Optimized IR executes |
 | P28-T04 | Add `--ir=optimized` for inspection | P28-T02 | Shows optimized IR |
-| P28-T05 | Define pass pipeline for each level | - | Pipeline documented |
+| P28-T05 | Define pass pipeline for each level | - | Level 1 and level 2 pipelines documented |
 | P28-T06 | Handle opt not found gracefully | P28-T02 | Warning, fallback to unoptimized |
 | P28-T07 | Add tests for optimization flag | P28-T03 | Tests pass |
 | P28-T08 | Benchmark optimized vs unoptimized | P28-T07 | Numbers show benefit |

@@ -501,6 +501,30 @@ def test_optimize_ir_invokes_opt_with_default_pipeline(monkeypatch) -> None:
     assert captured["check"] is False
 
 
+def test_optimize_ir_invokes_opt_with_level_two_pipeline(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_find_llvm_opt() -> str:
+        return "/usr/bin/opt"
+
+    def fake_run(
+        command: list[str],
+        *,
+        input: str,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        captured["command"] = command
+        return subprocess.CompletedProcess(command, 0, stdout="; optimized ir\n", stderr="")
+
+    monkeypatch.setattr(jit.runtime_support, "find_llvm_opt", fake_find_llvm_opt)
+    monkeypatch.setattr(jit.subprocess, "run", fake_run)
+
+    assert jit.optimize_ir("; input ir", level=2) == "; optimized ir\n"
+    assert captured["command"] == ["/usr/bin/opt", "-O2", "-vectorize-loops", "-S"]
+
+
 def test_execute_with_inputs_routes_supported_nextfile_programs_through_backend(monkeypatch) -> None:
     program = parse_program('/stop/ { nextfile }\n{ print $0 }')
     captured_ir: dict[str, str] = {}

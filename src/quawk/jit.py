@@ -440,19 +440,22 @@ def build_public_execution_llvm_ir(
     return llvm_ir
 
 
-OPTIMIZATION_PASS_PIPELINES: dict[int, list[str]] = {
-    1: ["-passes=mem2reg,instcombine,simplifycfg,gvn"],
-    2: ["-O2"],
-    3: ["-O3", "-vectorize-loops"],
+OPTIMIZATION_PASS_PIPELINES: dict[int, tuple[str, ...]] = {
+    1: ("-passes=mem2reg,instcombine,simplifycfg,gvn",),
+    2: ("-O2", "-vectorize-loops"),
 }
+
+
+def optimization_passes_for_level(level: int) -> list[str]:
+    """Return the LLVM `opt` flags for one supported optimization level."""
+    return list(OPTIMIZATION_PASS_PIPELINES.get(level, OPTIMIZATION_PASS_PIPELINES[1]))
 
 
 def optimize_ir(llvm_ir: str, level: int = 1) -> str:
     """Run LLVM `opt` over one generated IR module and return optimized text."""
     opt_path = runtime_support.find_llvm_opt()
-    passes = OPTIMIZATION_PASS_PIPELINES.get(level, OPTIMIZATION_PASS_PIPELINES[1])
     result = subprocess.run(
-        [opt_path, *passes, "-S"],
+        [opt_path, *optimization_passes_for_level(level), "-S"],
         input=llvm_ir,
         capture_output=True,
         text=True,

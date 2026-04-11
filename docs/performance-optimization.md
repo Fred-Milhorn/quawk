@@ -160,7 +160,7 @@ Level 0 (current): No optimization, IR as generated.
 
 Level 1 (recommended for debugging):
 ```
-opt -mem2reg -instcombine -simplifycfg
+opt -passes=mem2reg,instcombine,simplifycfg,gvn
 ```
 
 Level 2 (recommended for production):
