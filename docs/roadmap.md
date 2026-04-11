@@ -651,10 +651,9 @@ Current state:
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P29 ABI work proceeds with `T-261` (`create slot-based runtime entry point`)
+- P29 ABI work proceeds with `T-262` (`add inline fast-path versions of hot functions`)
 
 Immediate next tasks:
-- `T-261`: create slot-based runtime entry point
 - `T-262`: add inline fast-path versions of hot functions
 - `T-263`: update generated IR to use fast-path entry points
 
@@ -925,7 +924,7 @@ Priority values:
 | T-258 | P29 | P1 | Profile current hot paths in runtime | - | Top 10 called functions identified with call counts | done |
 | T-259 | P29 | P0 | Add slot storage arrays to runtime struct | P25 | `qk_runtime` has `numeric_slots`, `string_slots`, and `mixed_slots` arrays | done |
 | T-260 | P29 | P0 | Add inline slot accessor functions | T-259 | `qk_slot_get_number_inline`, etc. defined in header | done |
-| T-261 | P29 | P0 | Create slot-based runtime entry point | T-259 | `qk_runtime_create_with_slots()` available | todo |
+| T-261 | P29 | P0 | Create slot-based runtime entry point | T-259 | `qk_runtime_create_with_slots()` available | done |
 | T-262 | P29 | P1 | Add inline fast-path versions of hot functions | T-258, T-260 | Inline-able fast paths for top hot paths | todo |
 | T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | todo |
 | T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | todo |

@@ -184,6 +184,14 @@ static void qk_runtime_profile_note(enum qk_runtime_profile_function function);
 static bool qk_runtime_profile_is_enabled(void);
 static void qk_runtime_profile_prepare(void);
 
+static bool qk_runtime_initialize(qk_runtime *runtime, int argc, char **argv, const char *field_separator);
+static bool qk_initialize_numeric_slots(qk_runtime *runtime, size_t slot_count);
+static bool qk_initialize_string_slots(qk_runtime *runtime, size_t slot_count);
+static bool qk_initialize_mixed_slots(qk_runtime *runtime, size_t slot_count);
+static bool qk_scalar_set_string_value(qk_runtime *runtime, const char *name, const char *value);
+static bool qk_scalar_set_number_value(qk_runtime *runtime, const char *name, double value);
+static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, const char *key, const char *value);
+
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 static bool qk_rebuild_fields(qk_runtime *runtime);
 static bool qk_rebuild_current_record(qk_runtime *runtime, size_t target_fields, int64_t index, const char *value);
@@ -192,7 +200,6 @@ static bool qk_update_field_separator(qk_runtime *runtime, const char *text);
 static void qk_update_record_separator(qk_runtime *runtime, const char *text);
 static bool qk_ensure_numeric_slot_capacity(qk_runtime *runtime, size_t required_count);
 static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_count);
-static bool qk_ensure_mixed_slot_capacity(qk_runtime *runtime, size_t required_count);
 static void qk_free_slot_strings(qk_runtime *runtime);
 static void qk_free_mixed_slot_strings(qk_runtime *runtime);
 extern char **environ;
@@ -370,37 +377,6 @@ static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_
     return true;
 }
 
-static bool qk_ensure_mixed_slot_capacity(qk_runtime *runtime, size_t required_count)
-{
-    size_t old_count;
-    size_t new_count;
-    struct qk_cell *resized;
-
-    if ((runtime == NULL) || (required_count <= runtime->mixed_slot_count)) {
-        return true;
-    }
-
-    old_count = runtime->mixed_slot_count;
-    new_count = old_count == 0U ? 8U : old_count;
-    while (new_count < required_count) {
-        size_t next_count = new_count * 2U;
-        if (next_count <= new_count) {
-            new_count = required_count;
-            break;
-        }
-        new_count = next_count;
-    }
-
-    resized = realloc(runtime->mixed_slots, new_count * sizeof(*resized));
-    if (resized == NULL) {
-        return false;
-    }
-    memset(resized + old_count, 0, (new_count - old_count) * sizeof(*resized));
-    runtime->mixed_slots = resized;
-    runtime->mixed_slot_count = new_count;
-    return true;
-}
-
 static void qk_free_slot_strings(qk_runtime *runtime)
 {
     size_t index;
@@ -426,6 +402,140 @@ static void qk_free_mixed_slot_strings(qk_runtime *runtime)
         free(runtime->mixed_slots[index].string);
         runtime->mixed_slots[index].string = NULL;
     }
+}
+
+static bool qk_initialize_numeric_slots(qk_runtime *runtime, size_t slot_count)
+{
+    double *slots;
+
+    if ((runtime == NULL) || (slot_count == 0U)) {
+        return true;
+    }
+
+    slots = calloc(slot_count, sizeof(*slots));
+    if (slots == NULL) {
+        return false;
+    }
+
+    runtime->numeric_slots = slots;
+    runtime->numeric_slot_count = slot_count;
+    return true;
+}
+
+static bool qk_initialize_string_slots(qk_runtime *runtime, size_t slot_count)
+{
+    char **slots;
+
+    if ((runtime == NULL) || (slot_count == 0U)) {
+        return true;
+    }
+
+    slots = calloc(slot_count, sizeof(*slots));
+    if (slots == NULL) {
+        return false;
+    }
+
+    runtime->string_slots = slots;
+    runtime->string_slot_count = slot_count;
+    return true;
+}
+
+static bool qk_initialize_mixed_slots(qk_runtime *runtime, size_t slot_count)
+{
+    struct qk_cell *slots;
+
+    if ((runtime == NULL) || (slot_count == 0U)) {
+        return true;
+    }
+
+    slots = calloc(slot_count, sizeof(*slots));
+    if (slots == NULL) {
+        return false;
+    }
+
+    runtime->mixed_slots = slots;
+    runtime->mixed_slot_count = slot_count;
+    return true;
+}
+
+static bool qk_runtime_initialize(qk_runtime *runtime, int argc, char **argv, const char *field_separator)
+{
+    int index;
+
+    runtime->argc = argc;
+    runtime->argv = argv;
+    runtime->random_seed = 1;
+    runtime->random_state = 1U;
+    qk_update_record_separator(runtime, "\n");
+
+    if (!qk_scalar_set_string_value(runtime, "OFS", " ")) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "ORS", "\n")) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "OFMT", QK_DEFAULT_OFMT)) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "CONVFMT", QK_DEFAULT_CONVFMT)) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "FS", field_separator == NULL ? " " : field_separator)) {
+        return false;
+    }
+    if (!qk_update_field_separator(runtime, field_separator == NULL ? " " : field_separator)) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "RS", "\n")) {
+        return false;
+    }
+    if (!qk_scalar_set_number_value(runtime, "RSTART", 0.0)) {
+        return false;
+    }
+    if (!qk_scalar_set_number_value(runtime, "RLENGTH", -1.0)) {
+        return false;
+    }
+    if (!qk_scalar_set_number_value(runtime, "ARGC", (double)(argc + 1))) {
+        return false;
+    }
+    if (!qk_scalar_set_string_value(runtime, "SUBSEP", QK_DEFAULT_SUBSEP)) {
+        return false;
+    }
+    if (!qk_array_set(runtime, "ARGV", "0", "quawk")) {
+        return false;
+    }
+    for (index = 0; index < argc; index += 1) {
+        char key[32];
+        snprintf(key, sizeof(key), "%d", index + 1);
+        if (!qk_array_set(runtime, "ARGV", key, argv[index])) {
+            return false;
+        }
+    }
+    if (environ != NULL) {
+        for (index = 0; environ[index] != NULL; index += 1) {
+            char *separator = strchr(environ[index], '=');
+            size_t name_length;
+            char *name;
+
+            if (separator == NULL) {
+                continue;
+            }
+            name_length = (size_t)(separator - environ[index]);
+            name = malloc(name_length + 1U);
+            if (name == NULL) {
+                return false;
+            }
+            memcpy(name, environ[index], name_length);
+            name[name_length] = '\0';
+            if (!qk_array_set(runtime, "ENVIRON", name, separator + 1)) {
+                free(name);
+                return false;
+            }
+            free(name);
+        }
+    }
+
+    return true;
 }
 
 static void qk_close_current_handle(qk_runtime *runtime)
@@ -1590,104 +1700,44 @@ static double qk_read_file_line(
 
 qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator)
 {
-    qk_runtime_profile_prepare();
-    int index;
+    return qk_runtime_create_with_slots(argc, argv, field_separator, 0, 0, 8);
+}
 
-    qk_runtime *runtime = calloc(1U, sizeof(*runtime));
+qk_runtime *qk_runtime_create_with_slots(
+    int argc,
+    char **argv,
+    const char *field_separator,
+    int numeric_slots,
+    int string_slots,
+    int mixed_slots)
+{
+    qk_runtime_profile_prepare();
+    qk_runtime *runtime;
+
+    if ((numeric_slots < 0) || (string_slots < 0) || (mixed_slots < 0)) {
+        return NULL;
+    }
+
+    runtime = calloc(1U, sizeof(*runtime));
     if (runtime == NULL) {
         return NULL;
     }
 
-    runtime->argc = argc;
-    runtime->argv = argv;
-    runtime->random_seed = 1;
-    runtime->random_state = 1U;
-    qk_update_record_separator(runtime, "\n");
-
-    if (!qk_scalar_set_string_value(runtime, "OFS", " ")) {
+    if (!qk_runtime_initialize(runtime, argc, argv, field_separator)) {
         qk_runtime_destroy(runtime);
         return NULL;
     }
-    if (!qk_scalar_set_string_value(runtime, "ORS", "\n")) {
+    if (!qk_initialize_numeric_slots(runtime, (size_t)numeric_slots)) {
         qk_runtime_destroy(runtime);
         return NULL;
     }
-    if (!qk_scalar_set_string_value(runtime, "OFMT", QK_DEFAULT_OFMT)) {
+    if (!qk_initialize_string_slots(runtime, (size_t)string_slots)) {
         qk_runtime_destroy(runtime);
         return NULL;
     }
-    if (!qk_scalar_set_string_value(runtime, "CONVFMT", QK_DEFAULT_CONVFMT)) {
+    if (!qk_initialize_mixed_slots(runtime, (size_t)mixed_slots)) {
         qk_runtime_destroy(runtime);
         return NULL;
-    }
-    if (!qk_scalar_set_string_value(runtime, "FS", field_separator == NULL ? " " : field_separator)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_update_field_separator(runtime, field_separator == NULL ? " " : field_separator)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_scalar_set_string_value(runtime, "RS", "\n")) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_scalar_set_number_value(runtime, "RSTART", 0.0)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_scalar_set_number_value(runtime, "RLENGTH", -1.0)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_scalar_set_number_value(runtime, "ARGC", (double)(argc + 1))) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_scalar_set_string_value(runtime, "SUBSEP", QK_DEFAULT_SUBSEP)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_ensure_mixed_slot_capacity(runtime, 8U)) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    if (!qk_array_set(runtime, "ARGV", "0", "quawk")) {
-        qk_runtime_destroy(runtime);
-        return NULL;
-    }
-    for (index = 0; index < argc; index += 1) {
-        char key[32];
-        snprintf(key, sizeof(key), "%d", index + 1);
-        if (!qk_array_set(runtime, "ARGV", key, argv[index])) {
-            qk_runtime_destroy(runtime);
-            return NULL;
-        }
-    }
-    if (environ != NULL) {
-        for (index = 0; environ[index] != NULL; index += 1) {
-            char *separator = strchr(environ[index], '=');
-            size_t name_length;
-            char *name;
-
-            if (separator == NULL) {
-                continue;
-            }
-            name_length = (size_t)(separator - environ[index]);
-            name = malloc(name_length + 1U);
-            if (name == NULL) {
-                qk_runtime_destroy(runtime);
-                return NULL;
-            }
-            memcpy(name, environ[index], name_length);
-            name[name_length] = '\0';
-            if (!qk_array_set(runtime, "ENVIRON", name, separator + 1)) {
-                free(name);
-                qk_runtime_destroy(runtime);
-                return NULL;
-            }
-            free(name);
-        }
     }
 
     return runtime;

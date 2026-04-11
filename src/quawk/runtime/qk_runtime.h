@@ -21,6 +21,14 @@ typedef struct qk_runtime qk_runtime;
  * process argument vector.
  */
 qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator);
+qk_runtime *qk_runtime_create_with_slots(
+    int argc,
+    char **argv,
+    const char *field_separator,
+    int numeric_slots,
+    int string_slots,
+    int mixed_slots
+);
 
 /* Destroy one runtime instance and release all owned buffers and file handles. */
 void qk_runtime_destroy(qk_runtime *runtime);

@@ -503,13 +503,13 @@ struct qk_runtime {
 
 ```c
 qk_runtime *qk_runtime_create_with_slots(
-    int argc, char **argv, 
+    int argc, char **argv,
     const char *field_separator,
     int numeric_slots, int string_slots, int mixed_slots
 ) {
     qk_runtime *rt = qk_runtime_create(argc, argv, field_separator);
     if (!rt) return NULL;
-    
+
     if (numeric_slots > 0) {
         rt->numeric_slots = calloc(numeric_slots, sizeof(double));
         rt->numeric_slot_count = numeric_slots;
@@ -527,7 +527,7 @@ qk_runtime *qk_runtime_create_with_slots(
 | P29-T01 | Profile current hot paths | - | List of top 10 called functions |
 | P29-T02 | Add slot storage to runtime struct | P25 | Struct compiles with numeric, string, and mixed slot arrays |
 | P29-T03 | Add slot accessor functions | P29-T02 | Functions available |
-| P29-T04 | Create slot-based runtime entry point | P29-T03 | `qk_runtime_create_with_slots` works |
+| P29-T04 | Create slot-based runtime entry point | P29-T03 | `qk_runtime_create_with_slots` works | done |
 | P29-T05 | Add inline versions of hot paths | P29-T03 | Inline-able functions defined |
 | P29-T06 | Update generated IR to use fast paths | P27, P29-T05 | IR emits fast-path calls |
 | P29-T07 | Benchmark fast-path improvements | P29-T06 | Measurable speedup |

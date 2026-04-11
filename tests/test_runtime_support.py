@@ -169,3 +169,60 @@ def test_runtime_slot_accessors_round_trip(tmp_path: Path) -> None:
         check=True,
     )
     subprocess.run([str(executable_path)], check=True)
+
+
+def test_runtime_create_with_slots_round_trip(tmp_path: Path) -> None:
+    harness_path = tmp_path / "runtime_slot_ctor_harness.c"
+    executable_path = tmp_path / "runtime_slot_ctor_harness"
+    harness_path.write_text(
+        "\n".join(
+            [
+                '#include "qk_runtime.h"',
+                "",
+                '#include <math.h>',
+                '#include <stdio.h>',
+                '#include <string.h>',
+                "",
+                "int main(void)",
+                "{",
+                "    qk_runtime *runtime = qk_runtime_create_with_slots(0, (char **)0, (const char *)0, 2, 2, 2);",
+                "    if (runtime == NULL) {",
+                "        return 1;",
+                "    }",
+                "    qk_slot_set_number_inline(runtime, 1, 88.5);",
+                "    if (fabs(qk_slot_get_number_inline(runtime, 1) - 88.5) > 1e-12) {",
+                "        qk_runtime_destroy(runtime);",
+                "        return 2;",
+                "    }",
+                '    qk_slot_set_string_inline(runtime, 1, "slot-ctor");',
+                '    if (strcmp(qk_slot_get_string_inline(runtime, 1), "slot-ctor") != 0) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 3;",
+                "    }",
+                "    qk_runtime_destroy(runtime);",
+                "    return 0;",
+                "}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            runtime_support.find_clang(),
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            str(runtime_support.runtime_source_path()),
+            str(harness_path),
+            "-I",
+            str(runtime_support.runtime_directory()),
+            "-o",
+            str(executable_path),
+            "-lm",
+        ],
+        check=True,
+    )
+    subprocess.run([str(executable_path)], check=True)
