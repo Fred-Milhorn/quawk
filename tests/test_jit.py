@@ -8,6 +8,8 @@ import io
 import subprocess
 from typing import Callable
 
+import pytest
+
 from quawk import jit
 from quawk.lexer import lex
 from quawk.parser import Program, parse
@@ -523,6 +525,20 @@ def test_optimize_ir_invokes_opt_with_level_two_pipeline(monkeypatch) -> None:
 
     assert jit.optimize_ir("; input ir", level=2) == "; optimized ir\n"
     assert captured["command"] == ["/usr/bin/opt", "-O2", "-vectorize-loops", "-S"]
+
+
+def test_optimize_ir_warns_and_returns_input_when_opt_missing(monkeypatch) -> None:
+    def fake_find_llvm_opt() -> str:
+        raise RuntimeError("LLVM optimization tool 'opt' is not available on PATH")
+
+    def fail_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        raise AssertionError("optimize_ir should not invoke subprocess.run when opt is missing")
+
+    monkeypatch.setattr(jit.runtime_support, "find_llvm_opt", fake_find_llvm_opt)
+    monkeypatch.setattr(jit.subprocess, "run", fail_run)
+
+    with pytest.warns(RuntimeWarning, match="LLVM optimization tool 'opt' is not available on PATH"):
+        assert jit.optimize_ir("; input ir") == "; input ir"
 
 
 def test_execute_with_inputs_routes_supported_nextfile_programs_through_backend(monkeypatch) -> None:

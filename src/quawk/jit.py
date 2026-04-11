@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -453,7 +454,11 @@ def optimization_passes_for_level(level: int) -> list[str]:
 
 def optimize_ir(llvm_ir: str, level: int = 1) -> str:
     """Run LLVM `opt` over one generated IR module and return optimized text."""
-    opt_path = runtime_support.find_llvm_opt()
+    try:
+        opt_path = runtime_support.find_llvm_opt()
+    except RuntimeError as exc:
+        warnings.warn(str(exc), RuntimeWarning)
+        return llvm_ir
     result = subprocess.run(
         [opt_path, *optimization_passes_for_level(level), "-S"],
         input=llvm_ir,
