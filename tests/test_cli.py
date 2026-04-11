@@ -491,6 +491,66 @@ def test_quawk_ir_flag_uses_slot_calls_for_scalar_compound_assignment() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_shows_specialized_numeric_comparison_fast_path() -> None:
+    result = run_quawk("--ir", "{ x = 1; y = 2; print (x < y) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fcmp olt double" in result.stdout
+    assert "call i1 @qk_compare_values(" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_specialized_numeric_arithmetic_fast_path() -> None:
+    result = run_quawk("--ir", "{ x = 8; y = 2; print (x + y); print (x - y); print (x * y); print (x / y) }")
+
+    assert result.returncode == 0, result.stderr
+    assert "fadd double" in result.stdout
+    assert "fsub double" in result.stdout
+    assert "fmul double" in result.stdout
+    assert "fdiv double" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_specialized_string_concat_fast_path() -> None:
+    result = run_quawk("--ir", '{ s = "foo"; t = "bar"; print (s t) }')
+
+    assert result.returncode == 0, result.stderr
+    assert "call ptr @qk_concat(" in result.stdout
+    assert "call ptr @qk_capture_string_arg(" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_specialized_numeric_slot_state_access() -> None:
+    result = run_quawk("--ir", "{ x = 1; y = x + 2; x += y; print x }")
+
+    assert result.returncode == 0, result.stderr
+    assert "getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 0" in result.stdout
+    assert "getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 1" in result.stdout
+    assert "call double @qk_slot_get_number(" not in result.stdout
+    assert "call void @qk_slot_set_number(" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_specialized_string_slot_access() -> None:
+    result = run_quawk("--ir", '{ s = "hello"; t = s; print t }')
+
+    assert result.returncode == 0, result.stderr
+    assert "call void @qk_slot_set_string(" in result.stdout
+    assert "call ptr @qk_slot_get_string(" in result.stdout
+    assert "call void @qk_scalar_set_string(" not in result.stdout
+    assert "call ptr @qk_scalar_get(" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_mixed_type_slow_path_fallback() -> None:
+    result = run_quawk("--ir", 'BEGIN { x = 1; x = "s" }\n{ print (x < 2); print (x + 1) }')
+
+    assert result.returncode == 0, result.stderr
+    assert "call i1 @qk_compare_values(" in result.stdout
+    assert "call double @qk_scalar_get_number(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_executes_slot_based_scalar_reads_writes_and_increments() -> None:
     result = run_quawk("BEGIN { x = 1; y = x + 2; x++; print x; print y; print x + y }")
 

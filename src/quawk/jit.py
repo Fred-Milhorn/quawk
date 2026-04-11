@@ -2739,6 +2739,11 @@ def runtime_name_is_inferred_numeric(name: str, state: LoweringState) -> bool:
     return state.type_info.get(name) is LatticeType.NUMERIC
 
 
+def runtime_name_is_inferred_string(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name is inferred string in the current lowering state."""
+    return state.type_info.get(name) is LatticeType.STRING
+
+
 def runtime_name_uses_numeric_slot_state(name: str, state: LoweringState) -> bool:
     """Report whether one scalar name should use direct `%quawk.state` numeric slot access."""
     return (
@@ -2753,7 +2758,7 @@ def runtime_name_uses_string_slot_runtime(name: str, state: LoweringState) -> bo
     """Report whether one scalar name should use runtime string-slot access."""
     return (
         runtime_name_uses_scalar_runtime(name, state)
-        and state.type_info.get(name) is LatticeType.STRING
+        and runtime_name_is_inferred_string(name, state)
         and runtime_name_slot_index(name, state) is not None
     )
 
@@ -2766,7 +2771,11 @@ def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -
         case NameExpr(name="FILENAME"):
             return True
         case NameExpr(name=name):
-            return name in state.loop_string_bindings or name in state.function_param_strings
+            return (
+                name in state.loop_string_bindings
+                or name in state.function_param_strings
+                or runtime_name_is_inferred_string(name, state)
+            )
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
