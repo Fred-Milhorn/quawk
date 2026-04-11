@@ -2118,7 +2118,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                     f"  {temp} = call ptr @qk_slot_get_string(ptr {state.runtime_param}, i64 {slot_index})"
                 )
                 return temp
-            if runtime_name_uses_scalar_runtime(name, state):
+            if runtime_name_uses_only_scalar_runtime(name, state):
                 scalar_name = lower_runtime_scalar_name(name, state)
                 temp = state.next_temp("scalar.str")
                 state.instructions.append(
@@ -2223,7 +2223,12 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
         case CallExpr(function="toupper"):
             return lower_runtime_case_builtin(expression, state, upper=True)
         case BinaryExpr(op=BinaryOp.CONCAT, left=left, right=right):
-            if runtime_expression_is_known_string(left, state) and runtime_expression_is_known_string(right, state):
+            if (
+                runtime_expression_is_known_string(left, state)
+                and runtime_expression_is_known_string(right, state)
+                and not isinstance(left, BinaryExpr)
+                and not isinstance(right, BinaryExpr)
+            ):
                 left_value = lower_runtime_string_expression(left, state)
                 right_value = lower_runtime_string_expression(right, state)
             else:
@@ -2772,6 +2777,15 @@ def runtime_name_uses_string_slot_runtime(name: str, state: LoweringState) -> bo
     )
 
 
+def runtime_name_uses_only_scalar_runtime(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name should use scalar runtime helpers only."""
+    return (
+        runtime_name_uses_scalar_runtime(name, state)
+        and not runtime_name_uses_numeric_slot_state(name, state)
+        and not runtime_name_uses_string_slot_runtime(name, state)
+    )
+
+
 def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -> bool:
     """Report whether one runtime-backed expression has string truthiness semantics."""
     match expression:
@@ -2861,7 +2875,7 @@ def runtime_assignment_preserves_string(expression: Expr, state: LoweringState) 
         case NameExpr(name=name) if name in state.loop_string_bindings:
             return True
         case NameExpr(name=name):
-            return runtime_name_uses_scalar_runtime(name, state) and not runtime_name_is_inferred_numeric(name, state)
+            return runtime_name_uses_only_scalar_runtime(name, state) or runtime_name_uses_string_slot_runtime(name, state)
         case _:
             return runtime_expression_is_known_string(expression, state)
 
@@ -2919,7 +2933,8 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
             return state is not None and (
                 name in state.loop_string_bindings
                 or name in state.function_param_strings
-                or (runtime_name_uses_scalar_runtime(name, state) and not runtime_name_is_inferred_numeric(name, state))
+                or runtime_name_uses_only_scalar_runtime(name, state)
+                or runtime_name_uses_string_slot_runtime(name, state)
             )
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
@@ -2968,7 +2983,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                     ]
                 )
                 return match_result
-            case NameExpr(name=name) if runtime_name_uses_scalar_runtime(name, state):
+            case NameExpr(name=name) if runtime_name_uses_only_scalar_runtime(name, state):
                 scalar_name = lower_runtime_scalar_name(name, state)
                 temp = state.next_temp("scalar.truthy")
                 state.instructions.append(
