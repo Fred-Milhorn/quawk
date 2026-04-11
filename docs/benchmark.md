@@ -193,23 +193,49 @@ Sample run on April 10, 2026 (`--iterations 120000 --repetitions 7 --warmups 2`)
 - mixed-fallback median: `536.320 ms`
 - median speedup (`fast` vs `fallback`): `1.09x`
 
-## T-257 Optimized IR Microbenchmark
+## T-257 Optimized vs Unoptimized Suite
 
-For `T-257`, the repo now includes a focused benchmark script:
+For `T-257`, the repo now includes a workload-suite benchmark script:
 
 ```sh
 uv run python scripts/benchmark_optimized_vs_unoptimized.py
 ```
 
-This benchmark builds optimized and unoptimized IR once, then times `lli`
-execution of both modules on the same loop workload while using the level 2
-optimization pipeline for the optimized module.
+This suite replaced the earlier single-loop microbenchmark because that probe was
+too narrow and was a poor fit for evaluating LLVM optimization value after the
+P25-P27 lowering work.
 
-Sample run on April 11, 2026 (`--iterations 250000 --repetitions 7 --warmups 2`):
+The current suite mixes:
 
-- unoptimized median: `226.014 ms`
-- optimized median: `230.983 ms`
-- median speedup (`optimized` vs `unoptimized`): `0.98x`
+- optimizer kernels:
+  - `scalar_fold_loop`
+  - `branch_rewrite_loop`
+- user-facing runtime workloads:
+  - `field_aggregate`
+  - `filter_transform`
+  - `multi_file_reduce`
+
+For each workload, the script reports both:
+
+- `end_to_end`: real execution through `python -m quawk` / `quawk -O`
+- `lli_only`: execution of prebuilt optimized and unoptimized modules
+
+The `lli_only` numbers are diagnostic. The primary comparison is the
+`end_to_end` timing family because that is the user-visible path.
+
+Recommended local commands:
+
+```sh
+uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale smoke
+uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale medium
+uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale large
+```
+
+When a quick iteration is needed, narrow the suite to one workload:
+
+```sh
+uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale smoke --workload scalar_fold_loop
+```
 
 ## Assumptions
 
