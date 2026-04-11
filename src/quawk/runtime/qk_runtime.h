@@ -161,4 +161,79 @@ const char *qk_array_next_key(qk_runtime *runtime, const char *array_name, const
 const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start);
 const char *qk_substr3(qk_runtime *runtime, const char *text, int64_t start, int64_t length);
 
+static inline bool qk_next_record_inline(qk_runtime *runtime)
+{
+    return qk_next_record(runtime);
+}
+
+static inline const char *qk_get_field_inline(qk_runtime *runtime, int64_t index)
+{
+    return qk_get_field(runtime, index);
+}
+
+static inline const char *qk_capture_string_arg_inline(qk_runtime *runtime, const char *text)
+{
+    return qk_capture_string_arg(runtime, text);
+}
+
+static inline const char *qk_scalar_get_inline(qk_runtime *runtime, const char *name)
+{
+    return qk_scalar_get(runtime, name);
+}
+
+static inline double qk_scalar_get_number_inline(qk_runtime *runtime, const char *name)
+{
+    return qk_scalar_get_number(runtime, name);
+}
+
+static inline void qk_scalar_set_number_inline(qk_runtime *runtime, const char *name, double value)
+{
+    qk_scalar_set_number(runtime, name, value);
+}
+
+static inline bool qk_compare_values_inline(
+    const char *left_string,
+    double left_number,
+    bool left_needs_numeric_check,
+    bool left_force_string,
+    const char *right_string,
+    double right_number,
+    bool right_needs_numeric_check,
+    bool right_force_string,
+    int32_t op
+)
+{
+    return qk_compare_values(
+        left_string,
+        left_number,
+        left_needs_numeric_check,
+        left_force_string,
+        right_string,
+        right_number,
+        right_needs_numeric_check,
+        right_force_string,
+        op
+    );
+}
+
+static inline double qk_get_nr_inline(qk_runtime *runtime)
+{
+    return qk_get_nr(runtime);
+}
+
+static inline double qk_get_fnr_inline(qk_runtime *runtime)
+{
+    return qk_get_fnr(runtime);
+}
+
+static inline double qk_get_nf_inline(qk_runtime *runtime)
+{
+    return qk_get_nf(runtime);
+}
+
+static inline const char *qk_get_filename_inline(qk_runtime *runtime)
+{
+    return qk_get_filename(runtime);
+}
+
 #endif
