@@ -640,16 +640,16 @@ Current state:
 - `T-244` adds known-string concat fast path without capture/coercion overhead
 - `T-245` adds direct `%quawk.state` numeric slot load/store for inferred numeric names
 - `T-246` adds direct runtime string-slot read/write for inferred string names
+- `T-247` routes mixed/unknown scalar operations through runtime slow-path semantics
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P27 specialization work proceeds with `T-247` (mixed-type slow-path fallback)
+- P27 specialization work proceeds with `T-248` (specialized-ops test coverage)
 
 Immediate next tasks:
-- `T-247`: add slow-path fallback for mixed-type operations
 - `T-248`: add tests for specialized operations
 - `T-249`: benchmark numeric loop performance improvement
 
@@ -906,7 +906,7 @@ Priority values:
 | T-244 | P27 | P1 | Implement string concat fast path | T-26 | Direct `qk_concat` call for string operands without coercion overhead | done |
 | T-245 | P27 | P0 | Implement slot-based numeric variable read/write | P25, P26 | Direct `load`/`store` for slot-based numeric variables | done |
 | T-246 | P27 | P1 | Implement slot-based string variable read/write | P25, P26 | Direct string slot access for known-string variables | done |
-| T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | todo |
+| T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | done |
 | T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | todo |
 | T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | todo |
 | T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | todo |

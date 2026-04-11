@@ -1304,6 +1304,21 @@ def test_lower_to_llvm_ir_uses_string_slots_for_inferred_string_names() -> None:
     assert "call ptr @qk_scalar_get(" not in llvm_ir
 
 
+def test_lower_to_llvm_ir_uses_slow_compare_path_for_mixed_type_names() -> None:
+    program = parse_program('BEGIN { x = 1; x = "s"; print (x < 2) }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call i1 @qk_compare_values(" in llvm_ir
+
+
+def test_lower_to_llvm_ir_uses_scalar_numeric_fallback_for_unknown_name_reads() -> None:
+    program = parse_program("{ print x + 1 }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call double @qk_scalar_get_number(" in llvm_ir
+    assert "call double @qk_slot_get_number(" not in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}

@@ -1215,7 +1215,8 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         return
 
     current_value = state.next_temp("scalar.current")
-    if slot_index is not None:
+    if runtime_name_uses_string_slot_runtime(statement.name, state):
+        assert slot_index is not None
         state.instructions.append(
             f"  {current_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
         )
@@ -1225,7 +1226,8 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         )
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
     numeric_value = combine_numeric_assignment(current_value, numeric_value)
-    if slot_index is not None:
+    if runtime_name_uses_string_slot_runtime(statement.name, state):
+        assert slot_index is not None
         state.instructions.append(
             f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
         )
@@ -1723,7 +1725,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
                 state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
                 return temp
             slot_index = runtime_name_slot_index(name, state)
-            if slot_index is not None:
+            if runtime_name_uses_string_slot_runtime(name, state):
+                assert slot_index is not None
                 temp = state.next_temp("slot.num")
                 state.instructions.append(
                     f"  {temp} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
@@ -1986,7 +1989,8 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                             )
                 else:
                     numeric_value = lower_runtime_numeric_expression(expression.value, state)
-                    if slot_index is not None:
+                    if runtime_name_uses_string_slot_runtime(name, state):
+                        assert slot_index is not None
                         state.instructions.append(
                             (
                                 f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
@@ -2029,7 +2033,8 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
             scalar_name = lower_runtime_scalar_name(name, state)
             old_value = state.next_temp("inc.old")
             new_value = state.next_temp("inc.new")
-            if slot_index is not None:
+            if runtime_name_uses_string_slot_runtime(name, state):
+                assert slot_index is not None
                 state.instructions.append(
                     f"  {old_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
                 )
@@ -2038,7 +2043,8 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
                     f"  {old_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
                 )
             state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-            if slot_index is not None:
+            if runtime_name_uses_string_slot_runtime(name, state):
+                assert slot_index is not None
                 state.instructions.append(
                     f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {new_value})"
                 )
