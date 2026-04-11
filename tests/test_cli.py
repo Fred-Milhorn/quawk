@@ -87,7 +87,7 @@ def test_quawk_optimize_flag_executes_program() -> None:
 def test_quawk_optimize_flag_applies_to_ir_inspection(monkeypatch, capsys) -> None:
     captured: dict[str, bool] = {}
 
-    def fake_build_public_execution_llvm_ir(
+    def fake_build_public_inspection_llvm_ir(
         program,
         input_files,
         field_separator,
@@ -101,7 +101,7 @@ def test_quawk_optimize_flag_applies_to_ir_inspection(monkeypatch, capsys) -> No
         assert initial_variables == []
         return "; optimized ir"
 
-    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(cli, "build_public_inspection_llvm_ir", fake_build_public_inspection_llvm_ir)
 
     assert cli.main(["--ir", "-O", "BEGIN { print 1 }"]) == 0
     captured_output = capsys.readouterr()
@@ -113,7 +113,7 @@ def test_quawk_optimize_flag_applies_to_ir_inspection(monkeypatch, capsys) -> No
 def test_quawk_optimize_flag_applies_to_asm_inspection(monkeypatch, capsys) -> None:
     captured: dict[str, bool] = {}
 
-    def fake_build_public_execution_llvm_ir(
+    def fake_build_public_inspection_llvm_ir(
         program,
         input_files,
         field_separator,
@@ -131,7 +131,7 @@ def test_quawk_optimize_flag_applies_to_asm_inspection(monkeypatch, capsys) -> N
         assert llvm_ir == "; optimized ir"
         return "; asm"
 
-    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(cli, "build_public_inspection_llvm_ir", fake_build_public_inspection_llvm_ir)
     monkeypatch.setattr(cli, "emit_assembly", fake_emit_assembly)
 
     assert cli.main(["--asm", "-O", "BEGIN { print 1 }"]) == 0

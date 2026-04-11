@@ -13,7 +13,12 @@ from typing import Sequence
 
 from . import __version__
 from .diagnostics import LexError, ParseError, SemanticError, format_error
-from .jit import InitialVariableValue, build_public_execution_llvm_ir, emit_assembly, execute_with_inputs
+from .jit import (
+    InitialVariableValue,
+    build_public_inspection_llvm_ir,
+    emit_assembly,
+    execute_with_inputs,
+)
 from .lexer import format_tokens, lex
 from .parser import format_program, parse
 from .semantics import ProgramAnalysis, analyze
@@ -149,7 +154,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.ir or args.optimized_ir:
             # Lower once for the stop-after inspection modes so IR and assembly
             # are derived from the same pipeline.
-            llvm_ir = build_public_execution_llvm_ir(
+            llvm_ir = build_public_inspection_llvm_ir(
                 program,
                 args.files,
                 args.field_separator,
@@ -160,7 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.asm:
-            llvm_ir = build_public_execution_llvm_ir(
+            llvm_ir = build_public_inspection_llvm_ir(
                 program,
                 args.files,
                 args.field_separator,

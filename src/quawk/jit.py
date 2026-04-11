@@ -201,10 +201,11 @@ def emit_assembly(llvm_ir: str) -> str:
     llc_path = shutil.which("llc")
     if llc_path is None:
         raise RuntimeError("LLVM code generation tool 'llc' is not available on PATH")
+    pruned_ir = prune_ir_for_assembly(llvm_ir)
 
     result = subprocess.run(
         [llc_path, "-o", "-", "-"],
-        input=llvm_ir,
+        input=pruned_ir,
         capture_output=True,
         text=True,
         check=False,
@@ -441,10 +442,31 @@ def build_public_execution_llvm_ir(
     return llvm_ir
 
 
+def build_public_inspection_llvm_ir(
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
+    *,
+    optimize: bool = False,
+) -> str:
+    """Build the IR module used by public inspection modes."""
+    llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
+    if program_requires_linked_execution_module(program, initial_variables):
+        llvm_ir = link_reusable_inspection_module(llvm_ir, program, input_files, field_separator, initial_variables)
+    if optimize:
+        return optimize_ir(llvm_ir)
+    return llvm_ir
+
+
 OPTIMIZATION_PASS_PIPELINES: dict[int, tuple[str, ...]] = {
     1: ("-passes=mem2reg,instcombine,simplifycfg,gvn",),
     2: ("-O2", "-vectorize-loops"),
 }
+ASSEMBLY_PRUNE_FLAGS: tuple[str, ...] = (
+    "-passes=internalize,globaldce",
+    "-internalize-public-api-list=quawk_main",
+)
 
 
 def optimization_passes_for_level(level: int) -> list[str]:
@@ -468,6 +490,24 @@ def optimize_ir(llvm_ir: str, level: int = 1) -> str:
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "opt failed to optimize generated IR")
+    return result.stdout
+
+
+def prune_ir_for_assembly(llvm_ir: str) -> str:
+    """Drop unreachable linked helpers before lowering one module to assembly."""
+    try:
+        opt_path = runtime_support.find_llvm_opt()
+    except RuntimeError:
+        return llvm_ir
+    result = subprocess.run(
+        [opt_path, *ASSEMBLY_PRUNE_FLAGS, "-S"],
+        input=llvm_ir,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "opt failed to prune generated assembly IR")
     return result.stdout
 
 
@@ -3240,6 +3280,45 @@ def link_reusable_execution_module(
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip() or "llvm-link failed to link the reusable execution module")
+        return linked_ir_path.read_text(encoding="utf-8")
+
+
+def link_reusable_inspection_module(
+    program_llvm_ir: str,
+    program: Program,
+    input_files: list[str],
+    field_separator: str | None,
+    initial_variables: InitialVariables | None = None,
+) -> str:
+    """Link the program module and reusable driver without runtime implementations."""
+    with TemporaryDirectory() as temp_dir_name:
+        temp_dir = Path(temp_dir_name)
+        program_bitcode = assemble_llvm_ir(program_llvm_ir, temp_dir / "program.bc")
+        driver_ir = build_execution_driver_llvm_ir(
+            program,
+            program_llvm_ir,
+            input_files,
+            field_separator,
+            initial_variables,
+        )
+        driver_bitcode = assemble_llvm_ir(driver_ir, temp_dir / "driver.bc")
+        linked_ir_path = temp_dir / "linked.ll"
+
+        result = subprocess.run(
+            [
+                runtime_support.find_llvm_link(),
+                str(program_bitcode),
+                str(driver_bitcode),
+                "-S",
+                "-o",
+                str(linked_ir_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "llvm-link failed to link the reusable inspection module")
         return linked_ir_path.read_text(encoding="utf-8")
 
 

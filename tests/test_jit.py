@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import io
 import subprocess
+from pathlib import Path
 from typing import Callable
 
 import pytest
@@ -539,6 +540,152 @@ def test_optimize_ir_warns_and_returns_input_when_opt_missing(monkeypatch) -> No
 
     with pytest.warns(RuntimeWarning, match="LLVM optimization tool 'opt' is not available on PATH"):
         assert jit.optimize_ir("; input ir") == "; input ir"
+
+
+def test_emit_assembly_prunes_unreachable_helpers_before_llc(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    call_index = {"value": 0}
+
+    def fake_find_llvm_opt() -> str:
+        return "/usr/bin/opt"
+
+    def fake_which(name: str) -> str | None:
+        assert name == "llc"
+        return "/usr/bin/llc"
+
+    def fake_run(
+        command: list[str],
+        *,
+        input: str | None = None,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        call_index["value"] += 1
+        if call_index["value"] == 1:
+            captured["opt_command"] = command
+            captured["opt_input"] = input
+            return subprocess.CompletedProcess(command, 0, stdout="; pruned ir\n", stderr="")
+        captured["llc_command"] = command
+        captured["llc_input"] = input
+        return subprocess.CompletedProcess(command, 0, stdout="; asm\n", stderr="")
+
+    monkeypatch.setattr(jit.runtime_support, "find_llvm_opt", fake_find_llvm_opt)
+    monkeypatch.setattr(jit.shutil, "which", fake_which)
+    monkeypatch.setattr(jit.subprocess, "run", fake_run)
+
+    assert jit.emit_assembly("; linked ir") == "; asm\n"
+    assert captured["opt_command"] == [
+        "/usr/bin/opt",
+        "-passes=internalize,globaldce",
+        "-internalize-public-api-list=quawk_main",
+        "-S",
+    ]
+    assert captured["opt_input"] == "; linked ir"
+    assert captured["llc_command"] == ["/usr/bin/llc", "-o", "-", "-"]
+    assert captured["llc_input"] == "; pruned ir\n"
+
+
+def test_emit_assembly_uses_original_ir_when_opt_is_missing(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_find_llvm_opt() -> str:
+        raise RuntimeError("LLVM optimization tool 'opt' is not available on PATH")
+
+    def fake_which(name: str) -> str | None:
+        assert name == "llc"
+        return "/usr/bin/llc"
+
+    def fake_run(
+        command: list[str],
+        *,
+        input: str | None = None,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        captured["command"] = command
+        captured["input"] = input
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        return subprocess.CompletedProcess(command, 0, stdout="; asm\n", stderr="")
+
+    monkeypatch.setattr(jit.runtime_support, "find_llvm_opt", fake_find_llvm_opt)
+    monkeypatch.setattr(jit.shutil, "which", fake_which)
+    monkeypatch.setattr(jit.subprocess, "run", fake_run)
+
+    assert jit.emit_assembly("; linked ir") == "; asm\n"
+    assert captured["command"] == ["/usr/bin/llc", "-o", "-", "-"]
+    assert captured["input"] == "; linked ir"
+
+
+def test_link_reusable_inspection_module_omits_runtime_bitcode(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_build_execution_driver_llvm_ir(
+        program: Program,
+        program_llvm_ir: str,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert program_llvm_ir == "; program ir"
+        assert input_files == ["input.txt"]
+        assert field_separator == ":"
+        assert initial_variables == [("x", 1.0)]
+        return "; driver ir"
+
+    def fake_assemble_llvm_ir(llvm_ir: str, output_path):
+        output_path.write_text(f"; bitcode for {llvm_ir}", encoding="utf-8")
+        return output_path
+
+    def fail_compile_runtime_bitcode(*args: object, **kwargs: object):
+        raise AssertionError("inspection linking should not compile runtime bitcode")
+
+    def fake_find_llvm_link() -> str:
+        return "/usr/bin/llvm-link"
+
+    def fake_run(
+        command: list[str],
+        *,
+        capture_output: bool,
+        text: bool,
+        check: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        captured["command"] = command
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        linked_ir_path = Path(command[-1])
+        linked_ir_path.write_text("; linked inspection module\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(jit, "build_execution_driver_llvm_ir", fake_build_execution_driver_llvm_ir)
+    monkeypatch.setattr(jit, "assemble_llvm_ir", fake_assemble_llvm_ir)
+    monkeypatch.setattr(jit.runtime_support, "compile_runtime_bitcode", fail_compile_runtime_bitcode)
+    monkeypatch.setattr(jit.runtime_support, "find_llvm_link", fake_find_llvm_link)
+    monkeypatch.setattr(jit.subprocess, "run", fake_run)
+
+    program = parse_program("{ print $1 }")
+    linked_ir = jit.link_reusable_inspection_module(
+        "; program ir",
+        program,
+        ["input.txt"],
+        ":",
+        [("x", 1.0)],
+    )
+
+    assert linked_ir == "; linked inspection module\n"
+    command = captured["command"]
+    assert command[0] == "/usr/bin/llvm-link"
+    assert len(command) == 6
+    assert Path(command[1]).name == "program.bc"
+    assert Path(command[2]).name == "driver.bc"
+    assert command[3:] == ["-S", "-o", command[5]]
 
 
 def test_execute_with_inputs_routes_supported_nextfile_programs_through_backend(monkeypatch) -> None:
