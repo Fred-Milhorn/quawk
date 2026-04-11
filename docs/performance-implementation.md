@@ -527,7 +527,7 @@ qk_runtime *qk_runtime_create_with_slots(
 | ID | Task | Depends | Acceptance |
 |---|---|---|---|
 | P29-T01 | Profile current hot paths | - | List of top 10 called functions |
-| P29-T02 | Add slot storage to runtime struct | P25 | Struct compiles |
+| P29-T02 | Add slot storage to runtime struct | P25 | Struct compiles with numeric, string, and mixed slot arrays |
 | P29-T03 | Add slot accessor functions | P29-T02 | Functions available |
 | P29-T04 | Create slot-based runtime entry point | P29-T03 | `qk_runtime_create_with_slots` works |
 | P29-T05 | Add inline versions of hot paths | P29-T03 | Inline-able functions defined |

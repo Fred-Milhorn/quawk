@@ -55,6 +55,8 @@ struct qk_runtime {
     size_t numeric_slot_count;
     char **string_slots;
     size_t string_slot_count;
+    struct qk_cell *mixed_slots;
+    size_t mixed_slot_count;
     struct qk_output_entry *outputs;
     struct qk_input_entry *inputs;
 };
@@ -97,6 +99,13 @@ struct qk_input_entry {
     char *name;
     FILE *handle;
     struct qk_input_entry *next;
+};
+
+struct qk_cell {
+    double number;
+    char *string;
+    bool has_number;
+    bool has_string;
 };
 
 static const char QK_EMPTY_FIELD[] = "";
@@ -183,7 +192,9 @@ static bool qk_update_field_separator(qk_runtime *runtime, const char *text);
 static void qk_update_record_separator(qk_runtime *runtime, const char *text);
 static bool qk_ensure_numeric_slot_capacity(qk_runtime *runtime, size_t required_count);
 static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_count);
+static bool qk_ensure_mixed_slot_capacity(qk_runtime *runtime, size_t required_count);
 static void qk_free_slot_strings(qk_runtime *runtime);
+static void qk_free_mixed_slot_strings(qk_runtime *runtime);
 extern char **environ;
 
 static bool qk_runtime_profile_is_enabled(void)
@@ -359,6 +370,37 @@ static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_
     return true;
 }
 
+static bool qk_ensure_mixed_slot_capacity(qk_runtime *runtime, size_t required_count)
+{
+    size_t old_count;
+    size_t new_count;
+    struct qk_cell *resized;
+
+    if ((runtime == NULL) || (required_count <= runtime->mixed_slot_count)) {
+        return true;
+    }
+
+    old_count = runtime->mixed_slot_count;
+    new_count = old_count == 0U ? 8U : old_count;
+    while (new_count < required_count) {
+        size_t next_count = new_count * 2U;
+        if (next_count <= new_count) {
+            new_count = required_count;
+            break;
+        }
+        new_count = next_count;
+    }
+
+    resized = realloc(runtime->mixed_slots, new_count * sizeof(*resized));
+    if (resized == NULL) {
+        return false;
+    }
+    memset(resized + old_count, 0, (new_count - old_count) * sizeof(*resized));
+    runtime->mixed_slots = resized;
+    runtime->mixed_slot_count = new_count;
+    return true;
+}
+
 static void qk_free_slot_strings(qk_runtime *runtime)
 {
     size_t index;
@@ -369,6 +411,20 @@ static void qk_free_slot_strings(qk_runtime *runtime)
 
     for (index = 0U; index < runtime->string_slot_count; index += 1U) {
         free(runtime->string_slots[index]);
+    }
+}
+
+static void qk_free_mixed_slot_strings(qk_runtime *runtime)
+{
+    size_t index;
+
+    if ((runtime == NULL) || (runtime->mixed_slots == NULL)) {
+        return;
+    }
+
+    for (index = 0U; index < runtime->mixed_slot_count; index += 1U) {
+        free(runtime->mixed_slots[index].string);
+        runtime->mixed_slots[index].string = NULL;
     }
 }
 
@@ -1592,6 +1648,10 @@ qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator
         qk_runtime_destroy(runtime);
         return NULL;
     }
+    if (!qk_ensure_mixed_slot_capacity(runtime, 8U)) {
+        qk_runtime_destroy(runtime);
+        return NULL;
+    }
     if (!qk_array_set(runtime, "ARGV", "0", "quawk")) {
         qk_runtime_destroy(runtime);
         return NULL;
@@ -1653,6 +1713,8 @@ void qk_runtime_destroy(qk_runtime *runtime)
     free(runtime->numeric_slots);
     qk_free_slot_strings(runtime);
     free(runtime->string_slots);
+    qk_free_mixed_slot_strings(runtime);
+    free(runtime->mixed_slots);
     qk_free_outputs(runtime->outputs);
     qk_free_inputs(runtime->inputs);
     free(runtime);

@@ -651,12 +651,12 @@ Current state:
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P29 ABI work proceeds with `T-259` (`add slot storage arrays to runtime struct`)
+- P29 ABI work proceeds with `T-260` (`add inline slot accessor functions`)
 
 Immediate next tasks:
-- `T-259`: add slot storage arrays to runtime struct
 - `T-260`: add inline slot accessor functions
 - `T-261`: create slot-based runtime entry point
+- `T-262`: add inline fast-path versions of hot functions
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -923,7 +923,7 @@ Priority values:
 | T-256 | P28 | P2 | Add tests for optimization flag behavior | T-252 | Tests pass with optimization enabled | done |
 | T-257 | P28 | P2 | Benchmark optimized vs unoptimized performance | T-256 | Numbers show benefit of optimization passes | done |
 | T-258 | P29 | P1 | Profile current hot paths in runtime | - | Top 10 called functions identified with call counts | done |
-| T-259 | P29 | P0 | Add slot storage arrays to runtime struct | P25 | `qk_runtime` has `numeric_slots`, `string_slots` arrays | todo |
+| T-259 | P29 | P0 | Add slot storage arrays to runtime struct | P25 | `qk_runtime` has `numeric_slots`, `string_slots`, and `mixed_slots` arrays | done |
 | T-260 | P29 | P0 | Add inline slot accessor functions | T-259 | `qk_slot_get_number_inline`, etc. defined in header | todo |
 | T-261 | P29 | P0 | Create slot-based runtime entry point | T-259 | `qk_runtime_create_with_slots()` available | todo |
 | T-262 | P29 | P1 | Add inline fast-path versions of hot functions | T-258, T-260 | Inline-able fast paths for top hot paths | todo |
