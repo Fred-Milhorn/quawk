@@ -5,6 +5,8 @@
 import subprocess
 from pathlib import Path
 
+from quawk import cli
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -477,6 +479,32 @@ def test_quawk_ir_flag_with_optimize_runs_llvm_opt() -> None:
     assert "define i32 @quawk_main()" in result.stdout
     assert "; optimization-mode enabled" not in result.stdout
     assert result.stderr == ""
+
+
+def test_quawk_ir_optimized_alias_requests_optimized_ir(monkeypatch, capsys) -> None:
+    captured: dict[str, bool] = {}
+
+    def fake_build_public_execution_llvm_ir(
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        *,
+        optimize: bool = False,
+    ) -> str:
+        captured["optimize"] = optimize
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables == []
+        return "; optimized ir"
+
+    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+
+    assert cli.main(["--ir=optimized", "BEGIN { print 1 }"]) == 0
+    captured_output = capsys.readouterr()
+    assert captured["optimize"] is True
+    assert captured_output.out == "; optimized ir"
+    assert captured_output.err == ""
 
 
 def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:

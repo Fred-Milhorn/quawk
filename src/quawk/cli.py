@@ -86,7 +86,13 @@ def build_parser() -> argparse.ArgumentParser:
     stop_stage.add_argument(
         "--ir",
         action="store_true",
-        help="Print the generated LLVM IR and exit.",
+        help="Print the generated LLVM IR and exit. Use --ir=optimized to request optimized IR.",
+    )
+    stop_stage.add_argument(
+        "--optimized-ir",
+        dest="optimized_ir",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     stop_stage.add_argument(
         "--asm",
@@ -109,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI entrypoint and return a process-style exit status."""
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(normalize_arguments(argv))
 
     if args.version:
         print(f"quawk {get_version()}")
@@ -140,7 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         analysis = analyze(program)
 
-        if args.ir:
+        if args.ir or args.optimized_ir:
             # Lower once for the stop-after inspection modes so IR and assembly
             # are derived from the same pipeline.
             llvm_ir = build_public_execution_llvm_ir(
@@ -148,7 +154,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.files,
                 args.field_separator,
                 initial_variables,
-                optimize=args.optimize,
+                optimize=args.optimize or args.optimized_ir,
             )
             sys.stdout.write(llvm_ir)
             return 0
@@ -193,6 +199,18 @@ def get_version() -> str:
         return metadata.version("quawk")
     except metadata.PackageNotFoundError:
         return __version__
+
+
+def normalize_arguments(argv: Sequence[str] | None) -> list[str]:
+    """Rewrite CLI aliases into the shape argparse expects."""
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    normalized_arguments: list[str] = []
+    for token in raw_arguments:
+        if token == "--ir=optimized":
+            normalized_arguments.append("--optimized-ir")
+            continue
+        normalized_arguments.append(token)
+    return normalized_arguments
 
 
 def load_program_source(

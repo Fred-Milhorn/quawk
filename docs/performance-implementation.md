@@ -423,6 +423,10 @@ def handle_ir_flag(args) -> None:
     print(ir)
 ```
 
+`T-253` is implemented in the CLI using a raw-argv rewrite for
+`--ir=optimized`, so plain `--ir` still prints the unoptimized module while the
+inspection alias requests optimized IR explicitly.
+
 ### Tasks
 
 | ID | Task | Depends | Acceptance |
