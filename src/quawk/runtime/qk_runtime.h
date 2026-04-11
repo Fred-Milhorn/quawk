@@ -42,6 +42,25 @@ double qk_slot_get_number(qk_runtime *runtime, int64_t slot_index);
 void qk_slot_set_number(qk_runtime *runtime, int64_t slot_index, double value);
 const char *qk_slot_get_string(qk_runtime *runtime, int64_t slot_index);
 void qk_slot_set_string(qk_runtime *runtime, int64_t slot_index, const char *value);
+static inline double qk_slot_get_number_inline(qk_runtime *runtime, int64_t slot_index)
+{
+    return qk_slot_get_number(runtime, slot_index);
+}
+
+static inline void qk_slot_set_number_inline(qk_runtime *runtime, int64_t slot_index, double value)
+{
+    qk_slot_set_number(runtime, slot_index, value);
+}
+
+static inline const char *qk_slot_get_string_inline(qk_runtime *runtime, int64_t slot_index)
+{
+    return qk_slot_get_string(runtime, slot_index);
+}
+
+static inline void qk_slot_set_string_inline(qk_runtime *runtime, int64_t slot_index, const char *value)
+{
+    qk_slot_set_string(runtime, slot_index, value);
+}
 
 /* Print a string or number using the same newline-terminated formatting as AWK print. */
 void qk_print_string(qk_runtime *runtime, const char *value);

@@ -463,23 +463,21 @@ bookkeeping before more speculative helper reductions.
 ### Proposed Fast Paths
 
 ```c
-// In qk_runtime.h, add inline-able fast paths
-
-// Fast slot access for known-numeric variables
-static inline double qk_slot_get_number_inline(qk_runtime *rt, int slot) {
-    return rt->numeric_slots[slot];
+// In qk_runtime.h, add inline wrappers for the slot accessors.
+static inline double qk_slot_get_number_inline(qk_runtime *rt, int64_t slot) {
+    return qk_slot_get_number(rt, slot);
 }
 
-static inline void qk_slot_set_number_inline(qk_runtime *rt, int slot, double val) {
-    rt->numeric_slots[slot] = val;
+static inline void qk_slot_set_number_inline(qk_runtime *rt, int64_t slot, double val) {
+    qk_slot_set_number(rt, slot, val);
 }
 
-// Fast field access for known-positive-small indices
-static inline const char *qk_get_field_inline(qk_runtime *rt, int index) {
-    if (LIKELY(index >= 0 && index < (int)rt->field_count)) {
-        return rt->fields[index] ? rt->fields[index] : "";
-    }
-    return qk_get_field_slow(rt, index);
+static inline const char *qk_slot_get_string_inline(qk_runtime *rt, int64_t slot) {
+    return qk_slot_get_string(rt, slot);
+}
+
+static inline void qk_slot_set_string_inline(qk_runtime *rt, int64_t slot, const char *value) {
+    qk_slot_set_string(rt, slot, value);
 }
 ```
 
