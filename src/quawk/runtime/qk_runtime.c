@@ -111,6 +111,70 @@ static const int32_t QK_OUTPUT_APPEND = 2;
 static const int32_t QK_OUTPUT_PIPE = 3;
 static const char QK_DEFAULT_SUBSEP[] = "\034";
 
+enum qk_runtime_profile_function {
+    QK_RUNTIME_PROFILE_NEXT_RECORD = 0,
+    QK_RUNTIME_PROFILE_GET_FIELD,
+    QK_RUNTIME_PROFILE_PRINT_STRING,
+    QK_RUNTIME_PROFILE_PRINT_NUMBER,
+    QK_RUNTIME_PROFILE_PRINT_STRING_FRAGMENT,
+    QK_RUNTIME_PROFILE_PRINT_NUMBER_FRAGMENT,
+    QK_RUNTIME_PROFILE_SCALAR_GET,
+    QK_RUNTIME_PROFILE_SCALAR_GET_NUMBER,
+    QK_RUNTIME_PROFILE_SCALAR_TRUTHY,
+    QK_RUNTIME_PROFILE_SCALAR_SET_STRING,
+    QK_RUNTIME_PROFILE_SCALAR_SET_NUMBER,
+    QK_RUNTIME_PROFILE_SCALAR_COPY,
+    QK_RUNTIME_PROFILE_COMPARE_VALUES,
+    QK_RUNTIME_PROFILE_CAPTURE_STRING_ARG,
+    QK_RUNTIME_PROFILE_FORMAT_NUMBER,
+    QK_RUNTIME_PROFILE_GET_NR,
+    QK_RUNTIME_PROFILE_GET_FNR,
+    QK_RUNTIME_PROFILE_GET_NF,
+    QK_RUNTIME_PROFILE_GET_FILENAME,
+    QK_RUNTIME_PROFILE_GETLINE_MAIN_RECORD,
+    QK_RUNTIME_PROFILE_GETLINE_MAIN_STRING,
+    QK_RUNTIME_PROFILE_GETLINE_FILE_RECORD,
+    QK_RUNTIME_PROFILE_GETLINE_FILE_STRING,
+    QK_RUNTIME_PROFILE_NEXTFILE,
+    QK_RUNTIME_PROFILE_FUNCTION_COUNT
+};
+
+static const char *const qk_runtime_profile_names[] = {
+    [QK_RUNTIME_PROFILE_NEXT_RECORD] = "qk_next_record",
+    [QK_RUNTIME_PROFILE_GET_FIELD] = "qk_get_field",
+    [QK_RUNTIME_PROFILE_PRINT_STRING] = "qk_print_string",
+    [QK_RUNTIME_PROFILE_PRINT_NUMBER] = "qk_print_number",
+    [QK_RUNTIME_PROFILE_PRINT_STRING_FRAGMENT] = "qk_print_string_fragment",
+    [QK_RUNTIME_PROFILE_PRINT_NUMBER_FRAGMENT] = "qk_print_number_fragment",
+    [QK_RUNTIME_PROFILE_SCALAR_GET] = "qk_scalar_get",
+    [QK_RUNTIME_PROFILE_SCALAR_GET_NUMBER] = "qk_scalar_get_number",
+    [QK_RUNTIME_PROFILE_SCALAR_TRUTHY] = "qk_scalar_truthy",
+    [QK_RUNTIME_PROFILE_SCALAR_SET_STRING] = "qk_scalar_set_string",
+    [QK_RUNTIME_PROFILE_SCALAR_SET_NUMBER] = "qk_scalar_set_number",
+    [QK_RUNTIME_PROFILE_SCALAR_COPY] = "qk_scalar_copy",
+    [QK_RUNTIME_PROFILE_COMPARE_VALUES] = "qk_compare_values",
+    [QK_RUNTIME_PROFILE_CAPTURE_STRING_ARG] = "qk_capture_string_arg",
+    [QK_RUNTIME_PROFILE_FORMAT_NUMBER] = "qk_format_number",
+    [QK_RUNTIME_PROFILE_GET_NR] = "qk_get_nr",
+    [QK_RUNTIME_PROFILE_GET_FNR] = "qk_get_fnr",
+    [QK_RUNTIME_PROFILE_GET_NF] = "qk_get_nf",
+    [QK_RUNTIME_PROFILE_GET_FILENAME] = "qk_get_filename",
+    [QK_RUNTIME_PROFILE_GETLINE_MAIN_RECORD] = "qk_getline_main_record",
+    [QK_RUNTIME_PROFILE_GETLINE_MAIN_STRING] = "qk_getline_main_string",
+    [QK_RUNTIME_PROFILE_GETLINE_FILE_RECORD] = "qk_getline_file_record",
+    [QK_RUNTIME_PROFILE_GETLINE_FILE_STRING] = "qk_getline_file_string",
+    [QK_RUNTIME_PROFILE_NEXTFILE] = "qk_nextfile",
+};
+
+static uint64_t qk_runtime_profile_counts[QK_RUNTIME_PROFILE_FUNCTION_COUNT];
+static bool qk_runtime_profile_checked = false;
+static bool qk_runtime_profile_enabled = false;
+
+static void qk_runtime_profile_dump(void);
+static void qk_runtime_profile_note(enum qk_runtime_profile_function function);
+static bool qk_runtime_profile_is_enabled(void);
+static void qk_runtime_profile_prepare(void);
+
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 static bool qk_rebuild_fields(qk_runtime *runtime);
 static bool qk_rebuild_current_record(qk_runtime *runtime, size_t target_fields, int64_t index, const char *value);
@@ -121,6 +185,73 @@ static bool qk_ensure_numeric_slot_capacity(qk_runtime *runtime, size_t required
 static bool qk_ensure_string_slot_capacity(qk_runtime *runtime, size_t required_count);
 static void qk_free_slot_strings(qk_runtime *runtime);
 extern char **environ;
+
+static bool qk_runtime_profile_is_enabled(void)
+{
+    const char *enabled_value;
+
+    if (!qk_runtime_profile_checked) {
+        enabled_value = getenv("QUAWK_RUNTIME_PROFILE");
+        qk_runtime_profile_enabled = (enabled_value != NULL) && (enabled_value[0] != '\0') && (strcmp(enabled_value, "0") != 0);
+        qk_runtime_profile_checked = true;
+        if (qk_runtime_profile_enabled) {
+            (void)atexit(qk_runtime_profile_dump);
+        }
+    }
+    return qk_runtime_profile_enabled;
+}
+
+static void qk_runtime_profile_prepare(void)
+{
+    (void)qk_runtime_profile_is_enabled();
+}
+
+static void qk_runtime_profile_note(enum qk_runtime_profile_function function)
+{
+    if (qk_runtime_profile_is_enabled()) {
+        qk_runtime_profile_counts[function] += 1U;
+    }
+}
+
+static void qk_runtime_profile_dump(void)
+{
+    bool selected[QK_RUNTIME_PROFILE_FUNCTION_COUNT] = { false };
+    size_t rank;
+
+    if (!qk_runtime_profile_enabled) {
+        return;
+    }
+
+    fprintf(stderr, "quawk-runtime-profile top=10\n");
+    for (rank = 0U; rank < 10U; rank += 1U) {
+        size_t best_index = QK_RUNTIME_PROFILE_FUNCTION_COUNT;
+        uint64_t best_count = 0U;
+        size_t index;
+
+        for (index = 0U; index < QK_RUNTIME_PROFILE_FUNCTION_COUNT; index += 1U) {
+            if (selected[index] || (qk_runtime_profile_names[index] == NULL)) {
+                continue;
+            }
+            if ((best_index == QK_RUNTIME_PROFILE_FUNCTION_COUNT) || (qk_runtime_profile_counts[index] > best_count)) {
+                best_index = index;
+                best_count = qk_runtime_profile_counts[index];
+            }
+        }
+
+        if ((best_index == QK_RUNTIME_PROFILE_FUNCTION_COUNT) || (best_count == 0U)) {
+            break;
+        }
+
+        selected[best_index] = true;
+        fprintf(
+            stderr,
+            "quawk-runtime-profile %zu %s %llu\n",
+            rank + 1U,
+            qk_runtime_profile_names[best_index],
+            (unsigned long long)best_count
+        );
+    }
+}
 
 static char *qk_strdup_or_null(const char *text)
 {
@@ -1403,6 +1534,7 @@ static double qk_read_file_line(
 
 qk_runtime *qk_runtime_create(int argc, char **argv, const char *field_separator)
 {
+    qk_runtime_profile_prepare();
     int index;
 
     qk_runtime *runtime = calloc(1U, sizeof(*runtime));
@@ -1528,11 +1660,13 @@ void qk_runtime_destroy(qk_runtime *runtime)
 
 bool qk_next_record(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_NEXT_RECORD);
     return qk_read_main_line(runtime, true, NULL) > 0.0;
 }
 
 const char *qk_get_field(qk_runtime *runtime, int64_t index)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_FIELD);
     if ((runtime == NULL) || (runtime->current_record == NULL)) {
         return QK_EMPTY_FIELD;
     }
@@ -1756,24 +1890,28 @@ void qk_write_output_record_separator(qk_runtime *runtime, FILE *handle)
 
 void qk_print_string(qk_runtime *runtime, const char *value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_PRINT_STRING);
     qk_print_string_fragment(runtime, value);
     qk_print_output_record_separator(runtime);
 }
 
 void qk_print_number(qk_runtime *runtime, double value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_PRINT_NUMBER);
     qk_print_number_fragment(runtime, value);
     qk_print_output_record_separator(runtime);
 }
 
 void qk_print_string_fragment(qk_runtime *runtime, const char *value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_PRINT_STRING_FRAGMENT);
     (void)runtime;
     qk_write_output_string(stdout, value);
 }
 
 void qk_print_number_fragment(qk_runtime *runtime, double value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_PRINT_NUMBER_FRAGMENT);
     qk_write_output_number(runtime, stdout, value);
 }
 
@@ -1789,26 +1927,31 @@ void qk_print_output_record_separator(qk_runtime *runtime)
 
 double qk_getline_main_record(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GETLINE_MAIN_RECORD);
     return qk_read_main_line(runtime, true, NULL);
 }
 
 double qk_getline_main_string(qk_runtime *runtime, const char **result_out)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GETLINE_MAIN_STRING);
     return qk_read_main_line(runtime, false, result_out);
 }
 
 double qk_getline_file_record(qk_runtime *runtime, const char *target)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GETLINE_FILE_RECORD);
     return qk_read_file_line(runtime, target, true, NULL);
 }
 
 double qk_getline_file_string(qk_runtime *runtime, const char *target, const char **result_out)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GETLINE_FILE_STRING);
     return qk_read_file_line(runtime, target, false, result_out);
 }
 
 void qk_nextfile(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_NEXTFILE);
     if (runtime == NULL) {
         return;
     }
@@ -1839,12 +1982,14 @@ int32_t qk_exit_status(qk_runtime *runtime)
 
 const char *qk_scalar_get(qk_runtime *runtime, const char *name)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_GET);
     struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
     return qk_scalar_string_view(runtime, entry);
 }
 
 double qk_scalar_get_number(qk_runtime *runtime, const char *name)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_GET_NUMBER);
     struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
     if (entry == NULL) {
         return 0.0;
@@ -1860,6 +2005,7 @@ double qk_scalar_get_number(qk_runtime *runtime, const char *name)
 
 bool qk_scalar_truthy(qk_runtime *runtime, const char *name)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_TRUTHY);
     struct qk_scalar_entry *entry = qk_find_scalar(runtime, name, false);
     if (entry == NULL) {
         return false;
@@ -1875,6 +2021,7 @@ bool qk_scalar_truthy(qk_runtime *runtime, const char *name)
 
 void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_SET_STRING);
     if ((runtime == NULL) || (name == NULL)) {
         return;
     }
@@ -1886,6 +2033,7 @@ void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *val
 
 void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_SET_NUMBER);
     if ((runtime == NULL) || (name == NULL)) {
         return;
     }
@@ -1897,6 +2045,7 @@ void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
 
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_COPY);
     struct qk_scalar_entry *target;
     struct qk_scalar_entry *source;
 
@@ -1939,6 +2088,7 @@ bool qk_compare_values(
     int32_t op
 )
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_COMPARE_VALUES);
     bool left_numeric;
     bool right_numeric;
 
@@ -1956,6 +2106,7 @@ bool qk_compare_values(
 
 const char *qk_capture_string_arg(qk_runtime *runtime, const char *text)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_CAPTURE_STRING_ARG);
     char *copy;
     char **next_strings;
 
@@ -1991,6 +2142,7 @@ double qk_parse_number_text(const char *text)
 
 const char *qk_format_number(qk_runtime *runtime, double value)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_FORMAT_NUMBER);
     return qk_format_number_with_text(runtime, value, qk_output_variable_text(runtime, "CONVFMT", QK_DEFAULT_CONVFMT));
 }
 
@@ -2509,21 +2661,25 @@ bool qk_regex_match_text(const char *text, const char *pattern)
 
 double qk_get_nr(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_NR);
     return runtime == NULL ? 0.0 : runtime->nr;
 }
 
 double qk_get_fnr(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_FNR);
     return runtime == NULL ? 0.0 : runtime->fnr;
 }
 
 double qk_get_nf(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_NF);
     return runtime == NULL ? 0.0 : (double)runtime->field_count;
 }
 
 const char *qk_get_filename(qk_runtime *runtime)
 {
+    qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_FILENAME);
     if ((runtime == NULL) || (runtime->current_filename == NULL)) {
         return "-";
     }

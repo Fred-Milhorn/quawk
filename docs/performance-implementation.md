@@ -445,13 +445,20 @@ inspection alias requests optimized IR explicitly.
 
 ### Current Hot Paths
 
-Based on profiling, these runtime functions are called most frequently:
+A sample medium-scale run of the current runtime workload profile
+(`uv run python scripts/profile_runtime_hot_paths.py --dataset-scale medium`)
+shows these functions at the top of the call counts:
 
-1. `qk_scalar_get_number` - Every variable read in numeric context
-2. `qk_scalar_set_number` - Every variable write in numeric context  
-3. `qk_compare_values` - Every comparison with string/number duality
-4. `qk_get_field` - Every field access ($1, $2, etc.)
-5. `qk_print_number` - Every numeric print
+1. `qk_capture_string_arg` - `71,994` calls
+2. `qk_get_field` - `71,994` calls
+3. `qk_next_record` - `24,001` calls
+4. `qk_get_fnr` - `15,996` calls
+5. `qk_get_nr` - `7,999` calls
+6. `qk_print_number_fragment` - `3` calls
+
+The remaining instrumented runtime helpers were zero in this sample run.
+That points the next ABI work at field capture, field lookup, and record
+bookkeeping before more speculative helper reductions.
 
 ### Proposed Fast Paths
 
