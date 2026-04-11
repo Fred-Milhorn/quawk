@@ -436,7 +436,7 @@ inspection alias requests optimized IR explicitly.
 | P28-T04 | Add `--ir=optimized` for inspection | P28-T02 | Shows optimized IR |
 | P28-T05 | Define pass pipeline for each level | - | Level 1 and level 2 pipelines documented |
 | P28-T06 | Handle opt not found gracefully | P28-T02 | Warning emitted, fallback to unoptimized |
-| P28-T07 | Add tests for optimization flag | P28-T03 | Tests pass |
+| P28-T07 | Add tests for optimization flag | P28-T03 | Tests pass with optimization enabled |
 | P28-T08 | Benchmark optimized vs unoptimized | P28-T07 | Numbers show benefit |
 
 ---

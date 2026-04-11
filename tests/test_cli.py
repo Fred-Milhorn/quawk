@@ -84,6 +84,63 @@ def test_quawk_optimize_flag_executes_program() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_optimize_flag_applies_to_ir_inspection(monkeypatch, capsys) -> None:
+    captured: dict[str, bool] = {}
+
+    def fake_build_public_execution_llvm_ir(
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        *,
+        optimize: bool = False,
+    ) -> str:
+        captured["optimize"] = optimize
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables == []
+        return "; optimized ir"
+
+    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+
+    assert cli.main(["--ir", "-O", "BEGIN { print 1 }"]) == 0
+    captured_output = capsys.readouterr()
+    assert captured["optimize"] is True
+    assert captured_output.out == "; optimized ir"
+    assert captured_output.err == ""
+
+
+def test_quawk_optimize_flag_applies_to_asm_inspection(monkeypatch, capsys) -> None:
+    captured: dict[str, bool] = {}
+
+    def fake_build_public_execution_llvm_ir(
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        *,
+        optimize: bool = False,
+    ) -> str:
+        captured["optimize"] = optimize
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables == []
+        return "; optimized ir"
+
+    def fake_emit_assembly(llvm_ir: str) -> str:
+        assert llvm_ir == "; optimized ir"
+        return "; asm"
+
+    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(cli, "emit_assembly", fake_emit_assembly)
+
+    assert cli.main(["--asm", "-O", "BEGIN { print 1 }"]) == 0
+    captured_output = capsys.readouterr()
+    assert captured["optimize"] is True
+    assert captured_output.out == "; asm"
+    assert captured_output.err == ""
+
+
 def test_quawk_applies_repeated_v_assignments_in_argument_order() -> None:
     result = run_quawk("-v", "x=1", "-v", "x=3", "BEGIN { print x }")
 
@@ -469,15 +526,6 @@ def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
     assert "@.fmt.num = private unnamed_addr constant [6 x i8] c\"\\25\\2E\\36\\67\\0A\\00\"" in result.stdout
     assert "fadd double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
     assert "call i32 (ptr, ...) @printf(ptr %fmtptr.0, double %add.1)" in result.stdout
-    assert result.stderr == ""
-
-
-def test_quawk_ir_flag_with_optimize_runs_llvm_opt() -> None:
-    result = run_quawk("--ir", "-O", "BEGIN { print 1 }")
-
-    assert result.returncode == 0, result.stderr
-    assert "define i32 @quawk_main()" in result.stdout
-    assert "; optimization-mode enabled" not in result.stdout
     assert result.stderr == ""
 
 
