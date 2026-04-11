@@ -927,7 +927,7 @@ Priority values:
 | T-262 | P29 | P1 | Add inline fast-path versions of hot functions | T-258, T-260 | Inline-able fast paths for top hot paths | done |
 | T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | done |
 | T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | done |
-| T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | todo |
+| T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | done |
 
 ## Cross-Cutting Tracks
 

@@ -4,6 +4,11 @@
  * The compiler lowers reusable BEGIN/record/END program code against this ABI.
  * The runtime owns input iteration, field access, regex matching, and printing
  * so compiled IR does not have to specialize to a concrete input stream.
+ *
+ * ABI stability notes:
+ * - `qk_runtime` remains opaque to callers.
+ * - New entry points are additive; existing base symbols stay available.
+ * - `*_inline` helpers are fast-path aliases, not replacements for the base ABI.
  */
 
 #ifndef QUAWK_RUNTIME_QK_RUNTIME_H

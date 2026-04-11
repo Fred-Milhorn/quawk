@@ -567,13 +567,33 @@ qk_runtime *qk_runtime_create_with_slots(
 | P29-T05 | Add inline versions of hot paths | P29-T03 | Inline-able functions defined | done |
 | P29-T06 | Update generated IR to use fast paths | P27, P29-T05 | IR emits fast-path calls | done |
 | P29-T07 | Benchmark fast-path improvements | P29-T06 | Measurable speedup | done |
-| P29-T08 | Document ABI stability guarantees | P29-T05 | ABI documented |
+| P29-T08 | Document ABI stability guarantees | P29-T05 | ABI documented | done |
 
 The fast-path benchmark runner compares the same linked hot-path modules with
 the inline helper symbols intact and with those symbols rewritten back to the
 base helper entry points:
 
 `uv run python scripts/benchmark_runtime_fast_paths.py --dataset-scale medium`
+
+### Runtime ABI Guarantees
+
+The runtime ABI is intentionally additive and header-driven:
+
+- `qk_runtime.h` is the public contract for generated IR and host-side callers.
+- `qk_runtime` stays opaque at the API boundary; callers should not depend on
+  its in-memory layout.
+- New helpers such as `qk_runtime_create_with_slots()` and the `*_inline`
+  wrappers are additive entry points, not replacements for the existing base
+  functions.
+- The base symbols remain available for compatibility, while the inline
+  wrappers provide stable fast-path call targets for generated IR.
+- The compiler may choose either the base helper names or the inline aliases,
+  but the observable runtime behavior and calling conventions must remain the
+  same.
+
+This keeps the optimization work in P29 compatible with earlier generated IR,
+external embedding code, and the benchmark harnesses that rewrite inline
+symbols back to the base helpers for comparison.
 
 ---
 
