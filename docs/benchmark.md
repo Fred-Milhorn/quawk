@@ -179,6 +179,20 @@ Sample run on April 10, 2026 (`--iterations 2000000 --repetitions 7 --warmups 2`
 - hash median: `33.801 ms`
 - median speedup (`slot` vs `hash`): `2.66x`
 
+## T-249 Numeric Loop Fast Path Microbenchmark
+
+For `T-249`, the repo now includes a focused benchmark script:
+
+```sh
+uv run python scripts/benchmark_numeric_loop_fast_path.py
+```
+
+Sample run on April 10, 2026 (`--iterations 120000 --repetitions 7 --warmups 2`):
+
+- fast-path median: `491.637 ms`
+- mixed-fallback median: `536.320 ms`
+- median speedup (`fast` vs `fallback`): `1.09x`
+
 ## Assumptions
 
 - the benchmark is a local engineering tool, not a release gate

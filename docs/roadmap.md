@@ -620,8 +620,8 @@ Exit criteria:
 
 Start here unless priorities change:
 
-Specialized operations phase P27 is now active. P25 (static variable slots) and
-P26 (type inference) are complete.
+LLVM optimization phase P28 is now active. P25 (static variable slots), P26
+(type inference), and P27 (specialized operations) are complete.
 
 Current state:
 - `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
@@ -642,18 +642,20 @@ Current state:
 - `T-246` adds direct runtime string-slot read/write for inferred string names
 - `T-247` routes mixed/unknown scalar operations through runtime slow-path semantics
 - `T-248` adds `--ir`-level specialized-operation and fallback regression coverage
+- `T-249` adds numeric-loop fast-path benchmark coverage (`1.09x` median speedup
+  versus mixed fallback in local sample run)
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P27 specialization work proceeds with `T-249` (numeric-loop benchmarking)
+- P28 optimization work begins with `T-250` (`--optimize` / `-O` CLI flag)
 
 Immediate next tasks:
-- `T-249`: benchmark numeric loop performance improvement
 - `T-250`: add `--optimize` / `-O` CLI flag
 - `T-251`: implement `optimize_ir()` function with opt subprocess
+- `T-252`: integrate optimization into execute path
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -910,7 +912,7 @@ Priority values:
 | T-246 | P27 | P1 | Implement slot-based string variable read/write | P25, P26 | Direct string slot access for known-string variables | done |
 | T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | done |
 | T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | done |
-| T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | todo |
+| T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | done |
 | T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | todo |
 | T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | todo |
 | T-252 | P28 | P0 | Integrate optimization into execute path | T-251 | Programs run with `-O` show optimized IR | todo |
