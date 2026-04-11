@@ -994,10 +994,13 @@ def test_execute_routes_representative_claimed_value_backend_subset_programs_thr
         input_files: list[str],
         field_separator: str | None,
         initial_variables: jit.InitialVariables | None = None,
+        *,
+        optimize: bool = False,
     ) -> str:
         assert input_files == []
         assert field_separator is None
         assert initial_variables is None
+        assert optimize is False
         built.append(program)
         return f"; claimed value backend module {len(built)}"
 
@@ -1013,6 +1016,36 @@ def test_execute_routes_representative_claimed_value_backend_subset_programs_thr
         assert jit.execute(program) == 0
 
     assert built == list(cases.values())
+
+
+def test_execute_with_inputs_forwards_optimize_mode_to_ir_builder(monkeypatch) -> None:
+    program = parse_program("BEGIN { print 1 }")
+    captured_optimize: dict[str, bool] = {}
+
+    def fake_build_public_execution_llvm_ir(
+        built_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+        *,
+        optimize: bool = False,
+    ) -> str:
+        assert built_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        captured_optimize["value"] = optimize
+        return "; optimized module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        assert llvm_ir == "; optimized module"
+        return 0
+
+    monkeypatch.setattr(jit, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute_with_inputs(program, [], None, optimize=True) == 0
+    assert captured_optimize["value"] is True
 
 
 def test_execute_routes_remaining_string_v_plus_function_claimed_value_case_through_backend(

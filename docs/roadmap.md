@@ -644,18 +644,19 @@ Current state:
 - `T-248` adds `--ir`-level specialized-operation and fallback regression coverage
 - `T-249` adds numeric-loop fast-path benchmark coverage (`1.09x` median speedup
   versus mixed fallback in local sample run)
+- `T-250` adds CLI optimization mode flag plumbing (`-O` / `--optimize`)
 - `T-197` through `T-226` complete: P21–P24 widening waves all closed
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P28 optimization work begins with `T-250` (`--optimize` / `-O` CLI flag)
+- P28 optimization work proceeds with `T-251` (`optimize_ir()` subprocess integration)
 
 Immediate next tasks:
-- `T-250`: add `--optimize` / `-O` CLI flag
 - `T-251`: implement `optimize_ir()` function with opt subprocess
 - `T-252`: integrate optimization into execute path
+- `T-253`: add `--ir=optimized` for inspection mode
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -913,7 +914,7 @@ Priority values:
 | T-247 | P27 | P1 | Add slow-path fallback for mixed-type operations | T-242 through T-246 | Mixed/unknown types use full AWK comparison semantics | done |
 | T-248 | P27 | P2 | Add tests for specialized operations | T-242 through T-247 | Tests pass, `--ir` shows specialized fast paths | done |
 | T-249 | P27 | P2 | Benchmark numeric loop performance improvement | T-248 | Measurable speedup over current implementation | done |
-| T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | todo |
+| T-250 | P28 | P0 | Add `--optimize` / `-O` CLI flag | - | Flag parses and enables optimization mode | done |
 | T-251 | P28 | P0 | Implement `optimize_ir()` function with opt subprocess | - | Function invokes LLVM `opt` with pass pipeline | todo |
 | T-252 | P28 | P0 | Integrate optimization into execute path | T-251 | Programs run with `-O` show optimized IR | todo |
 | T-253 | P28 | P1 | Add `--ir=optimized` for inspection mode | T-251, T-250 | Shows optimized IR when requested | todo |

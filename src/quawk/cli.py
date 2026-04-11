@@ -62,6 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Assign a variable before program execution. Repeatable.",
     )
     parser.add_argument(
+        "-O",
+        "--optimize",
+        action="store_true",
+        help="Enable optimization mode for generated IR/execution.",
+    )
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print the user-facing version and exit.",
@@ -137,17 +143,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.ir:
             # Lower once for the stop-after inspection modes so IR and assembly
             # are derived from the same pipeline.
-            llvm_ir = build_public_execution_llvm_ir(program, args.files, args.field_separator, initial_variables)
+            llvm_ir = build_public_execution_llvm_ir(
+                program,
+                args.files,
+                args.field_separator,
+                initial_variables,
+                optimize=args.optimize,
+            )
             sys.stdout.write(llvm_ir)
             return 0
 
         if args.asm:
-            llvm_ir = build_public_execution_llvm_ir(program, args.files, args.field_separator, initial_variables)
+            llvm_ir = build_public_execution_llvm_ir(
+                program,
+                args.files,
+                args.field_separator,
+                initial_variables,
+                optimize=args.optimize,
+            )
             sys.stdout.write(emit_assembly(llvm_ir))
             return 0
 
         validate_assignment_targets(initial_variables, analysis)
-        return execute_with_inputs(program, args.files, args.field_separator, initial_variables)
+        return execute_with_inputs(
+            program,
+            args.files,
+            args.field_separator,
+            initial_variables,
+            optimize=args.optimize,
+        )
 
     except OSError as exc:
         sys.stderr.write(f"quawk: {exc}\n")

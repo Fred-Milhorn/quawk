@@ -25,6 +25,7 @@ def test_quawk_help_exits_zero() -> None:
     assert result.returncode == 0, result.stderr
     assert "usage: quawk" in result.stdout
     assert "--version" in result.stdout
+    assert "--optimize" in result.stdout
     assert "Operand '-' means standard input at that position." in result.stdout
 
 
@@ -70,6 +71,14 @@ def test_quawk_applies_numeric_v_assignment_before_execution() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "7\n"
+    assert result.stderr == ""
+
+
+def test_quawk_optimize_flag_executes_program() -> None:
+    result = run_quawk("-O", "BEGIN { print 1 + 2 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n"
     assert result.stderr == ""
 
 
@@ -458,6 +467,15 @@ def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
     assert "@.fmt.num = private unnamed_addr constant [6 x i8] c\"\\25\\2E\\36\\67\\0A\\00\"" in result.stdout
     assert "fadd double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
     assert "call i32 (ptr, ...) @printf(ptr %fmtptr.0, double %add.1)" in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_with_optimize_emits_optimization_marker() -> None:
+    result = run_quawk("--ir", "-O", "BEGIN { print 1 }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("; optimization-mode enabled\n")
+    assert "define i32 @quawk_main()" in result.stdout
     assert result.stderr == ""
 
 

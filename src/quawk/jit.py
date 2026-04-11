@@ -213,10 +213,10 @@ def emit_assembly(llvm_ir: str) -> str:
     return result.stdout
 
 
-def execute(program: Program, initial_variables: InitialVariables | None = None) -> int:
+def execute(program: Program, initial_variables: InitialVariables | None = None, *, optimize: bool = False) -> int:
     """Lower `program` to IR, run it with `lli`, and return the process status."""
     ensure_public_execution_supported(program, initial_variables)
-    llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables)
+    llvm_ir = build_public_execution_llvm_ir(program, [], None, initial_variables, optimize=optimize)
     return execute_llvm_ir(llvm_ir)
 
 
@@ -428,12 +428,21 @@ def build_public_execution_llvm_ir(
     input_files: list[str],
     field_separator: str | None,
     initial_variables: InitialVariables | None = None,
+    *,
+    optimize: bool = False,
 ) -> str:
     """Build the IR module used by public execution and inspection paths."""
     llvm_ir = lower_to_llvm_ir(program, initial_variables=initial_variables)
     if program_requires_linked_execution_module(program, initial_variables):
-        return link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
+        llvm_ir = link_reusable_execution_module(llvm_ir, program, input_files, field_separator, initial_variables)
+    if optimize:
+        return enable_optimization_mode(llvm_ir)
     return llvm_ir
+
+
+def enable_optimization_mode(llvm_ir: str) -> str:
+    """Mark one generated module as optimization-enabled until pass integration lands."""
+    return "; optimization-mode enabled\n" + llvm_ir
 
 
 def program_requires_linked_execution_module(
@@ -3121,10 +3130,18 @@ def execute_with_inputs(
     input_files: list[str],
     field_separator: str | None,
     initial_variables: InitialVariables | None = None,
+    *,
+    optimize: bool = False,
 ) -> int:
     """Execute the current program through the compiled backend/runtime path."""
     ensure_public_execution_supported(program, initial_variables)
-    llvm_ir = build_public_execution_llvm_ir(program, input_files, field_separator, initial_variables)
+    llvm_ir = build_public_execution_llvm_ir(
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        optimize=optimize,
+    )
     return execute_llvm_ir(llvm_ir)
 
 
