@@ -161,6 +161,7 @@ const char *qk_array_next_key(qk_runtime *runtime, const char *array_name, const
 const char *qk_substr2(qk_runtime *runtime, const char *text, int64_t start);
 const char *qk_substr3(qk_runtime *runtime, const char *text, int64_t start, int64_t length);
 
+#ifndef QK_RUNTIME_BUILD
 static inline bool qk_next_record_inline(qk_runtime *runtime)
 {
     return qk_next_record(runtime);
@@ -235,5 +236,6 @@ static inline const char *qk_get_filename_inline(qk_runtime *runtime)
 {
     return qk_get_filename(runtime);
 }
+#endif
 
 #endif

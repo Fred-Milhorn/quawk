@@ -330,7 +330,7 @@ def lower_numeric_variable(name: str, state: LoweringState) -> str:
     # Fallback to hash lookup
     name_ptr = lower_constant_string(name, state)
     return state.next_temp_load(
-        f"call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {name_ptr})"
+        f"call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {name_ptr})"
     )
 ```
 
@@ -565,7 +565,7 @@ qk_runtime *qk_runtime_create_with_slots(
 | P29-T03 | Add slot accessor functions | P29-T02 | Functions available |
 | P29-T04 | Create slot-based runtime entry point | P29-T03 | `qk_runtime_create_with_slots` works | done |
 | P29-T05 | Add inline versions of hot paths | P29-T03 | Inline-able functions defined | done |
-| P29-T06 | Update generated IR to use fast paths | P27, P29-T05 | IR emits fast-path calls |
+| P29-T06 | Update generated IR to use fast paths | P27, P29-T05 | IR emits fast-path calls | done |
 | P29-T07 | Benchmark fast-path improvements | P29-T06 | Measurable speedup |
 | P29-T08 | Document ABI stability guarantees | P29-T05 | ABI documented |
 

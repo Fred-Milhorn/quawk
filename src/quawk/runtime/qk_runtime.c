@@ -7,6 +7,7 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#define QK_RUNTIME_BUILD
 #include "qk_runtime.h"
 
 #include <ctype.h>
@@ -1776,6 +1777,11 @@ bool qk_next_record(qk_runtime *runtime)
     return qk_read_main_line(runtime, true, NULL) > 0.0;
 }
 
+bool qk_next_record_inline(qk_runtime *runtime)
+{
+    return qk_next_record(runtime);
+}
+
 const char *qk_get_field(qk_runtime *runtime, int64_t index)
 {
     qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_FIELD);
@@ -1795,6 +1801,11 @@ const char *qk_get_field(qk_runtime *runtime, int64_t index)
         return QK_EMPTY_FIELD;
     }
     return runtime->fields[field_index];
+}
+
+const char *qk_get_field_inline(qk_runtime *runtime, int64_t index)
+{
+    return qk_get_field(runtime, index);
 }
 
 static bool qk_rebuild_record_from_parts(qk_runtime *runtime, int64_t index, const char *value)
@@ -2099,6 +2110,11 @@ const char *qk_scalar_get(qk_runtime *runtime, const char *name)
     return qk_scalar_string_view(runtime, entry);
 }
 
+const char *qk_scalar_get_inline(qk_runtime *runtime, const char *name)
+{
+    return qk_scalar_get(runtime, name);
+}
+
 double qk_scalar_get_number(qk_runtime *runtime, const char *name)
 {
     qk_runtime_profile_note(QK_RUNTIME_PROFILE_SCALAR_GET_NUMBER);
@@ -2113,6 +2129,11 @@ double qk_scalar_get_number(qk_runtime *runtime, const char *name)
         return qk_parse_awk_numeric_prefix(entry->string);
     }
     return 0.0;
+}
+
+double qk_scalar_get_number_inline(qk_runtime *runtime, const char *name)
+{
+    return qk_scalar_get_number(runtime, name);
 }
 
 bool qk_scalar_truthy(qk_runtime *runtime, const char *name)
@@ -2153,6 +2174,11 @@ void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value)
         return;
     }
     (void)qk_apply_scalar_side_effects(runtime, name);
+}
+
+void qk_scalar_set_number_inline(qk_runtime *runtime, const char *name, double value)
+{
+    qk_scalar_set_number(runtime, name, value);
 }
 
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name)
@@ -2216,6 +2242,31 @@ bool qk_compare_values(
     return qk_compare_strings(left_string, right_string, op);
 }
 
+bool qk_compare_values_inline(
+    const char *left_string,
+    double left_number,
+    bool left_needs_numeric_check,
+    bool left_force_string,
+    const char *right_string,
+    double right_number,
+    bool right_needs_numeric_check,
+    bool right_force_string,
+    int32_t op
+)
+{
+    return qk_compare_values(
+        left_string,
+        left_number,
+        left_needs_numeric_check,
+        left_force_string,
+        right_string,
+        right_number,
+        right_needs_numeric_check,
+        right_force_string,
+        op
+    );
+}
+
 const char *qk_capture_string_arg(qk_runtime *runtime, const char *text)
 {
     qk_runtime_profile_note(QK_RUNTIME_PROFILE_CAPTURE_STRING_ARG);
@@ -2245,6 +2296,11 @@ const char *qk_capture_string_arg(qk_runtime *runtime, const char *text)
     runtime->temp_strings[runtime->temp_string_count] = copy;
     runtime->temp_string_count += 1U;
     return copy;
+}
+
+const char *qk_capture_string_arg_inline(qk_runtime *runtime, const char *text)
+{
+    return qk_capture_string_arg(runtime, text);
 }
 
 double qk_parse_number_text(const char *text)
@@ -2777,16 +2833,31 @@ double qk_get_nr(qk_runtime *runtime)
     return runtime == NULL ? 0.0 : runtime->nr;
 }
 
+double qk_get_nr_inline(qk_runtime *runtime)
+{
+    return qk_get_nr(runtime);
+}
+
 double qk_get_fnr(qk_runtime *runtime)
 {
     qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_FNR);
     return runtime == NULL ? 0.0 : runtime->fnr;
 }
 
+double qk_get_fnr_inline(qk_runtime *runtime)
+{
+    return qk_get_fnr(runtime);
+}
+
 double qk_get_nf(qk_runtime *runtime)
 {
     qk_runtime_profile_note(QK_RUNTIME_PROFILE_GET_NF);
     return runtime == NULL ? 0.0 : (double)runtime->field_count;
+}
+
+double qk_get_nf_inline(qk_runtime *runtime)
+{
+    return qk_get_nf(runtime);
 }
 
 const char *qk_get_filename(qk_runtime *runtime)
@@ -2796,6 +2867,11 @@ const char *qk_get_filename(qk_runtime *runtime)
         return "-";
     }
     return runtime->current_filename;
+}
+
+const char *qk_get_filename_inline(qk_runtime *runtime)
+{
+    return qk_get_filename(runtime);
 }
 
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator)

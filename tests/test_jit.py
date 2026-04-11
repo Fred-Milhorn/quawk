@@ -1359,8 +1359,8 @@ def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:
     assert "define void @quawk_record(ptr %rt, ptr %state)" in llvm_ir
     assert "define void @quawk_end(ptr %rt, ptr %state)" in llvm_ir
     assert "@qk_runtime_create" in llvm_ir
-    assert "@qk_next_record" in llvm_ir
-    assert "@qk_get_field" in llvm_ir
+    assert "@qk_next_record_inline" in llvm_ir
+    assert "@qk_get_field_inline" in llvm_ir
     assert 'c"\\62\\65\\74\\61\\00"' not in llvm_ir
     assert 'c"\\64\\65\\6C\\74\\61\\00"' not in llvm_ir
 
@@ -1445,7 +1445,7 @@ def test_execute_routes_p21_comparison_program_through_backend(monkeypatch) -> N
 
     assert jit.execute(program) == 0
     llvm_ir = captured_ir["module"]
-    assert "@qk_compare_values" in llvm_ir
+    assert "@qk_compare_values_inline" in llvm_ir
 
 
 def test_execute_routes_p22_arithmetic_program_through_backend(monkeypatch) -> None:
@@ -1516,7 +1516,7 @@ def test_execute_with_inputs_lowers_regex_filter_program_to_llvm(monkeypatch) ->
     assert "define i32 @quawk_main()" in llvm_ir
     assert "define void @quawk_record(ptr %rt, ptr %state)" in llvm_ir
     assert "@qk_runtime_create" in llvm_ir
-    assert "@qk_next_record" in llvm_ir
+    assert "@qk_next_record_inline" in llvm_ir
     assert "@qk_regex_match_current_record" in llvm_ir
     assert 'c"\\62\\61\\72\\00"' not in llvm_ir
     assert 'c"\\66\\6F\\6F\\64\\00"' not in llvm_ir
@@ -1529,7 +1529,7 @@ def test_lower_to_llvm_ir_supports_reusable_mixed_program_lowering() -> None:
     assert "define void @quawk_begin(" in llvm_ir
     assert "define void @quawk_record(" in llvm_ir
     assert "define void @quawk_end(" in llvm_ir
-    assert "@qk_get_field" in llvm_ir
+    assert "@qk_get_field_inline" in llvm_ir
 
 
 def test_lower_to_llvm_ir_supports_reusable_regex_program_lowering() -> None:
@@ -1545,7 +1545,7 @@ def test_lower_to_llvm_ir_emits_numeric_comparison_fast_path_for_inferred_numeri
 
     llvm_ir = jit.lower_to_llvm_ir(program)
     assert "fcmp olt double" in llvm_ir
-    assert "call i1 @qk_compare_values" not in llvm_ir
+    assert "call i1 @qk_compare_values_inline" not in llvm_ir
 
 
 def test_lower_to_llvm_ir_emits_numeric_arithmetic_fast_path_ops() -> None:
@@ -1563,7 +1563,7 @@ def test_lower_to_llvm_ir_emits_string_concat_fast_path_without_capture_for_know
 
     llvm_ir = jit.lower_to_llvm_ir(program)
     assert "call ptr @qk_concat" in llvm_ir
-    assert "call ptr @qk_capture_string_arg" not in llvm_ir
+    assert "call ptr @qk_capture_string_arg_inline" not in llvm_ir
     assert "call ptr @qk_format_number" not in llvm_ir
 
 
@@ -1584,21 +1584,21 @@ def test_lower_to_llvm_ir_uses_string_slots_for_inferred_string_names() -> None:
     assert "call void @qk_slot_set_string" in llvm_ir
     assert "call ptr @qk_slot_get_string" in llvm_ir
     assert "call void @qk_scalar_set_string" not in llvm_ir
-    assert "call ptr @qk_scalar_get(" not in llvm_ir
+    assert "call ptr @qk_scalar_get_inline(" not in llvm_ir
 
 
 def test_lower_to_llvm_ir_uses_slow_compare_path_for_mixed_type_names() -> None:
     program = parse_program('BEGIN { x = 1; x = "s"; print (x < 2) }')
 
     llvm_ir = jit.lower_to_llvm_ir(program)
-    assert "call i1 @qk_compare_values(" in llvm_ir
+    assert "call i1 @qk_compare_values_inline(" in llvm_ir
 
 
 def test_lower_to_llvm_ir_uses_scalar_numeric_fallback_for_unknown_name_reads() -> None:
     program = parse_program("{ print x + 1 }")
 
     llvm_ir = jit.lower_to_llvm_ir(program)
-    assert "call double @qk_scalar_get_number(" in llvm_ir
+    assert "call double @qk_scalar_get_number_inline(" in llvm_ir
     assert "call double @qk_slot_get_number(" not in llvm_ir
 
 

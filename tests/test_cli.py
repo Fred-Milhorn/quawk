@@ -546,7 +546,7 @@ def test_quawk_ir_optimized_alias_requests_optimized_ir(monkeypatch, capsys) -> 
         assert initial_variables == []
         return "; optimized ir"
 
-    monkeypatch.setattr(cli, "build_public_execution_llvm_ir", fake_build_public_execution_llvm_ir)
+    monkeypatch.setattr(cli, "build_public_inspection_llvm_ir", fake_build_public_execution_llvm_ir)
 
     assert cli.main(["--ir=optimized", "BEGIN { print 1 }"]) == 0
     captured_output = capsys.readouterr()
@@ -559,11 +559,10 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { x = 1 + 2; print x }")
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_slot_set_number(" in result.stdout
-    assert "@qk_slot_get_number(" in result.stdout
-    assert "@qk_scalar_set_number(" in result.stdout
-    assert "@qk_scalar_get(" in result.stdout
-    assert "@qk_print_number(" in result.stdout
+    assert "getelementptr inbounds %quawk.state" in result.stdout
+    assert "store double %add." in result.stdout
+    assert "load double, ptr %varptr.x." in result.stdout
+    assert "@qk_print_number_fragment(" in result.stdout
     assert result.stderr == ""
 
 
@@ -571,8 +570,8 @@ def test_quawk_ir_flag_prints_backend_ir_for_claimed_unset_scalar_value_cases() 
     result = run_quawk("--ir", "BEGIN { print x; print x + 1 }")
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_scalar_get(" in result.stdout
-    assert "@qk_slot_get_number(" in result.stdout
+    assert "@qk_scalar_get_inline(" in result.stdout
+    assert "@qk_scalar_get_number_inline(" in result.stdout
     assert result.stderr == ""
 
 
@@ -580,8 +579,10 @@ def test_quawk_ir_flag_uses_slot_calls_for_scalar_compound_assignment() -> None:
     result = run_quawk("--ir", "BEGIN { x = 1; x += 2; print x }")
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_slot_get_number(" in result.stdout
-    assert "@qk_slot_set_number(" in result.stdout
+    assert "getelementptr inbounds %quawk.state" in result.stdout
+    assert "load double, ptr %varptr.x." in result.stdout
+    assert "store double %assign.op." in result.stdout
+    assert "@qk_print_number_fragment(" in result.stdout
     assert result.stderr == ""
 
 
@@ -590,7 +591,7 @@ def test_quawk_ir_flag_shows_specialized_numeric_comparison_fast_path() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "fcmp olt double" in result.stdout
-    assert "call i1 @qk_compare_values(" not in result.stdout
+    assert "call i1 @qk_compare_values_inline(" not in result.stdout
     assert result.stderr == ""
 
 
@@ -610,7 +611,7 @@ def test_quawk_ir_flag_shows_specialized_string_concat_fast_path() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "call ptr @qk_concat(" in result.stdout
-    assert "call ptr @qk_capture_string_arg(" not in result.stdout
+    assert "call ptr @qk_capture_string_arg_inline(" not in result.stdout
     assert result.stderr == ""
 
 
@@ -632,7 +633,7 @@ def test_quawk_ir_flag_shows_specialized_string_slot_access() -> None:
     assert "call void @qk_slot_set_string(" in result.stdout
     assert "call ptr @qk_slot_get_string(" in result.stdout
     assert "call void @qk_scalar_set_string(" not in result.stdout
-    assert "call ptr @qk_scalar_get(" not in result.stdout
+    assert "call ptr @qk_scalar_get_inline(" not in result.stdout
     assert result.stderr == ""
 
 
@@ -640,8 +641,8 @@ def test_quawk_ir_flag_shows_mixed_type_slow_path_fallback() -> None:
     result = run_quawk("--ir", 'BEGIN { x = 1; x = "s" }\n{ print (x < 2); print (x + 1) }')
 
     assert result.returncode == 0, result.stderr
-    assert "call i1 @qk_compare_values(" in result.stdout
-    assert "call double @qk_scalar_get_number(" in result.stdout
+    assert "call i1 @qk_compare_values_inline(" in result.stdout
+    assert "call double @qk_scalar_get_number_inline(" in result.stdout
     assert result.stderr == ""
 
 
@@ -666,7 +667,7 @@ def test_quawk_ir_flag_prints_record_program_ir_and_stops() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "define void @quawk_record(ptr %rt, ptr %state)" in result.stdout
-    assert "@qk_get_field" in result.stdout
+    assert "@qk_get_field_inline" in result.stdout
     assert "ptr %field1" not in result.stdout
     assert result.stderr == ""
 
@@ -676,7 +677,7 @@ def test_quawk_ir_flag_prints_reusable_record_program_ir() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "define void @quawk_record(" in result.stdout
-    assert "@qk_get_field" in result.stdout
+    assert "@qk_get_field_inline" in result.stdout
     assert "ptr %field1" not in result.stdout
     assert result.stderr == ""
 
@@ -740,7 +741,7 @@ def test_quawk_ir_flag_prints_reusable_mixed_program_ir() -> None:
     assert "define void @quawk_begin(" in result.stdout
     assert "define void @quawk_record(" in result.stdout
     assert "define void @quawk_end(" in result.stdout
-    assert "@qk_get_field" in result.stdout
+    assert "@qk_get_field_inline" in result.stdout
     assert result.stderr == ""
 
 
@@ -766,7 +767,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_numeric_concat_record_programs() ->
     result = run_quawk("--ir", '{ print NR " " 10 / NR }')
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_get_nr(" in result.stdout
+    assert "@qk_get_nr_inline(" in result.stdout
     assert "@qk_concat(" in result.stdout
     assert "fdiv double" in result.stdout
     assert result.stderr == ""
@@ -906,8 +907,9 @@ def test_quawk_ir_flag_prints_backend_ir_for_runtime_compound_assignment_program
 
     assert result.returncode == 0, result.stderr
     assert "@qk_set_field_number(" in result.stdout
-    assert "@qk_scalar_set_number(" in result.stdout
     assert "@qk_parse_number_text(" in result.stdout
+    assert "@qk_print_number_fragment(" in result.stdout
+    assert "@qk_print_string_fragment(" in result.stdout
     assert result.stderr == ""
 
 
@@ -1124,9 +1126,13 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() 
     result = run_quawk("--ir", 'BEGIN { x = "12"; print x + 1; print x "a" }')
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_scalar_set_string(" in result.stdout
-    assert "@qk_scalar_get_number(" in result.stdout
+    assert "@qk_slot_set_string(" in result.stdout
+    assert "@qk_slot_set_number(" in result.stdout
+    assert "@qk_slot_get_number(" in result.stdout
+    assert "@qk_slot_get_string(" in result.stdout
     assert "@qk_concat(" in result.stdout
+    assert "@qk_print_number_fragment(" in result.stdout
+    assert "@qk_print_string_fragment(" in result.stdout
     assert result.stderr == ""
 
 
@@ -1164,7 +1170,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_input_separator_programs(
 
     assert result.returncode == 0, result.stderr
     assert "@qk_scalar_set_string(" in result.stdout
-    assert "@qk_get_field(" in result.stdout
+    assert "@qk_get_field_inline(" in result.stdout
     assert result.stderr == ""
 
 
@@ -1172,7 +1178,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_nf_rebuild_programs() -> None:
     result = run_quawk("--ir", '{ OFS = "|"; NF = 2; print; $5 = "five"; print }')
 
     assert result.returncode == 0, result.stderr
-    assert "@qk_scalar_set_number(" in result.stdout
+    assert "@qk_scalar_set_number_inline(" in result.stdout
     assert "@qk_set_field_string(" in result.stdout
     assert result.stderr == ""
 
@@ -1182,7 +1188,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_bare_length() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "@strlen(" in result.stdout
-    assert "@qk_get_field(" in result.stdout
+    assert "@qk_get_field_inline(" in result.stdout
     assert result.stderr == ""
 
 

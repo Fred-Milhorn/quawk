@@ -651,10 +651,10 @@ Current state:
   host fallback
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P29 ABI work proceeds with `T-263` (`update generated IR to use fast-path entry points`)
+- P29 ABI work proceeds with `T-264` (`benchmark fast-path improvements`)
 
 Immediate next tasks:
-- `T-263`: update generated IR to use fast-path entry points
+- `T-264`: benchmark fast-path improvements
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -925,7 +925,7 @@ Priority values:
 | T-260 | P29 | P0 | Add inline slot accessor functions | T-259 | `qk_slot_get_number_inline`, etc. defined in header | done |
 | T-261 | P29 | P0 | Create slot-based runtime entry point | T-259 | `qk_runtime_create_with_slots()` available | done |
 | T-262 | P29 | P1 | Add inline fast-path versions of hot functions | T-258, T-260 | Inline-able fast paths for top hot paths | done |
-| T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | todo |
+| T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | done |
 | T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | todo |
 | T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | todo |
 

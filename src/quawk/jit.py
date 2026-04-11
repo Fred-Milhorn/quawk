@@ -599,7 +599,7 @@ def lower_reusable_program_to_llvm_ir(
     state_type = render_state_type(normalized_program.slot_allocation)
 
     declarations = [
-        "declare ptr @qk_get_field(ptr, i64)",
+        "declare ptr @qk_get_field_inline(ptr, i64)",
         "declare void @qk_set_field_string(ptr, i64, ptr)",
         "declare void @qk_set_field_number(ptr, i64, double)",
         "declare void @qk_print_string(ptr, ptr)",
@@ -618,17 +618,17 @@ def lower_reusable_program_to_llvm_ir(
         "declare void @qk_request_exit(ptr, i32)",
         "declare i1 @qk_regex_match_current_record(ptr, ptr)",
         "declare i1 @qk_regex_match_text(ptr, ptr)",
-        "declare ptr @qk_scalar_get(ptr, ptr)",
-        "declare double @qk_scalar_get_number(ptr, ptr)",
+        "declare ptr @qk_scalar_get_inline(ptr, ptr)",
+        "declare double @qk_scalar_get_number_inline(ptr, ptr)",
         "declare i1 @qk_scalar_truthy(ptr, ptr)",
         "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
-        "declare void @qk_scalar_set_number(ptr, ptr, double)",
+        "declare void @qk_scalar_set_number_inline(ptr, ptr, double)",
         "declare void @qk_scalar_copy(ptr, ptr, ptr)",
         "declare double @qk_slot_get_number(ptr, i64)",
         "declare void @qk_slot_set_number(ptr, i64, double)",
         "declare ptr @qk_slot_get_string(ptr, i64)",
         "declare void @qk_slot_set_string(ptr, i64, ptr)",
-        "declare ptr @qk_capture_string_arg(ptr, ptr)",
+        "declare ptr @qk_capture_string_arg_inline(ptr, ptr)",
         "declare double @qk_parse_number_text(ptr)",
         "declare ptr @qk_format_number(ptr, double)",
         "declare ptr @qk_concat(ptr, ptr, ptr)",
@@ -653,10 +653,10 @@ def lower_reusable_program_to_llvm_ir(
         "declare double @qk_getline_main_string(ptr, ptr)",
         "declare double @qk_getline_file_record(ptr, ptr)",
         "declare double @qk_getline_file_string(ptr, ptr, ptr)",
-        "declare double @qk_get_nr(ptr)",
-        "declare double @qk_get_fnr(ptr)",
-        "declare double @qk_get_nf(ptr)",
-        "declare ptr @qk_get_filename(ptr)",
+        "declare double @qk_get_nr_inline(ptr)",
+        "declare double @qk_get_fnr_inline(ptr)",
+        "declare double @qk_get_nf_inline(ptr)",
+        "declare ptr @qk_get_filename_inline(ptr)",
         "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
         "declare ptr @qk_array_get(ptr, ptr, ptr)",
         "declare i1 @qk_array_contains(ptr, ptr, ptr)",
@@ -672,7 +672,7 @@ def lower_reusable_program_to_llvm_ir(
         "declare i64 @strlen(ptr)",
         "declare double @llvm.pow.f64(double, double)",
         "declare double @llvm.trunc.f64(double)",
-        "declare i1 @qk_compare_values(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
+        "declare i1 @qk_compare_values_inline(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
         "declare i32 @fprintf(ptr, ptr, ...)",
         "declare i32 @printf(ptr, ...)",
     ]
@@ -968,7 +968,7 @@ def lower_runtime_action_or_default(action: Action | None, state: LoweringState)
         field_ptr = state.next_temp("field")
         state.instructions.extend(
             [
-                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  {field_ptr} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 0)",
                 f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
             ]
         )
@@ -1180,7 +1180,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             current_value = state.next_temp("field.current.num")
             state.instructions.extend(
                 [
-                    f"  {current_field} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {index_value})",
+                    f"  {current_field} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 {index_value})",
                     f"  {current_value} = call double @qk_parse_number_text(ptr {current_field})",
                 ]
             )
@@ -1297,7 +1297,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         )
     else:
         state.instructions.append(
-            f"  {current_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {target_name})"
+            f"  {current_value} = call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {target_name})"
         )
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
     numeric_value = combine_numeric_assignment(current_value, numeric_value)
@@ -1307,7 +1307,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
         )
     state.instructions.append(
-        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {target_name}, double {numeric_value})"
+        f"  call void @qk_scalar_set_number_inline(ptr {state.runtime_param}, ptr {target_name}, double {numeric_value})"
     )
 
 
@@ -1550,7 +1550,7 @@ def lower_runtime_print_statement(statement: PrintStmt, state: LoweringState) ->
             field_ptr = state.next_temp("print.field0")
             state.instructions.extend(
                 [
-                    f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                    f"  {field_ptr} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 0)",
                     f"  call void @qk_write_output_string(ptr {output_handle}, ptr {field_ptr})",
                     f"  call void @qk_write_output_record_separator(ptr {state.runtime_param}, ptr {output_handle})",
                 ]
@@ -1579,7 +1579,7 @@ def lower_runtime_print_statement(statement: PrintStmt, state: LoweringState) ->
         field_ptr = state.next_temp("print.field0")
         state.instructions.extend(
             [
-                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  {field_ptr} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 0)",
                 f"  call void @qk_print_string(ptr {state.runtime_param}, ptr {field_ptr})",
             ]
         )
@@ -1772,15 +1772,15 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return format_double_literal(awk_numeric_prefix(value))
         case NameExpr(name="NR"):
             temp = state.next_temp("nr")
-            state.instructions.append(f"  {temp} = call double @qk_get_nr(ptr {state.runtime_param})")
+            state.instructions.append(f"  {temp} = call double @qk_get_nr_inline(ptr {state.runtime_param})")
             return temp
         case NameExpr(name="FNR"):
             temp = state.next_temp("fnr")
-            state.instructions.append(f"  {temp} = call double @qk_get_fnr(ptr {state.runtime_param})")
+            state.instructions.append(f"  {temp} = call double @qk_get_fnr_inline(ptr {state.runtime_param})")
             return temp
         case NameExpr(name="NF"):
             temp = state.next_temp("nf")
-            state.instructions.append(f"  {temp} = call double @qk_get_nf(ptr {state.runtime_param})")
+            state.instructions.append(f"  {temp} = call double @qk_get_nf_inline(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
             if name in state.function_param_strings:
@@ -1810,7 +1810,7 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             scalar_name = lower_runtime_scalar_name(name, state)
             temp = state.next_temp("scalar.num")
             state.instructions.append(
-                f"  {temp} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+                f"  {temp} = call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {scalar_name})"
             )
             return temp
         case AssignExpr():
@@ -2025,7 +2025,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                         numeric_value = state.next_temp("assign.copy.num")
                         state.instructions.append(
                             (
-                                f"  {numeric_value} = call double @qk_scalar_get_number("
+                                f"  {numeric_value} = call double @qk_scalar_get_number_inline("
                                 f"ptr {state.runtime_param}, ptr {scalar_name})"
                             )
                         )
@@ -2058,7 +2058,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                             numeric_value = state.next_temp("assign.str.num")
                             state.instructions.append(
                                 (
-                                    f"  {numeric_value} = call double @qk_scalar_get_number("
+                                    f"  {numeric_value} = call double @qk_scalar_get_number_inline("
                                     f"ptr {state.runtime_param}, ptr {scalar_name})"
                                 )
                             )
@@ -2073,7 +2073,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                             )
                         )
                     state.instructions.append(
-                        f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {numeric_value})"
+                        f"  call void @qk_scalar_set_number_inline(ptr {state.runtime_param}, ptr {scalar_name}, double {numeric_value})"
                     )
         case _:
             raise RuntimeError("unsupported assignment expression in the runtime-backed backend")
@@ -2115,7 +2115,7 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
                 )
             else:
                 state.instructions.append(
-                    f"  {old_value} = call double @qk_scalar_get_number(ptr {state.runtime_param}, ptr {scalar_name})"
+                    f"  {old_value} = call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {scalar_name})"
                 )
             state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
             if runtime_name_uses_string_slot_runtime(name, state):
@@ -2124,7 +2124,7 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
                     f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {new_value})"
                 )
             state.instructions.append(
-                f"  call void @qk_scalar_set_number(ptr {state.runtime_param}, ptr {scalar_name}, double {new_value})"
+                f"  call void @qk_scalar_set_number_inline(ptr {state.runtime_param}, ptr {scalar_name}, double {new_value})"
             )
             return old_value if return_old else new_value
         case FieldExpr(index=index):
@@ -2132,7 +2132,7 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
             field_ptr = state.next_temp("inc.field.ptr")
             old_value = state.next_temp("inc.old")
             new_value = state.next_temp("inc.new")
-            state.instructions.append(f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {field_index})")
+            state.instructions.append(f"  {field_ptr} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 {field_index})")
             state.instructions.append(f"  {old_value} = call double @qk_parse_number_text(ptr {field_ptr})")
             state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
             state.instructions.append(
@@ -2173,7 +2173,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             return state.function_param_strings[name]
         case NameExpr(name="FILENAME"):
             temp = state.next_temp("filename")
-            state.instructions.append(f"  {temp} = call ptr @qk_get_filename(ptr {state.runtime_param})")
+            state.instructions.append(f"  {temp} = call ptr @qk_get_filename_inline(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
             if runtime_name_uses_string_slot_runtime(name, state):
@@ -2188,7 +2188,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                 scalar_name = lower_runtime_scalar_name(name, state)
                 temp = state.next_temp("scalar.str")
                 state.instructions.append(
-                    f"  {temp} = call ptr @qk_scalar_get(ptr {state.runtime_param}, ptr {scalar_name})"
+                    f"  {temp} = call ptr @qk_scalar_get_inline(ptr {state.runtime_param}, ptr {scalar_name})"
                 )
                 return temp
             numeric_value = lower_runtime_numeric_expression(expression, state)
@@ -2201,7 +2201,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             field_index = lower_runtime_field_index(index, state)
             temp = state.next_temp("field")
             state.instructions.append(
-                f"  {temp} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 {field_index})"
+                f"  {temp} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 {field_index})"
             )
             return temp
         case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
@@ -2268,7 +2268,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                         )
                     stored_value = state.next_temp("assign.str")
                     state.instructions.append(
-                        f"  {stored_value} = call ptr @qk_scalar_get(ptr {state.runtime_param}, ptr {scalar_name})"
+                        f"  {stored_value} = call ptr @qk_scalar_get_inline(ptr {state.runtime_param}, ptr {scalar_name})"
                     )
                     return stored_value
         case CallExpr(function="substr"):
@@ -2364,7 +2364,7 @@ def lower_runtime_length_builtin(expression: CallExpr, state: LoweringState) -> 
         numeric_value = state.next_temp("length.num")
         state.instructions.extend(
             [
-                f"  {field_ptr} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)",
+                f"  {field_ptr} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 0)",
                 f"  {size_value} = call i64 @strlen(ptr {field_ptr})",
                 f"  {numeric_value} = uitofp i64 {size_value} to double",
             ]
@@ -2465,7 +2465,7 @@ def lower_runtime_captured_string_expression(expression: Expr, state: LoweringSt
     assert state.runtime_param is not None
     string_value = lower_runtime_string_expression(expression, state)
     captured = state.next_temp("str.capture")
-    state.instructions.append(f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {string_value})")
+    state.instructions.append(f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})")
     return captured
 
 
@@ -2660,7 +2660,7 @@ def lower_runtime_substitute_builtin(expression: CallExpr, state: LoweringState,
 
     if len(expression.args) == 2:
         target_value = state.next_temp("sub.field0")
-        state.instructions.append(f"  {target_value} = call ptr @qk_get_field(ptr {state.runtime_param}, i64 0)")
+        state.instructions.append(f"  {target_value} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 0)")
     else:
         match target_lvalue:
             case NameLValue(name=name):
@@ -2761,7 +2761,7 @@ def lower_runtime_string_from_numeric_value(numeric_value: str, state: LoweringS
     formatted = state.next_temp("numstr")
     captured = state.next_temp("numstr.capture")
     state.instructions.append(f"  {formatted} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})")
-    state.instructions.append(f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {formatted})")
+    state.instructions.append(f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {formatted})")
     return captured
 
 
@@ -2958,7 +2958,7 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
                 f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {format_double_literal(value)})"
             )
             state.instructions.append(
-                f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {temp})"
+                f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {temp})"
             )
             return captured
         case StringLiteralExpr(value=value):
@@ -2973,7 +2973,7 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
                 f"  {formatted} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})"
             )
             state.instructions.append(
-                f"  {captured} = call ptr @qk_capture_string_arg(ptr {state.runtime_param}, ptr {formatted})"
+                f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {formatted})"
             )
             return captured
 
@@ -3107,8 +3107,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 }[expression.op]
                 temp = state.next_temp("cmp")
                 state.instructions.append(
-                    "  "
-                    f"{temp} = call i1 @qk_compare_values("
+                    f"  {temp} = call i1 @qk_compare_values_inline("
                     f"ptr {left_string}, double {left_number}, i1 {left_needs_check}, i1 {left_forces_string}, "
                     f"ptr {right_string}, double {right_number}, i1 {right_needs_check}, i1 {right_forces_string}, "
                     f"i32 {op_code})"
@@ -3382,10 +3381,10 @@ def build_execution_driver_llvm_ir(
         [
             "declare ptr @qk_runtime_create(i32, ptr, ptr)",
             "declare void @qk_runtime_destroy(ptr)",
-            "declare i1 @qk_next_record(ptr)",
+            "declare i1 @qk_next_record_inline(ptr)",
             "declare i1 @qk_should_exit(ptr)",
             "declare i32 @qk_exit_status(ptr)",
-            "declare void @qk_scalar_set_number(ptr, ptr, double)",
+            "declare void @qk_scalar_set_number_inline(ptr, ptr, double)",
             "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
             "declare void @qk_slot_set_number(ptr, i64, double)",
             "declare void @qk_slot_set_string(ptr, i64, ptr)",
@@ -3541,7 +3540,7 @@ def render_driver_scalar_preassignments(
                 )
             continue
         setup.append(
-            f"  call void @qk_scalar_set_number(ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
+            f"  call void @qk_scalar_set_number_inline(ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
         )
         if slot_index is not None:
             setup.append(
@@ -3583,7 +3582,7 @@ def render_driver_record_loop(consumes_main_input: bool, has_record_phase: bool)
         "  %should.exit.begin = call i1 @qk_should_exit(ptr %rt)",
         "  br i1 %should.exit.begin, label %record.done, label %record.cond",
         "record.cond:",
-        "  %has.record = call i1 @qk_next_record(ptr %rt)",
+        "  %has.record = call i1 @qk_next_record_inline(ptr %rt)",
         "  br i1 %has.record, label %record.body, label %record.done",
         "record.body:",
         *body_lines,
