@@ -42,7 +42,9 @@ Current closure:
   remaining gap matrix
 - side-effectful ternary lowering is now implemented and no longer belongs in
   the remaining gap matrix
-- the remaining bucket is dynamic `printf` / builtin-shape cleanup
+- dynamic `printf` lowering is now implemented and no longer belongs in the
+  remaining gap matrix
+- the remaining bucket is contract enforcement / guardrails
 
 ## Closed Bucket 1: User-Defined Function Completeness
 
@@ -74,30 +76,13 @@ Closed in T-269:
   side effects no longer leak across the ternary split
 - direct tests now pin the representative side-effectful ternary programs
 
-## Bucket 4: Remaining Grammar-Valid Builtin Shape Restrictions
+## Closed Bucket 4: Remaining Grammar-Valid Builtin Shape Restrictions
 
-Current gap:
+Closed in T-270:
 
-- some grammar-valid builtin call forms still rely on a narrower lowering shape
-  than AWK permits
-
-Representative programs to support:
-
-```awk
-BEGIN { fmt = "%d %d\n"; printf fmt, 1, 2 }
-```
-
-```awk
-BEGIN { fmt = "%s:%d\n"; printf fmt, "x", 3 }
-```
-
-Implementation direction:
-
-- make `printf` lower from dynamic format expressions rather than requiring a
-  literal format string
-- keep argument typing, coercion, and arity checks aligned with AWK semantics
-- fold any remaining semantically valid builtin-call shape restrictions into the
-  same wave instead of letting them survive as parse-only gaps
+- runtime-backed `printf` now lowers dynamic format expressions through
+  `qk_sprintf` before emitting output
+- direct tests now pin the representative dynamic `printf` program
 
 ## Bucket 5: Contract Enforcement
 
@@ -119,8 +104,8 @@ Required guardrails:
    Add representative failing tests and a checked-in execution-completeness
    matrix for the remaining buckets.
 
-2. Dynamic `printf` and residual builtin-shape cleanup
-   This closes the remaining grammar-valid builtin-call restrictions.
+2. Contract enforcement / guardrails
+   Keep parser widening and backend widening in lockstep.
 
 3. Final grammar-to-backend audit
    Re-run the inventory and confirm that the grammar contract and compiled

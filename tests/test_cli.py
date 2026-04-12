@@ -1202,6 +1202,16 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_output_redirect_programs(
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_dynamic_printf_formats() -> None:
+    result = run_quawk('--ir', 'BEGIN { fmt = "%-39s\\n"; printf fmt, substr("A", 1, 1) }')
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_sprintf(" in result.stdout
+    assert "@qk_print_string_fragment(" in result.stdout
+    assert "call i32 (ptr, ...) @printf(" not in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_supported_getline_programs() -> None:
     result = run_quawk("--ir", '{ print getline x; print getline < "input.txt" }')
 

@@ -138,6 +138,14 @@ def test_printf_does_not_append_an_implicit_newline() -> None:
     assert result.stderr == ""
 
 
+def test_dynamic_printf_format_executes() -> None:
+    result = run_quawk('BEGIN { fmt = "%s:%g"; printf fmt, "x", 1 }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "x:1"
+    assert result.stderr == ""
+
+
 def test_parenthesized_printf_with_substr_and_string_width_executes() -> None:
     result = run_quawk('BEGIN { x = "A"; printf("%-5s|%4s\\n", substr(x, 1, 5), "B") }')
 

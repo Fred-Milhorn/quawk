@@ -1596,44 +1596,93 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
     if not arguments:
         raise RuntimeError("printf requires at least a format string")
     format_expression = arguments[0]
-    if not isinstance(format_expression, StringLiteralExpr):
-        raise RuntimeError("the runtime-backed backend currently requires a literal printf format string")
+    if isinstance(format_expression, StringLiteralExpr):
+        format_name, format_length = declare_string(state, format_expression.value)
+        format_ptr = state.next_temp("fmtptr")
+        specifiers = [
+            match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_expression.value) if match.group(1) != "%"
+        ]
+        if len(specifiers) != len(arguments) - 1:
+            raise RuntimeError("printf argument count does not match the format string in the runtime-backed backend")
 
-    format_name, format_length = declare_string(state, format_expression.value)
-    format_ptr = state.next_temp("fmtptr")
-    specifiers = [
-        match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_expression.value) if match.group(1) != "%"
-    ]
-    if len(specifiers) != len(arguments) - 1:
-        raise RuntimeError("printf argument count does not match the format string in the runtime-backed backend")
+        operands: list[str] = []
+        for specifier, argument in zip(specifiers, arguments[1:], strict=True):
+            if specifier == "s":
+                operands.append(f"ptr {lower_runtime_string_expression(argument, state)}")
+                continue
+            if specifier in {"c", "d", "i", "o", "u", "x", "X"}:
+                integer_value = state.next_temp("printf.int")
+                numeric_value = lower_runtime_numeric_expression(argument, state)
+                state.instructions.append(f"  {integer_value} = fptosi double {numeric_value} to i32")
+                operands.append(f"i32 {integer_value}")
+                continue
+            operands.append(f"double {lower_runtime_numeric_expression(argument, state)}")
 
-    operands: list[str] = []
-    for specifier, argument in zip(specifiers, arguments[1:], strict=True):
-        if specifier == "s":
-            operands.append(f"ptr {lower_runtime_string_expression(argument, state)}")
-            continue
-        if specifier in {"c", "d", "i", "o", "u", "x", "X"}:
-            integer_value = state.next_temp("printf.int")
-            numeric_value = lower_runtime_numeric_expression(argument, state)
-            state.instructions.append(f"  {integer_value} = fptosi double {numeric_value} to i32")
-            operands.append(f"i32 {integer_value}")
-            continue
-        operands.append(f"double {lower_runtime_numeric_expression(argument, state)}")
+        redirect = statement.redirect
+        state.instructions.append(emit_gep(format_ptr, format_length, format_name))
+        if redirect is None:
+            call_args = ", ".join([f"ptr {format_ptr}", *operands])
+            state.instructions.append(f"  call i32 (ptr, ...) @printf({call_args})")
+            return
+
+        target_ptr = lower_runtime_output_target(redirect, state)
+        output_handle = state.next_temp("printf.output")
+        call_args = ", ".join([f"ptr {output_handle}", f"ptr {format_ptr}", *operands])
+        state.instructions.extend(
+            [
+                f"  {output_handle} = call ptr @qk_open_output(ptr {state.runtime_param}, ptr {target_ptr}, i32 {output_redirect_mode_value(redirect.kind)})",
+                f"  call i32 (ptr, ptr, ...) @fprintf({call_args})",
+            ]
+        )
+        return
+
+    format_ptr = lower_runtime_captured_string_expression(format_expression, state)
+    arg_count = len(arguments) - 1
+    if arg_count == 0:
+        result = state.next_temp("printf")
+        state.instructions.append(
+            f"  {result} = call ptr @qk_sprintf(ptr {state.runtime_param}, ptr {format_ptr}, i32 0, ptr null, ptr null)"
+        )
+    else:
+        numbers_slot = state.next_temp("printf.numbers")
+        strings_slot = state.next_temp("printf.strings")
+        state.allocas.append(f"  {numbers_slot} = alloca [{arg_count} x double]")
+        state.allocas.append(f"  {strings_slot} = alloca [{arg_count} x ptr]")
+        for index, argument in enumerate(arguments[1:]):
+            number_ptr = state.next_temp("printf.number.ptr")
+            string_ptr = state.next_temp("printf.string.ptr")
+            string_value = lower_runtime_captured_string_expression(argument, state)
+            try:
+                numeric_value = lower_runtime_numeric_expression(argument, state)
+            except RuntimeError:
+                if not runtime_expression_has_string_result(argument, state):
+                    raise
+                numeric_value = state.next_temp("printf.num.coerce")
+                state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+            state.instructions.extend(
+                [
+                    f"  {number_ptr} = getelementptr inbounds [{arg_count} x double], ptr {numbers_slot}, i32 0, i32 {index}",
+                    f"  store double {numeric_value}, ptr {number_ptr}",
+                    f"  {string_ptr} = getelementptr inbounds [{arg_count} x ptr], ptr {strings_slot}, i32 0, i32 {index}",
+                    f"  store ptr {string_value}, ptr {string_ptr}",
+                ]
+            )
+        result = state.next_temp("printf")
+        state.instructions.append(
+            f"  {result} = call ptr @qk_sprintf(ptr {state.runtime_param}, ptr {format_ptr}, i32 {arg_count}, ptr {numbers_slot}, ptr {strings_slot})"
+        )
 
     redirect = statement.redirect
-    state.instructions.append(emit_gep(format_ptr, format_length, format_name))
     if redirect is None:
-        call_args = ", ".join([f"ptr {format_ptr}", *operands])
-        state.instructions.append(f"  call i32 (ptr, ...) @printf({call_args})")
+        state.instructions.append(f"  call void @qk_print_string_fragment(ptr {state.runtime_param}, ptr {result})")
         return
 
     target_ptr = lower_runtime_output_target(redirect, state)
     output_handle = state.next_temp("printf.output")
-    call_args = ", ".join([f"ptr {output_handle}", f"ptr {format_ptr}", *operands])
     state.instructions.extend(
         [
             f"  {output_handle} = call ptr @qk_open_output(ptr {state.runtime_param}, ptr {target_ptr}, i32 {output_redirect_mode_value(redirect.kind)})",
-            f"  call i32 (ptr, ptr, ...) @fprintf({call_args})",
+            f"  call void @qk_write_output_string(ptr {output_handle}, ptr {result})",
         ]
     )
 
@@ -4401,20 +4450,36 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     redirect.target
                 )
             case PrintfStmt(arguments=arguments, redirect=redirect):
-                if not arguments or not isinstance(arguments[0], StringLiteralExpr):
+                if not arguments:
                     return False
-                specifiers = [
-                    match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(arguments[0].value)
-                    if match.group(1) != "%"
-                ]
-                if len(specifiers) != len(arguments) - 1:
-                    return False
-                for specifier, argument in zip(specifiers, arguments[1:], strict=True):
-                    if specifier == "s":
-                        if not supports_string_expression(argument, string_bindings):
+                format_expression = arguments[0]
+                if isinstance(format_expression, StringLiteralExpr):
+                    specifiers = [
+                        match.group(1) for match in PRINTF_SPEC_PATTERN.finditer(format_expression.value)
+                        if match.group(1) != "%"
+                    ]
+                    if len(specifiers) != len(arguments) - 1:
+                        return False
+                    for specifier, argument in zip(specifiers, arguments[1:], strict=True):
+                        if specifier == "s":
+                            if not supports_string_expression(argument, string_bindings):
+                                return False
+                            continue
+                        if not supports_numeric_expression(argument):
                             return False
-                        continue
-                    if not supports_numeric_expression(argument):
+                else:
+                    if not (
+                        supports_string_expression(format_expression, string_bindings)
+                        or runtime_expression_has_string_result(format_expression)
+                        or supports_numeric_expression(format_expression)
+                    ):
+                        return False
+                    if not all(
+                        supports_string_expression(argument, string_bindings)
+                        or runtime_expression_has_string_result(argument)
+                        or supports_numeric_expression(argument)
+                        for argument in arguments[1:]
+                    ):
                         return False
                 if redirect is None:
                     return True

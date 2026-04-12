@@ -36,6 +36,7 @@ Closed from this inventory:
 - runtime-backed imperative function bodies were closed in T-267
 - multi-subscript array access was closed in T-268
 - side-effectful ternary branches were closed in T-269
+- dynamic `printf` formats were closed in T-270
 
 ## Route 1: Direct-Function Backend Subset
 
@@ -143,22 +144,8 @@ Its gaps are narrower than the direct-function route, but they still matter.
   Example: `print key in get_array()`.
   Current restriction: the right-hand side must be `NameExpr(name=array_name)`.
 
-- `printf` with a non-literal format string.
-  Example: `fmt = "%d\n"; printf fmt, x`.
-  Current restriction: the first `printf` argument must be a
-  `StringLiteralExpr`.
-
-- `printf` where the format string and argument list do not line up exactly.
-  Example: `printf "%d %d\n", x`.
-  Current restriction: the counted conversion specifiers must equal the number
-  of provided value arguments.
-
-- `printf` specifiers outside the currently typed lowering contract.
-  Example: `%s` fed from a value the backend cannot lower as a string, or a
-  numeric specifier fed from a value the backend cannot lower as numeric.
-  Current restriction:
-  - `%s` arguments must fit the supported string-expression subset
-  - all other specifiers must fit the supported numeric-expression subset
+- Dynamic `printf` formats are now supported through runtime formatting, so
+  the old literal-format restriction no longer belongs in this inventory.
 
 - `split()` with a non-name target.
   Example: `split($0, a[i])`, `split($0, $1)`.
@@ -210,8 +197,8 @@ these buckets:
 
 2. Relax builtin-call shape restrictions where the runtime already has enough
    machinery.
-   The immediate examples are dynamic `printf` formats, broader `split()`
-   targets, and broader `sub()` / `gsub()` targets.
+   The immediate examples are broader `split()` targets and broader `sub()` /
+   `gsub()` targets.
 
 ## Cross-Cutting Public Contract
 

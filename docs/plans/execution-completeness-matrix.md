@@ -29,7 +29,6 @@ Column meanings:
 
 | Bucket | Representative program | Parses today | Frontend semantic validation passes today | Public execute today | Inspection today | Public host fallback exists today | Current blocker | Direct baseline coverage today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Dynamic `printf` format | `BEGIN { fmt = "%d %d\n"; printf fmt, 1, 2 }` | yes | yes | no | no | no | Runtime-backed `printf` still requires a literal format string as its first argument. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
 
 Current exclusions:
 
@@ -46,7 +45,7 @@ Current exclusions:
 - the representative imperative function program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining row in this matrix is now dynamic `printf` formats
+- the remaining work in this matrix is now the final contract-enforcement audit
 
 ## T-268 Narrowing Result
 
@@ -55,7 +54,7 @@ Current exclusions:
 - the representative composite-array program now executes through the compiled
   backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining row in this matrix is now dynamic `printf` formats
+- the remaining work in this matrix is now the final contract-enforcement audit
 
 ## T-269 Narrowing Result
 
@@ -64,17 +63,26 @@ Current exclusions:
 - the representative side-effectful ternary program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining row in this matrix is now dynamic `printf` formats
+- the remaining work in this matrix is now the final contract-enforcement audit
+
+## T-270 Narrowing Result
+
+`T-270` removes dynamic `printf` formats from this matrix:
+
+- the representative dynamic `printf` program now executes through the
+  compiled backend/runtime path
+- the same program now lowers cleanly for `--ir` and `--asm`
+- the remaining work in this matrix is now the final contract-enforcement audit
 
 ## T-266 Baseline Result
 
-`T-266` pins the current baseline for the remaining execution-completeness
-buckets:
+`T-266` pinned the execution-completeness baseline before the remaining gap
+rows were closed:
 
-- the representative gap buckets are now recorded in this checked-in matrix
-- ordinary public execution fails clearly for each remaining representative row
-  rather than falling back to Python-side AWK semantics
-- `lower_to_llvm_ir()` also fails clearly for the same remaining rows, so `--ir`
-  and `--asm` stay aligned with ordinary execution
-- direct tests now pin those remaining failure modes before the next
-  implementation wave continues
+- the representative gap buckets were recorded in this checked-in matrix
+- ordinary public execution failed clearly for each representative row rather
+  than falling back to Python-side AWK semantics
+- `lower_to_llvm_ir()` also failed clearly for the same representative rows, so
+  `--ir` and `--asm` stayed aligned with ordinary execution
+- direct tests pinned those failure modes before the next implementation wave
+  continued
