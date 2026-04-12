@@ -16,6 +16,9 @@ The detailed inventory of residual backend gaps lives in
 [backend-gap-inventory.md](backend-gap-inventory.md). This document turns that
 inventory into the next implementation wave.
 
+The checked-in representative baseline for those gaps lives in
+[execution-completeness-matrix.md](execution-completeness-matrix.md).
+
 ## Phase Goal
 
 Eliminate the remaining grammar/backend split by closing the current
