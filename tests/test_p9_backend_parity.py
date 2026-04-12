@@ -20,6 +20,7 @@ ARRAY_DELETE_PROGRAM = 'BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }'
 FOR_LOOP_PROGRAM = "BEGIN { for (i = 0; i < 3; i = i + 1) print i }"
 FOR_IN_PROGRAM = 'BEGIN { a["x"] = 1; for (k in a) print k }'
 LENGTH_PROGRAM = 'BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }'
+IMPERATIVE_FUNCTION_PROGRAM = "function climb(x) { y = x + 1; while (y < 3) y++; print y; return y }\nBEGIN { print climb(1) }"
 
 
 def run_quawk(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -255,6 +256,45 @@ def test_execute_routes_for_in_programs_through_backend(monkeypatch) -> None:
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; p9 linked for in module"
+
+
+def test_execute_routes_imperative_function_programs_through_backend(monkeypatch) -> None:
+    program = parse_program(IMPERATIVE_FUNCTION_PROGRAM)
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("imperative function programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; p9 imperative function module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; p9 imperative function module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; p9 linked imperative function module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; p9 imperative function module"
 
 
 def test_execute_routes_length_programs_through_backend(monkeypatch) -> None:

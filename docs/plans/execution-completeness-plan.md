@@ -34,6 +34,13 @@ Success means:
 - new frontend widening is not accepted unless end-to-end lowering lands in the
   same wave
 
+Current closure:
+
+- runtime-backed imperative function bodies are now implemented and no longer
+  belong in the remaining gap matrix
+- the remaining buckets are multi-subscript arrays, side-effectful ternary
+  lowering, and dynamic `printf` / builtin-shape cleanup
+
 ## Bucket 1: User-Defined Function Completeness
 
 Current gap:

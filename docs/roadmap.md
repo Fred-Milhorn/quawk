@@ -688,6 +688,8 @@ Current state:
   notes landed
 - `T-266` adds the checked-in execution-completeness matrix and direct baseline
   failure tests for the remaining grammar-valid backend gaps
+- `T-267` closes runtime-backed imperative function bodies and retires the
+  narrow direct-function lane for richer function programs
 - the remaining parser/backend mismatch is now treated as explicit
   execution-completeness debt rather than an acceptable parse-only surface
 - detailed bucketed follow-up planning lives in
@@ -696,9 +698,9 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-267`: widen user-defined function lowering and retire the narrow direct-function lane
 - `T-268`: implement multi-subscript array lowering and runtime support
 - `T-269`: lower side-effectful ternary expressions with correct short-circuit control flow
+- `T-270`: remove remaining grammar-valid builtin-call shape restrictions
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -973,7 +975,7 @@ Priority values:
 | T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | done |
 | T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | done |
 | T-266 | P30 | P0 | Author execution-completeness baseline and representative gap tests | T-265 | Direct tests and a checked-in matrix pin the remaining grammar-valid backend gaps before implementation | done |
-| T-267 | P30 | P0 | Widen runtime-backed user-defined function lowering and retire direct-function-only restrictions | T-266 | Imperative user-function bodies execute through the compiled backend/runtime path without relying on the narrow direct-function lane | todo |
+| T-267 | P30 | P0 | Widen runtime-backed user-defined function lowering and retire direct-function-only restrictions | T-266 | Imperative user-function bodies execute through the compiled backend/runtime path without relying on the narrow direct-function lane | done |
 | T-268 | P30 | P0 | Add multi-subscript array read/write/delete lowering and runtime support | T-266 | Representative composite-subscript array programs execute correctly through public execution and inspection paths | todo |
 | T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | todo |
 | T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | todo |

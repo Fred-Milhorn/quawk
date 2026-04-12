@@ -29,7 +29,6 @@ Column meanings:
 
 | Bucket | Representative program | Parses today | Frontend semantic validation passes today | Public execute today | Inspection today | Public host fallback exists today | Current blocker | Direct baseline coverage today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Runtime-backed imperative function body | `function climb(x) { y = x + 1; while (y < 3) y++; print y; return y } BEGIN { print climb(1) }` | yes | yes | no | no | no | Runtime-backed user-defined functions still admit only blocks, `if`, `return`, and `exit`; imperative bodies do not fit either compiled function route today. | yes | Public execution currently raises `user-defined functions are not supported by the LLVM-backed backend`. |
 | Multi-subscript array access | `BEGIN { a[1, 2] = 3; print a[1, 2] }` | yes | yes | no | no | no | Runtime-backed lowering still rejects `extra_indexes` for array assignment and array reads. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
 | Side-effectful ternary branch | `BEGIN { x = 0; print (1 ? ++x : 0); print x }` | yes | yes | no | no | no | Ternary branches must currently be side-effect free, so increment and assignment side effects keep the program outside the compiled subset. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
 | Dynamic `printf` format | `BEGIN { fmt = "%d %d\n"; printf fmt, 1, 2 }` | yes | yes | no | no | no | Runtime-backed `printf` still requires a literal format string as its first argument. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
@@ -42,14 +41,25 @@ Current exclusions:
   syntax permutation inside each bucket
 - no row in this matrix currently keeps public Python host fallback alive
 
+## T-267 Narrowing Result
+
+`T-267` removes runtime-backed imperative function bodies from this matrix:
+
+- the representative imperative function program now executes through the
+  compiled backend/runtime path
+- the same program now lowers cleanly for `--ir` and `--asm`
+- the remaining rows in this matrix are now multi-subscript arrays, side-effect
+  ternary branches, and dynamic `printf` formats
+
 ## T-266 Baseline Result
 
 `T-266` pins the current baseline for the remaining execution-completeness
 buckets:
 
 - the representative gap buckets are now recorded in this checked-in matrix
-- ordinary public execution fails clearly for each representative row rather
-  than falling back to Python-side AWK semantics
-- `lower_to_llvm_ir()` also fails clearly for the same rows, so `--ir` and
-  `--asm` stay aligned with ordinary execution
-- direct tests now pin those failure modes before the implementation wave starts
+- ordinary public execution fails clearly for each remaining representative row
+  rather than falling back to Python-side AWK semantics
+- `lower_to_llvm_ir()` also fails clearly for the same remaining rows, so `--ir`
+  and `--asm` stay aligned with ordinary execution
+- direct tests now pin those remaining failure modes before the next
+  implementation wave continues

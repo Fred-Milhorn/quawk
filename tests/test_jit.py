@@ -1630,6 +1630,14 @@ def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(
     assert captured["ok"] is True
 
 
+def test_lower_to_llvm_ir_uses_reusable_lowering_for_imperative_function_programs() -> None:
+    program = parse_program("function climb(x) { y = x + 1; while (y < 3) y++; print y; return y }\nBEGIN { print climb(1) }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "define ptr @qk_fn_climb(" in llvm_ir
+    assert "qk_print_number_fragment" in llvm_ir
+
+
 def test_lower_to_llvm_ir_passes_inferred_type_info_to_reusable_lowering(monkeypatch) -> None:
     program = parse_program('BEGIN { a["x"] = 1; print a["x"] }')
     inferred_types = {"a": object()}

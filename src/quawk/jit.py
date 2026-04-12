@@ -248,17 +248,19 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
-    if has_function_definitions(program) and not (
-        supports_direct_function_backend_subset(program) or supports_runtime_backend_subset(program)
-    ):
-        raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
+    has_functions = has_function_definitions(program)
+    direct_function_subset = has_functions and supports_direct_function_backend_subset(program)
+    if has_functions and not direct_function_subset:
+        normalized_program = normalize_program_for_lowering(program)
+        type_info = infer_variable_types(program)
+        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
     if has_host_runtime_only_operations(program) and not (
         supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
     ):
         raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
     type_info = infer_variable_types(program)
-    if supports_direct_function_backend_subset(program):
+    if direct_function_subset:
         return lower_direct_function_program_to_llvm_ir(program, normalized_program, type_info, initial_variables)
     if initial_variables_require_string_runtime(initial_variables):
         return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
@@ -3231,10 +3233,8 @@ def ensure_public_execution_supported(
 ) -> None:
     """Reject public execution for programs the compiled backend cannot execute."""
     _ = initial_variables
-    if has_function_definitions(program) and not (
-        supports_direct_function_backend_subset(program) or supports_runtime_backend_subset(program)
-    ):
-        raise RuntimeError("user-defined functions are not supported by the LLVM-backed backend")
+    if has_function_definitions(program):
+        return
     if has_host_runtime_only_operations(program) and not (
         supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
     ):
@@ -4343,25 +4343,49 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
-    def supports_function_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
+    def supports_runtime_function_statement(statement: Stmt, string_bindings: frozenset[str] = frozenset()) -> bool:
         match statement:
             case BlockStmt(statements=statements):
-                return all(supports_function_statement(nested, string_bindings) for nested in statements)
+                return all(supports_runtime_function_statement(nested, string_bindings) for nested in statements)
             case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-                return supports_condition_expression(condition, string_bindings) and supports_function_statement(
+                return supports_condition_expression(condition, string_bindings) and supports_runtime_function_statement(
                     then_branch, string_bindings
-                ) and (else_branch is None or supports_function_statement(else_branch, string_bindings))
-            case ReturnStmt(value=value):
-                return value is None or supports_string_expression(value, string_bindings) or supports_numeric_expression(value)
-            case ExitStmt(value=value):
-                return value is None or supports_numeric_expression(value)
+                ) and (
+                    else_branch is None or supports_runtime_function_statement(else_branch, string_bindings)
+                )
+            case WhileStmt(condition=condition, body=body):
+                return supports_condition_expression(condition, string_bindings) and supports_runtime_function_statement(
+                    body, string_bindings
+                )
+            case DoWhileStmt(body=body, condition=condition):
+                return supports_runtime_function_statement(body, string_bindings) and supports_condition_expression(
+                    condition, string_bindings
+                )
+            case BreakStmt() | ContinueStmt():
+                return True
+            case DeleteStmt():
+                return supports_statement(statement, string_bindings)
+            case PrintStmt():
+                return supports_statement(statement, string_bindings)
+            case PrintfStmt():
+                return supports_statement(statement, string_bindings)
+            case ExprStmt():
+                return supports_statement(statement, string_bindings)
+            case ExitStmt():
+                return supports_statement(statement, string_bindings)
+            case ForStmt():
+                return supports_statement(statement, string_bindings)
+            case ForInStmt():
+                return supports_statement(statement, string_bindings)
+            case ReturnStmt():
+                return supports_statement(statement, string_bindings)
             case _:
                 return False
 
     found_supported_runtime_feature = False
     for item in program.items:
         if isinstance(item, FunctionDef):
-            if not all(supports_function_statement(statement) for statement in item.body.statements):
+            if not all(supports_runtime_function_statement(statement) for statement in item.body.statements):
                 return False
             found_supported_runtime_feature = True
             continue
