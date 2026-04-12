@@ -35,6 +35,7 @@ Closed from this inventory:
 
 - runtime-backed imperative function bodies were closed in T-267
 - multi-subscript array access was closed in T-268
+- side-effectful ternary branches were closed in T-269
 
 ## Route 1: Direct-Function Backend Subset
 
@@ -142,10 +143,6 @@ Its gaps are narrower than the direct-function route, but they still matter.
   Example: `print key in get_array()`.
   Current restriction: the right-hand side must be `NameExpr(name=array_name)`.
 
-- Ternary expressions whose branches have side effects.
-  Example: `print cond ? x++ : y++`, `print cond ? sub(/a/, "b", s) : t`.
-  Current restriction: both branches of a ternary must be side-effect free.
-
 - `printf` with a non-literal format string.
   Example: `fmt = "%d\n"; printf fmt, x`.
   Current restriction: the first `printf` argument must be a
@@ -215,10 +212,6 @@ these buckets:
    machinery.
    The immediate examples are dynamic `printf` formats, broader `split()`
    targets, and broader `sub()` / `gsub()` targets.
-
-3. Add full short-circuit lowering for side-effectful ternary branches.
-   The current pure-branch restriction is a correctness-preserving subset, not
-   the intended final AWK surface.
 
 ## Cross-Cutting Public Contract
 

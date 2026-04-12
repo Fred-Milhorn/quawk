@@ -1940,6 +1940,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
             return temp
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+            if runtime_expression_has_side_effects(if_true, state) or runtime_expression_has_side_effects(if_false, state):
+                return lower_runtime_numeric_conditional_expression(expression, state)
             test_value = lower_condition_expression(test, state)
             true_operand = lower_runtime_numeric_expression(if_true, state)
             false_operand = lower_runtime_numeric_expression(if_false, state)
@@ -2302,14 +2304,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             )
             return temp
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-            test_value = lower_condition_expression(test, state)
-            true_value = lower_runtime_string_expression(if_true, state)
-            false_value = lower_runtime_string_expression(if_false, state)
-            select_value = state.next_temp("ternary.str")
-            state.instructions.append(
-                f"  {select_value} = select i1 {test_value}, ptr {true_value}, ptr {false_value}"
-            )
-            return select_value
+            return lower_runtime_string_conditional_expression(expression, state)
         case _:
             numeric_value = lower_runtime_numeric_expression(expression, state)
             temp = state.next_temp("numstr")
@@ -3004,6 +2999,41 @@ def lower_runtime_array_subscripts(subscripts: tuple[Expr, ...], state: Lowering
     return captured_key
 
 
+def runtime_expression_has_side_effects(expression: Expr, state: LoweringState) -> bool:
+    """Report whether lowering one expression may mutate runtime-visible state."""
+    match expression:
+        case AssignExpr():
+            return True
+        case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=operand):
+            return True
+        case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=operand):
+            return True
+        case GetlineExpr():
+            return True
+        case CallExpr(function="split" | "sub" | "gsub" | "close" | "match" | "rand" | "srand" | "system"):
+            return True
+        case CallExpr(function=function_name) if function_name in state.function_defs:
+            return True
+        case BinaryExpr(left=left, right=right):
+            return runtime_expression_has_side_effects(left, state) or runtime_expression_has_side_effects(right, state)
+        case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
+            return runtime_expression_has_side_effects(operand, state)
+        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+            return (
+                runtime_expression_has_side_effects(test, state)
+                or runtime_expression_has_side_effects(if_true, state)
+                or runtime_expression_has_side_effects(if_false, state)
+            )
+        case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
+            return runtime_expression_has_side_effects(index, state) or any(
+                runtime_expression_has_side_effects(extra_index, state) for extra_index in extra_indexes
+            )
+        case FieldExpr(index=index):
+            return not isinstance(index, int) and runtime_expression_has_side_effects(index, state)
+        case _:
+            return False
+
+
 def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
     """Lower one field index to an `i64` operand."""
     if isinstance(index, int):
@@ -3012,6 +3042,75 @@ def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
     integer_value = state.next_temp("field.index")
     state.instructions.append(f"  {integer_value} = fptosi double {numeric_value} to i64")
     return integer_value
+
+
+def lower_runtime_numeric_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
+    """Lower one runtime-backed numeric ternary expression with short-circuit control flow."""
+    test_value = lower_condition_expression(expression.test, state)
+    true_label = state.next_label("ternary.true")
+    false_label = state.next_label("ternary.false")
+    end_label = state.next_label("ternary.end")
+    result = state.next_temp("ternary.num")
+
+    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
+    state.instructions.append(f"{true_label}:")
+    true_operand = lower_runtime_numeric_expression(expression.if_true, state)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{false_label}:")
+    false_operand = lower_runtime_numeric_expression(expression.if_false, state)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{end_label}:")
+    state.instructions.append(f"  {result} = phi double [ {true_operand}, %{true_label} ], [ {false_operand}, %{false_label} ]")
+    return result
+
+
+def lower_runtime_condition_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
+    """Lower one runtime-backed boolean ternary expression with short-circuit control flow."""
+    test_value = lower_condition_expression(expression.test, state)
+    true_label = state.next_label("cond.true")
+    false_label = state.next_label("cond.false")
+    end_label = state.next_label("cond.end")
+    result = state.next_temp("cond")
+
+    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
+    state.instructions.append(f"{true_label}:")
+    true_condition = lower_condition_expression(expression.if_true, state)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{false_label}:")
+    false_condition = lower_condition_expression(expression.if_false, state)
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{end_label}:")
+    state.instructions.append(f"  {result} = phi i1 [ {true_condition}, %{true_label} ], [ {false_condition}, %{false_label} ]")
+    return result
+
+
+def lower_runtime_string_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
+    """Lower one runtime-backed string ternary expression with short-circuit control flow."""
+    assert state.runtime_param is not None
+    test_value = lower_condition_expression(expression.test, state)
+    true_label = state.next_label("ternary.true")
+    false_label = state.next_label("ternary.false")
+    end_label = state.next_label("ternary.end")
+    result = state.next_temp("ternary.str")
+
+    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
+    state.instructions.append(f"{true_label}:")
+    true_value = lower_runtime_string_expression(expression.if_true, state)
+    true_capture = state.next_temp("ternary.str.capture")
+    state.instructions.append(
+        f"  {true_capture} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {true_value})"
+    )
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{false_label}:")
+    false_value = lower_runtime_string_expression(expression.if_false, state)
+    false_capture = state.next_temp("ternary.str.capture")
+    state.instructions.append(
+        f"  {false_capture} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {false_value})"
+    )
+    state.instructions.append(f"  br label %{end_label}")
+    state.instructions.append(f"{end_label}:")
+    state.instructions.append(f"  {result} = phi ptr [ {true_capture}, %{true_label} ], [ {false_capture}, %{false_label} ]")
+    return result
 
 
 def runtime_expression_has_string_result(expression: Expr, state: LoweringState | None = None) -> bool:
@@ -3195,6 +3294,10 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             return lower_runtime_in_expression(expression, state)
 
     if isinstance(expression, ConditionalExpr):
+        if runtime_expression_has_side_effects(expression.if_true, state) or runtime_expression_has_side_effects(
+            expression.if_false, state
+        ):
+            return lower_runtime_condition_conditional_expression(expression, state)
         test_value = lower_condition_expression(expression.test, state)
         true_condition = lower_condition_expression(expression.if_true, state)
         false_condition = lower_condition_expression(expression.if_false, state)
@@ -3787,31 +3890,6 @@ def supports_runtime_backend_subset(program: Program) -> bool:
         if isinstance(item, FunctionDef)
     }
 
-    def ternary_branch_is_side_effect_free(expression: Expr) -> bool:
-        match expression:
-            case NumericLiteralExpr() | StringLiteralExpr() | RegexLiteralExpr() | NameExpr():
-                return True
-            case FieldExpr(index=index):
-                return isinstance(index, int) or ternary_branch_is_side_effect_free(index)
-            case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
-                return ternary_branch_is_side_effect_free(index) and all(
-                    ternary_branch_is_side_effect_free(extra_index) for extra_index in extra_indexes
-                )
-            case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
-                return ternary_branch_is_side_effect_free(operand)
-            case BinaryExpr(left=left, right=right):
-                return ternary_branch_is_side_effect_free(left) and ternary_branch_is_side_effect_free(right)
-            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                return (
-                    ternary_branch_is_side_effect_free(test)
-                    and ternary_branch_is_side_effect_free(if_true)
-                    and ternary_branch_is_side_effect_free(if_false)
-                )
-            case CallExpr(function="index" | "int" | "length" | "atan2" | "cos" | "exp" | "log" | "sin" | "sqrt" | "substr" | "sprintf" | "tolower" | "toupper", args=args):
-                return all(ternary_branch_is_side_effect_free(argument) for argument in args)
-            case _:
-                return False
-
     def supports_string_expression(expression: Expr, string_bindings: frozenset[str] = frozenset()) -> bool:
         match expression:
             case StringLiteralExpr():
@@ -3854,8 +3932,6 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     supports_condition_expression(test, string_bindings)
                     and supports_string_expression(if_true, string_bindings)
                     and supports_string_expression(if_false, string_bindings)
-                    and ternary_branch_is_side_effect_free(if_true)
-                    and ternary_branch_is_side_effect_free(if_false)
                 )
             case _:
                 return False
@@ -4012,8 +4088,6 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     supports_condition_expression(test)
                     and supports_numeric_expression(if_true)
                     and supports_numeric_expression(if_false)
-                    and ternary_branch_is_side_effect_free(if_true)
-                    and ternary_branch_is_side_effect_free(if_false)
                 )
             case _:
                 return False
@@ -4082,8 +4156,6 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     supports_condition_expression(test, string_bindings)
                     and supports_condition_expression(if_true, string_bindings)
                     and supports_condition_expression(if_false, string_bindings)
-                    and ternary_branch_is_side_effect_free(if_true)
-                    and ternary_branch_is_side_effect_free(if_false)
                 )
             case _:
                 return supports_numeric_expression(expression) or supports_string_expression(expression, string_bindings)

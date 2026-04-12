@@ -40,8 +40,9 @@ Current closure:
   belong in the remaining gap matrix
 - multi-subscript array access is now implemented and no longer belongs in the
   remaining gap matrix
-- the remaining buckets are side-effectful ternary lowering and dynamic
-  `printf` / builtin-shape cleanup
+- side-effectful ternary lowering is now implemented and no longer belongs in
+  the remaining gap matrix
+- the remaining bucket is dynamic `printf` / builtin-shape cleanup
 
 ## Closed Bucket 1: User-Defined Function Completeness
 
@@ -63,32 +64,15 @@ Closed in T-268:
   keys on the compiled backend/runtime path
 - direct tests now pin the representative composite-array programs
 
-## Bucket 3: Side-Effectful Ternary Completeness
+## Closed Bucket 3: Side-Effectful Ternary Completeness
 
-Current gap:
+Closed in T-269:
 
-- ternary branches are currently restricted to side-effect-free expressions
-
-Representative programs to support:
-
-```awk
-BEGIN { x = 0; print (1 ? ++x : 0); print x }
-```
-
-```awk
-BEGIN { s = "aba"; print (1 ? sub(/a/, "b", s) : 0); print s }
-```
-
-```awk
-BEGIN { i = 1; print (i < 2 ? (x = 3) : (x = 4)); print x }
-```
-
-Implementation direction:
-
-- lower ternary through explicit control flow and temporary storage rather than
-  assuming both branches are pure
-- preserve AWK short-circuit behavior so only the selected branch executes
-- extend `--ir` tests to pin the control-flow shape for these cases
+- runtime-backed ternary lowering now uses explicit control flow when a branch
+  may mutate runtime-visible state
+- only the selected branch executes, so increment, assignment, and builtin
+  side effects no longer leak across the ternary split
+- direct tests now pin the representative side-effectful ternary programs
 
 ## Bucket 4: Remaining Grammar-Valid Builtin Shape Restrictions
 
@@ -135,13 +119,9 @@ Required guardrails:
    Add representative failing tests and a checked-in execution-completeness
    matrix for the remaining buckets.
 
-2. Side-effectful ternary lowering
-   This is self-contained once branch-capable runtime lowering is already in
-   good shape.
-
-3. Dynamic `printf` and residual builtin-shape cleanup
+2. Dynamic `printf` and residual builtin-shape cleanup
    This closes the remaining grammar-valid builtin-call restrictions.
 
-4. Final grammar-to-backend audit
+3. Final grammar-to-backend audit
    Re-run the inventory and confirm that the grammar contract and compiled
    execution contract now match for the admitted language.

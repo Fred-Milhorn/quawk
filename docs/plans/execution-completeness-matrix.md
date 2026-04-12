@@ -29,7 +29,6 @@ Column meanings:
 
 | Bucket | Representative program | Parses today | Frontend semantic validation passes today | Public execute today | Inspection today | Public host fallback exists today | Current blocker | Direct baseline coverage today | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| Side-effectful ternary branch | `BEGIN { x = 0; print (1 ? ++x : 0); print x }` | yes | yes | no | no | no | Ternary branches must currently be side-effect free, so increment and assignment side effects keep the program outside the compiled subset. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
 | Dynamic `printf` format | `BEGIN { fmt = "%d %d\n"; printf fmt, 1, 2 }` | yes | yes | no | no | no | Runtime-backed `printf` still requires a literal format string as its first argument. | yes | Public execution currently raises `public execution does not support programs outside the compiled backend/runtime subset`; inspection raises `host-runtime-only operations are not supported by the LLVM-backed backend`. |
 
 Current exclusions:
@@ -47,8 +46,7 @@ Current exclusions:
 - the representative imperative function program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining rows in this matrix are now side-effectful ternary branches and
-  dynamic `printf` formats
+- the remaining row in this matrix is now dynamic `printf` formats
 
 ## T-268 Narrowing Result
 
@@ -57,8 +55,16 @@ Current exclusions:
 - the representative composite-array program now executes through the compiled
   backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining rows in this matrix are now side-effectful ternary branches and
-  dynamic `printf` formats
+- the remaining row in this matrix is now dynamic `printf` formats
+
+## T-269 Narrowing Result
+
+`T-269` removes side-effectful ternary branches from this matrix:
+
+- the representative side-effectful ternary program now executes through the
+  compiled backend/runtime path
+- the same program now lowers cleanly for `--ir` and `--asm`
+- the remaining row in this matrix is now dynamic `printf` formats
 
 ## T-266 Baseline Result
 

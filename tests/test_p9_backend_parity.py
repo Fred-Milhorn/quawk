@@ -18,6 +18,7 @@ BEGIN_PARITY_PROGRAM = 'BEGIN { n = split("a b", a); print n; print a[1]; print 
 RECORD_PARITY_PROGRAM = '/start/,/stop/ { i = 2; $i = NR; printf "%s:%g\\n", FILENAME, NF; next }'
 ARRAY_DELETE_PROGRAM = 'BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }'
 MULTI_SUBSCRIPT_ARRAY_PROGRAM = 'BEGIN { a[1, 2] = 3; print a[1, 2]; delete a[1, 2]; print length(a) }'
+SIDE_EFFECTFUL_TERNARY_PROGRAM = "BEGIN { x = 0; print (1 ? ++x : (x = 99)); print x }"
 FOR_LOOP_PROGRAM = "BEGIN { for (i = 0; i < 3; i = i + 1) print i }"
 FOR_IN_PROGRAM = 'BEGIN { a["x"] = 1; for (k in a) print k }'
 LENGTH_PROGRAM = 'BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }'
@@ -192,6 +193,23 @@ def test_quawk_executes_multi_subscript_array_programs() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "3\n0\n"
+    assert result.stderr == ""
+
+
+def test_quawk_supports_side_effectful_ternary_programs() -> None:
+    result = run_quawk(SIDE_EFFECTFUL_TERNARY_PROGRAM)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\n1\n"
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_lowers_side_effectful_ternary_program_with_branches() -> None:
+    result = run_quawk("--ir", SIDE_EFFECTFUL_TERNARY_PROGRAM)
+
+    assert result.returncode == 0, result.stderr
+    assert "br i1" in result.stdout
+    assert "select i1" not in result.stdout
     assert result.stderr == ""
 
 
