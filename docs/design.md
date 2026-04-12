@@ -223,6 +223,7 @@ Current public execution surface:
 Current backend and inspection surface:
 - the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md` at the representative family level enforced by the architecture audit, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
 - `--ir` and `--asm` now cover that same claimed surface; broader frontend-admitted but unclaimed POSIX forms can still fail inspection because they remain outside the current contract
+- the detailed inventory of grammar-valid but not-yet-lowered backend forms now lives in [docs/plans/backend-gap-inventory.md](plans/backend-gap-inventory.md)
 
 Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution

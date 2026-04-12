@@ -9,6 +9,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 - developer workflow baseline is `uv` managing Python `3.14.x` and the project `.venv`
 - current LLVM-backed execution uses local LLVM tools (`lli`)
 - remaining execution-model work closes the last claimed backend gaps and removes the last Python-side semantic fallback as part of the same implementation wave, so the reusable AOT-oriented program/runtime split is the only public execution path
+- the grammar contract and compiled execution contract must stay coupled: a form should not remain admitted by `docs/quawk.ebnf` without end-to-end lowering through the LLVM backend/runtime path
 - reference behavior is checked against `one-true-awk` and `gawk --posix`
 - implementation grows from an initial end-to-end JIT path
 - phase delivery uses TDD for the next capability increment
@@ -48,6 +49,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P27 | Specialized Operations | Type-aware code generation for numeric/string fast paths in comparisons, arithmetic, and variable access |
 | P28 | LLVM Optimization Integration | Optional optimization passes for generated IR to enable constant folding and register allocation |
 | P29 | Runtime ABI Refinement | Direct-call convention improvements for hot paths to reduce function call overhead |
+| P30 | Execution Completeness Closure | The remaining grammar-valid backend gaps are closed so admitted forms execute end-to-end through the compiled backend/runtime path |
 
 ## Phase Entry and Exit Rules
 
@@ -279,6 +281,11 @@ Exit criteria:
 - the remaining grammar-admitted forms execute through public `quawk` execution
 - `design.md`, `quawk.ebnf`, and `quawk.asdl` are internally consistent
 - compatibility work no longer needs to discover missing grammar implementation work
+
+Follow-up correction:
+- later execution-model work showed that parser admission still outran backend lowering in a few residual areas
+- that parseable-but-not-lowerable split is now treated as execution-completeness debt, not as an acceptable resting state
+- the remaining cleanup is tracked explicitly in `P30`
 
 ### P11: Compatibility and Hardening
 
@@ -616,12 +623,39 @@ Exit criteria:
 - microbenchmarks show reduced call overhead
 - runtime ABI documented for future stability
 
+### P30: Execution Completeness Closure
+
+Objective:
+- eliminate the remaining grammar/backend split so grammar-valid, semantically
+  admitted AWK forms execute end-to-end through the compiled backend/runtime
+  path
+
+In scope:
+- widen runtime-backed user-defined function lowering to cover imperative bodies
+- add multi-subscript array read/write/delete support
+- lower side-effectful ternary expressions with correct short-circuit behavior
+- remove remaining grammar-valid builtin-call shape restrictions such as dynamic
+  `printf` formats
+- add execution-completeness guardrails so new parser widening does not outrun
+  backend support again
+- implementation details live in
+  [execution-completeness-plan.md](plans/execution-completeness-plan.md)
+
+Exit criteria:
+- representative programs for the remaining gap buckets execute through
+  ordinary public `quawk`
+- the same representative programs work under `--ir` and `--asm`
+- the direct-function subset is no longer required as a long-term special-case
+  execution lane for richer functions
+- parseable-but-not-lowerable admitted forms are eliminated from the checked-in
+  grammar contract
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-LLVM optimization phase P28 is now active. P25 (static variable slots), P26
-(type inference), and P27 (specialized operations) are complete.
+P29 is complete. The next execution-model correction wave is P30: execution
+completeness closure for the remaining grammar-valid backend gaps.
 
 Current state:
 - `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
@@ -649,12 +683,20 @@ Current state:
 - the claimed widened expression surface executes through the compiled
   backend/runtime path with `--ir` / `--asm` support and no public Python
   host fallback
+- `T-250` through `T-257` complete: P28 LLVM optimization integration landed
+- `T-258` through `T-265` complete: P29 runtime ABI refinement and stability
+  notes landed
+- the remaining parser/backend mismatch is now treated as explicit
+  execution-completeness debt rather than an acceptable parse-only surface
+- detailed bucketed follow-up planning lives in
+  [execution-completeness-plan.md](plans/execution-completeness-plan.md)
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-- P29 ABI work proceeds with `T-265` (`document ABI stability guarantees for runtime`)
 
 Immediate next tasks:
-- `T-265`: document ABI stability guarantees for runtime
+- `T-266`: author the execution-completeness baseline and representative gap tests
+- `T-267`: widen user-defined function lowering and retire the narrow direct-function lane
+- `T-268`: implement multi-subscript array lowering and runtime support
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -928,6 +970,12 @@ Priority values:
 | T-263 | P29 | P1 | Update generated IR to use fast-path entry points | P27, T-262 | IR emits slot-based calls where applicable | done |
 | T-264 | P29 | P2 | Benchmark fast-path improvements | T-263 | Measurable speedup in hot-path benchmarks | done |
 | T-265 | P29 | P2 | Document ABI stability guarantees for runtime | T-260 | Runtime ABI documented for future stability | done |
+| T-266 | P30 | P0 | Author execution-completeness baseline and representative gap tests | T-265 | Direct tests and a checked-in matrix pin the remaining grammar-valid backend gaps before implementation | todo |
+| T-267 | P30 | P0 | Widen runtime-backed user-defined function lowering and retire direct-function-only restrictions | T-266 | Imperative user-function bodies execute through the compiled backend/runtime path without relying on the narrow direct-function lane | todo |
+| T-268 | P30 | P0 | Add multi-subscript array read/write/delete lowering and runtime support | T-266 | Representative composite-subscript array programs execute correctly through public execution and inspection paths | todo |
+| T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | todo |
+| T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | todo |
+| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | todo |
 
 ## Cross-Cutting Tracks
 
