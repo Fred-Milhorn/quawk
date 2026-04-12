@@ -44,7 +44,7 @@ Current closure:
   the remaining gap matrix
 - dynamic `printf` lowering is now implemented and no longer belongs in the
   remaining gap matrix
-- the remaining bucket is contract enforcement / guardrails
+- the contract-enforcement audit is now complete
 
 ## Closed Bucket 1: User-Defined Function Completeness
 
@@ -84,19 +84,17 @@ Closed in T-270:
   `qk_sprintf` before emitting output
 - direct tests now pin the representative dynamic `printf` program
 
-## Bucket 5: Contract Enforcement
+## Closed Bucket 5: Contract Enforcement Audit
 
-Current gap:
+Closed in T-271:
 
-- the process allowed parser widening to outrun backend execution widening
-
-Required guardrails:
-
-- add representative backend-execution tests for every remaining gap bucket
-  before implementation lands
-- keep `docs/quawk.ebnf`, `docs/design.md`, and the backend gap inventory
-  aligned in the same change whenever the contract widens
-- treat any new parseable-but-not-executable form as a regression
+- `docs/quawk.ebnf`, `docs/design.md`, `docs/roadmap.md`, the backend gap
+  inventory, and the checked-in execution-completeness matrix now agree on the
+  admitted compiled execution contract
+- representative regressions continue to pin the contract so future widening
+  cannot outrun backend support again
+- the remaining parseable-but-not-lowerable forms stay documented explicitly as
+  out-of-contract surface, not as silent implementation debt
 
 ## Recommended Order
 
@@ -104,9 +102,6 @@ Required guardrails:
    Add representative failing tests and a checked-in execution-completeness
    matrix for the remaining buckets.
 
-2. Contract enforcement / guardrails
-   Keep parser widening and backend widening in lockstep.
-
-3. Final grammar-to-backend audit
+2. Final grammar-to-backend audit
    Re-run the inventory and confirm that the grammar contract and compiled
    execution contract now match for the admitted language.

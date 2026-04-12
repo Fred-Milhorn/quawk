@@ -45,7 +45,7 @@ Current exclusions:
 - the representative imperative function program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining work in this matrix is now the final contract-enforcement audit
+- the remaining work in this matrix was the final contract-enforcement audit
 
 ## T-268 Narrowing Result
 
@@ -54,7 +54,7 @@ Current exclusions:
 - the representative composite-array program now executes through the compiled
   backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining work in this matrix is now the final contract-enforcement audit
+- the remaining work in this matrix was the final contract-enforcement audit
 
 ## T-269 Narrowing Result
 
@@ -63,7 +63,7 @@ Current exclusions:
 - the representative side-effectful ternary program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining work in this matrix is now the final contract-enforcement audit
+- the remaining work in this matrix was the final contract-enforcement audit
 
 ## T-270 Narrowing Result
 
@@ -72,7 +72,17 @@ Current exclusions:
 - the representative dynamic `printf` program now executes through the
   compiled backend/runtime path
 - the same program now lowers cleanly for `--ir` and `--asm`
-- the remaining work in this matrix is now the final contract-enforcement audit
+- the remaining work in this matrix was the final contract-enforcement audit
+
+## T-271 Audit Result
+
+`T-271` confirms the grammar/backend contract audit is complete:
+
+- `docs/quawk.ebnf`, `docs/design.md`, `docs/roadmap.md`, the backend gap
+  inventory, and this checked-in matrix now describe the same admitted public
+  execution surface
+- the remaining parseable-but-not-lowerable forms are still documented outside
+  the admitted contract instead of being left as hidden execution debt
 
 ## T-266 Baseline Result
 

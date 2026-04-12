@@ -207,6 +207,7 @@ Current implementation model:
 - ordinary public `quawk` execution no longer keeps host fallback for representative unclaimed host-runtime-only forms from the broader intentionally unclaimed expression surface
 - ordinary public `quawk` execution no longer keeps host fallback for claimed behavior either; the claimed surface is now backend/runtime-only in public execution
 - broader frontend-admitted but not yet claimed POSIX corners still exist outside that contract and remain intentionally unclaimed surface rather than active backend debt
+- the T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface; anything outside that contract remains explicitly unclaimed instead of silently falling back
 
 Current public execution surface:
 - mixed `BEGIN` / record / `END` programs, regex patterns, range patterns, and default-print pattern rules

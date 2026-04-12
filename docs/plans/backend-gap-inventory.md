@@ -37,6 +37,7 @@ Closed from this inventory:
 - multi-subscript array access was closed in T-268
 - side-effectful ternary branches were closed in T-269
 - dynamic `printf` formats were closed in T-270
+- the contract-enforcement audit was closed in T-271
 
 ## Route 1: Direct-Function Backend Subset
 

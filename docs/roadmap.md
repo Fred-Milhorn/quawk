@@ -688,6 +688,8 @@ Current state:
 - `T-268` closes multi-subscript array lowering and runtime support
 - `T-269` closes side-effectful ternary lowering and runtime support
 - `T-270` closes dynamic `printf` lowering and runtime support
+- `T-271` closes the grammar-contract audit and confirms the documented
+  admitted surface matches backend execution and inspection support
 - the remaining parser/backend mismatch is now treated as explicit
   execution-completeness debt rather than an acceptable parse-only surface
 - detailed bucketed follow-up planning lives in
@@ -696,7 +698,8 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-271`: re-audit the grammar contract against backend execution and inspection support
+
+P30 is complete. No immediate next tasks remain.
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -975,7 +978,7 @@ Priority values:
 | T-268 | P30 | P0 | Add multi-subscript array read/write/delete lowering and runtime support | T-266 | Representative composite-subscript array programs execute correctly through public execution and inspection paths | done |
 | T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | done |
 | T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | done |
-| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | todo |
+| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |
 
 ## Cross-Cutting Tracks
 
