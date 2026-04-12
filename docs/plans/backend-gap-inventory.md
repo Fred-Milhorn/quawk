@@ -31,6 +31,11 @@ it for ordinary execution and `lower_to_llvm_ir()` rejects it for `--ir` and
 
 The sections below describe the gaps route by route.
 
+Closed from this inventory:
+
+- runtime-backed imperative function bodies were closed in T-267
+- multi-subscript array access was closed in T-268
+
 ## Route 1: Direct-Function Backend Subset
 
 This route exists only for programs that:
@@ -128,15 +133,6 @@ Its gaps are narrower than the direct-function route, but they still matter.
 
 ### Unsupported Or Restricted Runtime-Backed Forms
 
-- Multi-subscript array reads, writes, and deletes.
-  Example: `BEGIN { a[i, j] = 1; print a[i, j]; delete a[i, j] }`.
-  Current restriction:
-  - array assignments require exactly one subscript
-  - array reads reject `extra_indexes`
-  - delete targets reject `extra_indexes`
-  Why blocked: runtime lowering currently handles only one logical key per
-  array access.
-
 - `for (k in ...)` over anything other than a plain array name.
   Example: `for (k in expr()) print k`.
   Current restriction: the iterable must be `NameExpr(name=array_name)` and the
@@ -145,19 +141,6 @@ Its gaps are narrower than the direct-function route, but they still matter.
 - `expr in array` where the right-hand side is not a plain array name.
   Example: `print key in get_array()`.
   Current restriction: the right-hand side must be `NameExpr(name=array_name)`.
-
-- Runtime-backed user-defined functions with imperative bodies.
-  Example:
-  `function f(x) { y = x + 1; while (y < 10) y++; print y; return y }`
-  Current restriction: inside runtime-backed user functions, only these
-  statement families are admitted:
-  - blocks
-  - `if`
-  - `return`
-  - `exit`
-  Consequence: assignments, loops, `print`, `printf`, `delete`, `next`,
-  `nextfile`, `break`, `continue`, and general expression statements inside
-  user-defined functions are still unsupported on this route.
 
 - Ternary expressions whose branches have side effects.
   Example: `print cond ? x++ : y++`, `print cond ? sub(/a/, "b", s) : t`.
@@ -217,28 +200,23 @@ Examples:
   admitted assignment-expression rules.
 - `foo()` fails unless `foo` is a supported user-defined function or admitted
   builtin.
-- `a[i, j]` as a standalone expression still fails because multi-subscript
-  array reads are unsupported.
+- `sub(/a/, "b", expr())` fails if `expr()` does not lower to a supported
+  string target for the builtin's third argument.
 
 ### Bridge Priorities For This Route
 
 The main remaining bridge work for the runtime-backed route is concentrated in
 these buckets:
 
-1. Generalize arrays beyond a single logical subscript.
-   This likely means defining the key-encoding and iteration semantics for
-   multi-dimensional array access, delete, and membership on the runtime ABI.
+1. Tighten the plain-array requirements for `for (k in ...)` and `expr in
+   array` so non-name array-like expressions do not stay parse-only.
 
-2. Lift the current restrictions on runtime-backed user-defined function bodies.
-   This is the largest semantic gap for richer AWK programs that already parse
-   today.
-
-3. Relax builtin-call shape restrictions where the runtime already has enough
+2. Relax builtin-call shape restrictions where the runtime already has enough
    machinery.
    The immediate examples are dynamic `printf` formats, broader `split()`
    targets, and broader `sub()` / `gsub()` targets.
 
-4. Add full short-circuit lowering for side-effectful ternary branches.
+3. Add full short-circuit lowering for side-effectful ternary branches.
    The current pure-branch restriction is a correctness-preserving subset, not
    the intended final AWK surface.
 

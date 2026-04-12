@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BEGIN_PARITY_PROGRAM = 'BEGIN { n = split("a b", a); print n; print a[1]; print substr("hello", 2, 3) }'
 RECORD_PARITY_PROGRAM = '/start/,/stop/ { i = 2; $i = NR; printf "%s:%g\\n", FILENAME, NF; next }'
 ARRAY_DELETE_PROGRAM = 'BEGIN { a["x"] = 1; delete a["x"]; print a["x"] }'
+MULTI_SUBSCRIPT_ARRAY_PROGRAM = 'BEGIN { a[1, 2] = 3; print a[1, 2]; delete a[1, 2]; print length(a) }'
 FOR_LOOP_PROGRAM = "BEGIN { for (i = 0; i < 3; i = i + 1) print i }"
 FOR_IN_PROGRAM = 'BEGIN { a["x"] = 1; for (k in a) print k }'
 LENGTH_PROGRAM = 'BEGIN { a["x"] = 1; a["y"] = 2; print length("hello"); print length(a) }'
@@ -184,6 +185,14 @@ def test_execute_routes_array_delete_programs_through_backend(monkeypatch) -> No
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; p9 linked array delete module"
+
+
+def test_quawk_executes_multi_subscript_array_programs() -> None:
+    result = run_quawk(MULTI_SUBSCRIPT_ARRAY_PROGRAM)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n0\n"
+    assert result.stderr == ""
 
 
 def test_execute_routes_classic_for_programs_through_backend(monkeypatch) -> None:

@@ -1195,11 +1195,9 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
 
     if statement.name is None:
         raise RuntimeError("non-scalar assignments are not supported by the runtime-backed backend")
-    if statement.extra_indexes:
-        raise RuntimeError("multi-subscript assignments are not supported by the runtime-backed backend")
     if statement.index is not None:
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
-        key_ptr = lower_runtime_array_key(statement.index, state)
+        key_ptr = lower_runtime_array_subscripts((statement.index, *statement.extra_indexes), state)
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
             string_value = lower_runtime_string_expression(statement.value, state)
             state.instructions.append(
@@ -1319,14 +1317,12 @@ def lower_runtime_delete_statement(statement: DeleteStmt, state: LoweringState) 
     array_name = statement.array_name
     if array_name is None:
         raise RuntimeError("non-array delete targets are not supported by the runtime-backed backend")
-    if statement.extra_indexes:
-        raise RuntimeError("multi-subscript delete targets are not supported by the runtime-backed backend")
 
     array_name_ptr = lower_runtime_constant_string(array_name, state)
     if statement.index is None:
         state.instructions.append(f"  call void @qk_array_clear(ptr {state.runtime_param}, ptr {array_name_ptr})")
         return
-    key_ptr = lower_runtime_array_key(statement.index, state)
+    key_ptr = lower_runtime_array_subscripts((statement.index, *statement.extra_indexes), state)
     state.instructions.append(
         f"  call void @qk_array_delete(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
     )
@@ -1977,10 +1973,10 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
             state.instructions.append(
                 f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
             )
-        case ArrayLValue(name=name, subscripts=(subscript,)):
+        case ArrayLValue(name=name, subscripts=subscripts):
             assert state.runtime_param is not None
             array_name_ptr = lower_runtime_constant_string(name, state)
-            key_ptr = lower_runtime_array_key(subscript, state)
+            key_ptr = lower_runtime_array_subscripts(subscripts, state)
             if runtime_assignment_preserves_string(expression.value, state):
                 raise RuntimeError("string-valued array assignment expressions are not supported yet in runtime-backed backend")
             numeric_value = lower_runtime_numeric_expression(expression.value, state)
@@ -2141,9 +2137,9 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
                 f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {field_index}, double {new_value})"
             )
             return old_value if return_old else new_value
-        case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=()):
+        case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
             array_name_ptr = lower_runtime_constant_string(array_name, state)
-            key_ptr = lower_runtime_array_key(index, state)
+            key_ptr = lower_runtime_array_subscripts((index, *extra_indexes), state)
             entry_ptr = state.next_temp("inc.array.ptr")
             old_value = state.next_temp("inc.old")
             new_value = state.next_temp("inc.new")
@@ -2207,10 +2203,8 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             )
             return temp
         case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
-            if extra_indexes:
-                raise RuntimeError("multi-subscript array reads are not supported by the runtime-backed backend")
             array_name_ptr = lower_runtime_constant_string(array_name, state)
-            key_ptr = lower_runtime_array_key(index, state)
+            key_ptr = lower_runtime_array_subscripts((index, *extra_indexes), state)
             temp = state.next_temp("array.get")
             state.instructions.append(
                 f"  {temp} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
@@ -2225,9 +2219,9 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                         f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {field_index}, ptr {string_value})"
                     )
                     return string_value
-                case ArrayLValue(name=name, subscripts=(subscript,)) if runtime_assignment_preserves_string(value, state):
+                case ArrayLValue(name=name, subscripts=subscripts) if runtime_assignment_preserves_string(value, state):
                     array_name_ptr = lower_runtime_constant_string(name, state)
-                    key_ptr = lower_runtime_array_key(subscript, state)
+                    key_ptr = lower_runtime_array_subscripts(subscripts, state)
                     string_value = lower_runtime_string_expression(value, state)
                     state.instructions.append(
                         f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
@@ -2978,6 +2972,36 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
                 f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {formatted})"
             )
             return captured
+
+
+def lower_runtime_array_subscripts(subscripts: tuple[Expr, ...], state: LoweringState) -> str:
+    """Lower one array subscript tuple to the runtime's flat string key format."""
+    if not subscripts:
+        raise RuntimeError("empty array subscript lists are not supported by the runtime-backed backend")
+
+    key_value = lower_runtime_array_key(subscripts[0], state)
+    if len(subscripts) > 1:
+        subsep_name = lower_runtime_scalar_name("SUBSEP", state)
+        subsep_value = state.next_temp("array.subsep")
+        state.instructions.append(
+            f"  {subsep_value} = call ptr @qk_scalar_get_inline(ptr {state.runtime_param}, ptr {subsep_name})"
+        )
+        for subscript in subscripts[1:]:
+            right_value = lower_runtime_array_key(subscript, state)
+            joined_value = state.next_temp("array.key.join")
+            next_key_value = state.next_temp("array.key.join")
+            state.instructions.append(
+                f"  {joined_value} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {key_value}, ptr {subsep_value})"
+            )
+            state.instructions.append(
+                f"  {next_key_value} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {joined_value}, ptr {right_value})"
+            )
+            key_value = next_key_value
+    captured_key = state.next_temp("array.key.capture")
+    state.instructions.append(
+        f"  {captured_key} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {key_value})"
+    )
+    return captured_key
 
 
 def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
@@ -3798,8 +3822,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return True
             case FieldExpr():
                 return True
-            case ArrayIndexExpr(extra_indexes=()):
-                return expression.array_name in array_names and supports_array_key(expression.index, string_bindings)
+            case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
+                return array_name in array_names and supports_array_key(index, string_bindings) and all(
+                    supports_array_key(extra_index, string_bindings) for extra_index in extra_indexes
+                )
             case CallExpr(function="sprintf", args=args):
                 return bool(args) and supports_string_expression(args[0], string_bindings) and all(
                     supports_string_expression(argument, string_bindings) or supports_numeric_expression(argument)
@@ -3858,14 +3884,16 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     case NameLValue() | FieldLValue():
                         return supports_numeric_expression(value) or supports_string_expression(value)
                     case ArrayLValue(subscripts=subscripts):
-                        return len(subscripts) == 1 and supports_array_key(subscripts[0]) and supports_numeric_expression(value)
+                        return all(supports_array_key(subscript) for subscript in subscripts) and supports_numeric_expression(
+                            value
+                        )
                     case _:
                         return False
             case UnaryExpr(op=UnaryOp.UPLUS | UnaryOp.UMINUS | UnaryOp.NOT, operand=operand):
                 return supports_numeric_expression(operand)
-            case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
+            case UnaryExpr(op=UnaryOp.PRE_INC | UnaryOp.PRE_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr()):
                 return True
-            case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr(extra_indexes=())):
+            case PostfixExpr(op=PostfixOp.POST_INC | PostfixOp.POST_DEC, operand=NameExpr() | FieldExpr() | ArrayIndexExpr()):
                 return True
             case BinaryExpr(
                 op=BinaryOp.ADD
@@ -3924,7 +3952,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     case FieldLValue(index=index):
                         return supports_numeric_expression(index)
                     case ArrayLValue(subscripts=subscripts):
-                        return len(subscripts) == 1 and supports_array_key(subscripts[0])
+                        return bool(subscripts) and all(supports_array_key(subscript) for subscript in subscripts)
                     case _:
                         return False
             case CallExpr(function="index", args=args):
@@ -3973,7 +4001,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         case FieldLValue(index=index):
                             target_supported = supports_numeric_expression(index)
                         case ArrayLValue(subscripts=subscripts):
-                            target_supported = len(subscripts) == 1 and supports_array_key(subscripts[0])
+                            target_supported = bool(subscripts) and all(supports_array_key(subscript) for subscript in subscripts)
                         case _:
                             target_supported = False
                 return target_supported and (
@@ -4244,9 +4272,9 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                         return supports_numeric_expression(value)
                     case ArrayLValue(name=name, subscripts=subscripts):
                         if not (
-                            name in array_names
-                            and len(subscripts) == 1
-                            and supports_array_key(subscripts[0], string_bindings)
+                            subscripts
+                            and name in array_names
+                            and all(supports_array_key(subscript, string_bindings) for subscript in subscripts)
                         ):
                             return False
                         if op is AssignOp.PLAIN:
@@ -4281,9 +4309,11 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case BreakStmt() | ContinueStmt():
                 return True
             case DeleteStmt():
-                if statement.array_name is None or statement.array_name not in array_names or statement.extra_indexes:
+                if statement.array_name is None or statement.array_name not in array_names:
                     return False
-                return statement.index is None or supports_array_key(statement.index, string_bindings)
+                return statement.index is None or all(
+                    supports_array_key(subscript, string_bindings) for subscript in (statement.index, *statement.extra_indexes)
+                )
             case PrintStmt(arguments=arguments, redirect=redirect):
                 arguments_supported = not arguments or all(
                     supports_string_expression(argument, string_bindings)

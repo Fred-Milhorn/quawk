@@ -38,87 +38,30 @@ Current closure:
 
 - runtime-backed imperative function bodies are now implemented and no longer
   belong in the remaining gap matrix
-- the remaining buckets are multi-subscript arrays, side-effectful ternary
-  lowering, and dynamic `printf` / builtin-shape cleanup
+- multi-subscript array access is now implemented and no longer belongs in the
+  remaining gap matrix
+- the remaining buckets are side-effectful ternary lowering and dynamic
+  `printf` / builtin-shape cleanup
 
-## Bucket 1: User-Defined Function Completeness
+## Closed Bucket 1: User-Defined Function Completeness
 
-Current gap:
+Closed in T-267:
 
-- runtime-backed user-defined functions only admit blocks, `if`, `return`, and
-  `exit`
-- richer function bodies still get trapped by the narrow direct-function lane or
-  are rejected entirely
+- runtime-backed user-defined functions now accept imperative bodies on the
+  compiled backend/runtime path
+- richer user-defined functions no longer need to stay on the narrow
+  direct-function lane
+- direct tests now pin the lowered imperative-function path
 
-Representative programs to support:
+## Closed Bucket 2: Multi-Subscript Array Completeness
 
-```awk
-function bump(x) { y = x + 1; return y }
-BEGIN { print bump(2) }
-```
+Closed in T-268:
 
-```awk
-function climb(x) {
-    while (x < 3)
-        x++
-    print x
-    return x
-}
-BEGIN { print climb(1) }
-```
-
-```awk
-function walk(a,    k, n) {
-    n = 0
-    for (k in a)
-        n += a[k]
-    return n
-}
-BEGIN { a["x"] = 1; a["y"] = 2; print walk(a) }
-```
-
-Implementation direction:
-
-- widen runtime-backed function lowering to admit assignment, loops, print,
-  delete, `break`, `continue`, and expression statements where AWK semantics
-  allow them
-- collapse or retire the direct-function-only lowering route once the
-  runtime-backed route can carry the same programs
-- keep function-local scope and return semantics pinned by direct tests
-
-## Bucket 2: Multi-Subscript Array Completeness
-
-Current gap:
-
-- runtime-backed lowering only handles one logical subscript per array access
-- reads, writes, and deletes reject `extra_indexes`
-
-Representative programs to support:
-
-```awk
-BEGIN { a[1, 2] = 3; print a[1, 2] }
-```
-
-```awk
-BEGIN { a["x", "y"] = 1; delete a["x", "y"]; print a["x", "y"] }
-```
-
-```awk
-BEGIN {
-    a[1, 2] = 3
-    a[4, 5] = 6
-    for (k in a)
-        print k
-}
-```
-
-Implementation direction:
-
-- define the runtime key-encoding path for multi-subscript array access and
-  deletion
-- keep iteration semantics aligned with AWK's composite-key behavior
-- make sure `sub()` / `gsub()` and any other array-element lvalue paths inherit
-  the same support once multi-subscript lvalues are legal
+- runtime-backed lowering now encodes multi-subscript array access with the
+  runtime `SUBSEP` separator
+- reads, writes, deletes, and string-valued array lvalues now accept composite
+  keys on the compiled backend/runtime path
+- direct tests now pin the representative composite-array programs
 
 ## Bucket 3: Side-Effectful Ternary Completeness
 
@@ -192,20 +135,13 @@ Required guardrails:
    Add representative failing tests and a checked-in execution-completeness
    matrix for the remaining buckets.
 
-2. User-defined function completeness
-   This is the largest semantic gap and removes the need to preserve the narrow
-   direct-function lane as a special case.
-
-3. Multi-subscript arrays
-   This is the largest remaining data-model gap in runtime lowering.
-
-4. Side-effectful ternary lowering
+2. Side-effectful ternary lowering
    This is self-contained once branch-capable runtime lowering is already in
    good shape.
 
-5. Dynamic `printf` and residual builtin-shape cleanup
+3. Dynamic `printf` and residual builtin-shape cleanup
    This closes the remaining grammar-valid builtin-call restrictions.
 
-6. Final grammar-to-backend audit
+4. Final grammar-to-backend audit
    Re-run the inventory and confirm that the grammar contract and compiled
    execution contract now match for the admitted language.

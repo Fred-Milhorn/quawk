@@ -18,12 +18,6 @@ def parse_program(source_text: str):
 
 REPRESENTATIVE_GAPS = (
     (
-        "multi_subscript_array",
-        "BEGIN { a[1, 2] = 3; print a[1, 2] }",
-        "public execution does not support programs outside the compiled backend/runtime subset",
-        "host-runtime-only operations are not supported by the LLVM-backed backend",
-    ),
-    (
         "side_effectful_ternary",
         "BEGIN { x = 0; print (1 ? ++x : 0); print x }",
         "public execution does not support programs outside the compiled backend/runtime subset",
@@ -64,12 +58,12 @@ def test_t266_matrix_records_the_representative_execution_completeness_gaps() ->
     assert "Public execute today" in matrix_text
     assert "Inspection today" in matrix_text
     assert "Public host fallback exists today" in matrix_text
-    assert "| Multi-subscript array access |" in matrix_text
     assert "| Side-effectful ternary branch |" in matrix_text
     assert "| Dynamic `printf` format |" in matrix_text
     assert "no row in this matrix currently keeps public Python host fallback alive" in matrix_text
     assert "## T-266 Baseline Result" in matrix_text
     assert "## T-267 Narrowing Result" in matrix_text
+    assert "## T-268 Narrowing Result" in matrix_text
 
 
 def test_t266_plan_and_roadmap_point_to_the_checked_in_baseline() -> None:
