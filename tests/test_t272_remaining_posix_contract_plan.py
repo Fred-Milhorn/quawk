@@ -17,7 +17,7 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
     assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
     assert "field rebuild corroborating anchors" not in spec_text
     assert "selected upstream subset now corroborate" in spec_text
-    assert "record-target `gsub` skip" in spec_text
+    assert "record-target `gsub` skip" not in spec_text
     assert "`rand()` corroboration" in spec_text
 
 
@@ -44,7 +44,8 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| Field rebuild corroboration re-audit | resolved | The reviewed `p.35` / `t.NF` style anchors are now promoted in the selected upstream subset. | none |" in plan_text
     assert "### T-280 Result" in plan_text
     assert "field rebuild remains implemented end to end, with no remaining corroboration gap" in plan_text
-    assert "Record-target `gsub` reviewed skip" in plan_text
+    assert "### T-281 Result" in plan_text
+    assert "record-target `gsub` remains implemented end to end, with no remaining corroboration gap" in plan_text
     assert "`rand()` corroboration strategy" in plan_text
 
     assert "### P31: Remaining POSIX Contract Closure" in roadmap_text
@@ -59,4 +60,5 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |" in roadmap_text
     assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |" in roadmap_text
     assert "| T-280 | P32 | P0 | Re-audit and resolve the field rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | done |" in roadmap_text
+    assert "| T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The selected upstream `p.29` anchor is promoted, reclassified, or documented with a precise reviewed reason | done |" in roadmap_text
     assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text

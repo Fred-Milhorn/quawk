@@ -679,8 +679,6 @@ Objective:
   implemented POSIX surface
 
 In scope:
-- re-audit field rebuild corroboration anchors
-- resolve the reviewed record-target `gsub` skip
 - resolve the `rand()` corroboration or reference-disagreement policy
 - complete the final compatibility stop-line audit
 - implementation details live in
@@ -700,71 +698,7 @@ Start here unless priorities change:
 P30 and P31 are complete. We are currently implementing `P32`, starting with
 the corroboration cleanup tasks after the baseline is in place.
 
-Current state:
-- `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
-  generation, runtime slot accessors, lowering updates, hash fallback, tests,
-  and microbenchmark (`2.66x` median slot speedup)
-- `T-236` implements expression type inference for literals, names, arithmetic,
-  concat, and conditionals
-- `T-237` propagates variable lattice types across assignment-driven program flow
-- `T-238` adds conservative fixed-point handling for loop/control-flow inference
-- `T-239` marks field expressions as `MIXED` in lattice inference
-- `T-240` threads inferred type annotations into lowering state
-- `T-241` expands type inference correctness tests (including `getline`,
-  `for ... in`, and function-parameter isolation)
-- `T-242` emits direct `fcmp` comparisons for inferred numeric operands
-- `T-243` confirms direct `fadd`/`fsub`/`fmul`/`fdiv` arithmetic lowering paths
-- `T-244` adds known-string concat fast path without capture/coercion overhead
-- `T-245` adds direct `%quawk.state` numeric slot load/store for inferred numeric names
-- `T-246` adds direct runtime string-slot read/write for inferred string names
-- `T-247` routes mixed/unknown scalar operations through runtime slow-path semantics
-- `T-248` adds `--ir`-level specialized-operation and fallback regression coverage
-- `T-249` adds numeric-loop fast-path benchmark coverage (`1.09x` median speedup
-  versus mixed fallback in local sample run)
-- `T-250` adds CLI optimization mode flag plumbing (`-O` / `--optimize`)
-- `T-197` through `T-226` complete: P21–P24 widening waves all closed
-- the claimed widened expression surface executes through the compiled
-  backend/runtime path with `--ir` / `--asm` support and no public Python
-  host fallback
-- `T-250` through `T-257` complete: P28 LLVM optimization integration landed
-- `T-258` through `T-265` complete: P29 runtime ABI refinement and stability
-  notes landed
-- `T-266` adds the checked-in execution-completeness matrix and direct baseline
-  failure tests for the remaining grammar-valid backend gaps
-- `T-267` closes runtime-backed imperative function bodies and retires the
-  narrow direct-function lane for richer function programs
-- `T-268` closes multi-subscript array lowering and runtime support
-- `T-269` closes side-effectful ternary lowering and runtime support
-- `T-270` closes dynamic `printf` lowering and runtime support
-- `T-271` closes the grammar-contract audit and confirms the documented
-  admitted surface matches backend execution and inspection support
-- `T-272` classifies the remaining product-side gaps: compound assignment is
-  closed; the remaining product-side gaps are non-name array-target forms and
-  extra top-level item shapes that are intentionally out of contract, broader
-  substitution targets split between POSIX-required array-element lvalues and
-  out-of-contract non-lvalue expressions, builtin names beyond the current
-  subset that are not currently treated as remaining POSIX-required work; the
-  narrow direct-function lane has been retired into the reusable backend path
-- `T-273` rebaselines the public contract docs so `SPEC.md`,
-  `docs/design.md`, and the roadmap name those remaining product-side gaps
-  explicitly instead of relying on vague "broader corners" wording
-- `T-278` re-audits the remaining product-side admitted surface after the
-  closure wave and confirms the direct-function lane is no longer part of the
-  remaining gap inventory
-- the remaining work now splits into a product-side contract-closure wave and a
-  final compatibility-corroboration wave
-- the remaining parser/backend mismatch is now treated as explicit
-  execution-completeness debt rather than an acceptable parse-only surface
-- detailed bucketed follow-up planning lives in
-  [execution-completeness-plan.md](plans/execution-completeness-plan.md)
-- the explicit post-`P30` POSIX gap inventory and phase plan now live in
-  [remaining-posix-compatibility-plan.md](plans/remaining-posix-compatibility-plan.md)
-- implementation details for all performance phases live in
-  [performance-implementation.md](performance-implementation.md)
-
 Immediate next tasks:
-- `T-280`: Re-audit and resolve the field rebuild corroboration anchors
-- `T-281`: Re-audit and resolve the record-target `gsub` reviewed skip
 - `T-282`: Resolve the `rand()` compatibility strategy
 - `T-283`: Complete the final POSIX end-to-end compatibility audit
 
@@ -1054,7 +988,7 @@ Priority values:
 | T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |
 | T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |
 | T-280 | P32 | P0 | Re-audit and resolve the field rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | done |
-| T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The narrower reviewed `gsub` skip is either fixed end to end or replaced with a precise classified divergence | todo |
+| T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The selected upstream `p.29` anchor is promoted, reclassified, or documented with a precise reviewed reason | done |
 | T-282 | P32 | P1 | Resolve the `rand()` compatibility strategy | T-279 | `rand()` has either a stable corroborating anchor or a checked-in classified reference-disagreement policy | todo |
 | T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | todo |
 

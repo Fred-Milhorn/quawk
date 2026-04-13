@@ -417,8 +417,8 @@ The remaining POSIX corroboration-only closeout scope is now explicit:
 
 - field rebuild is already implemented, and the reviewed `p.35` / `t.NF`
   anchors are now promoted in the selected upstream subset
-- record-target `gsub` remains a narrower reviewed backend skip instead of a
-  product gap
+- record-target `gsub` is now promoted in the selected upstream subset and no
+  longer belongs in the remaining corroboration-gap inventory
 - `rand()` remains direct-test-only because the pinned references still
   disagree on deterministic seeded output
 

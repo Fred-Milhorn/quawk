@@ -80,14 +80,11 @@ The remaining compatibility-only closeout baseline is now explicit:
 
 - field rebuild is already implemented, and the reviewed `p.35` / `t.NF`
   anchors are now promoted in the selected upstream subset
-- record-target `gsub` remains a narrower reviewed backend skip rather than a
-  product gap
 - `rand()` remains direct-test-only because the pinned references still
   disagree on deterministic seeded output
 
-The checked-in baseline now makes the record-target `gsub` skip and `rand()`
-disagreement the explicit remaining corroboration-only gaps for the
-implemented POSIX surface.
+The checked-in baseline now makes `rand()` disagreement the explicit remaining
+corroboration-only gap for the implemented POSIX surface.
 
 ## T-280 Result
 
@@ -98,8 +95,20 @@ The field rebuild corroboration re-audit is now complete:
 - field rebuild remains implemented end to end, with no remaining
   corroboration gap
 
-The remaining P32 corroboration work now continues only with the reviewed
-record-target `gsub` skip and the `rand()` disagreement policy.
+The remaining P32 corroboration work now continues only with the `rand()`
+disagreement policy.
+
+## T-281 Result
+
+The record-target `gsub` corroboration review is now complete:
+
+- the selected upstream `p.29` anchor is runnable and corroborates the current
+  record-target `gsub` behavior
+- record-target `gsub` remains implemented end to end, with no remaining
+  corroboration gap
+
+The remaining P32 corroboration work now continues only with the `rand()`
+disagreement policy.
 
 ## Compatibility Corroboration Gaps
 
@@ -109,7 +118,7 @@ credible end-to-end POSIX claim.
 | Gap | Current state | Notes |
 |---|---|---|
 | Field rebuild corroboration re-audit | resolved | The reviewed `p.35` / `t.NF` style anchors are now promoted in the selected upstream subset. | none |
-| Record-target `gsub` reviewed skip | product note still narrowed | The current contract still mentions a narrower reviewed backend skip that should be either fixed or replaced with a precise classified divergence. |
+| Record-target `gsub` reviewed skip | resolved | The selected upstream `p.29` anchor is now promoted in the selected upstream subset. | none |
 | `rand()` corroboration strategy | direct-test-only product coverage | The references disagree on deterministic seeded output, so the final compatibility policy still needs to be made explicit. |
 
 ## Planned Phases
