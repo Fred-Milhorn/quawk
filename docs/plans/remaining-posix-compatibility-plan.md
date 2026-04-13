@@ -19,9 +19,8 @@ implementation or an explicit contract decision.
 |---|---|---|---|---|
 | Compound assignment | implemented | POSIX-required, closed by `T-274` | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are ordinary AWK assignment forms and are now part of the checked-in product-side contract. | none |
 | Parenthesized array-target wrappers for `for ... in`, `expr in array`, and `split()` | implemented | POSIX-required, closed by `T-275` | Parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions are now part of the checked-in product-side contract. | none |
-| `sub()` / `gsub()` array-element lvalues beyond the current admitted subset | partially admitted | POSIX-required | Scalar variables, fields, and one-subscript array elements already work. Multi-subscript array-element lvalues should be treated as ordinary AWK lvalues rather than permanent exclusions. | `T-276` |
-| `sub()` / `gsub()` non-lvalue expression targets | parser-admitted | intentionally out of contract | Calls such as `sub(/a/, \"b\", expr())` should fail clearly rather than remain parse-only because they do not name an assignable AWK target. | `T-276` |
-| Builtin names beyond the current claimed subset | unsupported | extension-only or intentionally out of contract | The checked-in builtin subset is the full current POSIX builtin claim. T-272 does not identify any remaining builtin names as POSIX-required product work. | `T-276` |
+| `sub()` / `gsub()` array-element lvalues beyond the current admitted subset | implemented | POSIX-required, closed by `T-276` | Scalar variables, fields, and multi-subscript array-element lvalues now work as substitution targets. | none |
+| Builtin names beyond the current claimed subset | unsupported | extension-only or intentionally out of contract | The checked-in builtin subset is the full current POSIX builtin claim. Names beyond that subset are not part of the product-side contract. | none |
 | Top-level items outside `PatternAction` / `FunctionDef` | parser-admitted | intentionally out of contract | These are generic parser shapes, not part of the intended AWK program contract. | `T-273` |
 | Narrow direct-function execution lane | internal technical debt | non-contract internal debt | Claimed function programs should not need a separate restricted lowering route long term. The lane should be retired or documented as internal debt only. | `T-277` |
 
@@ -31,13 +30,12 @@ The checked-in product-side classification baseline is now:
 
 - compound assignment has been closed and is now part of the checked-in product-side contract
 - parenthesized array-target wrappers are now part of the checked-in contract
+- substitution targets on scalar variables, fields, and multi-subscript array
+  elements are now part of the checked-in contract
+- builtin names beyond the current claimed subset are intentionally out of
+  contract rather than future POSIX-required widening targets
 - extra top-level item shapes are intentionally out of contract rather than
   future public widening targets
-- broader `sub()` / `gsub()` targets split into:
-  - POSIX-required array-element lvalues
-  - intentionally out-of-contract non-lvalue expressions
-- builtin names beyond the current claimed subset are not currently treated as
-  remaining POSIX-required work
 - the narrow direct-function execution lane is internal debt, not a public
   contract promise
 
@@ -53,6 +51,14 @@ Parenthesized array-target wrappers in `for ... in`, `expr in array`, and
 `split()` target positions are now implemented end to end for the current
 public execution and inspection paths. The remaining P31 work continues with
 `T-276` and later buckets.
+
+## T-276 Result
+
+Substitution targets on scalar variables, fields, and multi-subscript array
+elements are now implemented end to end for the current public execution and
+inspection paths. Builtin names beyond the current claimed subset remain
+explicitly out of contract rather than remaining POSIX-required work. The
+remaining P31 work continues with `T-277` and later buckets.
 
 ## Compatibility Corroboration Gaps
 

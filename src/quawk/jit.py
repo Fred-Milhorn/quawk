@@ -2743,11 +2743,15 @@ def lower_runtime_assign_string_lvalue(target: NameLValue | ArrayLValue | FieldL
             state.instructions.append(
                 f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
             )
-        case ArrayLValue(name=name, subscripts=(subscript,)):
+        case ArrayLValue(name=name, subscripts=subscripts):
             array_name_ptr = lower_runtime_constant_string(name, state)
-            key_ptr = lower_runtime_array_key(subscript, state)
+            key_ptr = lower_runtime_array_subscripts(subscripts, state)
+            captured_value = state.next_temp("array.str.capture")
             state.instructions.append(
-                f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
+                f"  {captured_value} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})"
+            )
+            state.instructions.append(
+                f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {captured_value})"
             )
         case _:
             raise RuntimeError("unsupported string assignment target in the runtime-backed backend")
@@ -2792,7 +2796,11 @@ def lower_runtime_substitute_builtin(expression: CallExpr, state: LoweringState,
             f"  {result_ptr} = load ptr, ptr {result_slot}",
         ]
     )
-    lower_runtime_assign_string_lvalue(target_lvalue, result_ptr, state)
+    captured_result = state.next_temp("sub.result.capture")
+    state.instructions.append(
+        f"  {captured_result} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {result_ptr})"
+    )
+    lower_runtime_assign_string_lvalue(target_lvalue, captured_result, state)
     return count_value
 
 

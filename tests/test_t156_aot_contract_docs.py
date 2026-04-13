@@ -28,3 +28,4 @@ def test_t156_design_doc_states_claimed_behavior_is_backend_only() -> None:
     assert "no longer keeps host fallback for representative unclaimed host-runtime-only forms" in design_text
     assert "temporary host-runtime execution remains in a few language families" not in design_text
     assert "parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions" in design_text
+    assert "substitution targets on scalar variables, fields, and multi-subscript array elements" in design_text

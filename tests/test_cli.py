@@ -1263,6 +1263,18 @@ def test_quawk_ir_flag_prints_backend_ir_for_string_and_regex_builtins() -> None
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_array_substitute_targets() -> None:
+    result = run_quawk(
+        "--ir",
+        'BEGIN { a[1,2] = "bananas"; print sub(/ana/, "[&]", a[1,2]); print gsub(/a/, "A", a[1,2]) }',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "@qk_substitute(" in result.stdout
+    assert "@qk_array_set_string(" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_ir_flag_prints_backend_ir_for_numeric_and_system_builtins() -> None:
     result = run_quawk(
         "--ir",

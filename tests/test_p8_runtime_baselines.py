@@ -370,6 +370,14 @@ def test_sub_and_gsub_update_named_targets() -> None:
     assert result.stderr == ""
 
 
+def test_sub_and_gsub_update_multi_subscript_array_targets() -> None:
+    result = run_quawk('BEGIN { a[1,2] = "bananas"; print sub(/ana/, "[&]", a[1,2]); print a[1,2]; print gsub(/a/, "A", a[1,2]); print a[1,2] }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "1\nb[ana]nas\n3\nb[AnA]nAs\n"
+    assert result.stderr == ""
+
+
 def test_two_argument_gsub_updates_the_current_record() -> None:
     result = run_quawk('{ gsub(/a/, "A"); print }', stdin="banana\n")
 

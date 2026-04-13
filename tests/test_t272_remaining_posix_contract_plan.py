@@ -10,12 +10,10 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
 
     assert "| Remaining parser-admitted execution gaps | planned |" in spec_text
     assert "compound assignment expressions" in spec_text
-    assert "broader `sub()` / `gsub()` target shapes outside the currently admitted lvalue subset" in spec_text
     assert "Parenthesized array-target wrappers" in spec_text
+    assert "Substitution targets" in spec_text
+    assert "builtin names beyond the current claimed subset are intentionally out of contract" in spec_text
     assert "retirement of the narrow direct-function execution lane" in spec_text
-    assert "| Broader builtin-name inventory beyond the current subset | planned |" in spec_text
-    assert "the current builtin subset as the full checked-in POSIX builtin claim" in spec_text
-    assert "Names beyond that subset are not currently identified as remaining POSIX-required work" in spec_text
     assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
     assert "field-rebuild corroborating anchors" in spec_text
     assert "record-target `gsub` skip" in spec_text
@@ -29,11 +27,13 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "## Product Gaps" in plan_text
     assert "## T-272 Baseline Result" in plan_text
     assert "## T-274 Result" in plan_text
+    assert "## T-275 Result" in plan_text
+    assert "## T-276 Result" in plan_text
     assert "## Compatibility Corroboration Gaps" in plan_text
     assert "Compound assignment | implemented | POSIX-required, closed by `T-274`" in plan_text
     assert "Parenthesized array-target wrappers for `for ... in`, `expr in array`, and `split()`" in plan_text
-    assert "intentionally out of contract" in plan_text
-    assert "extension-only or intentionally out of contract" in plan_text
+    assert "`sub()` / `gsub()` array-element lvalues beyond the current admitted subset" in plan_text
+    assert "builtin names beyond the current claimed subset are not part of the product-side contract" in plan_text
     assert "Narrow direct-function execution lane" in plan_text
     assert "Field-rebuild corroboration re-audit" in plan_text
     assert "Record-target `gsub` reviewed skip" in plan_text
@@ -46,6 +46,6 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | done |" in roadmap_text
     assert "| T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
     assert "| T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
-    assert "`T-276`: decide and implement contract treatment for broader `sub()` /" in roadmap_text
+    assert "| T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |" in roadmap_text
     assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 |" in roadmap_text
     assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text

@@ -12,6 +12,7 @@ def test_t217_spec_rebaselines_p22_from_unclaimed_to_implemented() -> None:
     assert "| P22 inspection and routing parity | implemented |" in spec_text
     assert "`+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`" in spec_text
     assert "| P24 match operators and membership | implemented |" in spec_text
+    assert "Substitution targets" in spec_text
 
 
 def test_t217_design_and_posix_record_the_widened_p22_claim() -> None:
@@ -19,7 +20,7 @@ def test_t217_design_and_posix_record_the_widened_p22_claim() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "`+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`" in design_text
-    assert "parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions" in design_text
+    assert "substitution targets on scalar variables, fields, and multi-subscript array elements" in design_text
     assert "### T-217 P22 Public-Contract Rebaseline Result" in posix_text
     assert "the roadmap now treats `P22` as complete and moves the next deliverable to" in posix_text
 
