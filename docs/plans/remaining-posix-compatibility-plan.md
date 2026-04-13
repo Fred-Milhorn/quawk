@@ -58,7 +58,7 @@ Substitution targets on scalar variables, fields, and multi-subscript array
 elements are now implemented end to end for the current public execution and
 inspection paths. Builtin names beyond the current claimed subset remain
 explicitly out of contract rather than remaining POSIX-required work. The
-remaining P32 work continues with `T-280` and later buckets.
+remaining P32 work is complete; `T-283` closes the final audit.
 
 ## T-277 Result
 
@@ -71,8 +71,8 @@ lowering route for public execution or inspection.
 The re-audit confirmed that the only remaining product-side gaps are the
 explicit out-of-contract builtin-name and top-level-item forms. The narrow
 direct-function execution lane is retired into the reusable backend path and
-no longer belongs in the remaining gap inventory. The remaining P32 work
-continues with `T-280` and later buckets.
+no longer belongs in the remaining gap inventory. The remaining P32 work is
+complete; `T-283` closes the final audit.
 
 ## T-279 Baseline Result
 
@@ -109,6 +109,28 @@ The record-target `gsub` corroboration review is now complete:
 
 The remaining P32 corroboration work now continues only with the `rand()`
 disagreement policy.
+
+## T-282 Result
+
+The `rand()` corroboration strategy is now explicit:
+
+- the pinned references still disagree on deterministic seeded output even
+  after `srand`
+- `rand()` stays direct-test-only under the checked-in reference-disagreement
+  policy
+
+The remaining POSIX corroboration closeout work is now reduced to the final
+audit only.
+
+## T-283 Result
+
+The final compatibility stop-line audit is now complete:
+
+- `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap
+  all agree on the final implemented POSIX surface
+- no stale reviewed gaps remain for the implemented POSIX families
+
+`P32` is now closed out.
 
 ## Compatibility Corroboration Gaps
 

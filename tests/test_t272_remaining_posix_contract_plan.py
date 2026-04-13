@@ -18,12 +18,13 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
     assert "field rebuild corroborating anchors" not in spec_text
     assert "selected upstream subset now corroborate" in spec_text
     assert "record-target `gsub` skip" not in spec_text
-    assert "final corroboration decision is now closed out" in spec_text
+    assert "no stale reviewed gaps remain" in spec_text
 
 
 def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     plan_text = (ROOT / "docs" / "plans" / "remaining-posix-compatibility-plan.md").read_text(encoding="utf-8")
     roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
+    posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "## Product Gaps" in plan_text
     assert "## T-272 Baseline Result" in plan_text
@@ -39,7 +40,7 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "## T-277 Result" in plan_text
     assert "## T-278 Result" in plan_text
     assert "The re-audit confirmed that the only remaining product-side gaps are the explicit out-of-contract builtin-name and top-level-item forms." in plan_text
-    assert "The remaining P32 work continues with `T-280` and later buckets." in plan_text
+    assert "The remaining P32 work is complete; `T-283` closes the final audit." in plan_text
     assert "Field rebuild corroboration re-audit" in plan_text
     assert "| Field rebuild corroboration re-audit | resolved | The reviewed `p.35` / `t.NF` style anchors are now promoted in the selected upstream subset. | none |" in plan_text
     assert "### T-280 Result" in plan_text
@@ -61,4 +62,5 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |" in roadmap_text
     assert "| T-280 | P32 | P0 | Re-audit and resolve the field rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | done |" in roadmap_text
     assert "| T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The selected upstream `p.29` anchor is promoted, reclassified, or documented with a precise reviewed reason | done |" in roadmap_text
-    assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text
+    assert "### T-283 Final POSIX Compatibility Audit Result" in posix_text
+    assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | done |" in roadmap_text

@@ -1397,6 +1397,16 @@ The `rand()` corroboration strategy is now explicit:
 The remaining POSIX corroboration closeout work is now reduced to the final
 audit only.
 
+### T-283 Final POSIX Compatibility Audit Result
+
+The final POSIX end-to-end compatibility audit is now complete:
+
+- `SPEC.md`, `docs/compatibility.md`, `tests/upstream/selection.toml`, and the
+  roadmap all agree on the final implemented POSIX surface
+- no stale reviewed gaps remain for the implemented POSIX families
+
+`P32` is now closed out.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:

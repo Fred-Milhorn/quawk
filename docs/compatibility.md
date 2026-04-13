@@ -413,7 +413,7 @@ Complete when:
 
 ## P32 Corroboration Baseline
 
-The checked-in POSIX corroboration policy is now explicit:
+The checked-in POSIX corroboration policy is now final:
 
 - field rebuild is already implemented, and the reviewed `p.35` / `t.NF`
   anchors are now promoted in the selected upstream subset
@@ -423,5 +423,5 @@ The checked-in POSIX corroboration policy is now explicit:
   policy because the pinned references still disagree on deterministic seeded
   output
 
-This is the final stop line for the implemented POSIX surface before the
-remaining corroboration cleanup tasks in `P32`.
+This is the final stop line for the implemented POSIX surface, and `P32` is
+now complete.

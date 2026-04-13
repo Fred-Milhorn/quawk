@@ -10,7 +10,7 @@ def test_t282_spec_records_the_explicit_rand_policy() -> None:
 
     assert "| Remaining POSIX compatibility corroboration gaps | implemented |" in spec_text
     assert "`rand()` remains direct-test-only under the checked-in reference-disagreement policy" in spec_text
-    assert "final corroboration decision is now closed out" in spec_text
+    assert "no stale reviewed gaps remain" in spec_text
 
 
 def test_t282_compatibility_and_posix_record_the_checked_in_policy() -> None:
@@ -18,7 +18,7 @@ def test_t282_compatibility_and_posix_record_the_checked_in_policy() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "## P32 Corroboration Baseline" in compatibility_text
-    assert "checked-in POSIX corroboration policy is now explicit" in compatibility_text
+    assert "checked-in POSIX corroboration policy is now final" in compatibility_text
     assert "`rand()` remains direct-test-only under the checked-in reference-disagreement" in compatibility_text
     assert "### T-282 Rand Corroboration Policy Result" in posix_text
     assert "`rand()` stays direct-test-only under the checked-in reference-disagreement" in posix_text
