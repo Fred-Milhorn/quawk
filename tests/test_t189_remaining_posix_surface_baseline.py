@@ -9,7 +9,7 @@ def test_t189_spec_makes_the_remaining_claimed_gap_and_unclaimed_expression_surf
     spec_text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
 
     assert "| Repeated `$0` reassignment and field rebuild | implemented |" in spec_text
-    assert "The next step is corroborating-anchor re-audit, not a known product mismatch." in spec_text
+    assert "Direct tests and the selected upstream subset now corroborate the remaining `p.35` / `t.NF` style rebuild shapes after `NF` and field mutation." in spec_text
     assert "| Expressions | partial |" in spec_text
     assert "| P24 match operators and membership | implemented |" in spec_text
 

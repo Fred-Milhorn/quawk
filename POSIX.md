@@ -1355,15 +1355,26 @@ dependency.
 
 The remaining POSIX corroboration-only gaps are now explicit:
 
-- field rebuild is already implemented end to end, but the reviewed `p.35` /
-  `t.NF` anchors still need a final corroboration re-audit
 - record-target `gsub` remains a narrower reviewed backend skip rather than a
   product gap
 - `rand()` remains direct-test-only because the pinned references still
   disagree on deterministic seeded output
 
-The checked-in P32 baseline now makes those three items the explicit remaining
-corroboration-only gaps for the implemented POSIX surface.
+The checked-in P32 baseline now makes the record-target `gsub` skip and
+`rand()` disagreement the explicit remaining corroboration-only gaps for the
+implemented POSIX surface.
+
+### T-280 Field Rebuild Corroboration Result
+
+The field-rebuild corroboration re-audit is now complete:
+
+- the reviewed `p.35` / `t.NF` anchors are promoted in the selected upstream
+  subset
+- field rebuild stays implemented end to end, with no remaining corroboration
+  gap
+
+The remaining P32 corroboration work now continues only with the reviewed
+record-target `gsub` skip and the `rand()` reference-disagreement policy.
 
 ## Notes
 
