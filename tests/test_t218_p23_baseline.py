@@ -9,7 +9,7 @@ def test_t218_spec_names_the_exact_p23_target_rows() -> None:
     spec_text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
 
     assert "| P23 ternary | implemented |" in spec_text
-    assert "pure ternary expressions over the current claimed numeric/string subset" in spec_text
+    assert "ternary expressions over the current claimed numeric/string subset" in spec_text
     assert "| P24 match operators and membership | implemented |" in spec_text
 
 

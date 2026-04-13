@@ -10,7 +10,7 @@ def test_t222_spec_names_the_exact_p24_target_rows() -> None:
 
     assert "| P24 match operators and membership | implemented |" in spec_text
     assert "| P24 inspection and routing parity | implemented |" in spec_text
-    assert "`~`, `!~`, pure ternary expressions" in spec_text
+    assert "`~`, `!~`, and scalar-key `expr in array` membership tests" in spec_text
     assert "`in`, concatenation" in spec_text
 
 
