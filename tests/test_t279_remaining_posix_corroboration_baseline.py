@@ -8,11 +8,11 @@ ROOT = Path(__file__).resolve().parent.parent
 def test_t279_spec_records_the_remaining_corroboration_gap_baseline() -> None:
     spec_text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
 
-    assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
+    assert "| Remaining POSIX compatibility corroboration gaps | implemented |" in spec_text
     assert "field rebuild corroborating anchors" not in spec_text
     assert "selected upstream subset now corroborate" in spec_text
     assert "record-target `gsub` skip" not in spec_text
-    assert "`rand()` corroboration" in spec_text
+    assert "final corroboration decision is now closed out" in spec_text
 
 
 def test_t279_compatibility_doc_states_the_remaining_corroboration_scope() -> None:

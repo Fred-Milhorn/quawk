@@ -119,7 +119,7 @@ credible end-to-end POSIX claim.
 |---|---|---|
 | Field rebuild corroboration re-audit | resolved | The reviewed `p.35` / `t.NF` style anchors are now promoted in the selected upstream subset. | none |
 | Record-target `gsub` reviewed skip | resolved | The selected upstream `p.29` anchor is now promoted in the selected upstream subset. | none |
-| `rand()` corroboration strategy | direct-test-only product coverage | The references disagree on deterministic seeded output, so the final compatibility policy still needs to be made explicit. |
+| `rand()` corroboration strategy | resolved | The references disagree on deterministic seeded output, so the checked-in policy keeps `rand()` direct-test-only. | none |
 
 ## Planned Phases
 

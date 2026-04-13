@@ -413,14 +413,15 @@ Complete when:
 
 ## P32 Corroboration Baseline
 
-The remaining POSIX corroboration-only closeout scope is now explicit:
+The checked-in POSIX corroboration policy is now explicit:
 
 - field rebuild is already implemented, and the reviewed `p.35` / `t.NF`
   anchors are now promoted in the selected upstream subset
 - record-target `gsub` is now promoted in the selected upstream subset and no
   longer belongs in the remaining corroboration-gap inventory
-- `rand()` remains direct-test-only because the pinned references still
-  disagree on deterministic seeded output
+- `rand()` remains direct-test-only under the checked-in reference-disagreement
+  policy because the pinned references still disagree on deterministic seeded
+  output
 
 This is the final stop line for the implemented POSIX surface before the
 remaining corroboration cleanup tasks in `P32`.

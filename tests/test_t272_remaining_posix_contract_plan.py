@@ -14,11 +14,11 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
     assert "Substitution targets" in spec_text
     assert "builtin names beyond the current claimed subset are intentionally out of contract" in spec_text
     assert "The narrow direct-function lane has been retired into the reusable backend path and is no longer part of the remaining gap inventory." in spec_text
-    assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
+    assert "| Remaining POSIX compatibility corroboration gaps | implemented |" in spec_text
     assert "field rebuild corroborating anchors" not in spec_text
     assert "selected upstream subset now corroborate" in spec_text
     assert "record-target `gsub` skip" not in spec_text
-    assert "`rand()` corroboration" in spec_text
+    assert "final corroboration decision is now closed out" in spec_text
 
 
 def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:

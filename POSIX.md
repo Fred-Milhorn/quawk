@@ -1385,6 +1385,18 @@ The record-target `gsub` corroboration review is now complete:
 The remaining P32 corroboration work now continues only with the `rand()`
 reference-disagreement policy.
 
+### T-282 Rand Corroboration Policy Result
+
+The `rand()` corroboration strategy is now explicit:
+
+- the pinned references still disagree on deterministic seeded output even
+  after `srand`
+- `rand()` stays direct-test-only under the checked-in reference-disagreement
+  policy
+
+The remaining POSIX corroboration closeout work is now reduced to the final
+audit only.
+
 ## Notes
 
 This plan should stay stricter than the current compatibility plan:
