@@ -2010,17 +2010,59 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
 
 def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringState) -> str:
     """Lower one numeric assignment expression in the runtime-backed backend subset."""
-    if expression.op is not AssignOp.PLAIN:
-        raise RuntimeError("compound assignment expressions are not supported by the runtime-backed backend")
+    def combine_numeric_assignment(current_value: str, update_value: str) -> str:
+        if expression.op is AssignOp.PLAIN:
+            return update_value
+        result = state.next_temp("assign.op")
+        if expression.op is AssignOp.ADD:
+            state.instructions.append(f"  {result} = fadd double {current_value}, {update_value}")
+            return result
+        if expression.op is AssignOp.SUB:
+            state.instructions.append(f"  {result} = fsub double {current_value}, {update_value}")
+            return result
+        if expression.op is AssignOp.MUL:
+            state.instructions.append(f"  {result} = fmul double {current_value}, {update_value}")
+            return result
+        if expression.op is AssignOp.DIV:
+            state.instructions.append(f"  {result} = fdiv double {current_value}, {update_value}")
+            return result
+        if expression.op is AssignOp.MOD:
+            quotient = state.next_temp("assign.mod.div")
+            truncated = state.next_temp("assign.mod.trunc")
+            product = state.next_temp("assign.mod.mul")
+            state.instructions.extend(
+                [
+                    f"  {quotient} = fdiv double {current_value}, {update_value}",
+                    f"  {truncated} = call double @llvm.trunc.f64(double {quotient})",
+                    f"  {product} = fmul double {truncated}, {update_value}",
+                    f"  {result} = fsub double {current_value}, {product}",
+                ]
+            )
+            return result
+        state.instructions.append(
+            f"  {result} = call double @llvm.pow.f64(double {current_value}, double {update_value})"
+        )
+        return result
 
     target = expression.target
     match target:
         case FieldLValue(index=index):
             index_value = lower_runtime_field_index(index, state)
             assert state.runtime_param is not None
-            if runtime_assignment_preserves_string(expression.value, state):
-                raise RuntimeError("string-valued field assignment expressions are not supported yet in runtime-backed backend")
+            if expression.op is AssignOp.PLAIN and runtime_assignment_preserves_string(expression.value, state):
+                raise RuntimeError(
+                    "string-valued field assignment expressions are not supported yet in runtime-backed backend"
+                )
+            current_field = state.next_temp("field.current")
+            current_value = state.next_temp("field.current.num")
+            state.instructions.extend(
+                [
+                    f"  {current_field} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 {index_value})",
+                    f"  {current_value} = call double @qk_parse_number_text(ptr {current_field})",
+                ]
+            )
             numeric_value = lower_runtime_numeric_expression(expression.value, state)
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
             state.instructions.append(
                 f"  call void @qk_set_field_number(ptr {state.runtime_param}, i64 {index_value}, double {numeric_value})"
             )
@@ -2028,26 +2070,44 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
             assert state.runtime_param is not None
             array_name_ptr = lower_runtime_constant_string(name, state)
             key_ptr = lower_runtime_array_subscripts(subscripts, state)
-            if runtime_assignment_preserves_string(expression.value, state):
-                raise RuntimeError("string-valued array assignment expressions are not supported yet in runtime-backed backend")
+            if expression.op is AssignOp.PLAIN and runtime_assignment_preserves_string(expression.value, state):
+                raise RuntimeError(
+                    "string-valued array assignment expressions are not supported yet in runtime-backed backend"
+                )
+            current_entry = state.next_temp("array.current")
+            current_value = state.next_temp("array.current.num")
+            state.instructions.extend(
+                [
+                    f"  {current_entry} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
+                    f"  {current_value} = call double @qk_parse_number_text(ptr {current_entry})",
+                ]
+            )
             numeric_value = lower_runtime_numeric_expression(expression.value, state)
+            numeric_value = combine_numeric_assignment(current_value, numeric_value)
             state.instructions.append(
                 f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {numeric_value})"
             )
         case NameLValue(name=name):
             if is_reusable_runtime_state_name(name):
-                numeric_value = lower_runtime_numeric_expression(expression.value, state)
                 slot_name = variable_address(name, state)
+                current_value = state.next_temp("state.current")
+                state.instructions.append(f"  {current_value} = load double, ptr {slot_name}")
+                numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                numeric_value = combine_numeric_assignment(current_value, numeric_value)
                 state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
             elif runtime_name_uses_numeric_slot_state(name, state):
-                numeric_value = lower_runtime_numeric_expression(expression.value, state)
                 slot_name = variable_address(name, state)
+                current_value = state.next_temp("state.current")
+                state.instructions.append(f"  {current_value} = load double, ptr {slot_name}")
+                numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                numeric_value = combine_numeric_assignment(current_value, numeric_value)
                 state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
             else:
                 slot_index = runtime_name_slot_index(name, state)
                 scalar_name = lower_runtime_scalar_name(name, state)
                 if (
-                    isinstance(expression.value, NameExpr)
+                    expression.op is AssignOp.PLAIN
+                    and isinstance(expression.value, NameExpr)
                     and runtime_name_uses_scalar_runtime(expression.value.name, state)
                     and not runtime_name_uses_string_slot_runtime(name, state)
                 ):
@@ -2078,7 +2138,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                                 f"ptr {state.runtime_param}, ptr {scalar_name})"
                             )
                         )
-                elif runtime_assignment_preserves_string(expression.value, state):
+                elif expression.op is AssignOp.PLAIN and runtime_assignment_preserves_string(expression.value, state):
                     string_value = lower_runtime_string_expression(expression.value, state)
                     if runtime_name_uses_string_slot_runtime(name, state):
                         assert slot_index is not None
@@ -2086,7 +2146,9 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                             f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
                         )
                         numeric_value = state.next_temp("assign.str.num")
-                        state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                        state.instructions.append(
+                            f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
+                        )
                         state.instructions.append(
                             f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
                         )
@@ -2096,7 +2158,9 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                         )
                         if slot_index is not None:
                             numeric_value = state.next_temp("assign.str.slot")
-                            state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                            state.instructions.append(
+                                f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
+                            )
                             state.instructions.append(
                                 (
                                     f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
@@ -2112,14 +2176,22 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                                 )
                             )
                 else:
-                    numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                    current_value = state.next_temp("scalar.current")
                     if runtime_name_uses_string_slot_runtime(name, state):
                         assert slot_index is not None
                         state.instructions.append(
-                            (
-                                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
-                                f"i64 {slot_index}, double {numeric_value})"
-                            )
+                            f"  {current_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
+                        )
+                    else:
+                        state.instructions.append(
+                            f"  {current_value} = call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {scalar_name})"
+                        )
+                    numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                    numeric_value = combine_numeric_assignment(current_value, numeric_value)
+                    if runtime_name_uses_string_slot_runtime(name, state):
+                        assert slot_index is not None
+                        state.instructions.append(
+                            f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
                         )
                     state.instructions.append(
                         f"  call void @qk_scalar_set_number_inline(ptr {state.runtime_param}, ptr {scalar_name}, double {numeric_value})"
@@ -4004,10 +4076,12 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return True
             case FieldExpr(index=index):
                 return isinstance(index, int) or supports_numeric_expression(index)
-            case AssignExpr(op=AssignOp.PLAIN, target=target, value=value):
+            case AssignExpr(op=op, target=target, value=value):
                 match target:
                     case NameLValue() | FieldLValue():
-                        return supports_numeric_expression(value) or supports_string_expression(value)
+                        if op is AssignOp.PLAIN:
+                            return supports_numeric_expression(value) or supports_string_expression(value)
+                        return supports_numeric_expression(value)
                     case ArrayLValue(subscripts=subscripts):
                         return all(supports_array_key(subscript) for subscript in subscripts) and supports_numeric_expression(
                             value
@@ -4274,6 +4348,42 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 )
             case FieldExpr(index=index):
                 return not isinstance(index, int) and expression_contains_runtime_builtin(index)
+            case _:
+                return False
+
+    def expression_contains_compound_assignment(expression: Expr) -> bool:
+        match expression:
+            case AssignExpr(op=op, target=target, value=value):
+                if op is not AssignOp.PLAIN:
+                    return True
+                match target:
+                    case ArrayLValue(subscripts=subscripts):
+                        if any(expression_contains_compound_assignment(subscript) for subscript in subscripts):
+                            return True
+                    case FieldLValue(index=index):
+                        if expression_contains_compound_assignment(index):
+                            return True
+                return expression_contains_compound_assignment(value)
+            case BinaryExpr(left=left, right=right):
+                return expression_contains_compound_assignment(left) or expression_contains_compound_assignment(right)
+            case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
+                return expression_contains_compound_assignment(operand)
+            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
+                return (
+                    expression_contains_compound_assignment(test)
+                    or expression_contains_compound_assignment(if_true)
+                    or expression_contains_compound_assignment(if_false)
+                )
+            case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
+                return expression_contains_compound_assignment(index) or any(
+                    expression_contains_compound_assignment(extra_index) for extra_index in extra_indexes
+                )
+            case FieldExpr(index=index):
+                return not isinstance(index, int) and expression_contains_compound_assignment(index)
+            case CallExpr(args=args):
+                return any(expression_contains_compound_assignment(argument) for argument in args)
+            case GetlineExpr(source=source):
+                return source is not None and expression_contains_compound_assignment(source)
             case _:
                 return False
 
@@ -4549,6 +4659,59 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case _:
                 return False
 
+    def statement_contains_compound_assignment(statement: Stmt) -> bool:
+        match statement:
+            case AssignStmt(value=value):
+                if expression_contains_compound_assignment(value):
+                    return True
+                match statement.target:
+                    case ArrayLValue(subscripts=subscripts):
+                        return any(expression_contains_compound_assignment(subscript) for subscript in subscripts)
+                    case FieldLValue(index=index):
+                        return expression_contains_compound_assignment(index)
+                    case _:
+                        return False
+            case BlockStmt(statements=statements):
+                return any(statement_contains_compound_assignment(nested) for nested in statements)
+            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
+                return (
+                    expression_contains_compound_assignment(condition)
+                    or statement_contains_compound_assignment(then_branch)
+                    or (else_branch is not None and statement_contains_compound_assignment(else_branch))
+                )
+            case WhileStmt(condition=condition, body=body):
+                return expression_contains_compound_assignment(condition) or statement_contains_compound_assignment(body)
+            case DoWhileStmt(body=body, condition=condition):
+                return statement_contains_compound_assignment(body) or expression_contains_compound_assignment(condition)
+            case PrintStmt(arguments=arguments, redirect=redirect):
+                return any(expression_contains_compound_assignment(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_compound_assignment(redirect.target)
+                )
+            case PrintfStmt(arguments=arguments, redirect=redirect):
+                return any(expression_contains_compound_assignment(argument) for argument in arguments) or (
+                    redirect is not None and expression_contains_compound_assignment(redirect.target)
+                )
+            case ExprStmt(value=value):
+                return expression_contains_compound_assignment(value)
+            case ExitStmt(value=value) | ReturnStmt(value=value):
+                return value is not None and expression_contains_compound_assignment(value)
+            case ForStmt(init=init, condition=condition, update=update, body=body):
+                return (
+                    any(expression_contains_compound_assignment(expression) for expression in init)
+                    or (condition is not None and expression_contains_compound_assignment(condition))
+                    or any(expression_contains_compound_assignment(expression) for expression in update)
+                    or statement_contains_compound_assignment(body)
+                )
+            case ForInStmt(iterable=iterable, body=body):
+                return expression_contains_compound_assignment(iterable) or statement_contains_compound_assignment(body)
+            case DeleteStmt(index=index, extra_indexes=extra_indexes):
+                return (
+                    (index is not None and expression_contains_compound_assignment(index))
+                    or any(expression_contains_compound_assignment(extra_index) for extra_index in extra_indexes)
+                )
+            case _:
+                return False
+
     found_supported_runtime_feature = False
     for item in program.items:
         if isinstance(item, FunctionDef):
@@ -4576,6 +4739,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
         if isinstance(item.pattern, ExprPattern) and not isinstance(item.pattern.test, RegexLiteralExpr):
             found_supported_runtime_feature = True
         for statement in item.action.statements:
+            if statement_contains_compound_assignment(statement):
+                found_supported_runtime_feature = True
             if isinstance(statement, PrintfStmt):
                 found_supported_runtime_feature = True
             if isinstance(statement, AssignStmt) and statement.field_index is not None:

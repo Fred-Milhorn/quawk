@@ -17,7 +17,7 @@ implementation or an explicit contract decision.
 
 | Gap | Current state | T-272 classification | Notes | Follow-on |
 |---|---|---|---|---|
-| Compound assignment | parser-admitted, not yet claimed end to end | POSIX-required | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are ordinary AWK assignment forms and remain the only checked-in product-side execution gap that T-272 classifies as required for the POSIX contract. | `T-274` |
+| Compound assignment | implemented | POSIX-required, closed by `T-274` | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are ordinary AWK assignment forms and are now part of the checked-in product-side contract. | none |
 | Non-name `for (k in ...)` iterables | parser-admitted | intentionally out of contract | AWK arrays are not first-class values; iterable expressions beyond a plain array name are parser breadth rather than POSIX surface. | `T-275` |
 | Non-name right-hand sides for `expr in array` | parser-admitted | intentionally out of contract | Like `for ... in`, membership against anything other than a plain array name is extension-like parser breadth rather than a POSIX requirement. | `T-275` |
 | Non-name `split()` targets | parser-admitted | intentionally out of contract | Forms like `split($0, a[i])` or `split($0, $1)` are not part of the intended POSIX contract because AWK array targets are not first-class expression values. | `T-275` |
@@ -31,7 +31,7 @@ implementation or an explicit contract decision.
 
 The checked-in product-side classification baseline is now:
 
-- compound assignment is the only remaining POSIX-required execution gap
+- compound assignment has been closed and is now part of the checked-in product-side contract
 - non-name array-target forms and extra top-level item shapes are intentionally
   out of contract rather than future public widening targets
 - broader `sub()` / `gsub()` targets split into:
@@ -41,6 +41,12 @@ The checked-in product-side classification baseline is now:
   remaining POSIX-required work
 - the narrow direct-function execution lane is internal debt, not a public
   contract promise
+
+## T-274 Result
+
+Compound assignment is now implemented end to end for the current public
+execution and inspection paths. The remaining P31 work continues with
+`T-275` and later buckets.
 
 ## Compatibility Corroboration Gaps
 

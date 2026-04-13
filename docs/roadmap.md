@@ -739,13 +739,12 @@ Current state:
 - `T-271` closes the grammar-contract audit and confirms the documented
   admitted surface matches backend execution and inspection support
 - `T-272` classifies the remaining product-side gaps: compound assignment is
-  the only checked-in POSIX-required execution gap; non-name array-target
-  forms and extra top-level item shapes are intentionally out of contract;
-  broader substitution targets split between POSIX-required array-element
-  lvalues and out-of-contract non-lvalue expressions; builtin names beyond the
-  current subset are not currently treated as remaining POSIX-required work;
-  and the narrow direct-function lane is internal debt rather than public
-  surface
+  closed; the remaining product-side gaps are non-name array-target forms and
+  extra top-level item shapes that are intentionally out of contract, broader
+  substitution targets split between POSIX-required array-element lvalues and
+  out-of-contract non-lvalue expressions, builtin names beyond the current
+  subset that are not currently treated as remaining POSIX-required work, and
+  the narrow direct-function lane as internal debt rather than public surface
 - `T-273` rebaselines the public contract docs so `SPEC.md`,
   `docs/design.md`, and the roadmap name those remaining product-side gaps
   explicitly instead of relying on vague "broader corners" wording
@@ -761,8 +760,8 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-274`: implement compound assignment end to end through public execution
-  and inspection
+- `T-274`: compound assignment end to end through public execution and
+  inspection
 - `T-275`: decide and implement contract treatment for parser-admitted
   non-name array-target forms
 - `T-276`: decide and implement contract treatment for broader `sub()` /
@@ -1051,7 +1050,7 @@ Priority values:
 | T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |
 | T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |
 | T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | done |
-| T-274 | P31 | P0 | Implement compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | todo |
+| T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |
 | T-275 | P31 | P1 | Decide and implement contract treatment for parser-admitted non-name array-target forms | T-272 | Non-name `for ... in`, non-name RHS `in`, and non-name `split()` target forms are either lowered intentionally or documented and rejected as explicit out-of-contract forms | todo |
 | T-276 | P31 | P1 | Decide and implement contract treatment for broader `sub()` / `gsub()` targets and builtin names beyond the current subset | T-272 | Remaining substitution-target and builtin-name gaps are either lowered intentionally or documented as explicit out-of-contract or extension work | todo |
 | T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs no longer need a separate restricted direct-function lowering route, or the remaining lane is documented as non-contract internal debt with explicit tests | todo |

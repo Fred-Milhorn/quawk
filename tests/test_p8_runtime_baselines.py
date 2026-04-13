@@ -397,6 +397,16 @@ def test_compound_assignments_execute_in_runtime_backed_programs() -> None:
     assert result.stderr == ""
 
 
+def test_compound_assignment_expressions_execute_in_runtime_backed_programs() -> None:
+    result = run_quawk(
+        'BEGIN { x = 1; print (x += 2); print (x -= 1); print (x *= 4); print (x /= 2); print (x %= 3); print (x ^= 3); print x }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "3\n2\n8\n4\n1\n1\n1\n"
+    assert result.stderr == ""
+
+
 def test_numeric_begin_field_zero_assignment_initializes_the_current_record() -> None:
     result = run_quawk("BEGIN { $0 = 1; print $1 }")
 

@@ -913,6 +913,22 @@ def test_quawk_ir_flag_prints_backend_ir_for_runtime_compound_assignment_program
     assert result.stderr == ""
 
 
+def test_quawk_ir_flag_prints_backend_ir_for_compound_assignment_expressions() -> None:
+    result = run_quawk(
+        "--ir",
+        'BEGIN { x = 1; print (x += 2); print (x -= 1); print (x *= 4); print (x /= 2); print (x %= 3); print (x ^= 3) }',
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "fadd double" in result.stdout
+    assert "fsub double" in result.stdout
+    assert "fmul double" in result.stdout
+    assert "fdiv double" in result.stdout
+    assert "@llvm.trunc.f64" in result.stdout
+    assert "@llvm.pow.f64" in result.stdout
+    assert result.stderr == ""
+
+
 def test_quawk_supports_runtime_compound_assignment_and_concat_comparison_programs() -> None:
     result = run_quawk(
         '{ total += $2; $2 /= 1000; print ($1 "" == $1 ""); print $2; print total }',
