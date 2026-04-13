@@ -52,5 +52,8 @@ def test_t266_plan_and_roadmap_point_to_the_checked_in_baseline() -> None:
     assert "| T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | done |" in roadmap_text
     assert "| T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | done |" in roadmap_text
     assert "| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |" in roadmap_text
-    assert "P30 is complete. No immediate next tasks remain." in roadmap_text
+    assert "| P31 | Remaining POSIX Contract Closure |" in roadmap_text
+    assert "| P32 | Final POSIX Compatibility Corroboration |" in roadmap_text
+    assert "`T-272`: baseline the remaining product-side gaps" in roadmap_text
+    assert "`T-279`: baseline the remaining compatibility-corroboration-only gaps" in roadmap_text
     assert "T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface" in (ROOT / "docs" / "design.md").read_text(encoding="utf-8")

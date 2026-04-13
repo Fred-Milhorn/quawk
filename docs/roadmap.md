@@ -50,6 +50,8 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P28 | LLVM Optimization Integration | Optional optimization passes for generated IR to enable constant folding and register allocation |
 | P29 | Runtime ABI Refinement | Direct-call convention improvements for hot paths to reduce function call overhead |
 | P30 | Execution Completeness Closure | The remaining grammar-valid backend gaps are closed so admitted forms execute end-to-end through the compiled backend/runtime path |
+| P31 | Remaining POSIX Contract Closure | The remaining product-side execution and contract gaps are classified explicitly and closed where they are POSIX-required |
+| P32 | Final POSIX Compatibility Corroboration | The remaining reviewed upstream anchors and reference-policy gaps are closed for the implemented POSIX surface |
 
 ## Phase Entry and Exit Rules
 
@@ -645,12 +647,58 @@ Exit criteria:
 - parseable-but-not-lowerable admitted forms are eliminated from the checked-in
   grammar contract
 
+### P31: Remaining POSIX Contract Closure
+
+Objective:
+- turn the remaining product-side end-to-end gaps into an explicit POSIX
+  closure wave instead of leaving them under vague "broader corners" wording
+
+In scope:
+- baseline the remaining parser-admitted product gaps with POSIX-vs-extension
+  classification
+- implement remaining POSIX-required forms such as compound assignment if they
+  stay in the public contract
+- decide contract treatment for non-name array-target forms, broader
+  substitution targets, and builtin names outside the current subset
+- retire or narrow the direct-function special execution lane
+- implementation details live in
+  [remaining-posix-compatibility-plan.md](plans/remaining-posix-compatibility-plan.md)
+
+Exit criteria:
+- the remaining product-side gaps are explicitly classified as POSIX-required,
+  extension-only, or intentionally out of contract
+- any remaining POSIX-required gaps execute through ordinary public `quawk`
+  plus `--ir` and `--asm`
+- the direct-function special lane is no longer required for claimed behavior,
+  or is documented as non-contract internal debt with explicit tests
+
+### P32: Final POSIX Compatibility Corroboration
+
+Objective:
+- finish the remaining upstream-corroboration and reviewed-skip cleanup for the
+  implemented POSIX surface
+
+In scope:
+- re-audit field-rebuild corroboration anchors
+- resolve the reviewed record-target `gsub` skip
+- resolve the `rand()` corroboration or reference-disagreement policy
+- complete the final compatibility stop-line audit
+- implementation details live in
+  [remaining-posix-compatibility-plan.md](plans/remaining-posix-compatibility-plan.md)
+
+Exit criteria:
+- no stale reviewed compatibility anchors remain for implemented POSIX
+  families
+- any remaining upstream disagreement is explicitly classified
+- `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap
+  agree on the final implemented POSIX surface
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-P29 is complete. The next execution-model correction wave is P30: execution
-completeness closure for the remaining grammar-valid backend gaps.
+P30 is complete. The next product wave is `P31`, followed by the final
+corroboration cleanup in `P32`.
 
 Current state:
 - `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
@@ -690,16 +738,25 @@ Current state:
 - `T-270` closes dynamic `printf` lowering and runtime support
 - `T-271` closes the grammar-contract audit and confirms the documented
   admitted surface matches backend execution and inspection support
+- the remaining work now splits into a product-side contract-closure wave and a
+  final compatibility-corroboration wave
 - the remaining parser/backend mismatch is now treated as explicit
   execution-completeness debt rather than an acceptable parse-only surface
 - detailed bucketed follow-up planning lives in
   [execution-completeness-plan.md](plans/execution-completeness-plan.md)
+- the explicit post-`P30` POSIX gap inventory and phase plan now live in
+  [remaining-posix-compatibility-plan.md](plans/remaining-posix-compatibility-plan.md)
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-
-P30 is complete. No immediate next tasks remain.
+- `T-272`: baseline the remaining product-side gaps and classify them as
+  POSIX-required, extension-only, or intentionally out of contract
+- `T-273`: rebaseline the public contract docs so the remaining gaps are
+  explicit
+- `T-274`: implement compound assignment end to end through public execution
+  and inspection
+- `T-279`: baseline the remaining compatibility-corroboration-only gaps
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -979,6 +1036,18 @@ Priority values:
 | T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | done |
 | T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | done |
 | T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |
+| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | todo |
+| T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | todo |
+| T-274 | P31 | P0 | Implement compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | todo |
+| T-275 | P31 | P1 | Decide and implement contract treatment for parser-admitted non-name array-target forms | T-272 | Non-name `for ... in`, non-name RHS `in`, and non-name `split()` target forms are either lowered intentionally or documented and rejected as explicit out-of-contract forms | todo |
+| T-276 | P31 | P1 | Decide and implement contract treatment for broader `sub()` / `gsub()` targets and builtin names beyond the current subset | T-272 | Remaining substitution-target and builtin-name gaps are either lowered intentionally or documented as explicit out-of-contract or extension work | todo |
+| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs no longer need a separate restricted direct-function lowering route, or the remaining lane is documented as non-contract internal debt with explicit tests | todo |
+| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree on the remaining admitted versus intentionally out-of-contract surface | todo |
+| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | todo |
+| T-280 | P32 | P0 | Re-audit and resolve the field-rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | todo |
+| T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The narrower reviewed `gsub` skip is either fixed end to end or replaced with a precise classified divergence | todo |
+| T-282 | P32 | P1 | Resolve the `rand()` compatibility strategy | T-279 | `rand()` has either a stable corroborating anchor or a checked-in classified reference-disagreement policy | todo |
+| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | todo |
 
 ## Cross-Cutting Tracks
 

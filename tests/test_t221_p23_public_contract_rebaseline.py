@@ -9,7 +9,8 @@ def test_t221_spec_rebaselines_p23_from_unclaimed_to_implemented() -> None:
     spec_text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
 
     assert "| P23 ternary | implemented |" in spec_text
-    assert "pure ternary expressions over the current claimed numeric/string subset" in spec_text
+    assert "ternary expressions over the current claimed numeric/string subset" in spec_text
+    assert "| Remaining parser-admitted execution gaps | planned |" in spec_text
     assert "| P24 match operators and membership | implemented |" in spec_text
     assert "| Backend parity for broader frontend-admitted POSIX forms | partial | Broader frontend-admitted but intentionally unclaimed POSIX corners" in spec_text
 
