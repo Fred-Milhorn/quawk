@@ -13,7 +13,7 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
     assert "Parenthesized array-target wrappers" in spec_text
     assert "Substitution targets" in spec_text
     assert "builtin names beyond the current claimed subset are intentionally out of contract" in spec_text
-    assert "the narrow direct-function lane, which is now retired into the reusable backend path" in spec_text
+    assert "The narrow direct-function lane has been retired into the reusable backend path and is no longer part of the remaining gap inventory." in spec_text
     assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
     assert "field-rebuild corroborating anchors" in spec_text
     assert "record-target `gsub` skip" in spec_text
@@ -34,8 +34,11 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "Parenthesized array-target wrappers for `for ... in`, `expr in array`, and `split()`" in plan_text
     assert "`sub()` / `gsub()` array-element lvalues beyond the current admitted subset" in plan_text
     assert "builtin names beyond the current claimed subset are not part of the product-side contract" in plan_text
-    assert "| Narrow direct-function execution lane | retired | retired into the reusable backend path by `T-277` |" in plan_text
+    assert "| Narrow direct-function execution lane | retired | retired into the reusable backend path by `T-277` | The T-278 re-audit confirms this lane no longer counts as a remaining product-side gap. | none |" in plan_text
     assert "## T-277 Result" in plan_text
+    assert "## T-278 Result" in plan_text
+    assert "The re-audit confirmed that the only remaining product-side gaps are the explicit out-of-contract builtin-name and top-level-item forms." in plan_text
+    assert "The remaining P31 work continues with `T-279` and later buckets." in plan_text
     assert "Field-rebuild corroboration re-audit" in plan_text
     assert "Record-target `gsub` reviewed skip" in plan_text
     assert "`rand()` corroboration strategy" in plan_text
@@ -49,6 +52,6 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
     assert "| T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |" in roadmap_text
     assert "| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs now use the reusable backend lowering path and the separate restricted direct-function route is retired | done |" in roadmap_text
-    assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree on the remaining admitted versus intentionally out-of-contract surface | todo |" in roadmap_text
+    assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |" in roadmap_text
     assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 |" in roadmap_text
     assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text

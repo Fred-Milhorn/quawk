@@ -18,7 +18,7 @@ def test_t273_spec_and_design_name_the_remaining_product_gaps_explicitly() -> No
     assert "parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions" in design_text
     assert "substitution targets on scalar variables, fields, and multi-subscript array elements" in design_text
     assert "compound assignment expressions" in design_text
-    assert "the remaining unclaimed product-side forms that can still fail inspection are the explicit T-272 list above" in design_text
+    assert "the T-278 re-audit confirmed that the only remaining product-side forms outside the contract are the explicit top-level-item and builtin-name exclusions above" in design_text
 
 
 def test_t273_roadmap_records_the_contract_rebaseline() -> None:
@@ -29,3 +29,4 @@ def test_t273_roadmap_records_the_contract_rebaseline() -> None:
     assert "| T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
     assert "| T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
     assert "| T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |" in roadmap_text
+    assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |" in roadmap_text

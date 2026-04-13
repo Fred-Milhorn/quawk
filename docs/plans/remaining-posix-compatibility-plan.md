@@ -22,7 +22,7 @@ implementation or an explicit contract decision.
 | `sub()` / `gsub()` array-element lvalues beyond the current admitted subset | implemented | POSIX-required, closed by `T-276` | Scalar variables, fields, and multi-subscript array-element lvalues now work as substitution targets. | none |
 | Builtin names beyond the current claimed subset | unsupported | extension-only or intentionally out of contract | The checked-in builtin subset is the full current POSIX builtin claim. Names beyond that subset are not part of the product-side contract. | none |
 | Top-level items outside `PatternAction` / `FunctionDef` | parser-admitted | intentionally out of contract | These are generic parser shapes, not part of the intended AWK program contract. | `T-273` |
-| Narrow direct-function execution lane | retired | retired into the reusable backend path by `T-277` | Claimed function programs now use the reusable backend lowering path, so the separate restricted lane is no longer public surface. | none |
+| Narrow direct-function execution lane | retired | retired into the reusable backend path by `T-277` | The T-278 re-audit confirms this lane no longer counts as a remaining product-side gap. | none |
 
 ## T-272 Baseline Result
 
@@ -58,13 +58,21 @@ Substitution targets on scalar variables, fields, and multi-subscript array
 elements are now implemented end to end for the current public execution and
 inspection paths. Builtin names beyond the current claimed subset remain
 explicitly out of contract rather than remaining POSIX-required work. The
-remaining P31 work continues with `T-278` and later buckets.
+remaining P31 work continues with `T-279` and later buckets.
 
 ## T-277 Result
 
 The narrow direct-function execution lane is now collapsed into the reusable
 backend path. Claimed function programs no longer need a separate restricted
 lowering route for public execution or inspection.
+
+## T-278 Result
+
+The re-audit confirmed that the only remaining product-side gaps are the
+explicit out-of-contract builtin-name and top-level-item forms. The narrow
+direct-function execution lane is retired into the reusable backend path and
+no longer belongs in the remaining gap inventory. The remaining P31 work
+continues with `T-279` and later buckets.
 
 ## Compatibility Corroboration Gaps
 
