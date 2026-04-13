@@ -1,7 +1,7 @@
 id = "for_expr_list_loop"
-description = "Classic for loops accept expression lists in init and update positions."
+description = "Classic for loops accept comma-operator expressions in init and update positions."
 program = "program.awk"
-tags = ["supported", "loops", "p10", "extension"]
+tags = ["supported", "loops", "p10", "posix"]
 
 [expect]
 stdout = "expected.stdout"

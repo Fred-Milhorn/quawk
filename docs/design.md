@@ -214,7 +214,7 @@ Current public execution surface:
 - scalar and associative-array execution with AWK-style unset-value behavior and string/number coercions
 - bare `print`, single-argument `print`, multi-argument `print`, `printf`, `OFS` / `ORS`-driven print output, `OFMT` / `CONVFMT` formatting control, and `print` / `printf` output redirection with `close()`
 - field reads, dynamic field assignment, `getline`, and builtin variables such as `NR`, `FNR`, `NF`, `FILENAME`, `ARGC`, `ARGV`, `ENVIRON`, `SUBSEP`, `OFS`, `ORS`, `OFMT`, `CONVFMT`, `RSTART`, and `RLENGTH`
-- `if` / `else`, `while`, `do ... while`, classic `for` with expression-list init/update, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
+- `if` / `else`, `while`, `do ... while`, classic `for` with comma-operator init/update expressions, `for ... in`, `break`, `continue`, `next`, `nextfile`, and `exit`
 - parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions
 - substitution targets on scalar variables, fields, and multi-subscript array elements
 - the currently claimed expression subset: `+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, `~`, `!~`, pure ternary expressions over the current claimed numeric/string subset, `in`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, plain assignment expressions, and compound assignment expressions

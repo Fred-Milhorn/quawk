@@ -36,12 +36,12 @@ Evidence:
 | Regex-driven selection | implemented | Public execution and parser support are present. |
 | Default-print pattern rules | implemented | Bare range/expression patterns print matching records within the currently claimed expression subset. |
 | Scalar variables and assignment | implemented | Plain scalar assignment, assignment expressions, and compound-assignment expressions are part of the current AOT-backed contract. |
-| Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also documents a parenthesized `for ... in` iterable extension in the compatibility corpus. |
+| Associative arrays | implemented | Indexed read/write, delete, `length(array)`, `for ... in`. Quawk also supports a parenthesized `for ... in` iterable form in the compatibility corpus. |
 | Parenthesized array-target wrappers | implemented | Parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions execute through the current AOT-backed contract. |
 | Substitution targets | implemented | `sub()` / `gsub()` now accept scalar variables, fields, and multi-subscript array-element lvalues as assignable targets. |
 | Fields | implemented | Basic `$0`, `$n`, and dynamic field reads and assignment are part of the current claimed surface. |
 | Repeated `$0` reassignment and field rebuild | implemented | Direct tests now cover the remaining `p.35` / `t.NF` style rebuild shapes after `NF` and field mutation. The next step is corroborating-anchor re-audit, not a known product mismatch. |
-| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for`, `break`, `continue` within the currently claimed expression subset. Quawk also documents expression-list `for` loops as a compatibility-tracked extension. |
+| Control flow | implemented | `if`, `else`, `while`, `do ... while`, classic `for` with comma-operator init/update expressions, `break`, and `continue` within the currently claimed expression subset. |
 | Record control | implemented | `next`, `nextfile`, `exit`. |
 | Expressions | partial | The currently claimed AOT-backed subset includes `+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`, `~`, `!~`, ternary expressions over the current claimed numeric/string subset, `in`, concatenation, unary `+`/`-`/`!`, pre/post increment and decrement, plain assignment expressions, and compound assignment expressions. Broader parser-admitted corners still remain intentionally outside the current claim, and the remaining-gap rows below now cover the substitution, builtin-name, and top-level-item forms. |
 | Remaining parser-admitted execution gaps | planned | The remaining product-side end-to-end gaps are now explicit: top-level items outside `PatternAction` / `FunctionDef`, and retirement of the narrow direct-function execution lane. |
