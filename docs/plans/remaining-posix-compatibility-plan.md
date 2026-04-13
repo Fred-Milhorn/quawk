@@ -18,9 +18,7 @@ implementation or an explicit contract decision.
 | Gap | Current state | T-272 classification | Notes | Follow-on |
 |---|---|---|---|---|
 | Compound assignment | implemented | POSIX-required, closed by `T-274` | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are ordinary AWK assignment forms and are now part of the checked-in product-side contract. | none |
-| Non-name `for (k in ...)` iterables | parser-admitted | intentionally out of contract | AWK arrays are not first-class values; iterable expressions beyond a plain array name are parser breadth rather than POSIX surface. | `T-275` |
-| Non-name right-hand sides for `expr in array` | parser-admitted | intentionally out of contract | Like `for ... in`, membership against anything other than a plain array name is extension-like parser breadth rather than a POSIX requirement. | `T-275` |
-| Non-name `split()` targets | parser-admitted | intentionally out of contract | Forms like `split($0, a[i])` or `split($0, $1)` are not part of the intended POSIX contract because AWK array targets are not first-class expression values. | `T-275` |
+| Parenthesized array-target wrappers for `for ... in`, `expr in array`, and `split()` | implemented | POSIX-required, closed by `T-275` | Parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions are now part of the checked-in product-side contract. | none |
 | `sub()` / `gsub()` array-element lvalues beyond the current admitted subset | partially admitted | POSIX-required | Scalar variables, fields, and one-subscript array elements already work. Multi-subscript array-element lvalues should be treated as ordinary AWK lvalues rather than permanent exclusions. | `T-276` |
 | `sub()` / `gsub()` non-lvalue expression targets | parser-admitted | intentionally out of contract | Calls such as `sub(/a/, \"b\", expr())` should fail clearly rather than remain parse-only because they do not name an assignable AWK target. | `T-276` |
 | Builtin names beyond the current claimed subset | unsupported | extension-only or intentionally out of contract | The checked-in builtin subset is the full current POSIX builtin claim. T-272 does not identify any remaining builtin names as POSIX-required product work. | `T-276` |
@@ -32,8 +30,9 @@ implementation or an explicit contract decision.
 The checked-in product-side classification baseline is now:
 
 - compound assignment has been closed and is now part of the checked-in product-side contract
-- non-name array-target forms and extra top-level item shapes are intentionally
-  out of contract rather than future public widening targets
+- parenthesized array-target wrappers are now part of the checked-in contract
+- extra top-level item shapes are intentionally out of contract rather than
+  future public widening targets
 - broader `sub()` / `gsub()` targets split into:
   - POSIX-required array-element lvalues
   - intentionally out-of-contract non-lvalue expressions
@@ -47,6 +46,13 @@ The checked-in product-side classification baseline is now:
 Compound assignment is now implemented end to end for the current public
 execution and inspection paths. The remaining P31 work continues with
 `T-275` and later buckets.
+
+## T-275 Result
+
+Parenthesized array-target wrappers in `for ... in`, `expr in array`, and
+`split()` target positions are now implemented end to end for the current
+public execution and inspection paths. The remaining P31 work continues with
+`T-276` and later buckets.
 
 ## Compatibility Corroboration Gaps
 

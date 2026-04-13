@@ -760,10 +760,6 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-274`: compound assignment end to end through public execution and
-  inspection
-- `T-275`: decide and implement contract treatment for parser-admitted
-  non-name array-target forms
 - `T-276`: decide and implement contract treatment for broader `sub()` /
   `gsub()` targets and builtin names beyond the current subset
 - `T-277`: retire or collapse the narrow direct-function execution lane
@@ -1051,7 +1047,7 @@ Priority values:
 | T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |
 | T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | done |
 | T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |
-| T-275 | P31 | P1 | Decide and implement contract treatment for parser-admitted non-name array-target forms | T-272 | Non-name `for ... in`, non-name RHS `in`, and non-name `split()` target forms are either lowered intentionally or documented and rejected as explicit out-of-contract forms | todo |
+| T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |
 | T-276 | P31 | P1 | Decide and implement contract treatment for broader `sub()` / `gsub()` targets and builtin names beyond the current subset | T-272 | Remaining substitution-target and builtin-name gaps are either lowered intentionally or documented as explicit out-of-contract or extension work | todo |
 | T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs no longer need a separate restricted direct-function lowering route, or the remaining lane is documented as non-contract internal debt with explicit tests | todo |
 | T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree on the remaining admitted versus intentionally out-of-contract surface | todo |

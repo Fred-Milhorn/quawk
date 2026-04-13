@@ -19,7 +19,7 @@ def test_t217_design_and_posix_record_the_widened_p22_claim() -> None:
     posix_text = (ROOT / "POSIX.md").read_text(encoding="utf-8")
 
     assert "`+`, `-`, `*`, `/`, `%`, `^`, `<`, `<=`, `>`, `>=`, `==`, `!=`, `&&`, `||`" in design_text
-    assert "compound assignment; non-name iterable or RHS forms for `for ... in` and `in`" in design_text
+    assert "parenthesized array-name wrappers in `for ... in`, `expr in array`, and `split()` target positions" in design_text
     assert "### T-217 P22 Public-Contract Rebaseline Result" in posix_text
     assert "the roadmap now treats `P22` as complete and moves the next deliverable to" in posix_text
 
