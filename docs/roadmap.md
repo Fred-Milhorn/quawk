@@ -738,6 +738,14 @@ Current state:
 - `T-270` closes dynamic `printf` lowering and runtime support
 - `T-271` closes the grammar-contract audit and confirms the documented
   admitted surface matches backend execution and inspection support
+- `T-272` classifies the remaining product-side gaps: compound assignment is
+  the only checked-in POSIX-required execution gap; non-name array-target
+  forms and extra top-level item shapes are intentionally out of contract;
+  broader substitution targets split between POSIX-required array-element
+  lvalues and out-of-contract non-lvalue expressions; builtin names beyond the
+  current subset are not currently treated as remaining POSIX-required work;
+  and the narrow direct-function lane is internal debt rather than public
+  surface
 - the remaining work now splits into a product-side contract-closure wave and a
   final compatibility-corroboration wave
 - the remaining parser/backend mismatch is now treated as explicit
@@ -750,8 +758,6 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-272`: baseline the remaining product-side gaps and classify them as
-  POSIX-required, extension-only, or intentionally out of contract
 - `T-273`: rebaseline the public contract docs so the remaining gaps are
   explicit
 - `T-274`: implement compound assignment end to end through public execution
@@ -1042,7 +1048,7 @@ Priority values:
 | T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | done |
 | T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | done |
 | T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |
-| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | todo |
+| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |
 | T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | todo |
 | T-274 | P31 | P0 | Implement compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | todo |
 | T-275 | P31 | P1 | Decide and implement contract treatment for parser-admitted non-name array-target forms | T-272 | Non-name `for ... in`, non-name RHS `in`, and non-name `split()` target forms are either lowered intentionally or documented and rejected as explicit out-of-contract forms | todo |

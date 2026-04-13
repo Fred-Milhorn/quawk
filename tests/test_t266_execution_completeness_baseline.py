@@ -54,7 +54,7 @@ def test_t266_plan_and_roadmap_point_to_the_checked_in_baseline() -> None:
     assert "| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |" in roadmap_text
     assert "| P31 | Remaining POSIX Contract Closure |" in roadmap_text
     assert "| P32 | Final POSIX Compatibility Corroboration |" in roadmap_text
-    assert "`T-272`: baseline the remaining product-side gaps" in roadmap_text
+    assert "| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |" in roadmap_text
     assert "`T-275`: decide and implement contract treatment for parser-admitted" in roadmap_text
     assert "`T-278`: re-audit the remaining product-side admitted surface" in roadmap_text
     assert "T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface" in (ROOT / "docs" / "design.md").read_text(encoding="utf-8")

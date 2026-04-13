@@ -15,16 +15,32 @@ The main split is:
 These are the remaining end-to-end product items that still need either
 implementation or an explicit contract decision.
 
-| Gap | Current state | POSIX-required | Notes |
-|---|---|---|---|
-| Compound assignment | parser-admitted, not yet claimed end to end | yes | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are still outside the claimed backend/runtime contract. |
-| Non-name `for (k in ...)` iterables | parser-admitted, out of contract | no | AWK arrays are not first-class values; this is extension-like surface admitted by the generic parser shape. |
-| Non-name right-hand sides for `expr in array` | parser-admitted, out of contract | no | Like `for ... in`, this is an extension-like shape rather than a POSIX requirement. |
-| Non-name `split()` targets | parser-admitted, out of contract | no | Forms like `split($0, a[i])` or `split($0, $1)` still need an explicit contract decision. |
-| Broader `sub()` / `gsub()` targets | partially admitted, out of contract | mixed | Scalar, field, and one-subscript array targets work; broader target shapes still need classification. |
-| Builtin names beyond the current claimed subset | unsupported | mixed | Remaining names must be classified as POSIX-required, extension, or intentionally unsupported. |
-| Top-level items outside `PatternAction` / `FunctionDef` | parser-admitted, out of contract | no | These are not part of the intended AWK program contract. |
-| Narrow direct-function execution lane | internal technical debt | n/a | Claimed function programs should not need a separate restricted lowering route long term. |
+| Gap | Current state | T-272 classification | Notes | Follow-on |
+|---|---|---|---|---|
+| Compound assignment | parser-admitted, not yet claimed end to end | POSIX-required | `+=`, `-=`, `*=`, `/=`, `%=` and `^=` are ordinary AWK assignment forms and remain the only checked-in product-side execution gap that T-272 classifies as required for the POSIX contract. | `T-274` |
+| Non-name `for (k in ...)` iterables | parser-admitted | intentionally out of contract | AWK arrays are not first-class values; iterable expressions beyond a plain array name are parser breadth rather than POSIX surface. | `T-275` |
+| Non-name right-hand sides for `expr in array` | parser-admitted | intentionally out of contract | Like `for ... in`, membership against anything other than a plain array name is extension-like parser breadth rather than a POSIX requirement. | `T-275` |
+| Non-name `split()` targets | parser-admitted | intentionally out of contract | Forms like `split($0, a[i])` or `split($0, $1)` are not part of the intended POSIX contract because AWK array targets are not first-class expression values. | `T-275` |
+| `sub()` / `gsub()` array-element lvalues beyond the current admitted subset | partially admitted | POSIX-required | Scalar variables, fields, and one-subscript array elements already work. Multi-subscript array-element lvalues should be treated as ordinary AWK lvalues rather than permanent exclusions. | `T-276` |
+| `sub()` / `gsub()` non-lvalue expression targets | parser-admitted | intentionally out of contract | Calls such as `sub(/a/, \"b\", expr())` should fail clearly rather than remain parse-only because they do not name an assignable AWK target. | `T-276` |
+| Builtin names beyond the current claimed subset | unsupported | extension-only or intentionally out of contract | The checked-in builtin subset is the full current POSIX builtin claim. T-272 does not identify any remaining builtin names as POSIX-required product work. | `T-276` |
+| Top-level items outside `PatternAction` / `FunctionDef` | parser-admitted | intentionally out of contract | These are generic parser shapes, not part of the intended AWK program contract. | `T-273` |
+| Narrow direct-function execution lane | internal technical debt | non-contract internal debt | Claimed function programs should not need a separate restricted lowering route long term. The lane should be retired or documented as internal debt only. | `T-277` |
+
+## T-272 Baseline Result
+
+The checked-in product-side classification baseline is now:
+
+- compound assignment is the only remaining POSIX-required execution gap
+- non-name array-target forms and extra top-level item shapes are intentionally
+  out of contract rather than future public widening targets
+- broader `sub()` / `gsub()` targets split into:
+  - POSIX-required array-element lvalues
+  - intentionally out-of-contract non-lvalue expressions
+- builtin names beyond the current claimed subset are not currently treated as
+  remaining POSIX-required work
+- the narrow direct-function execution lane is internal debt, not a public
+  contract promise
 
 ## Compatibility Corroboration Gaps
 
