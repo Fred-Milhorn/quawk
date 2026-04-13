@@ -55,5 +55,6 @@ def test_t266_plan_and_roadmap_point_to_the_checked_in_baseline() -> None:
     assert "| P31 | Remaining POSIX Contract Closure |" in roadmap_text
     assert "| P32 | Final POSIX Compatibility Corroboration |" in roadmap_text
     assert "`T-272`: baseline the remaining product-side gaps" in roadmap_text
-    assert "`T-279`: baseline the remaining compatibility-corroboration-only gaps" in roadmap_text
+    assert "`T-275`: decide and implement contract treatment for parser-admitted" in roadmap_text
+    assert "`T-278`: re-audit the remaining product-side admitted surface" in roadmap_text
     assert "T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface" in (ROOT / "docs" / "design.md").read_text(encoding="utf-8")

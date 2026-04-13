@@ -756,7 +756,13 @@ Immediate next tasks:
   explicit
 - `T-274`: implement compound assignment end to end through public execution
   and inspection
-- `T-279`: baseline the remaining compatibility-corroboration-only gaps
+- `T-275`: decide and implement contract treatment for parser-admitted
+  non-name array-target forms
+- `T-276`: decide and implement contract treatment for broader `sub()` /
+  `gsub()` targets and builtin names beyond the current subset
+- `T-277`: retire or collapse the narrow direct-function execution lane
+- `T-278`: re-audit the remaining product-side admitted surface after the
+  closure wave
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
