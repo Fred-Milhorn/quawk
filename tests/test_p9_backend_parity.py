@@ -321,7 +321,7 @@ def test_execute_routes_imperative_function_programs_through_backend(monkeypatch
     monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program) == 0
-    assert captured_ir["module"] == "; p9 imperative function module"
+    assert captured_ir["module"] == "; p9 linked imperative function module"
 
 
 def test_execute_routes_length_programs_through_backend(monkeypatch) -> None:

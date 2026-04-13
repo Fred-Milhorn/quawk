@@ -4827,7 +4827,7 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                     or expression_has_host_runtime_only_ops(if_true)
                     or expression_has_host_runtime_only_ops(if_false)
                 )
-            case AssignExpr() | UnaryExpr() | PostfixExpr():
+            case AssignExpr():
                 return True
             case FieldExpr(index=index):
                 if isinstance(index, int):
@@ -4841,6 +4841,7 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                     BinaryOp.DIV,
                     BinaryOp.MOD,
                     BinaryOp.POW,
+                    BinaryOp.CONCAT,
                     BinaryOp.LESS,
                     BinaryOp.LESS_EQUAL,
                     BinaryOp.GREATER,
@@ -4897,8 +4898,8 @@ def has_host_runtime_only_operations(program: Program) -> bool:
                 return any(expression_has_host_runtime_only_ops(argument) for argument in arguments)
             case PrintfStmt():
                 return True
-            case ExprStmt():
-                return True
+            case ExprStmt(value=value):
+                return expression_has_host_runtime_only_ops(value)
             case NextStmt() | NextFileStmt() | ExitStmt():
                 return True
             case ReturnStmt(value=value):

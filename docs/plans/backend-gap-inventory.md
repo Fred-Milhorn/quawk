@@ -34,6 +34,9 @@ The sections below describe the gaps route by route.
 Closed from this inventory:
 
 - runtime-backed imperative function bodies were closed in T-267
+- imperative function bodies that rely on concatenation or postfix increment
+  now route through the runtime-backed backend path and no longer belong in
+  the remaining gap inventory
 - multi-subscript array access was closed in T-268
 - side-effectful ternary branches were closed in T-269
 - dynamic `printf` formats were closed in T-270
