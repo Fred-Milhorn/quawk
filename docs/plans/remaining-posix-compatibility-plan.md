@@ -58,7 +58,7 @@ Substitution targets on scalar variables, fields, and multi-subscript array
 elements are now implemented end to end for the current public execution and
 inspection paths. Builtin names beyond the current claimed subset remain
 explicitly out of contract rather than remaining POSIX-required work. The
-remaining P31 work continues with `T-279` and later buckets.
+remaining P32 work continues with `T-280` and later buckets.
 
 ## T-277 Result
 
@@ -71,8 +71,23 @@ lowering route for public execution or inspection.
 The re-audit confirmed that the only remaining product-side gaps are the
 explicit out-of-contract builtin-name and top-level-item forms. The narrow
 direct-function execution lane is retired into the reusable backend path and
-no longer belongs in the remaining gap inventory. The remaining P31 work
-continues with `T-279` and later buckets.
+no longer belongs in the remaining gap inventory. The remaining P32 work
+continues with `T-280` and later buckets.
+
+## T-279 Baseline Result
+
+The remaining compatibility-only closeout baseline is now explicit:
+
+- field rebuild is already implemented; the remaining work is only to re-audit
+  the reviewed `p.35` / `t.NF` anchors and promote or classify them
+  precisely
+- record-target `gsub` remains a narrower reviewed backend skip rather than a
+  product gap
+- `rand()` remains direct-test-only because the pinned references still
+  disagree on deterministic seeded output
+
+The checked-in baseline now makes those three items the explicit remaining
+corroboration-only gaps for the implemented POSIX surface.
 
 ## Compatibility Corroboration Gaps
 
@@ -81,7 +96,7 @@ credible end-to-end POSIX claim.
 
 | Gap | Current state | Notes |
 |---|---|---|
-| Field-rebuild corroboration re-audit | product behavior implemented | The remaining work is to re-audit the reviewed `p.35` / `t.NF` style anchors and promote or classify them precisely. |
+| Field rebuild corroboration re-audit | product behavior implemented | The remaining work is to re-audit the reviewed `p.35` / `t.NF` style anchors and promote or classify them precisely. |
 | Record-target `gsub` reviewed skip | product note still narrowed | The current contract still mentions a narrower reviewed backend skip that should be either fixed or replaced with a precise classified divergence. |
 | `rand()` corroboration strategy | direct-test-only product coverage | The references disagree on deterministic seeded output, so the final compatibility policy still needs to be made explicit. |
 

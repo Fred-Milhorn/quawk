@@ -679,7 +679,7 @@ Objective:
   implemented POSIX surface
 
 In scope:
-- re-audit field-rebuild corroboration anchors
+- re-audit field rebuild corroboration anchors
 - resolve the reviewed record-target `gsub` skip
 - resolve the `rand()` corroboration or reference-disagreement policy
 - complete the final compatibility stop-line audit
@@ -697,8 +697,8 @@ Exit criteria:
 
 Start here unless priorities change:
 
-P30 is complete. The next product wave is `P31`, followed by the final
-corroboration cleanup in `P32`.
+P30 and P31 are complete. We are currently implementing `P32`, starting with
+the corroboration cleanup tasks after the baseline is in place.
 
 Current state:
 - `T-227` through `T-234` complete: slot allocation pass, `%quawk.state` struct
@@ -763,13 +763,15 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-279`: author the remaining POSIX corroboration-gap baseline
+- `T-280`: Re-audit and resolve the field rebuild corroboration anchors
+- `T-281`: Re-audit and resolve the record-target `gsub` reviewed skip
+- `T-282`: Resolve the `rand()` compatibility strategy
+- `T-283`: Complete the final POSIX end-to-end compatibility audit
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
 - implementation details for all performance phases live in
   [performance-implementation.md](performance-implementation.md)
-
 
 ## Backlog
 
@@ -1050,8 +1052,8 @@ Priority values:
 | T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |
 | T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs now use the reusable backend lowering path and the separate restricted direct-function route is retired | done |
 | T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |
-| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | todo |
-| T-280 | P32 | P0 | Re-audit and resolve the field-rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | todo |
+| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |
+| T-280 | P32 | P0 | Re-audit and resolve the field rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | todo |
 | T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The narrower reviewed `gsub` skip is either fixed end to end or replaced with a precise classified divergence | todo |
 | T-282 | P32 | P1 | Resolve the `rand()` compatibility strategy | T-279 | `rand()` has either a stable corroborating anchor or a checked-in classified reference-disagreement policy | todo |
 | T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | todo |

@@ -732,7 +732,7 @@ Acceptance:
 - the reviewed direct-file anchors `p.5`, `p.5a`, `p.36`, `p.48`, `p.50`,
   `p.51`, and `p.52` are now runnable in the upstream subset because `T-168`
   removed their old separator blocker
-- `p.35` stays reviewed, but its reason is now narrower: a `$0` field-rebuild
+- `p.35` stays reviewed, but its reason is now narrower: a `$0` field rebuild
   formatting mismatch after field mutation, not missing `FS` support
 - the post-`P14` remaining work now starts with bare `length` in `T-170`
 
@@ -1350,6 +1350,20 @@ The backend-only rule remains unchanged for every future widening phase: a form
 does not become claimed until ordinary public execution, `--ir`, and `--asm`
 all stay on the compiled backend/runtime path with no public Python host
 dependency.
+
+### T-279 P32 Corroboration Baseline Result
+
+The remaining POSIX corroboration-only gaps are now explicit:
+
+- field rebuild is already implemented end to end, but the reviewed `p.35` /
+  `t.NF` anchors still need a final corroboration re-audit
+- record-target `gsub` remains a narrower reviewed backend skip rather than a
+  product gap
+- `rand()` remains direct-test-only because the pinned references still
+  disagree on deterministic seeded output
+
+The checked-in P32 baseline now makes those three items the explicit remaining
+corroboration-only gaps for the implemented POSIX surface.
 
 ## Notes
 

@@ -410,3 +410,17 @@ Complete when:
 - the `Definition Of Done` above is satisfied
 - the local corpus is clearly supplemental instead of authoritative
 - the suite can stop expanding without creating compatibility blind spots
+
+## P32 Corroboration Baseline
+
+The remaining POSIX corroboration-only closeout scope is now explicit:
+
+- field rebuild is already implemented, and only the reviewed `p.35` / `t.NF`
+  anchors still need promotion or a narrower explicit rationale
+- record-target `gsub` remains a narrower reviewed backend skip instead of a
+  product gap
+- `rand()` remains direct-test-only because the pinned references still
+  disagree on deterministic seeded output
+
+This is the final stop line for the implemented POSIX surface before the
+remaining corroboration cleanup tasks in `P32`.

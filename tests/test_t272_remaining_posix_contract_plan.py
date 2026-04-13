@@ -15,7 +15,7 @@ def test_t272_spec_records_the_remaining_product_and_corroboration_gaps() -> Non
     assert "builtin names beyond the current claimed subset are intentionally out of contract" in spec_text
     assert "The narrow direct-function lane has been retired into the reusable backend path and is no longer part of the remaining gap inventory." in spec_text
     assert "| Remaining POSIX compatibility corroboration gaps | planned |" in spec_text
-    assert "field-rebuild corroborating anchors" in spec_text
+    assert "field rebuild corroborating anchors" in spec_text
     assert "record-target `gsub` skip" in spec_text
     assert "`rand()` corroboration" in spec_text
 
@@ -38,8 +38,8 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "## T-277 Result" in plan_text
     assert "## T-278 Result" in plan_text
     assert "The re-audit confirmed that the only remaining product-side gaps are the explicit out-of-contract builtin-name and top-level-item forms." in plan_text
-    assert "The remaining P31 work continues with `T-279` and later buckets." in plan_text
-    assert "Field-rebuild corroboration re-audit" in plan_text
+    assert "The remaining P32 work continues with `T-280` and later buckets." in plan_text
+    assert "Field rebuild corroboration re-audit" in plan_text
     assert "Record-target `gsub` reviewed skip" in plan_text
     assert "`rand()` corroboration strategy" in plan_text
 
@@ -53,5 +53,6 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "| T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |" in roadmap_text
     assert "| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs now use the reusable backend lowering path and the separate restricted direct-function route is retired | done |" in roadmap_text
     assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |" in roadmap_text
-    assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 |" in roadmap_text
+    assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |" in roadmap_text
+    assert "| T-280 | P32 | P0 | Re-audit and resolve the field rebuild corroboration anchors | T-279 |" in roadmap_text
     assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text
