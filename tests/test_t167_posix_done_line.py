@@ -11,7 +11,7 @@ def test_t167_spec_tracks_remaining_posix_gap_rows_explicitly() -> None:
     assert "| Repeated `$0` reassignment and field rebuild | implemented |" in spec_text
     assert "| Input separator builtin variables | implemented |" in spec_text
     assert "CLI `-F` plus in-program `FS` / `RS` assignment" in spec_text
-    assert "| Current builtin subset | implemented |" in spec_text
+    assert "| POSIX-standard builtin subset | implemented |" in spec_text
     assert "including bare `length` as POSIX `length($0)`" in spec_text
 
 

@@ -33,7 +33,7 @@ def test_t157_spec_splits_builtin_and_backend_rows() -> None:
     assert "| Formatting builtin variables | implemented |" in spec_text
     assert "| Argument, environment, and match-result builtin variables | implemented |" in spec_text
     assert "| Input separator builtin variables | implemented |" in spec_text
-    assert "| Current builtin subset | implemented |" in spec_text
+    assert "| POSIX-standard builtin subset | implemented |" in spec_text
     assert "| POSIX string and regex builtins | implemented |" in spec_text
     assert "| POSIX numeric and system builtins | implemented |" in spec_text
     assert "| `getline` | implemented |" in spec_text
