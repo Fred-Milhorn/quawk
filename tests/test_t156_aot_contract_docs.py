@@ -27,4 +27,4 @@ def test_t156_design_doc_states_claimed_behavior_is_backend_only() -> None:
     assert "every currently claimed execution family to have a compiled backend/runtime path" in design_text
     assert "no longer keeps host fallback for representative unclaimed host-runtime-only forms" in design_text
     assert "temporary host-runtime execution remains in a few language families" not in design_text
-    assert "broader frontend-admitted but not yet claimed POSIX corners" in design_text
+    assert 'named explicitly rather than left as vague "broader corners"' in design_text

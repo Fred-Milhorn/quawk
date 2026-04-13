@@ -43,7 +43,7 @@ def test_t272_plan_and_roadmap_define_follow_on_phases_and_tasks() -> None:
     assert "### P32: Final POSIX Compatibility Corroboration" in roadmap_text
     assert "| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 |" in roadmap_text
     assert "| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |" in roadmap_text
-    assert "`T-273`: rebaseline the public contract docs so the remaining gaps are" in roadmap_text
+    assert "| T-273 | P31 | P0 | Rebaseline the public contract for the remaining product-side gaps | T-272 | `SPEC.md`, `docs/design.md`, and the roadmap name the remaining product gaps explicitly instead of relying on vague “broader corners” wording | done |" in roadmap_text
     assert "| T-274 | P31 | P0 | Implement compound assignment end to end through public execution and inspection | T-272 |" in roadmap_text
     assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 |" in roadmap_text
     assert "| T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 |" in roadmap_text

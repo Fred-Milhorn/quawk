@@ -12,7 +12,7 @@ def test_t221_spec_rebaselines_p23_from_unclaimed_to_implemented() -> None:
     assert "ternary expressions over the current claimed numeric/string subset" in spec_text
     assert "| Remaining parser-admitted execution gaps | planned |" in spec_text
     assert "| P24 match operators and membership | implemented |" in spec_text
-    assert "| Backend parity for broader frontend-admitted POSIX forms | partial | Broader frontend-admitted but intentionally unclaimed POSIX corners" in spec_text
+    assert "| Backend parity for broader frontend-admitted POSIX forms | partial | The remaining product-side forms outside the current AOT-backed contract are explicit:" in spec_text
 
 
 def test_t221_design_and_posix_record_the_widened_p23_claim() -> None:
