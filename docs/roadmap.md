@@ -744,7 +744,7 @@ Current state:
   substitution targets split between POSIX-required array-element lvalues and
   out-of-contract non-lvalue expressions, builtin names beyond the current
   subset that are not currently treated as remaining POSIX-required work, and
-  the narrow direct-function lane as internal debt rather than public surface
+  the narrow direct-function lane retired into the reusable backend path
 - `T-273` rebaselines the public contract docs so `SPEC.md`,
   `docs/design.md`, and the roadmap name those remaining product-side gaps
   explicitly instead of relying on vague "broader corners" wording
@@ -760,7 +760,6 @@ Current state:
   [performance-implementation.md](performance-implementation.md)
 
 Immediate next tasks:
-- `T-277`: retire or collapse the narrow direct-function execution lane
 - `T-278`: re-audit the remaining product-side admitted surface after the
   closure wave
 
@@ -1047,7 +1046,7 @@ Priority values:
 | T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |
 | T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |
 | T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |
-| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs no longer need a separate restricted direct-function lowering route, or the remaining lane is documented as non-contract internal debt with explicit tests | todo |
+| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs now use the reusable backend lowering path and the separate restricted direct-function route is retired | done |
 | T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree on the remaining admitted versus intentionally out-of-contract surface | todo |
 | T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | todo |
 | T-280 | P32 | P0 | Re-audit and resolve the field-rebuild corroboration anchors | T-279 | The `p.35` / `t.NF` style anchors are promoted, reclassified, or documented with a precise reviewed reason | todo |

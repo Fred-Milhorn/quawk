@@ -1097,8 +1097,9 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_function_programs() -> No
 
     assert result.returncode == 0, result.stderr
     assert "%quawk.state = type { double }" in result.stdout
-    assert "define double @qk_fn_f(" in result.stdout
-    assert "call double @qk_fn_f(" in result.stdout
+    assert "define ptr @qk_fn_f(" in result.stdout
+    assert "define void @quawk_begin(" in result.stdout
+    assert "call ptr @qk_fn_f(" in result.stdout
     assert result.stderr == ""
 
 
@@ -1395,8 +1396,9 @@ def test_quawk_ir_flag_prints_backend_ir_for_string_v_plus_function_programs() -
     result = run_quawk("--ir", "-v", "x=hello", "function f(y) { return y + 1 }\nBEGIN { print x; print f(1) }")
 
     assert result.returncode == 0, result.stderr
-    assert "declare i32 @puts(ptr)" in result.stdout
-    assert "@qk_fn_f(" in result.stdout
+    assert "define ptr @qk_fn_f(" in result.stdout
+    assert "call ptr @qk_scalar_get_inline(" in result.stdout
+    assert "call void @qk_scalar_set_string(" in result.stdout
     assert result.stderr == ""
 
 

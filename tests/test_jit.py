@@ -104,16 +104,31 @@ def test_execute_routes_supported_function_programs_through_backend(monkeypatch)
         assert initial_variables is None
         return "; function backend module"
 
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; function backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked function backend module"
+
     def fake_execute_llvm_ir(llvm_ir: str) -> int:
         captured_ir["module"] = llvm_ir
         return 0
 
     monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
     monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
     monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program) == 0
-    assert captured_ir["module"] == "; function backend module"
+    assert captured_ir["module"] == "; linked function backend module"
 
 
 def test_execute_routes_supported_scalar_string_programs_through_backend(monkeypatch) -> None:
@@ -1335,10 +1350,11 @@ def test_execute_routes_remaining_string_v_plus_function_claimed_value_case_thro
 
     monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
     monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
     monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
 
     assert jit.execute(program, [("x", "hello")]) == 0
-    assert captured_ir["module"] == "; string-v function backend module"
+    assert captured_ir["module"] == "; linked string-v function backend module"
 
 
 def test_execute_with_inputs_lowers_mixed_programs_to_llvm(monkeypatch) -> None:
@@ -1602,7 +1618,7 @@ def test_lower_to_llvm_ir_uses_scalar_numeric_fallback_for_unknown_name_reads() 
     assert "call double @qk_slot_get_number(" not in llvm_ir
 
 
-def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(monkeypatch) -> None:
+def test_lower_to_llvm_ir_passes_inferred_type_info_to_reusable_lowering_for_function_programs(monkeypatch) -> None:
     program = parse_program("function f(x) { return x + 1 }\nBEGIN { print f(2) }")
     inferred_types = {"x": object()}
     captured: dict[str, object] = {}
@@ -1611,7 +1627,7 @@ def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(
         assert lowered_program is program
         return inferred_types
 
-    def fake_lower_direct_function_program_to_llvm_ir(
+    def fake_lower_reusable_program_to_llvm_ir(
         lowered_program: Program,
         normalized_program: object,
         type_info: dict[str, object],
@@ -1621,12 +1637,12 @@ def test_lower_to_llvm_ir_passes_inferred_type_info_to_direct_function_lowering(
         assert type_info is inferred_types
         assert initial_variables is None
         captured["ok"] = True
-        return "; direct function module"
+        return "; reusable module"
 
     monkeypatch.setattr(jit, "infer_variable_types", fake_infer_variable_types)
-    monkeypatch.setattr(jit, "lower_direct_function_program_to_llvm_ir", fake_lower_direct_function_program_to_llvm_ir)
+    monkeypatch.setattr(jit, "lower_reusable_program_to_llvm_ir", fake_lower_reusable_program_to_llvm_ir)
 
-    assert jit.lower_to_llvm_ir(program) == "; direct function module"
+    assert jit.lower_to_llvm_ir(program) == "; reusable module"
     assert captured["ok"] is True
 
 

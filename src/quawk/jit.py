@@ -249,19 +249,14 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
     has_functions = has_function_definitions(program)
-    direct_function_subset = has_functions and supports_direct_function_backend_subset(program)
-    if has_functions and not direct_function_subset:
+    if has_functions:
         normalized_program = normalize_program_for_lowering(program)
         type_info = infer_variable_types(program)
         return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
-    if has_host_runtime_only_operations(program) and not (
-        supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
-    ):
+    if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
         raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
     type_info = infer_variable_types(program)
-    if direct_function_subset:
-        return lower_direct_function_program_to_llvm_ir(program, normalized_program, type_info, initial_variables)
     if initial_variables_require_string_runtime(initial_variables):
         return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
     if supports_runtime_backend_subset(program):
@@ -518,11 +513,11 @@ def program_requires_linked_execution_module(
     initial_variables: InitialVariables | None = None,
 ) -> bool:
     """Report whether public execution/inspection needs the reusable driver module."""
-    direct_function_subset = supports_direct_function_backend_subset(program)
     return (
-        (supports_runtime_backend_subset(program) and not direct_function_subset)
+        has_function_definitions(program)
+        or supports_runtime_backend_subset(program)
         or requires_input_aware_execution(program)
-        or (initial_variables_require_string_runtime(initial_variables) and not direct_function_subset)
+        or initial_variables_require_string_runtime(initial_variables)
     )
 
 
@@ -1195,6 +1190,18 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
 
     if statement.name is None:
         raise RuntimeError("non-scalar assignments are not supported by the runtime-backed backend")
+    if statement.name in state.function_param_strings:
+        if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
+            state.function_param_strings[statement.name] = lower_runtime_string_expression(statement.value, state)
+            return
+        current_value = state.next_temp("param.current")
+        state.instructions.append(
+            f"  {current_value} = call double @qk_parse_number_text(ptr {state.function_param_strings[statement.name]})"
+        )
+        numeric_value = lower_runtime_numeric_expression(statement.value, state)
+        numeric_value = combine_numeric_assignment(current_value, numeric_value)
+        state.function_param_strings[statement.name] = lower_runtime_string_from_numeric_value(numeric_value, state)
+        return
     if statement.index is not None:
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
         key_ptr = lower_runtime_array_subscripts((statement.index, *statement.extra_indexes), state)
@@ -2208,6 +2215,15 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
 
     match operand:
         case NameExpr(name=name):
+            if name in state.function_param_strings:
+                old_value = state.next_temp("inc.old")
+                new_value = state.next_temp("inc.new")
+                state.instructions.append(
+                    f"  {old_value} = call double @qk_parse_number_text(ptr {state.function_param_strings[name]})"
+                )
+                state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
+                state.function_param_strings[name] = lower_runtime_string_from_numeric_value(new_value, state)
+                return old_value if return_old else new_value
             if is_reusable_runtime_state_name(name):
                 slot_name = variable_address(name, state)
                 old_value = state.next_temp("inc.old")
@@ -3489,11 +3505,7 @@ def ensure_public_execution_supported(
 ) -> None:
     """Reject public execution for programs the compiled backend cannot execute."""
     _ = initial_variables
-    if has_function_definitions(program):
-        return
-    if has_host_runtime_only_operations(program) and not (
-        supports_runtime_backend_subset(program) or supports_direct_function_backend_subset(program)
-    ):
+    if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
         raise RuntimeError("public execution does not support programs outside the compiled backend/runtime subset")
 
 
