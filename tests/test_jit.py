@@ -53,6 +53,17 @@ def test_execute_with_inputs_resolves_later_fields(capsys, monkeypatch) -> None:
     assert captured.err == ""
 
 
+def test_execute_handles_nested_runtime_short_circuit_conditions(capsys) -> None:
+    program = parse_program(
+        'BEGIN { x = "TMAX"; y = ""; v = 1; m = 0; if (x == "TMAX" && ((y == "") || (v > m))) printf "%s\\n", "ok" }'
+    )
+
+    assert jit.execute(program) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "ok\n"
+    assert captured.err == ""
+
+
 def test_execute_routes_array_programs_through_backend(monkeypatch) -> None:
     program = parse_program('BEGIN { a["x"] = 1; print a["x"] }')
     captured_ir: dict[str, str] = {}
@@ -129,6 +140,131 @@ def test_execute_routes_supported_function_programs_through_backend(monkeypatch)
 
     assert jit.execute(program) == 0
     assert captured_ir["module"] == "; linked function backend module"
+
+
+def test_execute_routes_runtime_backed_imperative_function_programs_through_backend(monkeypatch) -> None:
+    program = parse_program('function f(x) { y = x + 1; return y }\nBEGIN { printf "%d\\n", f(1) }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("runtime-backed imperative function programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; imperative function backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; imperative function backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked imperative function backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; linked imperative function backend module"
+
+
+def test_execute_routes_runtime_backed_string_coercion_programs_through_backend(monkeypatch) -> None:
+    program = parse_program('BEGIN { printf "%g\\n", substr("123x", 1, 3) + 0 }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("runtime-backed string-coercion programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; string coercion backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; string coercion backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked string coercion backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; linked string coercion backend module"
+
+
+def test_execute_routes_runtime_backed_function_locals_through_backend(monkeypatch) -> None:
+    program = parse_program('function f(x,    tmp) { tmp = x + 1; return tmp }\nBEGIN { printf "%d\\n", f(1) }')
+    captured_ir: dict[str, str] = {}
+
+    def fail_execute_host_runtime(*args: object, **kwargs: object) -> int:
+        raise AssertionError("runtime-backed function-local programs should not stay on the host runtime now")
+
+    def fake_lower_to_llvm_ir(lowered_program: Program, initial_variables: jit.InitialVariables | None = None) -> str:
+        assert lowered_program is program
+        assert initial_variables is None
+        return "; function locals backend module"
+
+    def fake_link_reusable_execution_module(
+        llvm_ir: str,
+        linked_program: Program,
+        input_files: list[str],
+        field_separator: str | None,
+        initial_variables: jit.InitialVariables | None = None,
+    ) -> str:
+        assert llvm_ir == "; function locals backend module"
+        assert linked_program is program
+        assert input_files == []
+        assert field_separator is None
+        assert initial_variables is None
+        return "; linked function locals backend module"
+
+    def fake_execute_llvm_ir(llvm_ir: str) -> int:
+        captured_ir["module"] = llvm_ir
+        return 0
+
+    monkeypatch.setattr(jit, "execute_host_runtime", fail_execute_host_runtime)
+    monkeypatch.setattr(jit, "lower_to_llvm_ir", fake_lower_to_llvm_ir)
+    monkeypatch.setattr(jit, "link_reusable_execution_module", fake_link_reusable_execution_module)
+    monkeypatch.setattr(jit, "execute_llvm_ir", fake_execute_llvm_ir)
+
+    assert jit.execute(program) == 0
+    assert captured_ir["module"] == "; linked function locals backend module"
+
+
+def test_build_public_execution_llvm_ir_accepts_trailing_function_locals() -> None:
+    program = parse_program('function f(x,    tmp) { tmp = x + 1; return tmp }\nBEGIN { printf "%d\\n", f(1) }')
+
+    llvm_ir = jit.build_public_execution_llvm_ir(program, [], None, None)
+
+    assert "define ptr @qk_fn_f" in llvm_ir
 
 
 def test_execute_routes_supported_scalar_string_programs_through_backend(monkeypatch) -> None:

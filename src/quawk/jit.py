@@ -4,22 +4,18 @@
 
 from __future__ import annotations
 
-import math
-import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 import warnings
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Callable, Mapping, TextIO
+from typing import Mapping, TextIO
 
 from . import runtime_support
-from .builtins import BUILTIN_ARRAY_NAMES, is_builtin_function_name, is_builtin_variable_name
+from .builtins import is_builtin_function_name, is_builtin_variable_name
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
@@ -551,9 +547,14 @@ def lower_runtime_user_functions_to_ir(
             array_names=array_names,
             function_defs=function_defs,
             string_index=string_index,
-            function_param_strings={param: f"%arg.{index}" for index, param in enumerate(function_def.params)},
+            function_param_strings={},
             local_names=frozenset(function_def.params),
         )
+        for index, param in enumerate(function_def.params):
+            param_slot = f"%arg.slot.{index}"
+            function_state.allocas.append(f"  {param_slot} = alloca ptr")
+            function_state.instructions.append(f"  store ptr %arg.{index}, ptr {param_slot}")
+            function_state.function_param_strings[param] = param_slot
         return_slot = function_state.next_temp("retval")
         function_state.allocas.append(f"  {return_slot} = alloca ptr")
         empty_value = lower_runtime_constant_string("", function_state)
@@ -1192,15 +1193,14 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         raise RuntimeError("non-scalar assignments are not supported by the runtime-backed backend")
     if statement.name in state.function_param_strings:
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-            state.function_param_strings[statement.name] = lower_runtime_string_expression(statement.value, state)
+            store_runtime_function_param_string(statement.name, lower_runtime_string_expression(statement.value, state), state)
             return
+        current_ptr = load_runtime_function_param_string(statement.name, state)
         current_value = state.next_temp("param.current")
-        state.instructions.append(
-            f"  {current_value} = call double @qk_parse_number_text(ptr {state.function_param_strings[statement.name]})"
-        )
+        state.instructions.append(f"  {current_value} = call double @qk_parse_number_text(ptr {current_ptr})")
         numeric_value = lower_runtime_numeric_expression(statement.value, state)
         numeric_value = combine_numeric_assignment(current_value, numeric_value)
-        state.function_param_strings[statement.name] = lower_runtime_string_from_numeric_value(numeric_value, state)
+        store_runtime_function_param_string(statement.name, lower_runtime_string_from_numeric_value(numeric_value, state), state)
         return
     if statement.index is not None:
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
@@ -1729,13 +1729,15 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
         if state.state_param is None:
             raise RuntimeError("user-defined function calls require backend state support")
         function_def = state.function_defs[expression.function]
-        if len(expression.args) != len(function_def.params):
+        if len(expression.args) > len(function_def.params):
             raise RuntimeError(
-                f"function {expression.function} expects {len(function_def.params)} arguments, got {len(expression.args)}"
+                f"function {expression.function} expects at most {len(function_def.params)} arguments, got {len(expression.args)}"
             )
         arguments = [f"ptr {state.state_param}"]
         for argument in expression.args:
             arguments.append(f"double {lower_numeric_expression(argument, state)}")
+        missing_args = len(function_def.params) - len(expression.args)
+        arguments.extend(["double 0.000000000000000e+00"] * missing_args)
         temp = state.next_temp("call")
         state.instructions.append(f"  {temp} = call double @qk_fn_{expression.function}({', '.join(arguments)})")
         return temp
@@ -1838,10 +1840,9 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return temp
         case NameExpr(name=name):
             if name in state.function_param_strings:
+                current_ptr = load_runtime_function_param_string(name, state)
                 temp = state.next_temp("param.num")
-                state.instructions.append(
-                    f"  {temp} = call double @qk_parse_number_text(ptr {state.function_param_strings[name]})"
-                )
+                state.instructions.append(f"  {temp} = call double @qk_parse_number_text(ptr {current_ptr})")
                 return temp
             if is_reusable_runtime_state_name(name):
                 slot_name = variable_address(name, state)
@@ -2216,13 +2217,12 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
     match operand:
         case NameExpr(name=name):
             if name in state.function_param_strings:
+                current_ptr = load_runtime_function_param_string(name, state)
                 old_value = state.next_temp("inc.old")
                 new_value = state.next_temp("inc.new")
-                state.instructions.append(
-                    f"  {old_value} = call double @qk_parse_number_text(ptr {state.function_param_strings[name]})"
-                )
+                state.instructions.append(f"  {old_value} = call double @qk_parse_number_text(ptr {current_ptr})")
                 state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-                state.function_param_strings[name] = lower_runtime_string_from_numeric_value(new_value, state)
+                store_runtime_function_param_string(name, lower_runtime_string_from_numeric_value(new_value, state), state)
                 return old_value if return_old else new_value
             if is_reusable_runtime_state_name(name):
                 slot_name = variable_address(name, state)
@@ -2307,7 +2307,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
         case NameExpr(name=name) if name in state.loop_string_bindings:
             return state.loop_string_bindings[name]
         case NameExpr(name=name) if name in state.function_param_strings:
-            return state.function_param_strings[name]
+            return load_runtime_function_param_string(name, state)
         case NameExpr(name="FILENAME"):
             temp = state.next_temp("filename")
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename_inline(ptr {state.runtime_param})")
@@ -2901,6 +2901,20 @@ def lower_runtime_string_from_numeric_value(numeric_value: str, state: LoweringS
     return captured
 
 
+def load_runtime_function_param_string(name: str, state: LoweringState) -> str:
+    """Load one mutable runtime function parameter/local string value from its slot."""
+    slot_name = state.function_param_strings[name]
+    temp = state.next_temp("param.str")
+    state.instructions.append(f"  {temp} = load ptr, ptr {slot_name}")
+    return temp
+
+
+def store_runtime_function_param_string(name: str, string_value: str, state: LoweringState) -> None:
+    """Store one mutable runtime function parameter/local string value back to its slot."""
+    slot_name = state.function_param_strings[name]
+    state.instructions.append(f"  store ptr {string_value}, ptr {slot_name}")
+
+
 def lower_runtime_argument_string(expression: Expr, state: LoweringState) -> str:
     """Lower one runtime-backed call argument to a captured string pointer."""
     if runtime_expression_has_string_result(expression, state):
@@ -2913,11 +2927,14 @@ def lower_runtime_user_function_call(function_name: str, args: tuple[Expr, ...],
     function_def = state.function_defs.get(function_name)
     if function_def is None:
         raise RuntimeError(f"unsupported function call in runtime-backed backend: {function_name}")
-    if len(args) != len(function_def.params):
-        raise RuntimeError(f"function {function_name} expects {len(function_def.params)} arguments, got {len(args)}")
+    if len(args) > len(function_def.params):
+        raise RuntimeError(f"function {function_name} expects at most {len(function_def.params)} arguments, got {len(args)}")
     call_args = [f"ptr {state.runtime_param}", f"ptr {state.state_param or 'null'}"]
     for argument in args:
         call_args.append(f"ptr {lower_runtime_argument_string(argument, state)}")
+    missing_args = len(function_def.params) - len(args)
+    for _ in range(missing_args):
+        call_args.append(f"ptr {lower_runtime_constant_string('', state)}")
     result = state.next_temp("fncall")
     state.instructions.append(f"  {result} = call ptr @qk_fn_{function_name}({', '.join(call_args)})")
     return result
@@ -3400,6 +3417,7 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
         if expression.op is BinaryOp.LOGICAL_AND:
             left_condition = lower_condition_expression(expression.left, state)
             rhs_label = state.next_label("and.rhs")
+            rhs_value_label = state.next_label("and.value")
             false_label = state.next_label("and.false")
             end_label = state.next_label("and.end")
             phi_temp = state.next_temp("and")
@@ -3407,18 +3425,21 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             state.instructions.append(f"  br i1 {left_condition}, label %{rhs_label}, label %{false_label}")
             state.instructions.append(f"{rhs_label}:")
             right_condition = lower_condition_expression(expression.right, state)
+            state.instructions.append(f"  br label %{rhs_value_label}")
+            state.instructions.append(f"{rhs_value_label}:")
             state.instructions.append(f"  br label %{end_label}")
             state.instructions.append(f"{false_label}:")
             state.instructions.append(f"  br label %{end_label}")
             state.instructions.append(f"{end_label}:")
             state.instructions.append(
-                f"  {phi_temp} = phi i1 [ false, %{false_label} ], [ {right_condition}, %{rhs_label} ]"
+                f"  {phi_temp} = phi i1 [ false, %{false_label} ], [ {right_condition}, %{rhs_value_label} ]"
             )
             return phi_temp
         if expression.op is BinaryOp.LOGICAL_OR:
             left_condition = lower_condition_expression(expression.left, state)
             true_label = state.next_label("or.true")
             rhs_label = state.next_label("or.rhs")
+            rhs_value_label = state.next_label("or.value")
             end_label = state.next_label("or.end")
             phi_temp = state.next_temp("or")
 
@@ -3427,10 +3448,12 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
             state.instructions.append(f"  br label %{end_label}")
             state.instructions.append(f"{rhs_label}:")
             right_condition = lower_condition_expression(expression.right, state)
+            state.instructions.append(f"  br label %{rhs_value_label}")
+            state.instructions.append(f"{rhs_value_label}:")
             state.instructions.append(f"  br label %{end_label}")
             state.instructions.append(f"{end_label}:")
             state.instructions.append(
-                f"  {phi_temp} = phi i1 [ true, %{true_label} ], [ {right_condition}, %{rhs_label} ]"
+                f"  {phi_temp} = phi i1 [ true, %{true_label} ], [ {right_condition}, %{rhs_value_label} ]"
             )
             return phi_temp
         if state.runtime_param is not None and expression.op in {BinaryOp.MATCH, BinaryOp.NOT_MATCH}:
@@ -3948,7 +3971,7 @@ def supports_direct_function_backend_subset(program: Program) -> bool:
             case CallExpr(function=function_name, args=args):
                 if function_name not in function_defs:
                     return False
-                if len(args) != len(function_defs[function_name].params):
+                if len(args) > len(function_defs[function_name].params):
                     return False
                 return all(supports_expression(argument, local_names) for argument in args)
             case BinaryExpr(
@@ -4096,6 +4119,10 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return True
             case FieldExpr(index=index):
                 return isinstance(index, int) or supports_numeric_expression(index)
+            case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
+                return array_name in array_names and supports_array_key(index) and all(
+                    supports_array_key(extra_index) for extra_index in extra_indexes
+                )
             case AssignExpr(op=op, target=target, value=value):
                 match target:
                     case NameLValue() | FieldLValue():
@@ -4208,9 +4235,12 @@ def supports_runtime_backend_subset(program: Program) -> bool:
             case CallExpr(function="atan2", args=args):
                 return len(args) == 2 and all(supports_numeric_expression(argument) for argument in args)
             case CallExpr(function=function_name, args=args):
-                return function_name in function_defs and all(
-                    supports_string_expression(argument) or supports_numeric_expression(argument) for argument in args
-                )
+                if function_name in function_defs:
+                    return all(
+                        supports_string_expression(argument) or supports_numeric_expression(argument)
+                        for argument in args
+                    )
+                return supports_string_expression(expression)
             case GetlineExpr(target=target, source=source):
                 target_supported = True
                 if target is not None:
@@ -4233,7 +4263,7 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                     and supports_numeric_expression(if_false)
                 )
             case _:
-                return False
+                return supports_string_expression(expression)
 
     def supports_pattern(pattern: ExprPattern | RangePattern | BeginPattern | EndPattern | None) -> bool:
         if pattern is None or isinstance(pattern, BeginPattern | EndPattern):
@@ -4626,6 +4656,14 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 return True
             case ExitStmt(value=value):
                 return value is None or supports_numeric_expression(value)
+            case ReturnStmt(value=value):
+                if value is None:
+                    return True
+                return (
+                    supports_string_expression(value, string_bindings)
+                    or runtime_expression_has_string_result(value)
+                    or supports_numeric_expression(value)
+                )
             case ForStmt(init=init, condition=condition, update=update, body=body):
                 return (
                     all(supports_side_effect_expression(expression, string_bindings) for expression in init)
@@ -4660,6 +4698,8 @@ def supports_runtime_backend_subset(program: Program) -> bool:
                 )
             case BreakStmt() | ContinueStmt():
                 return True
+            case AssignStmt():
+                return supports_statement(statement, string_bindings)
             case DeleteStmt():
                 return supports_statement(statement, string_bindings)
             case PrintStmt():
