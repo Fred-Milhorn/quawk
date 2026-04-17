@@ -244,178 +244,12 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
-    has_functions = has_function_definitions(program)
-    if has_functions:
-        normalized_program = normalize_program_for_lowering(program)
-        type_info = infer_variable_types(program)
-        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
     if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
         raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
     normalized_program = normalize_program_for_lowering(program)
     type_info = infer_variable_types(program)
-    if initial_variables_require_string_runtime(initial_variables):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
-    if supports_runtime_backend_subset(program):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
-    if requires_input_aware_execution(program):
-        return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
-
-    state = LoweringState(type_info=type_info)
-    lower_initial_variables(initial_variables or [], state)
-    statements = normalized_program.direct_begin_statements
-    if statements is None:
-        raise RuntimeError("the current backend only supports exactly one top-level BEGIN action")
-    for statement in statements:
-        lower_statement(statement, state)
-
-    declarations: list[str] = []
-    if state.uses_puts:
-        declarations.append("declare i32 @puts(ptr)")
-    if state.uses_printf:
-        declarations.append("declare i32 @printf(ptr, ...)")
-
-    return "\n".join(
-        [
-            *declarations,
-            "",
-            *state.globals,
-            "",
-            "define i32 @quawk_main() {",
-            "entry:",
-            *state.allocas,
-            *state.instructions,
-            "  ret i32 0",
-            "}",
-            "",
-        ]
-    )
-
-
-def lower_direct_function_program_to_llvm_ir(
-    program: Program,
-    normalized_program: NormalizedLoweringProgram,
-    type_info: dict[str, LatticeType],
-    initial_variables: InitialVariables | None = None,
-) -> str:
-    """Lower one direct-BEGIN program with backend-supported user-defined functions."""
-    direct_begin_statements = normalized_program.direct_begin_statements
-    if direct_begin_statements is None:
-        raise RuntimeError("user-defined functions currently require a direct BEGIN program in the LLVM-backed backend")
-
-    function_defs = {
-        item.name: item
-        for item in program.items
-        if isinstance(item, FunctionDef)
-    }
-    variable_indexes = normalized_program.variable_indexes
-    state_type = render_state_type(normalized_program.slot_allocation)
-    state_param = "%state" if state_type is not None else "null"
-    string_index = 0
-    globals_out: list[str] = []
-    function_bodies: list[str] = []
-    uses_puts = False
-    uses_printf = False
-    numeric_format_declared = False
-
-    for function_def in function_defs.values():
-        function_state = LoweringState(
-            state_param="%state",
-            variable_indexes=variable_indexes,
-            type_info=type_info,
-            function_defs=function_defs,
-            string_index=string_index,
-            numeric_format_declared=numeric_format_declared,
-            initial_string_values={
-                name: value for name, value in (initial_variables or []) if isinstance(value, str)
-            },
-            local_names=frozenset(function_def.params),
-        )
-        return_slot = function_state.next_temp("retval")
-        function_state.allocas.append(f"  {return_slot} = alloca double")
-        function_state.instructions.append(f"  store double 0.000000000000000e+00, ptr {return_slot}")
-        function_state.return_slot = return_slot
-        function_state.return_label = function_state.next_label("return")
-        for index, param in enumerate(function_def.params):
-            param_slot = function_state.next_temp(f"arg.{param}")
-            function_state.allocas.append(f"  {param_slot} = alloca double")
-            function_state.instructions.append(f"  store double %arg.{index}, ptr {param_slot}")
-            function_state.variable_slots[param] = param_slot
-        terminated = False
-        for statement in function_def.body.statements:
-            lower_statement(statement, function_state)
-            if isinstance(statement, ReturnStmt):
-                terminated = True
-                break
-        if not terminated:
-            function_state.instructions.append(f"  br label %{function_state.return_label}")
-        function_state.instructions.extend(
-            [
-                f"{function_state.return_label}:",
-                f"  %retval.load = load double, ptr {return_slot}",
-                "  ret double %retval.load",
-            ]
-        )
-        globals_out.extend(function_state.globals)
-        function_bodies.append(render_user_function(function_def, function_state))
-        string_index = function_state.string_index
-        uses_puts = uses_puts or function_state.uses_puts
-        uses_printf = uses_printf or function_state.uses_printf
-        numeric_format_declared = numeric_format_declared or function_state.numeric_format_declared
-
-    main_state = LoweringState(
-        state_param=state_param,
-        variable_indexes=variable_indexes,
-        type_info=type_info,
-        function_defs=function_defs,
-        string_index=string_index,
-        uses_printf=uses_printf,
-        numeric_format_declared=numeric_format_declared,
-        initial_string_values={
-            name: value for name, value in (initial_variables or []) if isinstance(value, str)
-        },
-    )
-    if initial_variables is not None:
-        lower_initial_variables(initial_variables, main_state)
-    for statement in direct_begin_statements:
-        lower_statement(statement, main_state)
-
-    globals_out.extend(main_state.globals)
-    uses_puts = uses_puts or main_state.uses_puts
-    uses_printf = uses_printf or main_state.uses_printf
-
-    declarations: list[str] = []
-    if uses_puts:
-        declarations.append("declare i32 @puts(ptr)")
-    if uses_printf:
-        declarations.append("declare i32 @printf(ptr, ...)")
-    if state_type is not None:
-        declarations.append(state_type)
-
-    state_setup: list[str] = []
-    if state_type is not None:
-        state_setup = [
-            "  %state = alloca %quawk.state",
-            "  store %quawk.state zeroinitializer, ptr %state",
-        ]
-
-    return "\n".join(
-        [
-            *declarations,
-            "",
-            *globals_out,
-            "",
-            *function_bodies,
-            "",
-            "define i32 @quawk_main() {",
-            "entry:",
-            *state_setup,
-            *main_state.allocas,
-            *main_state.instructions,
-            "  ret i32 0",
-            "}",
-            "",
-        ]
-    )
+    _ = initial_variables
+    return lower_reusable_program_to_llvm_ir(program, normalized_program, type_info)
 
 
 def build_public_execution_llvm_ir(
@@ -509,12 +343,9 @@ def program_requires_linked_execution_module(
     initial_variables: InitialVariables | None = None,
 ) -> bool:
     """Report whether public execution/inspection needs the reusable driver module."""
-    return (
-        has_function_definitions(program)
-        or supports_runtime_backend_subset(program)
-        or requires_input_aware_execution(program)
-        or initial_variables_require_string_runtime(initial_variables)
-    )
+    _ = program
+    _ = initial_variables
+    return True
 
 
 def lower_runtime_user_functions_to_ir(
@@ -739,54 +570,6 @@ def lower_reusable_program_to_llvm_ir(
             render_reusable_function("quawk_record", record_state),
             "",
             render_reusable_function("quawk_end", end_state),
-            "",
-        ]
-    )
-
-
-def is_record_program(program: Program) -> bool:
-    """Report whether `program` is a bare-action record processor."""
-    if len(program.items) != 1:
-        return False
-    item = program.items[0]
-    return isinstance(item, PatternAction) and item.pattern is None and isinstance(item.action, Action)
-
-
-def lower_record_program_to_llvm_ir(program: Program) -> str:
-    """Lower a bare-action record program to an inspectable per-record IR shape."""
-    item = program.items[0]
-    assert isinstance(item, PatternAction)
-    assert isinstance(item.action, Action)
-
-    declarations = ["declare i32 @puts(ptr)"]
-    instructions: list[str] = []
-    temp_index = 0
-
-    def next_temp(prefix: str) -> str:
-        nonlocal temp_index
-        name = f"%{prefix}.{temp_index}"
-        temp_index += 1
-        return name
-
-    for statement in item.action.statements:
-        if not isinstance(statement, PrintStmt) or len(statement.arguments) != 1:
-            raise RuntimeError("the record-loop increment only supports single-argument print statements")
-        argument = statement.arguments[0]
-        if not isinstance(argument, FieldExpr):
-            raise RuntimeError("the record-loop increment only supports $0 and $1 field expressions")
-        param_name = field_parameter_name(static_field_index(argument))
-        call_temp = next_temp("call")
-        instructions.append(f"  {call_temp} = call i32 @puts(ptr {param_name})")
-
-    return "\n".join(
-        [
-            *declarations,
-            "",
-            "define i32 @quawk_record(ptr %field0, ptr %field1) {",
-            "entry:",
-            *instructions,
-            "  ret i32 0",
-            "}",
             "",
         ]
     )
@@ -3914,133 +3697,9 @@ def has_end_pattern(program: Program) -> bool:
     return any(isinstance(item, PatternAction) and isinstance(item.pattern, EndPattern) for item in program.items)
 
 
-def static_field_index(expression: FieldExpr) -> int:
-    """Return the current subset's literal field index or raise for dynamic fields."""
-    if not isinstance(expression.index, int):
-        raise RuntimeError("dynamic field expressions are not supported by the current execution path")
-    return expression.index
-
-
 def has_function_definitions(program: Program) -> bool:
     """Report whether `program` contains any top-level user-defined functions."""
     return any(isinstance(item, FunctionDef) for item in program.items)
-
-
-def supports_direct_function_backend_subset(program: Program) -> bool:
-    """Report whether `program` fits the direct LLVM-backed subset with user-defined functions."""
-    if not has_function_definitions(program):
-        return False
-
-    direct_begin_statements = normalize_program_for_lowering(program).direct_begin_statements
-    if direct_begin_statements is None:
-        return False
-
-    function_defs = {
-        item.name: item
-        for item in program.items
-        if isinstance(item, FunctionDef)
-    }
-
-    def supports_pure_expression(expression: Expr) -> bool:
-        match expression:
-            case NumericLiteralExpr() | NameExpr():
-                return True
-            case BinaryExpr(left=left, right=right):
-                return supports_pure_expression(left) and supports_pure_expression(right)
-            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                return (
-                    supports_pure_expression(test)
-                    and supports_pure_expression(if_true)
-                    and supports_pure_expression(if_false)
-                )
-            case _:
-                return False
-
-    def supports_expression(expression: Expr, local_names: frozenset[str] = frozenset()) -> bool:
-        match expression:
-            case NumericLiteralExpr():
-                return True
-            case NameExpr():
-                return True
-            case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-                return (
-                    supports_pure_expression(test)
-                    and supports_pure_expression(if_true)
-                    and supports_pure_expression(if_false)
-                )
-            case CallExpr(function=function_name, args=args):
-                if function_name not in function_defs:
-                    return False
-                if len(args) > len(function_defs[function_name].params):
-                    return False
-                return all(supports_expression(argument, local_names) for argument in args)
-            case BinaryExpr(
-                op=BinaryOp.ADD
-                | BinaryOp.SUB
-                | BinaryOp.MUL
-                | BinaryOp.DIV
-                | BinaryOp.MOD
-                | BinaryOp.POW
-                | BinaryOp.LESS
-                | BinaryOp.LESS_EQUAL
-                | BinaryOp.GREATER
-                | BinaryOp.GREATER_EQUAL
-                | BinaryOp.EQUAL
-                | BinaryOp.NOT_EQUAL
-                | BinaryOp.LOGICAL_AND
-                | BinaryOp.LOGICAL_OR,
-                left=left,
-                right=right,
-            ):
-                return supports_expression(left, local_names) and supports_expression(right, local_names)
-            case _:
-                return False
-
-    def supports_statement(statement: Stmt, *, in_function: bool, local_names: frozenset[str]) -> bool:
-        match statement:
-            case AssignStmt(op=AssignOp.PLAIN, target=NameLValue(), value=value):
-                return supports_expression(value, local_names)
-            case BlockStmt(statements=statements):
-                return all(supports_statement(nested, in_function=in_function, local_names=local_names) for nested in statements)
-            case IfStmt(condition=condition, then_branch=then_branch, else_branch=else_branch):
-                return supports_expression(condition, local_names) and supports_statement(
-                    then_branch,
-                    in_function=in_function,
-                    local_names=local_names,
-                ) and (
-                    else_branch is None
-                    or supports_statement(else_branch, in_function=in_function, local_names=local_names)
-                )
-            case WhileStmt(condition=condition, body=body):
-                return supports_expression(condition, local_names) and supports_statement(
-                    body,
-                    in_function=in_function,
-                    local_names=local_names,
-                )
-            case PrintStmt(arguments=arguments):
-                return len(arguments) == 1 and (
-                    isinstance(arguments[0], StringLiteralExpr) or supports_expression(arguments[0], local_names)
-                )
-            case ReturnStmt(value=value):
-                return in_function and value is not None and supports_expression(value, local_names)
-            case _:
-                return False
-
-    for function_def in function_defs.values():
-        if not function_def.body.statements:
-            return False
-        if not isinstance(function_def.body.statements[-1], ReturnStmt):
-            return False
-        if any(isinstance(statement, ReturnStmt) for statement in function_def.body.statements[:-1]):
-            return False
-        local_names = frozenset(function_def.params)
-        if not all(
-            supports_statement(statement, in_function=True, local_names=local_names)
-            for statement in function_def.body.statements
-        ):
-            return False
-
-    return all(supports_statement(statement, in_function=False, local_names=frozenset()) for statement in direct_begin_statements)
 
 
 def supports_runtime_backend_subset(program: Program) -> bool:
@@ -4973,15 +4632,6 @@ def collect_function_definitions(program: Program) -> dict[str, FunctionDef]:
         if isinstance(item, FunctionDef):
             functions[item.name] = item
     return functions
-
-
-def field_parameter_name(index: int) -> str:
-    """Return the IR parameter name used for a supported field index."""
-    if index == 0:
-        return "%field0"
-    if index == 1:
-        return "%field1"
-    raise RuntimeError("the record-loop increment only supports $0 and $1")
 
 
 def is_reusable_runtime_state_name(name: str) -> bool:

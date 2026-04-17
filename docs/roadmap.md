@@ -727,14 +727,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-`T-284` is complete. `T-285` through `T-289` make up the remaining `P33`
+`T-284` and `T-285` are complete. `T-286` through `T-289` make up the remaining `P33`
 wave.
 
 Immediate next tasks:
-- `T-285` Remove the restricted direct lowering lane and route compiled
-  lowering through the reusable backend path.
 - `T-286` Widen reusable-backend routing and remove stale backend gates that
   still block already-implemented forms.
+- `T-287` Remove stale direct-backend diagnostics so remaining errors reflect
+  only genuine reusable-backend gaps.
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -1026,7 +1026,7 @@ Priority values:
 | T-282 | P32 | P1 | Resolve the `rand()` compatibility strategy | T-279 | `rand()` has either a stable corroborating anchor or a checked-in classified reference-disagreement policy | done |
 | T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | done |
 | T-284 | P33 | P0 | Author the direct-path-removal baseline and representative routing regressions | T-283 | Focused tests and roadmap text make the remaining direct-lane entrypoints, stale guards, and representative over-gated programs explicit before implementation | done |
-| T-285 | P33 | P0 | Remove the restricted direct lowering lane and dead direct-only helpers | T-284 | `lower_to_llvm_ir()` no longer emits the standalone direct-lowered `quawk_main()` fallback, and dead direct-function or record-loop helpers are removed or made unreachable by design | todo |
+| T-285 | P33 | P0 | Remove the restricted direct lowering lane and dead direct-only helpers | T-284 | `lower_to_llvm_ir()` no longer emits the standalone direct-lowered `quawk_main()` fallback, and dead direct-function or record-loop helpers are removed or made unreachable by design | done |
 | T-286 | P33 | P0 | Widen reusable-backend routing and remove stale pre-routing backend gates | T-285 | Programs already implemented by reusable lowering route through the backend/runtime path instead of failing behind `supports_runtime_backend_subset()` or `has_host_runtime_only_operations()` false negatives | todo |
 | T-287 | P33 | P1 | Remove stale direct-backend diagnostics and keep only genuine reusable-backend limits | T-286 | `jit.py` no longer raises misleading direct-backend limitation errors for supported public programs, and remaining runtime errors correspond to real reusable-backend gaps only | todo |
 | T-288 | P33 | P1 | Close execution and inspection parity for the representative over-gated programs | T-286, T-287 | Representative programs such as static field print in `BEGIN`, unary or increment-heavy `BEGIN` programs, scalar compound assignment, concatenation-driven conditions, and scalar array-read cases execute under ordinary `quawk` and succeed under `--ir` and `--asm` | todo |

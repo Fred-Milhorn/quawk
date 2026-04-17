@@ -511,10 +511,10 @@ def test_quawk_ir_flag_prints_llvm_ir_and_stops() -> None:
     result = run_quawk("--ir", 'BEGIN { print "hello" }')
 
     assert result.returncode == 0, result.stderr
-    assert "declare i32 @puts(ptr)" in result.stdout
-    assert "@.str.0 = private unnamed_addr constant [6 x i8] c\"\\68\\65\\6C\\6C\\6F\\00\"" in result.stdout
+    assert '@.str.0 = private unnamed_addr constant [6 x i8] c"hello\\00"' in result.stdout
+    assert "define void @quawk_begin(ptr %rt, ptr %state)" in result.stdout
     assert "define i32 @quawk_main()" in result.stdout
-    assert "call i32 @puts(ptr %strptr.0)" in result.stdout
+    assert "call void @qk_print_string_fragment(ptr %rt, ptr %strptr.0)" in result.stdout
     assert result.stderr == ""
 
 
@@ -522,10 +522,9 @@ def test_quawk_ir_flag_prints_numeric_print_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { print 1 + 2 }")
 
     assert result.returncode == 0, result.stderr
-    assert "declare i32 @printf(ptr, ...)" in result.stdout
-    assert "@.fmt.num = private unnamed_addr constant [6 x i8] c\"\\25\\2E\\36\\67\\0A\\00\"" in result.stdout
-    assert "fadd double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
-    assert "call i32 (ptr, ...) @printf(ptr %fmtptr.0, double %add.1)" in result.stdout
+    assert "define void @quawk_begin(ptr %rt, ptr %state)" in result.stdout
+    assert "fadd double 1.000000e+00, 2.000000e+00" in result.stdout
+    assert "call void @qk_print_number_fragment(ptr %rt, double %add.0)" in result.stdout
     assert result.stderr == ""
 
 
@@ -686,11 +685,12 @@ def test_quawk_ir_flag_prints_control_flow_ir_and_stops() -> None:
     result = run_quawk("--ir", "BEGIN { if (1 < 2) print 3 }")
 
     assert result.returncode == 0, result.stderr
-    assert "fcmp olt double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
+    assert "fcmp olt double 1.000000e+00, 2.000000e+00" in result.stdout
     assert "br i1 %cmp." in result.stdout
-    assert "label %if.then.0, label %if.end.1" in result.stdout
-    assert "if.then.0:" in result.stdout
-    assert "if.end.1:" in result.stdout
+    assert "label %if.then." in result.stdout
+    assert "label %if.end." in result.stdout
+    assert "if.then." in result.stdout
+    assert "if.end." in result.stdout
     assert result.stderr == ""
 
 
@@ -698,9 +698,9 @@ def test_quawk_ir_flag_prints_equality_expression_ir() -> None:
     result = run_quawk("--ir", "BEGIN { print 1 == 1 }")
 
     assert result.returncode == 0, result.stderr
-    assert "fcmp oeq double 1.000000000000000e+00, 1.000000000000000e+00" in result.stdout
+    assert "fcmp oeq double 1.000000e+00, 1.000000e+00" in result.stdout
     assert "uitofp i1 %boolnum." in result.stdout or "uitofp i1 %cmp." in result.stdout
-    assert "call i32 (ptr, ...) @printf(" in result.stdout
+    assert "call void @qk_print_number_fragment(" in result.stdout
     assert result.stderr == ""
 
 
@@ -708,8 +708,8 @@ def test_quawk_ir_flag_prints_logical_and_expression_ir() -> None:
     result = run_quawk("--ir", "BEGIN { print (1 < 2) && (2 < 3) }")
 
     assert result.returncode == 0, result.stderr
-    assert "fcmp olt double 1.000000000000000e+00, 2.000000000000000e+00" in result.stdout
-    assert "fcmp olt double 2.000000000000000e+00, 3.000000000000000e+00" in result.stdout
+    assert "fcmp olt double 1.000000e+00, 2.000000e+00" in result.stdout
+    assert "fcmp olt double 2.000000e+00, 3.000000e+00" in result.stdout
     assert "phi i1 [ false, %and.false." in result.stdout
     assert "uitofp i1 %and." in result.stdout
     assert result.stderr == ""
@@ -720,7 +720,7 @@ def test_quawk_asm_flag_prints_assembly_and_stops() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "quawk_main" in result.stdout
-    assert "puts" in result.stdout
+    assert "qk_print_string_fragment" in result.stdout
     assert result.stderr == ""
 
 

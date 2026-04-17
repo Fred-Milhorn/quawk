@@ -78,3 +78,28 @@ That leaves `T-285` to remove the restricted direct-lowering fallback and dead
 direct-only helpers, then `T-286` / `T-287` / `T-288` to widen reusable
 routing, prune stale diagnostics, and close execution-plus-inspection parity
 for the representative rows above.
+
+## T-285 Result
+
+The remaining standalone direct-lowered `quawk_main()` fallback has now been
+removed.
+
+Current state after `T-285`:
+
+- `lower_to_llvm_ir()` always emits the reusable BEGIN/record/END module shape
+  for compiled programs
+- public execution and inspection link that reusable program IR with the driver
+  module, even for simple `BEGIN`-only programs that previously stopped at the
+  direct lane
+- stale direct-only helpers for the old direct-function and record-loop routes
+  are no longer present in `jit.py`
+
+Remaining work stays focused on routing debt rather than the removed direct
+lane itself:
+
+- `T-286` widens reusable-backend routing for the representative rows that are
+  still blocked by stale `supports_runtime_backend_subset()` and
+  `has_host_runtime_only_operations()` false negatives
+- `T-287` prunes stale direct-backend diagnostics
+- `T-288` closes public execution and inspection parity for the remaining
+  representative programs
