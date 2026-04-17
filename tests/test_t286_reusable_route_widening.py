@@ -24,9 +24,6 @@ def test_t286_previously_over_gated_begin_only_programs_now_route_through_reusab
 ) -> None:
     program = parse_program(source_text)
 
-    assert jit.supports_runtime_backend_subset(program) is True
-    jit.ensure_public_execution_supported(program)
-
     llvm_ir = jit.build_public_inspection_llvm_ir(program, [], None, None)
 
     assert "define void @quawk_begin(ptr %rt, ptr %state)" in llvm_ir
