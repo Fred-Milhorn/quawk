@@ -142,3 +142,23 @@ Current state after `T-287`:
 That leaves `T-288` to widen end-to-end execution and inspection parity for the
 remaining representative programs, then `T-289` to rebaseline the execution
 model docs around the reusable-only compiled route.
+
+## T-288 Result
+
+The representative over-gated programs are now pinned as full end-to-end
+success cases under ordinary execution, `--ir`, and `--asm`.
+
+Current state after `T-288`:
+
+- static field print in `BEGIN` is covered as a compiled execution and
+  inspection success path
+- unary and increment-heavy `BEGIN` programs are covered as compiled execution
+  and inspection success paths
+- scalar compound assignment, concatenation-driven conditions, and scalar
+  array-read cases are covered as compiled execution and inspection success
+  paths
+- these representative rows now have explicit parity regressions instead of
+  only incidental coverage through broader backend tests
+
+That leaves `T-289` to rebaseline the execution-model docs around the
+reusable-only compiled route.
