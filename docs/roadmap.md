@@ -52,6 +52,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P30 | Execution Completeness Closure | The remaining grammar-valid backend gaps are closed so admitted forms execute end-to-end through the compiled backend/runtime path |
 | P31 | Remaining POSIX Contract Closure | The remaining product-side execution and contract gaps are classified explicitly and closed where they are POSIX-required |
 | P32 | Final POSIX Compatibility Corroboration | The remaining reviewed upstream anchors and reference-policy gaps are closed for the implemented POSIX surface |
+| P33 | Direct-Path Removal And Route Cleanup | The restricted direct lowering lane is removed, reusable lowering becomes the only compiled execution route, and stale backend gates are eliminated |
 
 ## Phase Entry and Exit Rules
 
@@ -691,15 +692,49 @@ Exit criteria:
 - `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap
   agree on the final implemented POSIX surface
 
+### P33: Direct-Path Removal And Route Cleanup
+
+Objective:
+- remove the remaining restricted direct lowering path from `jit.py` and make
+  reusable backend/runtime lowering the only compiled execution route for
+  in-contract programs
+
+In scope:
+- remove dead or stale direct-lowering helpers, guards, and error messages that
+  no longer match the intended execution model
+- widen backend routing so forms already implemented by reusable lowering do
+  not fail behind stale direct-path gates
+- add focused regressions for the representative over-gated programs identified
+  in the backend audit, including `BEGIN { print $1 }`, `BEGIN { x = !1 }`,
+  `BEGIN { x = ++y }`, `BEGIN { x = 1; x += 2 }`,
+  `BEGIN { if ("a" "b") x = 1 }`, and `BEGIN { x = a["k"] }`
+- rebaseline roadmap and design text so the reusable backend path is described
+  as the only compiled execution route
+- implementation details live in
+  [direct-path-removal-plan.md](plans/direct-path-removal-plan.md)
+
+Exit criteria:
+- `lower_to_llvm_ir()` no longer keeps a separate restricted direct lowering
+  fallback for supported public execution
+- representative previously over-gated programs execute and inspect through the
+  reusable backend/runtime path
+- remaining backend `RuntimeError` messages correspond only to genuinely
+  unsupported reusable-backend gaps rather than stale routing debt
+- roadmap and design docs no longer describe the direct path as active product
+  behavior
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-P30, P31, and P32 are complete. The POSIX compatibility closeout work is
-fully checked in.
+`T-284` is complete. `T-285` through `T-289` make up the remaining `P33`
+wave.
 
 Immediate next tasks:
-- No immediate next tasks remain.
+- `T-285` Remove the restricted direct lowering lane and route compiled
+  lowering through the reusable backend path.
+- `T-286` Widen reusable-backend routing and remove stale backend gates that
+  still block already-implemented forms.
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -990,6 +1025,12 @@ Priority values:
 | T-281 | P32 | P1 | Re-audit and resolve the record-target `gsub` reviewed skip | T-279 | The selected upstream `p.29` anchor is promoted, reclassified, or documented with a precise reviewed reason | done |
 | T-282 | P32 | P1 | Resolve the `rand()` compatibility strategy | T-279 | `rand()` has either a stable corroborating anchor or a checked-in classified reference-disagreement policy | done |
 | T-283 | P32 | P0 | Complete the final POSIX end-to-end compatibility audit | T-280, T-281, T-282 | `SPEC.md`, `docs/compatibility.md`, the upstream manifest, and the roadmap agree on the final implemented POSIX surface with no stale reviewed gaps | done |
+| T-284 | P33 | P0 | Author the direct-path-removal baseline and representative routing regressions | T-283 | Focused tests and roadmap text make the remaining direct-lane entrypoints, stale guards, and representative over-gated programs explicit before implementation | done |
+| T-285 | P33 | P0 | Remove the restricted direct lowering lane and dead direct-only helpers | T-284 | `lower_to_llvm_ir()` no longer emits the standalone direct-lowered `quawk_main()` fallback, and dead direct-function or record-loop helpers are removed or made unreachable by design | todo |
+| T-286 | P33 | P0 | Widen reusable-backend routing and remove stale pre-routing backend gates | T-285 | Programs already implemented by reusable lowering route through the backend/runtime path instead of failing behind `supports_runtime_backend_subset()` or `has_host_runtime_only_operations()` false negatives | todo |
+| T-287 | P33 | P1 | Remove stale direct-backend diagnostics and keep only genuine reusable-backend limits | T-286 | `jit.py` no longer raises misleading direct-backend limitation errors for supported public programs, and remaining runtime errors correspond to real reusable-backend gaps only | todo |
+| T-288 | P33 | P1 | Close execution and inspection parity for the representative over-gated programs | T-286, T-287 | Representative programs such as static field print in `BEGIN`, unary or increment-heavy `BEGIN` programs, scalar compound assignment, concatenation-driven conditions, and scalar array-read cases execute under ordinary `quawk` and succeed under `--ir` and `--asm` | todo |
+| T-289 | P33 | P1 | Rebaseline the execution-model docs after direct-path collapse | T-288 | `docs/design.md`, the roadmap, and any direct-path inventory notes agree that the reusable backend path is the only compiled execution route and no stale direct-lane wording remains | todo |
 
 ## Cross-Cutting Tracks
 
