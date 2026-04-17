@@ -47,5 +47,5 @@ Legend:
   `one-true-awk:p.25`, `one-true-awk:p.34`, `one-true-awk:p.36`, and
   `one-true-awk:p.44`.
 - No clean checked-in reference anchor is pinned for `P23` or `P24` yet; those
-  waves are currently closed by direct backend, routing, inspection, and
+  waves are currently closed by backend/runtime, routing, inspection, and
   runtime coverage instead.

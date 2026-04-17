@@ -162,3 +162,20 @@ Current state after `T-288`:
 
 That leaves `T-289` to rebaseline the execution-model docs around the
 reusable-only compiled route.
+
+## T-289 Result
+
+The execution-model docs now match the post-collapse architecture.
+
+Current state after `T-289`:
+
+- `docs/design.md` now states that the reusable backend/runtime split is the
+  only compiled execution and inspection route
+- the backend-gap inventory now tracks only the reusable compiled route and no
+  longer presents the retired direct-function lane as an active execution path
+- the remaining direct-path wording in this note is historical baseline context
+  for `T-284` through `T-288`, not current product behavior
+
+With that rebaseline in place, `P33` is complete: the reusable compiled route
+is the only active compiled execution model, the stale direct lane is retired,
+and the representative parity coverage is checked in.

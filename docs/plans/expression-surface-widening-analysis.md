@@ -264,7 +264,7 @@ The inspection and corroboration closeout for `P23` is now explicit:
 - focused routing regressions now pin those representative forms to the
   compiled backend/runtime path rather than the residual host-boundary path
 - no clean checked-in reference anchor is pinned for `P23` yet, so this wave
-  is currently closed by direct backend, routing, inspection, and runtime
+  is currently closed by backend/runtime, routing, inspection, and runtime
   coverage instead
 
 That leaves `T-221` as a pure public-contract rebaseline step, not an
@@ -313,7 +313,7 @@ The inspection and corroboration closeout for `P24` is now explicit:
 - focused routing regressions now pin those representative forms to the
   compiled backend/runtime path rather than the residual host-boundary path
 - no clean checked-in reference anchor is pinned for `P24` yet, so this wave
-  is currently closed by direct backend, routing, inspection, and runtime
+  is currently closed by backend/runtime, routing, inspection, and runtime
   coverage instead
 
 That leaves `T-226` as a pure public-contract rebaseline step, not an

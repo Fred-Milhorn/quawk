@@ -19,17 +19,15 @@ them deliberately.
 
 ## How To Read This Inventory
 
-Public execution currently accepts a program only if it fits one of two
-compiled routes:
+Public execution currently accepts a program only if it fits the reusable
+compiled backend/runtime route.
 
-1. the narrow direct-function backend subset
-2. the broader runtime-backed backend subset
+If a program falls outside that route, `ensure_public_execution_supported()`
+rejects it for ordinary execution and `lower_to_llvm_ir()` rejects it for
+`--ir` and `--asm`.
 
-If a program fits neither route, `ensure_public_execution_supported()` rejects
-it for ordinary execution and `lower_to_llvm_ir()` rejects it for `--ir` and
-`--asm`.
-
-The sections below describe the gaps route by route.
+The earlier narrow direct-function lane is retired and no longer belongs in the
+active gap inventory.
 
 Closed from this inventory:
 
@@ -42,100 +40,15 @@ Closed from this inventory:
 - dynamic `printf` formats were closed in T-270
 - the contract-enforcement audit was closed in T-271
 
-## Route 1: Direct-Function Backend Subset
-
-This route exists only for programs that:
-
-- define one or more user functions, and
-- normalize to direct `BEGIN`-only execution
-
-It is intentionally narrow. It supports only:
-
-- numeric literals and scalar names
-- calls to other user-defined functions with matching arity
-- arithmetic `+`, `-`, `*`, `/`, `%`, `^`
-- comparisons `<`, `<=`, `>`, `>=`, `==`, `!=`
-- `&&` and `||`
-- pure ternary expressions
-- scalar assignment
-- blocks, `if`, and `while`
-- `print` with exactly one argument
-- `return value` inside functions
-
-### Unsupported Direct-Function Forms
-
-These forms parse today but do not fit the direct-function route:
-
-- Any record-driven or `END` execution shape.
-  Example: `{ print $0 }`, `END { print x }`, `/re/ { print }`.
-  Why blocked: this route requires `normalize_program_for_lowering(program)`
-  to produce direct `BEGIN` statements only.
-
-- String-valued computation beyond printing a literal string.
-  Example: `function f() { return "x" } BEGIN { print f() }`.
-  Why blocked: function expressions in this route admit numeric literals, names,
-  ternaries over pure expressions, and local function calls only.
-
-- Field access and field assignment.
-  Example: `BEGIN { print $1 }`, `BEGIN { $2 = 9 }`.
-  Why blocked: field expressions and field lvalues are not part of the direct
-  subset.
-
-- Array reads, writes, deletes, and membership tests.
-  Example: `BEGIN { a["x"] = 1 }`, `BEGIN { print a["x"] }`, `BEGIN { delete a["x"] }`.
-  Why blocked: array lvalues and array index expressions are outside the
-  direct subset.
-
-- Builtins and `getline`.
-  Example: `BEGIN { print length("x") }`, `BEGIN { n = split("a b", a) }`,
-  `BEGIN { getline x }`.
-  Why blocked: only user-defined function calls are admitted.
-
-- Concatenation, regex operators, and `in`.
-  Example: `BEGIN { print "a" "b" }`, `BEGIN { print $0 ~ /x/ }`,
-  `BEGIN { print "x" in a }`.
-  Why blocked: only the direct subset's arithmetic, comparison, and logical
-  operators are admitted.
-
-- Assignment expressions, increment and decrement expressions, and compound
-  assignment.
-  Example: `BEGIN { print (x = 1) }`, `BEGIN { ++x }`, `BEGIN { x += 1 }`.
-  Why blocked: the direct subset only accepts plain assignment statements to a
-  scalar name.
-
-- `do ... while`, `for`, `for ... in`, `break`, and `continue`.
-  Example: `BEGIN { for (i = 0; i < 3; i++) print i }`.
-  Why blocked: the only loop form in this route is `while`.
-
-- `printf`, expression statements, `next`, `nextfile`, `exit`, and `delete`.
-  Example: `BEGIN { printf "%d\n", 1 }`, `BEGIN { next }`.
-  Why blocked: these statements are rejected explicitly by direct lowering.
-
-- Function bodies without a final return, empty function bodies, and early
-  returns before the last statement.
-  Example: `function f(x) { if (x) return 1; print x }`.
-  Why blocked: each function body must be non-empty, end in `return`, and may
-  not contain earlier `return` statements.
-
-### Bridge Priorities For This Route
-
-The direct-function route is best treated as a temporary narrow lane, not the
-long-term execution model for richer functions.
-
-The main bridge work here is:
-
-- move richer user-defined function bodies onto the runtime-backed route
-- reduce or retire direct-only function restrictions once the runtime-backed
-  lowering can cover the same programs
-
-## Route 2: Runtime-Backed Backend Subset
+## Runtime-Backed Backend Subset
 
 This is the main compiled execution path for public `quawk` execution. It
 already covers the current claimed surface, including record-driven programs,
 patterns, arrays, `printf`, `getline`, `next`, `nextfile`, `exit`, and the
 current builtin set.
 
-Its gaps are narrower than the direct-function route, but they still matter.
+Its remaining gaps are narrower than the earlier inventory phases, but they
+still matter.
 
 ### Unsupported Or Restricted Runtime-Backed Forms
 

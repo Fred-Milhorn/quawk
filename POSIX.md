@@ -563,7 +563,7 @@ Acceptance:
 
 - each builtin has direct semantics/runtime/backend coverage
 - the upstream subset includes corroborating `system()` coverage
-- `rand()` remains documented as a narrower direct-only case until the pinned
+- `rand()` remains documented as a narrower checked-in case until the pinned
   references agree on a stable seeded-output anchor
 
 #### POSIX-023: Implement `getline`
@@ -1196,7 +1196,7 @@ The `P24` closeout evidence is now explicit:
 - focused routing regressions now pin those forms to the compiled
   backend/runtime path instead of the residual host-boundary path
 - no clean checked-in reference anchor is pinned for `P24` yet, so this wave
-  is currently closed by direct backend, routing, inspection, and runtime
+  is currently closed by backend/runtime, routing, inspection, and runtime
   coverage instead
 
 That leaves `T-226` as the public-contract step: widen the actual claimed
@@ -1326,7 +1326,7 @@ The `P23` closeout evidence is now explicit:
 - focused routing regressions now pin those forms to the compiled
   backend/runtime path instead of the residual host-boundary path
 - no clean checked-in reference anchor is pinned for `P23` yet, so the ternary
-  wave is currently closed by direct backend, routing, inspection, and runtime
+  wave is currently closed by backend/runtime, routing, inspection, and runtime
   coverage instead
 
 That leaves `T-221` as the public-contract step: widen the actual claimed

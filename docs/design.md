@@ -203,10 +203,11 @@ AOT-oriented design goals:
 Current implementation model:
 - the parser and semantic layers target the current `docs/quawk.ebnf` surface rather than an older execution-only subset
 - the intended public execution model is AOT compilation plus backend/runtime execution; Python should compile, link, and invoke the generated program rather than interpret AWK semantics
+- the reusable LLVM/backend split is now the only compiled execution and inspection route; there is no separate direct-lowering lane for public `quawk`, `--ir`, or `--asm`
 - the checked-in architecture audit plus focused CLI/JIT parity tests now require every currently claimed execution family to have a compiled backend/runtime path
 - ordinary public `quawk` execution no longer keeps host fallback for representative unclaimed host-runtime-only forms from the broader intentionally unclaimed expression surface
 - ordinary public `quawk` execution no longer keeps host fallback for claimed behavior either; the claimed surface is now backend/runtime-only in public execution
-- the remaining product-side forms outside that contract are now named explicitly rather than left as vague "broader corners": builtin names beyond the current POSIX-standard subset; top-level items outside `PatternAction` / `FunctionDef`. The narrow direct-function lane has been retired into the reusable backend path and is no longer part of the remaining gap inventory. Builtin names beyond the current claimed subset are intentionally out of contract.
+- the remaining product-side forms outside that contract are now named explicitly rather than left as vague "broader corners": builtin names beyond the current POSIX-standard subset; top-level items outside `PatternAction` / `FunctionDef`. Builtin names beyond the current claimed subset are intentionally out of contract.
 - the T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface; anything outside that contract remains explicitly unclaimed instead of silently falling back
 
 Current public execution surface:
@@ -224,7 +225,7 @@ Current public execution surface:
 - input records and file-backed `getline` follow a byte-tolerant text policy; the Python-side helper paths preserve undecodable bytes with `surrogateescape`, while AWK source files remain UTF-8 text
 
 Current backend and inspection surface:
-- the reusable LLVM/runtime path covers every currently claimed execution family in `SPEC.md` at the representative family level enforced by the architecture audit, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
+- the reusable LLVM/runtime path is the only compiled execution and inspection path, and it covers every currently claimed execution family in `SPEC.md` at the representative family level enforced by the architecture audit, including arrays, classic `for`, `for ... in`, `printf`, `length`, `split`, `substr`, regex/range selection, `next`, `nextfile`, `exit`, user-defined functions, scalar-string coercions, and non-regex expression-pattern/default-print control paths
 - `--ir` and `--asm` now cover that same claimed surface; the remaining unclaimed product-side forms that can still fail inspection are the explicit T-272 list above rather than an open-ended "broader corners" bucket
 - the detailed inventory of grammar-valid but not-yet-lowered backend forms now lives in [docs/plans/backend-gap-inventory.md](plans/backend-gap-inventory.md)
 
@@ -232,9 +233,9 @@ Current architectural caveat:
 - the required public path is the reusable program/runtime split above, not Python-side whole-input materialization or Python-side semantic execution
 - representative unclaimed host-runtime-only programs now fail clearly in ordinary public execution instead of silently falling back
 - claimed public execution no longer keeps temporary host fallback for richer value semantics; that transition debt is closed for the current claimed surface
-- the remaining out-of-contract or deferred product-side forms still sit outside the current AOT-backed contract: builtin names beyond the current POSIX-standard subset; top-level items outside `PatternAction` / `FunctionDef`. The narrow direct-function lane has been retired into the reusable backend path and is no longer part of the remaining gap inventory. Builtin names beyond the current claimed subset are intentionally out of contract.
+- the remaining out-of-contract or deferred product-side forms still sit outside the current AOT-backed contract: builtin names beyond the current POSIX-standard subset; top-level items outside `PatternAction` / `FunctionDef`. Builtin names beyond the current claimed subset are intentionally out of contract.
 - those explicit remaining forms stay outside the current public contract unless future roadmap work widens the claim set again
-- the T-278 re-audit confirmed that the only remaining product-side forms outside the contract are the explicit top-level-item and builtin-name exclusions above; the narrow direct-function lane is retired into the reusable backend path and no longer belongs in the remaining gap inventory
+- the T-278 re-audit confirmed that the only remaining product-side forms outside the contract are the explicit top-level-item and builtin-name exclusions above
 - ordinary public `quawk` execution should fail clearly for representative host-runtime-only programs from that unclaimed surface rather than silently falling back
 
 Acceptance scenarios:
