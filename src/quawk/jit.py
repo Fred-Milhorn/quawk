@@ -245,7 +245,7 @@ def execute_llvm_ir(llvm_ir: str) -> int:
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
     """Lower the currently supported AST subset to LLVM IR text."""
     if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
-        raise RuntimeError("host-runtime-only operations are not supported by the LLVM-backed backend")
+        raise RuntimeError("the compiled reusable backend does not yet support this program")
     normalized_program = normalize_program_for_lowering(program)
     type_info = infer_variable_types(program)
     _ = initial_variables
@@ -596,7 +596,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
             state.instructions.append(f"  br label %{state.continue_label}")
         case DeleteStmt():
             if state.runtime_param is None:
-                raise RuntimeError("delete statements are not supported by the direct LLVM-backed backend")
+                raise RuntimeError("delete statements are not supported in the internal non-runtime lowering path")
             lower_runtime_delete_statement(statement, state)
         case IfStmt():
             lower_if_statement(statement, state)
@@ -606,15 +606,15 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
             lower_while_statement(statement, state)
         case ForStmt():
             if state.runtime_param is None:
-                raise RuntimeError("for statements are not supported by the direct LLVM-backed backend")
+                raise RuntimeError("for statements are not supported in the internal non-runtime lowering path")
             lower_runtime_for_statement(statement, state)
         case ForInStmt():
             if state.runtime_param is None:
-                raise RuntimeError("for-in statements are not supported by the direct LLVM-backed backend")
+                raise RuntimeError("for-in statements are not supported in the internal non-runtime lowering path")
             lower_runtime_for_in_statement(statement, state)
         case ReturnStmt():
             if state.return_label is None:
-                raise RuntimeError("return statements are not supported by the LLVM-backed backend")
+                raise RuntimeError("return statements are not supported in this lowering context")
             if state.return_string_slot is not None:
                 if statement.value is None:
                     return_value = lower_runtime_constant_string("", state)
@@ -632,7 +632,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 )
                 return
             if state.return_slot is None:
-                raise RuntimeError("return statements are not supported by the LLVM-backed backend")
+                raise RuntimeError("return statements are not supported in this lowering context")
             return_value = (
                 "0.000000000000000e+00"
                 if statement.value is None
@@ -649,23 +649,23 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                 lower_runtime_print_statement(statement, state)
             else:
                 if len(arguments) != 1:
-                    raise RuntimeError("the direct LLVM-backed backend only supports print with one argument")
+                    raise RuntimeError("the internal non-runtime lowering path only supports print with one argument")
                 lower_print_expression(arguments[0], state)
         case PrintfStmt():
             if state.runtime_param is None:
-                raise RuntimeError("printf statements are not supported by the direct LLVM-backed backend")
+                raise RuntimeError("printf statements are not supported in the internal non-runtime lowering path")
             lower_runtime_printf_statement(statement, state)
         case ExprStmt(value=value):
             if state.runtime_param is None:
-                raise RuntimeError("expression statements are not supported by the direct LLVM-backed backend")
+                raise RuntimeError("expression statements are not supported in the internal non-runtime lowering path")
             lower_runtime_side_effect_expression(value, state)
         case NextStmt():
             if state.runtime_param is None or state.phase_exit_label is None:
-                raise RuntimeError("next is not supported by the direct LLVM-backed backend")
+                raise RuntimeError("next is not supported in the internal non-runtime lowering path")
             state.instructions.append(f"  br label %{state.phase_exit_label}")
         case NextFileStmt():
             if state.runtime_param is None or state.phase_exit_label is None:
-                raise RuntimeError("nextfile is not supported by the direct LLVM-backed backend")
+                raise RuntimeError("nextfile is not supported in the internal non-runtime lowering path")
             state.instructions.extend(
                 [
                     f"  call void @qk_nextfile(ptr {state.runtime_param})",
@@ -674,7 +674,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
             )
         case ExitStmt(value=value):
             if state.runtime_param is None:
-                raise RuntimeError("exit is not supported by the direct LLVM-backed backend")
+                raise RuntimeError("exit is not supported in the internal non-runtime lowering path")
             status_value = "0"
             if value is not None:
                 numeric_value = lower_runtime_numeric_expression(value, state)
@@ -693,7 +693,7 @@ def lower_statement(statement: Stmt, state: LoweringState) -> None:
                     ]
                 )
             else:
-                raise RuntimeError("exit is not supported in this LLVM-backed backend context")
+                raise RuntimeError("exit is not supported in this lowering context")
         case _:
             raise RuntimeError("the current backend only supports print, assignment, block, if, and while statements")
 
@@ -899,11 +899,11 @@ def lower_do_while_statement(statement: DoWhileStmt, state: LoweringState) -> No
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
     """Lower a scalar numeric assignment."""
     if statement.op is not statement.op.PLAIN:
-        raise RuntimeError("compound assignments are not supported by the LLVM-backed backend")
+        raise RuntimeError("compound assignments are not supported in the internal non-runtime lowering path")
     if statement.name is None:
-        raise RuntimeError("non-scalar assignments are not supported by the LLVM-backed backend")
+        raise RuntimeError("non-scalar assignments are not supported in the internal non-runtime lowering path")
     if statement.index is not None or statement.extra_indexes:
-        raise RuntimeError("array assignments are not supported by the LLVM-backed backend")
+        raise RuntimeError("array assignments are not supported in the internal non-runtime lowering path")
     slot_name = variable_address(statement.name, state)
     state.initial_string_values.pop(statement.name, None)
     numeric_value = lower_numeric_expression(statement.value, state)
@@ -1277,7 +1277,7 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
         )
         return
     if isinstance(expression, FieldExpr):
-        raise RuntimeError("field expressions require the reusable runtime backend")
+        raise RuntimeError("field expressions require runtime-backed lowering")
 
     state.uses_printf = True
     format_name, format_length = ensure_numeric_format(state)
@@ -1498,7 +1498,7 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
         return format_double_literal(awk_numeric_prefix(expression.value))
 
     if isinstance(expression, ArrayIndexExpr):
-        raise RuntimeError("array reads are not supported by the LLVM-backed backend")
+        raise RuntimeError("array reads are not supported in the internal non-runtime lowering path")
 
     if isinstance(expression, NameExpr):
         slot_name = variable_address(expression.name, state)
@@ -1597,7 +1597,7 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
         return select_value
 
     raise RuntimeError(
-        "the current backend only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
+        "the internal non-runtime lowering path only supports numeric literals, variable reads, and the current arithmetic/boolean subset"
     )
 
 
@@ -3312,7 +3312,7 @@ def ensure_public_execution_supported(
     """Reject public execution for programs the compiled backend cannot execute."""
     _ = initial_variables
     if has_host_runtime_only_operations(program) and not supports_runtime_backend_subset(program):
-        raise RuntimeError("public execution does not support programs outside the compiled backend/runtime subset")
+        raise RuntimeError("public execution only supports programs in the compiled reusable backend subset")
 
 
 def link_reusable_execution_module(

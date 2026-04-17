@@ -122,3 +122,23 @@ Current state after `T-286`:
 
 That leaves `T-287` to clean up stale diagnostics and `T-288` to expand the
 representative end-to-end parity coverage.
+
+## T-287 Result
+
+The remaining public compiled-backend diagnostics now describe the reusable
+compiled route directly instead of referring back to the retired direct lane.
+
+Current state after `T-287`:
+
+- unsupported public lowering now fails with
+  `the compiled reusable backend does not yet support this program`
+- unsupported ordinary public execution now fails with
+  `public execution only supports programs in the compiled reusable backend subset`
+- stale `direct LLVM-backed backend` wording has been removed from `jit.py`
+- internal non-runtime-only helper failures are now labeled as internal
+  lowering-path limits rather than exposed as if they were a public product
+  backend
+
+That leaves `T-288` to widen end-to-end execution and inspection parity for the
+remaining representative programs, then `T-289` to rebaseline the execution
+model docs around the reusable-only compiled route.

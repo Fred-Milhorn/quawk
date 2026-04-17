@@ -727,14 +727,14 @@ Exit criteria:
 
 Start here unless priorities change:
 
-`T-284` through `T-286` are complete. `T-287` through `T-289` make up the remaining `P33`
+`T-284` through `T-287` are complete. `T-288` and `T-289` make up the remaining `P33`
 wave.
 
 Immediate next tasks:
-- `T-287` Remove stale direct-backend diagnostics so remaining errors reflect
-  only genuine reusable-backend gaps.
 - `T-288` Close execution and inspection parity for the remaining
   representative over-gated programs.
+- `T-289` Rebaseline the execution-model docs around the reusable-only
+  compiled route.
 
 P26 entry criteria:
 - `T-227` through `T-234` (P25) are complete ✓
@@ -1028,7 +1028,7 @@ Priority values:
 | T-284 | P33 | P0 | Author the direct-path-removal baseline and representative routing regressions | T-283 | Focused tests and roadmap text make the remaining direct-lane entrypoints, stale guards, and representative over-gated programs explicit before implementation | done |
 | T-285 | P33 | P0 | Remove the restricted direct lowering lane and dead direct-only helpers | T-284 | `lower_to_llvm_ir()` no longer emits the standalone direct-lowered `quawk_main()` fallback, and dead direct-function or record-loop helpers are removed or made unreachable by design | done |
 | T-286 | P33 | P0 | Widen reusable-backend routing and remove stale pre-routing backend gates | T-285 | Programs already implemented by reusable lowering route through the backend/runtime path instead of failing behind `supports_runtime_backend_subset()` or `has_host_runtime_only_operations()` false negatives | done |
-| T-287 | P33 | P1 | Remove stale direct-backend diagnostics and keep only genuine reusable-backend limits | T-286 | `jit.py` no longer raises misleading direct-backend limitation errors for supported public programs, and remaining runtime errors correspond to real reusable-backend gaps only | todo |
+| T-287 | P33 | P1 | Remove stale direct-backend diagnostics and keep only genuine reusable-backend limits | T-286 | `jit.py` no longer raises misleading direct-backend limitation errors for supported public programs, and remaining runtime errors correspond to real reusable-backend gaps only | done |
 | T-288 | P33 | P1 | Close execution and inspection parity for the representative over-gated programs | T-286, T-287 | Representative programs such as static field print in `BEGIN`, unary or increment-heavy `BEGIN` programs, scalar compound assignment, concatenation-driven conditions, and scalar array-read cases execute under ordinary `quawk` and succeed under `--ir` and `--asm` | todo |
 | T-289 | P33 | P1 | Rebaseline the execution-model docs after direct-path collapse | T-288 | `docs/design.md`, the roadmap, and any direct-path inventory notes agree that the reusable backend path is the only compiled execution route and no stale direct-lane wording remains | todo |
 
