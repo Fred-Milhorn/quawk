@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 import pytest
 
 from quawk import jit
@@ -29,26 +27,6 @@ def test_t285_begin_only_programs_no_longer_use_the_direct_lowering_lane(source_
 
     assert "define void @quawk_begin(ptr %rt, ptr %state)" in llvm_ir
     assert "define i32 @quawk_main()" not in llvm_ir
-
-
-@pytest.mark.parametrize(
-    ("source_text", "message"),
-    [
-        (
-            'BEGIN { x = a["k"] }',
-            "host-runtime-only operations are not supported by the LLVM-backed backend",
-        ),
-        (
-            "BEGIN { x = 1; x += 2 }",
-            "host-runtime-only operations are not supported by the LLVM-backed backend",
-        ),
-    ],
-)
-def test_t285_only_preexisting_host_runtime_gates_still_block_begin_only_programs(
-    source_text: str, message: str
-) -> None:
-    with pytest.raises(RuntimeError, match=re.escape(message)):
-        jit.lower_to_llvm_ir(parse_program(source_text))
 
 
 def test_t285_public_inspection_ir_links_a_driver_for_simple_begin_programs(monkeypatch) -> None:

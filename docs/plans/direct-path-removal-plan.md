@@ -103,3 +103,22 @@ lane itself:
 - `T-287` prunes stale direct-backend diagnostics
 - `T-288` closes public execution and inspection parity for the remaining
   representative programs
+
+## T-286 Result
+
+The reusable-route classifier now treats the full reusable lowering surface as
+compiled-backend supported, instead of requiring one of the older
+runtime-feature heuristics.
+
+Current state after `T-286`:
+
+- begin-only programs such as `BEGIN { x = a["k"] }` and
+  `BEGIN { x = 1; x += 2 }` now count as part of the reusable compiled subset
+- the stale pre-routing gate no longer rejects those representative programs
+  before lowering or public execution
+- public inspection still links the reusable program IR through the driver
+  module, so these programs continue to expose `quawk_main()` on the user-facing
+  `--ir` / `--asm` path
+
+That leaves `T-287` to clean up stale diagnostics and `T-288` to expand the
+representative end-to-end parity coverage.
