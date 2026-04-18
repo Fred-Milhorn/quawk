@@ -710,6 +710,20 @@ Current representative state-boundary anchors after `T-294`:
   resident only in promoted local numeric storage, so cross-phase or state-backed
   targets read the promoted numeric value instead of a stale runtime shadow
 
+Current benchmark anchors after `T-295` (sample run on April 18, 2026 with
+`--dataset-scale medium --repetitions 7 --warmups 2`):
+
+- geometric mean speedup (`optimized` vs `unoptimized`, `end_to_end`): `0.94x`
+- geometric mean speedup (`optimized` vs `unoptimized`, `lli_only`): `1.00x`
+- optimizer-kernel `lli_only` movement is still mixed: `branch_rewrite_loop`
+  improves modestly at `1.02x`, while `scalar_fold_loop` remains effectively flat
+  at `0.99x`
+- the representative runtime workloads also stay near-flat in `lli_only`, so the
+  current suite does not yet show broad runtime payoff from the cleaner promoted-
+  local IR by itself
+- on the current workload mix, `-O` remains an end-to-end regression because the
+  optimization step costs more than the execution-time savings it unlocks
+
 ### Tasks
 
 | ID | Task | Depends | Acceptance | Status |
@@ -719,7 +733,7 @@ Current representative state-boundary anchors after `T-294`:
 | P34-T03 | Lower the first supported subset of non-escaping numeric scalars through local storage | P34-T02 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | done |
 | P34-T04 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | P34-T03 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | done |
 | P34-T05 | Preserve AWK-visible runtime/state boundaries for promoted locals | P34-T03 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | done |
-| P34-T06 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | P34-T04, P34-T05 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |
+| P34-T06 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | P34-T04, P34-T05 | The optimized-vs-unoptimized suite is rerun against the post-`T-294` lowering, and roadmap/benchmark docs record the current `lli_only` outcome honestly, including when the suite-level geometric mean remains flat | done |
 
 ---
 

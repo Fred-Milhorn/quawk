@@ -256,9 +256,35 @@ Historical interpretation before `T-292`:
     and `dead` remain state-backed
   - `branch_rewrite_loop`: `n`, `total`, `limit`, `i`, `left`, `right`, and
     `always` remain state-backed
-  - `field_aggregate`: runtime field extraction still flows through
-    `qk_get_field_inline`, alongside state-backed locals such as `a`, `b`, `c`,
-    `derived`, `total`, and `count`
+- `field_aggregate`: runtime field extraction still flows through
+  `qk_get_field_inline`, alongside state-backed locals such as `a`, `b`, `c`,
+  `derived`, `total`, and `count`
+
+`T-295` post-`T-294` rebaseline note (sample run on April 18, 2026 with
+`--dataset-scale medium --repetitions 7 --warmups 2`):
+
+- geometric mean speedup (`optimized` vs `unoptimized`, `end_to_end`): `0.94x`
+- geometric mean speedup (`optimized` vs `unoptimized`, `lli_only`): `1.00x`
+- per-workload `lli_only` median speedups:
+  - `scalar_fold_loop`: `0.99x`
+  - `branch_rewrite_loop`: `1.02x`
+  - `field_aggregate`: `1.00x`
+  - `filter_transform`: `1.01x`
+  - `multi_file_reduce`: `0.99x`
+
+Current interpretation after `T-295`:
+
+- the `P34` IR work clearly changed representative code shape, but that cleanup
+  still does not translate into a meaningful suite-level `lli_only` win on the
+  current benchmark mix
+- `branch_rewrite_loop` is the clearest optimizer-kernel improvement, but
+  `scalar_fold_loop` remains effectively flat and the overall geometric mean is
+  still noise-level
+- end-to-end `-O` remains slower because `opt` overhead is still larger than the
+  execution win on this workload mix
+- the current benchmark evidence supports treating `P34` as an IR-shape cleanup
+  and honest rebaseline, not as proof that LLVM optimization is broadly
+  worthwhile for this suite yet
 
 ## Assumptions
 

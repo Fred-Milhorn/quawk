@@ -766,9 +766,9 @@ Exit criteria:
   shapes for representative loops
 - ordinary execution preserves existing AWK-visible behavior for values that
   still need runtime/state residency
-- the optimized-vs-unoptimized benchmark suite shows honest movement in
-  `lli_only` for the scalar kernels, and roadmap/benchmark docs explain the
-  result clearly
+- the optimized-vs-unoptimized benchmark suite is rerun against the promoted-
+  local lowering, and roadmap/benchmark docs explain clearly whether the current
+  workload mix shows enough `lli_only` movement to justify `-O`
 
 ## Immediate Next Tasks
 
@@ -777,8 +777,8 @@ Start here unless priorities change:
 `T-284` through `T-289` are complete. `P33` is complete.
 
 Immediate next tasks:
-- `T-295`: rebaseline optimized-vs-unoptimized benchmarks and docs for
-  local-scalar promotion
+- no active `P34` tasks remain; any further LLVM-optimization work should start
+  as a new explicitly benchmarked follow-on task
 
 P34 entry criteria:
 - `T-227` through `T-265` (`P25` through `P29`) are complete `done`
@@ -1084,7 +1084,7 @@ Priority values:
 | T-292 | P34 | P1 | Lower the first supported subset of non-escaping numeric scalars through local storage | T-291 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | done |
 | T-293 | P34 | P1 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | T-292 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | done |
 | T-294 | P34 | P1 | Preserve AWK-visible runtime/state boundaries for promoted locals | T-292 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | done |
-| T-295 | P34 | P2 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | T-293, T-294 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |
+| T-295 | P34 | P2 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | T-293, T-294 | The optimized-vs-unoptimized suite is rerun against the post-`T-294` lowering, and roadmap/benchmark docs record the current `lli_only` outcome honestly, including when the suite-level geometric mean remains flat | done |
 
 ## Cross-Cutting Tracks
 
