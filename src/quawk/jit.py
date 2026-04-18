@@ -1043,6 +1043,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         statement.op is AssignOp.PLAIN
         and isinstance(statement.value, NameExpr)
         and runtime_name_uses_scalar_runtime(statement.value.name, state)
+        and not runtime_name_uses_local_numeric_storage(statement.value.name, state)
         and not runtime_name_uses_string_slot_runtime(statement.name, state)
     ):
         source_name = lower_runtime_scalar_name(statement.value.name, state)
@@ -1910,6 +1911,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                     expression.op is AssignOp.PLAIN
                     and isinstance(expression.value, NameExpr)
                     and runtime_name_uses_scalar_runtime(expression.value.name, state)
+                    and not runtime_name_uses_local_numeric_storage(expression.value.name, state)
                     and not runtime_name_uses_string_slot_runtime(name, state)
                 ):
                     source_name = lower_runtime_scalar_name(expression.value.name, state)

@@ -777,7 +777,6 @@ Start here unless priorities change:
 `T-284` through `T-289` are complete. `P33` is complete.
 
 Immediate next tasks:
-- `T-294`: preserve AWK-visible runtime/state boundaries for promoted locals
 - `T-295`: rebaseline optimized-vs-unoptimized benchmarks and docs for
   local-scalar promotion
 
@@ -1084,7 +1083,7 @@ Priority values:
 | T-291 | P34 | P0 | Implement conservative residency classification for backend-local numeric scalars | T-290 | Lowering can distinguish numeric scalars that must remain in `%quawk.state` from those whose lifetime stays local to one lowered function | done |
 | T-292 | P34 | P1 | Lower the first supported subset of non-escaping numeric scalars through local storage | T-291 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | done |
 | T-293 | P34 | P1 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | T-292 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | done |
-| T-294 | P34 | P1 | Preserve AWK-visible runtime/state boundaries for promoted locals | T-292 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | todo |
+| T-294 | P34 | P1 | Preserve AWK-visible runtime/state boundaries for promoted locals | T-292 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | done |
 | T-295 | P34 | P2 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | T-293, T-294 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |
 
 ## Cross-Cutting Tracks

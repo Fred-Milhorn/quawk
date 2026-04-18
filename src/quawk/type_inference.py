@@ -43,6 +43,7 @@ from .parser import (
     StringLiteralExpr,
     UnaryExpr,
     WhileStmt,
+    expression_to_lvalue,
 )
 
 
@@ -226,6 +227,13 @@ def infer_variable_types(program: Program) -> dict[str, LatticeType]:
                 changed = visit_expression(if_false, local_names) or changed
             case UnaryExpr(operand=operand) | PostfixExpr(operand=operand):
                 changed = visit_expression(operand, local_names) or changed
+            case CallExpr(function="sub" | "gsub", args=args):
+                for arg in args:
+                    changed = visit_expression(arg, local_names) or changed
+                if len(args) == 3:
+                    target = expression_to_lvalue(args[2])
+                    if isinstance(target, NameLValue):
+                        changed = note_assignment(target.name, LatticeType.STRING, local_names) or changed
             case CallExpr(args=args):
                 for arg in args:
                     changed = visit_expression(arg, local_names) or changed
