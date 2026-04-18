@@ -16,6 +16,7 @@ from typing import Mapping, TextIO
 
 from . import runtime_support
 from .builtins import is_builtin_variable_name
+from .local_scalar_residency import classify_local_numeric_scalar_residency
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .parser import (
     Action,
@@ -119,6 +120,7 @@ class LoweringState:
     initial_string_values: dict[str, str] = field(default_factory=dict)
     local_names: frozenset[str] = field(default_factory=frozenset)
     function_param_strings: dict[str, str] = field(default_factory=dict)
+    local_numeric_names: frozenset[str] = field(default_factory=frozenset)
 
     def next_temp(self, prefix: str) -> str:
         """Return a fresh SSA temporary name with the given prefix."""
@@ -423,6 +425,7 @@ def lower_reusable_program_to_llvm_ir(
     variable_indexes = normalized_program.variable_indexes
     array_names = normalized_program.array_names
     state_type = render_state_type(normalized_program.slot_allocation)
+    local_scalar_residency = classify_local_numeric_scalar_residency(program, normalized_program, type_info)
 
     declarations = [
         "declare ptr @qk_get_field_inline(ptr, i64)",
@@ -518,6 +521,7 @@ def lower_reusable_program_to_llvm_ir(
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
         string_index=function_string_index,
+        local_numeric_names=local_scalar_residency.names_for_phase("begin"),
     )
     begin_state.phase_exit_label = begin_state.next_label("phase.exit")
     for action in begin_actions:
@@ -532,6 +536,7 @@ def lower_reusable_program_to_llvm_ir(
         string_index=begin_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
+        local_numeric_names=local_scalar_residency.names_for_phase("record"),
     )
     record_state.phase_exit_label = record_state.next_label("phase.exit")
     for record_item in record_items:
@@ -546,6 +551,7 @@ def lower_reusable_program_to_llvm_ir(
         string_index=record_state.string_index,
         array_names=array_names,
         function_defs={item.name: item for item in program.items if isinstance(item, FunctionDef)},
+        local_numeric_names=local_scalar_residency.names_for_phase("end"),
     )
     end_state.phase_exit_label = end_state.next_label("phase.exit")
     for action in end_actions:

@@ -597,6 +597,84 @@ symbols back to the base helpers for comparison.
 
 ---
 
+## P34: Local Scalar SSA Promotion
+
+### Baseline
+
+`T-290` established that the current optimized-vs-unoptimized suite is flat even
+after stripping out most user-facing `-O` overhead:
+
+- geometric mean speedup (`optimized` vs `unoptimized`, `end_to_end`): `0.93x`
+- geometric mean speedup (`optimized` vs `unoptimized`, `lli_only`): `0.99x`
+
+That points the next performance wave at IR value residency rather than more
+pass-pipeline churn. The representative baseline anchors are:
+
+- `scalar_fold_loop`: `n`, `s`, `bias`, `scale`, `i`, `base`, `x`, `y`, `z`,
+  and `dead` remain `%quawk.state`-backed
+- `branch_rewrite_loop`: `n`, `total`, `limit`, `i`, `left`, `right`, and
+  `always` remain `%quawk.state`-backed
+- `field_aggregate`: runtime field extraction still routes through
+  `qk_get_field_inline`, while `a`, `b`, `c`, `derived`, `total`, and `count`
+  still occupy `%quawk.state`
+
+### Conservative Residency Classifier
+
+`T-291` adds a compile-time classifier in `local_scalar_residency.py` that
+separates inferred-numeric scalars into:
+
+- names that can stay local to one lowered reusable phase (`quawk_begin`,
+  `quawk_record`, or `quawk_end`)
+- names that must remain state-backed in `%quawk.state`
+
+The first pass is intentionally conservative:
+
+- only inferred-numeric scalar names are considered
+- names shared across lowered units remain state-backed
+- names read before a definite in-unit assignment remain state-backed
+- builtin variables, array names, and lowering-only range state names are never
+  treated as local numeric scalars
+- user-defined function names remain state-backed in this first pass until a
+  later task handles call/recursion lifetime more explicitly
+
+This gives lowering a stable distinction before any storage rewrite happens in
+`T-292`.
+
+### Data Shape
+
+```python
+@dataclass(frozen=True)
+class LocalScalarResidency:
+    begin_local_numeric_names: frozenset[str]
+    record_local_numeric_names: frozenset[str]
+    end_local_numeric_names: frozenset[str]
+    function_local_numeric_names: Mapping[str, frozenset[str]]
+    state_backed_numeric_names: frozenset[str]
+```
+
+Current representative classification anchors:
+
+- `scalar_fold_loop` classifies all of `n`, `s`, `bias`, `scale`, `i`, `base`,
+  `x`, `y`, `z`, and `dead` as record-local numeric scalars
+- `field_aggregate` classifies `a`, `b`, `c`, and `derived` as record-local,
+  while `total` and `count` stay state-backed because they cross the record/END
+  boundary
+- names that are used in both `BEGIN` and `END`, such as `BEGIN { x = 1 } END {
+  print x }`, remain state-backed
+
+### Tasks
+
+| ID | Task | Depends | Acceptance | Status |
+|---|---|---|---|---|
+| P34-T01 | Author the local-scalar promotion baseline and representative benchmark/IR anchors | T-289 | Focused roadmap notes and regressions make the remaining `%quawk.state` traffic in representative scalar kernels explicit before implementation choices start | done |
+| P34-T02 | Implement conservative residency classification for backend-local numeric scalars | P34-T01 | Lowering can distinguish numeric scalars that must remain in `%quawk.state` from those whose lifetime stays local to one lowered function | done |
+| P34-T03 | Lower the first supported subset of non-escaping numeric scalars through local storage | P34-T02 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | todo |
+| P34-T04 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | P34-T03 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | todo |
+| P34-T05 | Preserve AWK-visible runtime/state boundaries for promoted locals | P34-T03 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | todo |
+| P34-T06 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | P34-T04, P34-T05 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |
+
+---
+
 ## Benchmark Infrastructure
 
 ### Benchmark Programs
