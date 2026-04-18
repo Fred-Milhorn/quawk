@@ -749,7 +749,7 @@ In scope:
   [performance-implementation.md](performance-implementation.md) when
   implementation begins
 
-Current `T-290` baseline anchors:
+Historical `T-290` baseline anchors before `T-292`:
 - `scalar_fold_loop` still keeps `n`, `s`, `bias`, `scale`, `i`, `base`, `x`,
   `y`, `z`, and `dead` in `%quawk.state`
 - `branch_rewrite_loop` still keeps `n`, `total`, `limit`, `i`, `left`,
@@ -777,8 +777,6 @@ Start here unless priorities change:
 `T-284` through `T-289` are complete. `P33` is complete.
 
 Immediate next tasks:
-- `T-292`: lower the first supported subset of non-escaping numeric scalars
-  through local storage
 - `T-293`: make promoted-local lowering mem2reg-friendly for LLVM cleanup
 - `T-294`: preserve AWK-visible runtime/state boundaries for promoted locals
 - `T-295`: rebaseline optimized-vs-unoptimized benchmarks and docs for
@@ -1085,7 +1083,7 @@ Priority values:
 | T-289 | P33 | P1 | Rebaseline the execution-model docs after direct-path collapse | T-288 | `docs/design.md`, the roadmap, and any direct-path inventory notes agree that the reusable backend path is the only compiled execution route and no stale direct-lane wording remains | done |
 | T-290 | P34 | P0 | Author the local-scalar promotion baseline and representative benchmark/IR anchors | T-289 | Focused roadmap notes and regressions make the remaining `%quawk.state` traffic in representative scalar kernels explicit before implementation choices start | done |
 | T-291 | P34 | P0 | Implement conservative residency classification for backend-local numeric scalars | T-290 | Lowering can distinguish numeric scalars that must remain in `%quawk.state` from those whose lifetime stays local to one lowered function | done |
-| T-292 | P34 | P1 | Lower the first supported subset of non-escaping numeric scalars through local storage | T-291 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | todo |
+| T-292 | P34 | P1 | Lower the first supported subset of non-escaping numeric scalars through local storage | T-291 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | done |
 | T-293 | P34 | P1 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | T-292 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | todo |
 | T-294 | P34 | P1 | Preserve AWK-visible runtime/state boundaries for promoted locals | T-292 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | todo |
 | T-295 | P34 | P2 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | T-293, T-294 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |

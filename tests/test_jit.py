@@ -1719,12 +1719,14 @@ def test_lower_to_llvm_ir_emits_string_concat_fast_path_without_capture_for_know
     assert "call ptr @qk_format_number" not in llvm_ir
 
 
-def test_lower_to_llvm_ir_uses_state_load_store_for_inferred_numeric_slot_names() -> None:
+def test_lower_to_llvm_ir_uses_local_numeric_storage_for_inferred_numeric_slot_names() -> None:
     program = parse_program("{ x = 1; y = x + 2; x += y; print x }")
 
     llvm_ir = jit.lower_to_llvm_ir(program)
-    assert "getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 0" in llvm_ir
-    assert "getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 1" in llvm_ir
+    assert "%localvar.x." in llvm_ir
+    assert "%localvar.y." in llvm_ir
+    assert "%varptr.x." not in llvm_ir
+    assert "%varptr.y." not in llvm_ir
     assert "call double @qk_slot_get_number" not in llvm_ir
     assert "call void @qk_slot_set_number" not in llvm_ir
 

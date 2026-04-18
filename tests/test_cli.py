@@ -560,7 +560,8 @@ def test_quawk_ir_flag_prints_assignment_ir_and_stops() -> None:
     assert result.returncode == 0, result.stderr
     assert "getelementptr inbounds %quawk.state" in result.stdout
     assert "store double %add." in result.stdout
-    assert "load double, ptr %varptr.x." in result.stdout
+    assert "%localvar.x." in result.stdout
+    assert "load double, ptr %localvar.x." in result.stdout
     assert "@qk_print_number_fragment(" in result.stdout
     assert result.stderr == ""
 
@@ -574,12 +575,13 @@ def test_quawk_ir_flag_prints_backend_ir_for_claimed_unset_scalar_value_cases() 
     assert result.stderr == ""
 
 
-def test_quawk_ir_flag_uses_slot_calls_for_scalar_compound_assignment() -> None:
+def test_quawk_ir_flag_uses_local_numeric_storage_for_scalar_compound_assignment() -> None:
     result = run_quawk("--ir", "BEGIN { x = 1; x += 2; print x }")
 
     assert result.returncode == 0, result.stderr
     assert "getelementptr inbounds %quawk.state" in result.stdout
-    assert "load double, ptr %varptr.x." in result.stdout
+    assert "%localvar.x." in result.stdout
+    assert "load double, ptr %localvar.x." in result.stdout
     assert "store double %assign.op." in result.stdout
     assert "@qk_print_number_fragment(" in result.stdout
     assert result.stderr == ""

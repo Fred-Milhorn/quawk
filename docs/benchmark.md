@@ -237,13 +237,13 @@ When a quick iteration is needed, narrow the suite to one workload:
 uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale smoke --workload scalar_fold_loop
 ```
 
-`T-290` baseline note (sample run on April 17, 2026 with
+`T-290` historical baseline note before `T-292` (sample run on April 17, 2026 with
 `--dataset-scale medium --repetitions 7 --warmups 2`):
 
 - geometric mean speedup (`optimized` vs `unoptimized`, `end_to_end`): `0.93x`
 - geometric mean speedup (`optimized` vs `unoptimized`, `lli_only`): `0.99x`
 
-Current interpretation:
+Historical interpretation before `T-292`:
 
 - the flat `lli_only` result means this is not just `opt` process overhead in
   the user-facing `-O` path; representative optimized kernels are already

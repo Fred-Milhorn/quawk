@@ -1233,6 +1233,12 @@ def variable_address(name: str, state: LoweringState) -> str:
         return existing
 
     if state.state_param is not None:
+        if runtime_name_uses_local_numeric_storage(name, state):
+            slot_name = state.next_temp(f"localvar.{name}")
+            state.allocas.append(f"  {slot_name} = alloca double")
+            state.instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
+            state.variable_slots[name] = slot_name
+            return slot_name
         variable_index = state.variable_indexes.get(name)
         if variable_index is None:
             raise RuntimeError(f"undefined variable slot in reusable backend: {name}")
@@ -2770,6 +2776,16 @@ def runtime_name_uses_numeric_slot_state(name: str, state: LoweringState) -> boo
         and runtime_name_uses_scalar_runtime(name, state)
         and runtime_name_is_inferred_numeric(name, state)
         and runtime_name_slot_index(name, state) is not None
+    )
+
+
+def runtime_name_uses_local_numeric_storage(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name should use function-local numeric storage."""
+    return (
+        state.state_param is not None
+        and name in state.local_numeric_names
+        and runtime_name_uses_scalar_runtime(name, state)
+        and runtime_name_is_inferred_numeric(name, state)
     )
 
 
