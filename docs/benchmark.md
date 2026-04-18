@@ -237,6 +237,29 @@ When a quick iteration is needed, narrow the suite to one workload:
 uv run python scripts/benchmark_optimized_vs_unoptimized.py --dataset-scale smoke --workload scalar_fold_loop
 ```
 
+`T-290` baseline note (sample run on April 17, 2026 with
+`--dataset-scale medium --repetitions 7 --warmups 2`):
+
+- geometric mean speedup (`optimized` vs `unoptimized`, `end_to_end`): `0.93x`
+- geometric mean speedup (`optimized` vs `unoptimized`, `lli_only`): `0.99x`
+
+Current interpretation:
+
+- the flat `lli_only` result means this is not just `opt` process overhead in
+  the user-facing `-O` path; representative optimized kernels are already
+  failing to get meaningful runtime wins from the current IR shape
+- the current scalar-kernel IR still keeps loop-local numeric temporaries in
+  `%quawk.state` instead of lowering them as local values that LLVM can more
+  easily promote and simplify
+- the representative baseline anchors for `P34` are:
+  - `scalar_fold_loop`: `n`, `s`, `bias`, `scale`, `i`, `base`, `x`, `y`, `z`,
+    and `dead` remain state-backed
+  - `branch_rewrite_loop`: `n`, `total`, `limit`, `i`, `left`, `right`, and
+    `always` remain state-backed
+  - `field_aggregate`: runtime field extraction still flows through
+    `qk_get_field_inline`, alongside state-backed locals such as `a`, `b`, `c`,
+    `derived`, `total`, and `count`
+
 ## Assumptions
 
 - the benchmark is a local engineering tool, not a release gate
