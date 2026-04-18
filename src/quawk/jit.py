@@ -94,6 +94,7 @@ class LoweringState:
 
     globals: list[str] = field(default_factory=list)
     allocas: list[str] = field(default_factory=list)
+    entry_instructions: list[str] = field(default_factory=list)
     instructions: list[str] = field(default_factory=list)
     temp_index: int = 0
     label_index: int = 0
@@ -1236,7 +1237,7 @@ def variable_address(name: str, state: LoweringState) -> str:
         if runtime_name_uses_local_numeric_storage(name, state):
             slot_name = state.next_temp(f"localvar.{name}")
             state.allocas.append(f"  {slot_name} = alloca double")
-            state.instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
+            state.entry_instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
             state.variable_slots[name] = slot_name
             return slot_name
         variable_index = state.variable_indexes.get(name)
@@ -1250,7 +1251,7 @@ def variable_address(name: str, state: LoweringState) -> str:
 
     slot_name = state.next_temp(f"var.{name}")
     state.allocas.append(f"  {slot_name} = alloca double")
-    state.instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
+    state.entry_instructions.append(f"  store double 0.000000000000000e+00, ptr {slot_name}")
     state.variable_slots[name] = slot_name
     return slot_name
 
@@ -3797,6 +3798,7 @@ def render_reusable_function(name: str, state: LoweringState) -> str:
             f"define void @{name}(ptr %rt, ptr %state) {{",
             "entry:",
             *state.allocas,
+            *state.entry_instructions,
             *state.instructions,
             f"  br label %{state.phase_exit_label}",
             f"{state.phase_exit_label}:",
@@ -3814,6 +3816,7 @@ def render_user_function(function_def: FunctionDef, state: LoweringState) -> str
             f"define double @qk_fn_{function_def.name}({arguments}) {{",
             "entry:",
             *state.allocas,
+            *state.entry_instructions,
             *state.instructions,
             "}",
         ]
@@ -3828,6 +3831,7 @@ def render_runtime_user_function(function_def: FunctionDef, state: LoweringState
             f"define ptr @qk_fn_{function_def.name}({arguments}) {{",
             "entry:",
             *state.allocas,
+            *state.entry_instructions,
             *state.instructions,
             "}",
         ]

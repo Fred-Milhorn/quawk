@@ -686,6 +686,18 @@ Current representative codegen anchors after `T-292`:
   allocas in `@quawk_record`, while `total` and `count` remain `%quawk.state`-
   backed because they cross from record processing into `END`
 
+Current representative optimized anchors after `T-293`:
+
+- promoted local numeric allocas still live in the entry block, but their default
+  zero stores now also land in the entry block instead of first-use sites inside
+  loops, which gives `opt` a cleaner mem2reg-friendly starting point
+- `scalar_fold_loop` optimized `@quawk_record` now collapses to direct loop-carried
+  SSA values for `i` and `s`, with `base`, `x`, `y`, `z`, and `dead` eliminated as
+  transient arithmetic
+- `branch_rewrite_loop` optimized `@quawk_record` now carries `i` and `total`
+  through phi nodes and rewrites the branch-local temporaries into direct
+  arithmetic plus `select`-based control flow
+
 ### Tasks
 
 | ID | Task | Depends | Acceptance | Status |
@@ -693,7 +705,7 @@ Current representative codegen anchors after `T-292`:
 | P34-T01 | Author the local-scalar promotion baseline and representative benchmark/IR anchors | T-289 | Focused roadmap notes and regressions make the remaining `%quawk.state` traffic in representative scalar kernels explicit before implementation choices start | done |
 | P34-T02 | Implement conservative residency classification for backend-local numeric scalars | P34-T01 | Lowering can distinguish numeric scalars that must remain in `%quawk.state` from those whose lifetime stays local to one lowered function | done |
 | P34-T03 | Lower the first supported subset of non-escaping numeric scalars through local storage | P34-T02 | Representative loops no longer read and write `%quawk.state` for promoted locals whose values do not escape the lowered function | done |
-| P34-T04 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | P34-T03 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | todo |
+| P34-T04 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | P34-T03 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | done |
 | P34-T05 | Preserve AWK-visible runtime/state boundaries for promoted locals | P34-T03 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | todo |
 | P34-T06 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | P34-T04, P34-T05 | The scalar kernels in the benchmark suite show measurable `lli_only` improvement, and roadmap/benchmark docs describe the new phase and results honestly | todo |
 
