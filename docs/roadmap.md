@@ -54,6 +54,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P32 | Final POSIX Compatibility Corroboration | The remaining reviewed upstream anchors and reference-policy gaps are closed for the implemented POSIX surface |
 | P33 | Direct-Path Removal And Route Cleanup | The restricted direct lowering lane is removed, reusable lowering becomes the only compiled execution route, and stale backend gates are eliminated |
 | P34 | Local Scalar SSA Promotion | Action-local numeric scalars move out of `%quawk.state` when safe so LLVM can optimize hot loops against local values instead of state traffic |
+| P35 | Agent Workflow Documentation Alignment | `AGENTS.md` and linked workflow docs are aligned with current setup, validation, compatibility, architecture, and doc-update guidance |
 
 ## Phase Entry and Exit Rules
 
@@ -770,24 +771,62 @@ Exit criteria:
   local lowering, and roadmap/benchmark docs explain clearly whether the current
   workload mix shows enough `lli_only` movement to justify `-O`
 
+### P35: Agent Workflow Documentation Alignment
+
+Objective:
+- make `AGENTS.md` the useful first-read workflow guide for coding agents by
+  aligning it with the current setup, testing, compatibility, architecture, and
+  documentation expectations spread across the rest of the repo
+
+In scope:
+- resolve the stale `docs/agent-workflow.md` references by either linking to
+  `AGENTS.md` directly or adding a deliberate shim
+- add complete setup and validation guidance to `AGENTS.md`, including LLVM
+  prerequisites, editable dev install, submodule initialization, upstream
+  reference bootstrap, static checks, and marker-based pytest suites
+- add testing and compatibility decision rules for corpus cases, ordinary
+  Python tests, `xfail`, pinned One True Awk, pinned `gawk --posix`, and
+  divergence classification
+- add implementation guardrails that keep claimed AWK semantics on the compiled
+  backend/runtime path rather than Python semantic fallback
+- add a compact documentation source-of-truth map for `SPEC.md`,
+  `docs/design.md`, grammar/AST docs, roadmap, changelog, release checklist,
+  and compatibility notes
+- tighten git and documentation hygiene guidance for dirty worktrees, staging,
+  and relative links
+- implementation details live in
+  [agent-workflow-doc-alignment-plan.md](plans/agent-workflow-doc-alignment-plan.md)
+
+Exit criteria:
+- `AGENTS.md` includes the setup, validation, testing, compatibility,
+  architecture, doc-update, changelog, git-safety, and relative-link guidance
+  needed for ordinary coding-agent work
+- README and contributor guidance point to the actual agent workflow document
+  rather than a missing path
+- touched docs avoid introducing new absolute local filesystem links
+- relevant documentation validation is run or any skipped check is explained
+
 ## Immediate Next Tasks
 
 Start here unless priorities change:
 
-`T-284` through `T-289` are complete. `P33` is complete.
+`T-290` through `T-295` are complete. `P34` is complete.
 
 Immediate next tasks:
-- no active `P34` tasks remain; any further LLVM-optimization work should start
-  as a new explicitly benchmarked follow-on task
+- start `P35` implementation with `T-297` to resolve the workflow-document path
+- follow with `T-298` to expand `AGENTS.md` setup, validation, testing, and
+  compatibility guidance
+- complete `P35` with the architecture/doc-map/git-safety updates and a focused
+  docs validation pass
 
-P34 entry criteria:
-- `T-227` through `T-265` (`P25` through `P29`) are complete `done`
-- `T-257` benchmark results show little or no `lli_only` benefit from `-O` on
-  the scalar kernels, so the next likely lever is IR value residency rather than
-  more pass-pipeline churn
-- implementation notes for `P34` should extend
-  [performance-implementation.md](performance-implementation.md) before code
-  lands
+P35 entry criteria:
+- the current review of `AGENTS.md`, README, contributing docs, testing docs,
+  compatibility docs, design docs, and roadmap has identified the missing agent
+  workflow guidance
+- no implementation behavior change is required; this is a documentation
+  alignment wave
+- implementation notes for `P35` should follow
+  [agent-workflow-doc-alignment-plan.md](plans/agent-workflow-doc-alignment-plan.md)
 
 ## Backlog
 
@@ -1085,6 +1124,12 @@ Priority values:
 | T-293 | P34 | P1 | Make promoted-local lowering mem2reg-friendly for LLVM cleanup | T-292 | After `opt`, representative loops collapse to direct arithmetic/comparison-heavy IR with materially fewer redundant loads and stores | done |
 | T-294 | P34 | P1 | Preserve AWK-visible runtime/state boundaries for promoted locals | T-292 | Escaping, mixed, string, field, array, builtin-coupled, and cross-phase values remain state-backed, and correctness regressions stay green | done |
 | T-295 | P34 | P2 | Rebaseline optimized-vs-unoptimized benchmarks and docs for local-scalar promotion | T-293, T-294 | The optimized-vs-unoptimized suite is rerun against the post-`T-294` lowering, and roadmap/benchmark docs record the current `lli_only` outcome honestly, including when the suite-level geometric mean remains flat | done |
+| T-296 | P35 | P0 | Author the agent-workflow documentation alignment plan | T-295 | `docs/plans/agent-workflow-doc-alignment-plan.md` records the missing guidance, desired steady state, cleanup phases, validation direction, and acceptance criteria before docs are rewritten | done |
+| T-297 | P35 | P0 | Resolve the agent workflow document path | T-296 | README and contributor guidance point to the actual agent workflow document, or a deliberate `docs/agent-workflow.md` shim exists and points to `AGENTS.md` | todo |
+| T-298 | P35 | P0 | Expand `AGENTS.md` setup, validation, testing, and compatibility guidance | T-296, T-297 | `AGENTS.md` covers LLVM prerequisites, editable dev install, submodules, upstream bootstrap, static validation commands, marker-based suites, corpus/test selection, `xfail`, pinned references, and divergence classification | todo |
+| T-299 | P35 | P1 | Add architecture, doc-update, changelog, and git-safety guardrails to `AGENTS.md` | T-298 | `AGENTS.md` summarizes compiled-backend execution constraints, maps change types to the right docs, calls out changelog expectations for user-visible changes, and prevents accidental staging of unrelated dirty-worktree changes | todo |
+| T-300 | P35 | P1 | Clean touched workflow docs for relative links and stale guidance | T-297, T-299 | Docs touched by the alignment avoid new absolute local filesystem links, stale `docs/agent-workflow.md` references are gone or intentional, and workflow guidance no longer conflicts across README, contributing docs, `AGENTS.md`, and testing docs | todo |
+| T-301 | P35 | P2 | Validate and close the agent workflow documentation alignment | T-300 | Relevant documentation checks pass or skipped checks are explained, and the roadmap marks `P35` complete only after `AGENTS.md` and linked workflow docs agree on setup, validation, compatibility, architecture, and doc-update expectations | todo |
 
 ## Cross-Cutting Tracks
 
