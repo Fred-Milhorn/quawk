@@ -1,0 +1,85 @@
+# quawk Source Map
+
+This package implements the `quawk` command: a POSIX-oriented AWK compiler and
+LLVM-backed runtime. The implementation is organized as a compiler pipeline with
+compatibility tooling alongside it.
+
+## Pipeline
+
+1. `cli.py` parses command-line options, loads AWK source, runs stop-after
+   inspection modes, and reports user-facing errors.
+2. `source.py` tracks source files, offsets, spans, and cursor movement.
+3. `lexer.py` converts source text into tokens.
+4. `parser.py` builds the AST and formats AST output for `--parse`.
+5. `semantics.py` validates supported AWK constructs and produces program
+   analysis used by the CLI and backend.
+6. `normalization.py`, `type_inference.py`, `slot_allocation.py`, and
+   `local_scalar_residency.py` prepare the program for lowering.
+7. `jit.py` lowers supported AST forms to LLVM IR, runs LLVM tools, links the
+   runtime support layer, and executes generated programs.
+8. `runtime_support.py` locates LLVM/C tools and compiles files under
+   `runtime/`.
+9. `compat/` owns corpus and upstream compatibility selection, execution, and
+   divergence metadata.
+
+## Main Modules
+
+| Path | Owns |
+|---|---|
+| `__main__.py` | `python -m quawk` entrypoint |
+| `cli.py` | user-facing CLI flow and stop-after modes |
+| `diagnostics.py` | structured lexer, parser, and semantic errors |
+| `source.py` | source locations, spans, and cursors |
+| `lexer.py` | token definitions, lexing, and token formatting |
+| `parser.py` | AST definitions, parsing, and AST formatting |
+| `builtins.py` | builtin variable, array, and function metadata |
+| `semantics.py` | semantic validation and program analysis |
+| `normalization.py` | lowering-oriented program normalization |
+| `type_inference.py` | variable and expression type lattice inference |
+| `slot_allocation.py` | runtime state slot layout helpers |
+| `local_scalar_residency.py` | scalar-locality analysis for backend storage |
+| `jit.py` | current backend facade, lowering, LLVM orchestration, and driver IR |
+| `runtime_support.py` | LLVM/C tool lookup and runtime compilation |
+| `runtime/` | C runtime ABI and implementation |
+| `compat/` | corpus, upstream suite, and divergence tooling |
+| `architecture_audit.py` | architecture-support manifest checks |
+
+## Where To Start
+
+- CLI behavior: start in `cli.py`, then follow into `lexer.py`, `parser.py`,
+  `semantics.py`, and `jit.py`.
+- New syntax: update tokens in `lexer.py`, AST/parser support in `parser.py`,
+  validation in `semantics.py`, and lowering support in `jit.py`.
+- Analysis changes: start in the pass that owns the question, then check
+  repeated AST traversal in `normalization.py`, `semantics.py`,
+  `type_inference.py`, and `local_scalar_residency.py`.
+- Backend execution changes: start in `jit.py`; runtime toolchain support lives
+  in `runtime_support.py`, and C ABI changes belong under `runtime/`.
+- Compatibility changes: start in `compat/corpus.py` for local corpus behavior
+  or `compat/upstream_suite.py` for imported upstream cases.
+
+## Current Refactor Direction
+
+`P36` is a readability refactor wave. The goal is to move code along existing
+ownership boundaries without changing public behavior.
+
+Planned moves:
+
+- split AST definitions and AST formatting out of `parser.py`
+- add shared AST traversal helpers for analysis passes
+- split backend tool orchestration, driver IR, ABI declarations, state, and
+  lowering out of `jit.py`
+- introduce a small LLVM IR emitter for common instruction text
+- split statement, expression, lvalue, and builtin lowering into focused
+  backend modules
+- split the C runtime into concise domain files under `runtime/`, such as
+  `core.c`, `fields.c`, `values.c`, `arrays.c`, `io.c`, `builtins.c`, and
+  `profile.c`
+- prefer behavior-oriented test names when touching task-numbered tests
+
+Naming should stay concise when the package or directory already supplies the
+context. For example, a future `runtime/fields.c` is clearer than repeating
+`runtime` in the filename.
+
+See `../../docs/plans/implementation-readability-refactor-plan.md` for the full
+plan.
