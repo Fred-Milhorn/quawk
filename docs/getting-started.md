@@ -65,11 +65,11 @@ in `.github/workflows/compat-reference.yml`.
 After dependency bootstrap:
 
 ```sh
-quawk --help
-pytest
-yapf --diff --recursive src tests
-ruff check .
-mypy src
+uv run quawk --help
+uv run pytest
+uv run yapf --diff --recursive src tests
+uv run ruff check .
+uv run mypy src
 ```
 
 The commands above should run from a clean scaffold checkout after `uv pip install -e .[dev]`.

@@ -37,7 +37,7 @@ Awk and gawk references with `uv run quawk-upstream bootstrap`.
 - Prefer separate PRs for broad doc reorgs versus implementation work.
 - When references disagree, cite POSIX text before locking expected behavior.
 - Keep links relative. Do not add absolute local filesystem paths.
-- For agent-oriented local workflow details (including commit-message temp-file usage and `uv`-first commands), see [docs/agent-workflow.md](docs/agent-workflow.md).
+- For agent-oriented local workflow details (including commit-message temp-file usage and `uv`-first commands), see [AGENTS.md](AGENTS.md).
 
 ## Coding and Documentation Standards
 
@@ -84,15 +84,15 @@ Reference behavior:
 Current local checks are defined in [docs/testing.md](docs/testing.md). When the project scaffold is in place, contributors should expect to run:
 
 ```sh
-quawk --help
-corpus --list
-pytest
+uv run quawk --help
+uv run corpus --list
+uv run pytest -q
 uv run pytest -q -m core
 uv run pytest -m compat_reference
 uv run pytest -m compat_corpus
-yapf --diff --recursive src tests
-ruff check .
-mypy src
+uv run yapf --diff --recursive src tests
+uv run ruff check .
+uv run mypy src
 ```
 
 When touching the upstream compatibility bootstrap or suite-selection flow,

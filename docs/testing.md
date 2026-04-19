@@ -325,12 +325,12 @@ Release gate recommendation:
 Required jobs:
 
 1. `format-lint`
-   - `yapf --diff --recursive src tests`
-   - `ruff check .`
+   - `uv run yapf --diff --recursive src tests`
+   - `uv run ruff check .`
 2. `type-check`
-   - `mypy src`
+   - `uv run mypy src`
 3. `tests`
-   - `pytest`
+   - `uv run pytest -q`
 
 Optional jobs initially:
 - `compat-smoke`
@@ -352,7 +352,7 @@ Promotion rule:
 Primary local test commands:
 
 ```sh
-quawk --help
+uv run quawk --help
 uv run pytest -q -m core
 uv run pytest -m compat_reference
 uv run pytest -m compat_corpus
@@ -371,9 +371,9 @@ uv run corpus --differential demo_case
 Static validation commands:
 
 ```sh
-yapf --diff --recursive src tests
-ruff check .
-mypy src
+uv run yapf --diff --recursive src tests
+uv run ruff check .
+uv run mypy src
 ```
 
 ## Operational Notes
