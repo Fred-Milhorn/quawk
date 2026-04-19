@@ -55,6 +55,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P33 | Direct-Path Removal And Route Cleanup | The restricted direct lowering lane is removed, reusable lowering becomes the only compiled execution route, and stale backend gates are eliminated |
 | P34 | Local Scalar SSA Promotion | Action-local numeric scalars move out of `%quawk.state` when safe so LLVM can optimize hot loops against local values instead of state traffic |
 | P35 | Agent Workflow Documentation Alignment | `AGENTS.md` and linked workflow docs are aligned with current setup, validation, compatibility, architecture, and doc-update guidance |
+| P36 | Implementation Readability Refactor | Large implementation modules are split by responsibility so contributors can understand and modify the compiler/runtime pipeline more easily |
 
 ## Phase Entry and Exit Rules
 
@@ -826,6 +827,63 @@ P35 closeout validation:
 - `uv run pytest -m docs_contract`
 - `uv run pytest -q -m core`
 
+### P36: Implementation Readability Refactor
+
+Objective:
+- make the implementation easier to read and safely modify by splitting large
+  modules along real compiler/runtime ownership boundaries, adding a source map,
+  and reducing repeated AST traversal and raw LLVM string construction
+
+In scope:
+- add a source-level implementation map for the `src/quawk` package
+- split AST node definitions and AST formatting out of `parser.py`
+- introduce shared AST traversal helpers for analysis passes
+- extract backend orchestration, runtime ABI declarations, driver IR generation,
+  and lowering state out of `jit.py`
+- introduce a small LLVM IR builder for recurring instruction/text emission
+- split statement, expression, lvalue, and builtin lowering into focused backend
+  modules
+- split `qk_runtime.c` by runtime domain or record a checked-in decision for
+  deferring that split
+- improve test discoverability by moving newly touched task-numbered tests
+  toward behavior-oriented names
+- implementation details live in
+  [implementation-readability-refactor-plan.md](plans/implementation-readability-refactor-plan.md)
+
+Exit criteria:
+- `src/quawk/README.md` or equivalent source map exists
+- parser, AST definitions, and AST formatting have separate ownership
+- at least the highest-churn AST analysis passes share traversal helpers
+- backend orchestration, runtime ABI declarations, lowering state, statement
+  lowering, and expression lowering are no longer all owned by `jit.py`
+- runtime C source is split or a reviewed deferral decision is checked in
+- core validation passes after the final refactor task
+
+## Immediate Next Tasks
+
+Start here unless priorities change:
+
+`T-296` through `T-301` are complete. `P35` is complete.
+
+Immediate next tasks:
+- `T-303`: Add a source-level implementation map.
+- `T-304`: Extract AST definitions and formatting out of `parser.py`.
+- `T-305`: Introduce shared AST traversal helpers.
+- `T-306`: Split backend tool orchestration, driver IR, runtime ABI, and
+  lowering state out of `jit.py`.
+- `T-307`: Add a small LLVM IR builder and migrate representative lowering.
+- `T-308`: Split statement, expression, lvalue, and builtin lowering modules.
+- `T-309`: Split or explicitly defer splitting the C runtime source.
+- `T-310`: Improve test discoverability for newly touched refactor coverage.
+- `T-311`: Validate and close the implementation readability refactor.
+
+P36 entry criteria:
+- the current implementation review identified `jit.py`, `parser.py`, repeated
+  AST traversal, `qk_runtime.c`, and task-numbered tests as the main
+  readability hotspots
+- implementation notes for `P36` should follow
+  [implementation-readability-refactor-plan.md](plans/implementation-readability-refactor-plan.md)
+
 ## Backlog
 
 Status values:
@@ -1128,6 +1186,16 @@ Priority values:
 | T-299 | P35 | P1 | Add architecture, doc-update, changelog, and git-safety guardrails to `AGENTS.md` | T-298 | `AGENTS.md` summarizes compiled-backend execution constraints, maps change types to the right docs, calls out changelog expectations for user-visible changes, and prevents accidental staging of unrelated dirty-worktree changes | done |
 | T-300 | P35 | P1 | Clean touched workflow docs for relative links and stale guidance | T-297, T-299 | Docs touched by the alignment avoid new absolute local filesystem links, stale `docs/agent-workflow.md` references are gone or intentional, and workflow guidance no longer conflicts across README, contributing docs, `AGENTS.md`, and testing docs | done |
 | T-301 | P35 | P2 | Validate and close the agent workflow documentation alignment | T-300 | Relevant documentation checks pass or skipped checks are explained, and the roadmap marks `P35` complete only after `AGENTS.md` and linked workflow docs agree on setup, validation, compatibility, architecture, and doc-update expectations | done |
+| T-302 | P36 | P0 | Author the implementation readability refactor plan | T-301 | `docs/plans/implementation-readability-refactor-plan.md` records the hotspots, proposed refactor phases, guardrails, validation commands, and definition of done before code moves begin | done |
+| T-303 | P36 | P0 | Add a source-level implementation map | T-302 | `src/quawk/README.md` or an equivalent source map explains the implementation pipeline, package layout, major modules, and current refactor direction for new readers | todo |
+| T-304 | P36 | P0 | Extract AST definitions and formatting out of `parser.py` | T-303 | AST dataclasses/enums live in a focused module, AST formatting lives separately, parser imports are updated, and parser/golden/conformance tests pass | todo |
+| T-305 | P36 | P0 | Introduce shared AST traversal helpers for analysis passes | T-304 | At least two existing passes use shared traversal helpers for expressions, statements, lvalues, patterns, or programs without behavior changes | todo |
+| T-306 | P36 | P0 | Split backend orchestration, driver IR, runtime ABI, and lowering state out of `jit.py` | T-305 | LLVM tool/link orchestration, generated driver IR, runtime declarations, and lowering context/state each have focused ownership outside the monolithic backend file | todo |
+| T-307 | P36 | P1 | Add a small LLVM IR builder and migrate representative lowering paths | T-306 | Common call/load/store/branch/binop/select/GEP emission goes through a lightweight helper in representative statement and expression lowering code | todo |
+| T-308 | P36 | P1 | Split statement, expression, lvalue, and builtin lowering into focused backend modules | T-307 | Backend lowering modules have clear ownership and `jit.py` is reduced to a thin compatibility/public API facade or removed from the hot path | todo |
+| T-309 | P36 | P1 | Split or explicitly defer splitting the C runtime source | T-308 | `qk_runtime.c` is split by runtime domain with build support, or a checked-in reviewed decision explains why the split should wait | todo |
+| T-310 | P36 | P2 | Improve test discoverability for newly touched refactor coverage | T-304, T-308 | Newly touched tests prefer behavior-oriented module names or comments that preserve task traceability without requiring task-ID knowledge | todo |
+| T-311 | P36 | P2 | Validate and close the implementation readability refactor | T-309, T-310 | Focused parser/backend/runtime checks and `uv run pytest -q -m core` pass, and the roadmap records the final readability-refactor closeout state | todo |
 
 ## Cross-Cutting Tracks
 
