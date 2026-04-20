@@ -10,7 +10,8 @@ compatibility tooling alongside it.
    inspection modes, and reports user-facing errors.
 2. `source.py` tracks source files, offsets, spans, and cursor movement.
 3. `lexer.py` converts source text into tokens.
-4. `parser.py` builds the AST and formats AST output for `--parse`.
+4. `ast.py` defines the syntax tree, `parser.py` builds it, and
+   `ast_format.py` renders stable AST output for `--parse`.
 5. `semantics.py` validates supported AWK constructs and produces program
    analysis used by the CLI and backend.
 6. `normalization.py`, `type_inference.py`, `slot_allocation.py`, and
@@ -31,7 +32,9 @@ compatibility tooling alongside it.
 | `diagnostics.py` | structured lexer, parser, and semantic errors |
 | `source.py` | source locations, spans, and cursors |
 | `lexer.py` | token definitions, lexing, and token formatting |
-| `parser.py` | AST definitions, parsing, and AST formatting |
+| `ast.py` | AST dataclasses, enums, type aliases, and AST-only helpers |
+| `parser.py` | recursive-descent parsing and parser-local token helpers |
+| `ast_format.py` | stable AST rendering for `--parse` and golden tests |
 | `builtins.py` | builtin variable, array, and function metadata |
 | `semantics.py` | semantic validation and program analysis |
 | `normalization.py` | lowering-oriented program normalization |
@@ -48,8 +51,9 @@ compatibility tooling alongside it.
 
 - CLI behavior: start in `cli.py`, then follow into `lexer.py`, `parser.py`,
   `semantics.py`, and `jit.py`.
-- New syntax: update tokens in `lexer.py`, AST/parser support in `parser.py`,
-  validation in `semantics.py`, and lowering support in `jit.py`.
+- New syntax: update tokens in `lexer.py`, AST support in `ast.py`, parser
+  support in `parser.py`, validation in `semantics.py`, and lowering support
+  in `jit.py`.
 - Analysis changes: start in the pass that owns the question, then check
   repeated AST traversal in `normalization.py`, `semantics.py`,
   `type_inference.py`, and `local_scalar_residency.py`.
@@ -65,7 +69,7 @@ ownership boundaries without changing public behavior.
 
 Planned moves:
 
-- split AST definitions and AST formatting out of `parser.py`
+- keep AST definitions and AST formatting out of `parser.py`
 - add shared AST traversal helpers for analysis passes
 - split backend tool orchestration, driver IR, ABI declarations, state, and
   lowering out of `jit.py`

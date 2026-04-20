@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 
 from quawk.lexer import lex
-from quawk.parser import format_program, parse
+from quawk.ast_format import format_program
+from quawk.parser import parse
 from quawk.source import ProgramSource
 
 GOLDEN_ROOT = Path(__file__).resolve().parent / "parser_goldens"

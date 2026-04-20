@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from quawk.lexer import lex
 from quawk.normalization import normalize_program_for_lowering
-from quawk.parser import ExprPattern, parse
+from quawk.ast import ExprPattern
+from quawk.parser import parse
 from quawk.source import ProgramSource
 
 

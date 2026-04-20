@@ -8,7 +8,7 @@ from typing import Mapping
 
 from .builtins import is_builtin_variable_name
 from .normalization import NormalizedLoweringProgram, NormalizedRecordItem, normalize_program_for_lowering
-from .parser import (
+from .ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,

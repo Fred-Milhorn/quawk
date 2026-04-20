@@ -6,7 +6,8 @@ import pytest
 
 from quawk import jit
 from quawk.lexer import lex
-from quawk.parser import Program, parse
+from quawk.ast import Program
+from quawk.parser import parse
 from quawk.source import ProgramSource
 
 ROOT = Path(__file__).resolve().parent.parent

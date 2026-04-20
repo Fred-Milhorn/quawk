@@ -20,7 +20,8 @@ from .jit import (
     execute_with_inputs,
 )
 from .lexer import format_tokens, lex
-from .parser import format_program, parse
+from .ast_format import format_program
+from .parser import parse
 from .semantics import ProgramAnalysis, analyze
 from .source import ProgramSource
 

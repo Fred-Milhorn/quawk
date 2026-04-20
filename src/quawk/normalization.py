@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .parser import (
+from .ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,

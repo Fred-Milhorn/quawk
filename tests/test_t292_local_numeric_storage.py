@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from quawk import jit
 from quawk.lexer import lex
-from quawk.parser import Program, parse
+from quawk.ast import Program
+from quawk.parser import parse
 from quawk.source import ProgramSource
 
 SCALAR_FOLD_LOOP_PROGRAM = (

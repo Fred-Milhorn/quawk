@@ -3,7 +3,8 @@ from __future__ import annotations
 from quawk.local_scalar_residency import classify_local_numeric_scalar_residency
 from quawk.lexer import lex
 from quawk.normalization import normalize_program_for_lowering
-from quawk.parser import Program, parse
+from quawk.ast import Program
+from quawk.parser import parse
 from quawk.source import ProgramSource
 from quawk.type_inference import infer_variable_types
 

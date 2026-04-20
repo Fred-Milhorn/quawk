@@ -18,7 +18,7 @@ from . import runtime_support
 from .builtins import is_builtin_variable_name
 from .local_scalar_residency import classify_local_numeric_scalar_residency
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
-from .parser import (
+from .ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,

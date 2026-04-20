@@ -864,10 +864,9 @@ Exit criteria:
 Start here unless priorities change:
 
 `T-296` through `T-301` are complete. `P35` is complete.
-`T-302` and `T-303` are complete. `P36` is active.
+`T-302` through `T-304` are complete. `P36` is active.
 
 Immediate next tasks:
-- `T-304`: Extract AST definitions and formatting out of `parser.py`.
 - `T-305`: Introduce shared AST traversal helpers.
 - `T-306`: Split backend tool orchestration, driver IR, runtime ABI, and
   lowering state out of `jit.py`.
@@ -1188,7 +1187,7 @@ Priority values:
 | T-301 | P35 | P2 | Validate and close the agent workflow documentation alignment | T-300 | Relevant documentation checks pass or skipped checks are explained, and the roadmap marks `P35` complete only after `AGENTS.md` and linked workflow docs agree on setup, validation, compatibility, architecture, and doc-update expectations | done |
 | T-302 | P36 | P0 | Author the implementation readability refactor plan | T-301 | `docs/plans/implementation-readability-refactor-plan.md` records the hotspots, proposed refactor phases, guardrails, validation commands, and definition of done before code moves begin | done |
 | T-303 | P36 | P0 | Add a source-level implementation map | T-302 | `src/quawk/README.md` or an equivalent source map explains the implementation pipeline, package layout, major modules, and current refactor direction for new readers | done |
-| T-304 | P36 | P0 | Extract AST definitions and formatting out of `parser.py` | T-303 | AST dataclasses/enums live in a focused module, AST formatting lives separately, parser imports are updated, and parser/golden/conformance tests pass | todo |
+| T-304 | P36 | P0 | Extract AST definitions and formatting out of `parser.py` | T-303 | AST dataclasses/enums live in a focused module, AST formatting lives separately, parser imports are updated, and parser/golden/conformance tests pass | done |
 | T-305 | P36 | P0 | Introduce shared AST traversal helpers for analysis passes | T-304 | At least two existing passes use shared traversal helpers for expressions, statements, lvalues, patterns, or programs without behavior changes | todo |
 | T-306 | P36 | P0 | Split backend orchestration, driver IR, runtime ABI, and lowering state out of `jit.py` | T-305 | LLVM tool/link orchestration, generated driver IR, runtime declarations, and lowering context/state each have focused ownership outside the monolithic backend file | todo |
 | T-307 | P36 | P1 | Add a small LLVM IR builder and migrate representative lowering paths | T-306 | Common call/load/store/branch/binop/select/GEP emission goes through a lightweight helper in representative statement and expression lowering code | todo |

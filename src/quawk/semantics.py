@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .builtins import builtin_accepts_arity, is_builtin_function_name
 from .diagnostics import SemanticError, SemanticErrorCode
-from .parser import (
+from .ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,

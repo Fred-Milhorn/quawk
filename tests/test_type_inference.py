@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 
 from quawk.lexer import lex
-from quawk.parser import PatternAction, PrintStmt, parse
+from quawk.ast import PatternAction, PrintStmt
+from quawk.parser import parse
 from quawk.source import ProgramSource
 from quawk.type_inference import (
     LatticeType,

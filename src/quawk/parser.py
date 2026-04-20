@@ -1,736 +1,79 @@
-# Parser and AST definitions for the current language subset.
-# This module lowers the token stream into the generalized AST categories that
-# the rest of the compiler is meant to grow around.
+# Parser for the current language subset.
+# This module lowers the token stream into AST nodes defined in ast.py.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum, auto
-from typing import TypeAlias
-
+from .ast import (
+    Action,
+    ArrayIndexExpr,
+    ArrayLValue,
+    AssignExpr,
+    AssignOp,
+    AssignStmt,
+    BeginPattern,
+    BinaryExpr,
+    BinaryOp,
+    BlockStmt,
+    BreakStmt,
+    CallExpr,
+    ConditionalExpr,
+    ContinueStmt,
+    DeleteStmt,
+    DoWhileStmt,
+    EndPattern,
+    ExitStmt,
+    Expr,
+    ExprPattern,
+    ExprStmt,
+    FieldExpr,
+    FieldLValue,
+    ForInStmt,
+    ForStmt,
+    FunctionDef,
+    GetlineExpr,
+    IfStmt,
+    Item,
+    LValue,
+    NameExpr,
+    NameLValue,
+    NextFileStmt,
+    NextStmt,
+    NumericLiteralExpr,
+    OutputRedirect,
+    OutputRedirectKind,
+    Pattern,
+    PatternAction,
+    PostfixExpr,
+    PostfixOp,
+    PrintfStmt,
+    PrintStmt,
+    Program,
+    RangePattern,
+    RegexLiteralExpr,
+    ReturnStmt,
+    Stmt,
+    StringLiteralExpr,
+    UnaryExpr,
+    UnaryOp,
+    WhileStmt,
+    expression_to_lvalue,
+)
+from .ast_format import (
+    format_assign_op,
+    format_expression,
+    format_lvalue,
+    format_pattern,
+    format_program,
+    format_statement,
+)
 from .diagnostics import ParseError
 from .lexer import Token, TokenKind
 from .source import SourceSpan, combine_spans
 
 
-@dataclass(frozen=True)
-class BeginPattern:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class EndPattern:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ExprPattern:
-    test: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class RangePattern:
-    left: Pattern
-    right: Pattern
-    span: SourceSpan
-
-
-Pattern: TypeAlias = BeginPattern | EndPattern | ExprPattern | RangePattern
-
-
-@dataclass(frozen=True)
-class NameLValue:
-    name: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ArrayLValue:
-    name: str
-    subscripts: tuple[Expr, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class FieldLValue:
-    index: Expr
-    span: SourceSpan
-
-
-LValue: TypeAlias = NameLValue | ArrayLValue | FieldLValue
-
-
-@dataclass(frozen=True)
-class StringLiteralExpr:
-    value: str
-    raw_text: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class NumericLiteralExpr:
-    value: float
-    raw_text: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class RegexLiteralExpr:
-    raw_text: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class NameExpr:
-    name: str
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class FieldExpr:
-    index: int | Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class CallExpr:
-    function: str
-    args: tuple[Expr, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ArrayIndexExpr:
-    array_name: str
-    index: Expr
-    extra_indexes: tuple[Expr, ...]
-    span: SourceSpan
-
-    @property
-    def subscripts(self) -> tuple[Expr, ...]:
-        """Return the full array subscript list."""
-        return (self.index, *self.extra_indexes)
-
-
-class AssignOp(Enum):
-    PLAIN = auto()
-    ADD = auto()
-    SUB = auto()
-    MUL = auto()
-    DIV = auto()
-    MOD = auto()
-    POW = auto()
-
-
-class BinaryOp(Enum):
-    ADD = auto()
-    SUB = auto()
-    MUL = auto()
-    DIV = auto()
-    MOD = auto()
-    POW = auto()
-    LESS = auto()
-    LESS_EQUAL = auto()
-    GREATER = auto()
-    GREATER_EQUAL = auto()
-    EQUAL = auto()
-    NOT_EQUAL = auto()
-    LOGICAL_AND = auto()
-    LOGICAL_OR = auto()
-    MATCH = auto()
-    NOT_MATCH = auto()
-    IN = auto()
-    CONCAT = auto()
-
-
-class OutputRedirectKind(Enum):
-    WRITE = auto()
-    APPEND = auto()
-    PIPE = auto()
-
-
-@dataclass(frozen=True)
-class GetlineExpr:
-    target: LValue | None
-    source: Expr | None
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class BinaryExpr:
-    left: Expr
-    op: BinaryOp
-    right: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ConditionalExpr:
-    test: Expr
-    if_true: Expr
-    if_false: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class AssignExpr:
-    target: LValue
-    op: AssignOp
-    value: Expr
-    span: SourceSpan
-
-
-class UnaryOp(Enum):
-    UPLUS = auto()
-    UMINUS = auto()
-    NOT = auto()
-    PRE_INC = auto()
-    PRE_DEC = auto()
-
-
-@dataclass(frozen=True)
-class UnaryExpr:
-    op: UnaryOp
-    operand: Expr
-    span: SourceSpan
-
-
-class PostfixOp(Enum):
-    POST_INC = auto()
-    POST_DEC = auto()
-
-
-@dataclass(frozen=True)
-class PostfixExpr:
-    operand: Expr
-    op: PostfixOp
-    span: SourceSpan
-
-
-Expr: TypeAlias = (
-    StringLiteralExpr
-    | NumericLiteralExpr
-    | RegexLiteralExpr
-    | NameExpr
-    | FieldExpr
-    | CallExpr
-    | ArrayIndexExpr
-    | GetlineExpr
-    | BinaryExpr
-    | ConditionalExpr
-    | AssignExpr
-    | UnaryExpr
-    | PostfixExpr
-)
-
-
-@dataclass(frozen=True)
-class OutputRedirect:
-    kind: OutputRedirectKind
-    target: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class PrintStmt:
-    arguments: tuple[Expr, ...]
-    span: SourceSpan
-    redirect: OutputRedirect | None = None
-
-
-@dataclass(frozen=True)
-class PrintfStmt:
-    arguments: tuple[Expr, ...]
-    span: SourceSpan
-    redirect: OutputRedirect | None = None
-
-
-@dataclass(frozen=True)
-class AssignStmt:
-    target: LValue
-    op: AssignOp
-    value: Expr
-    span: SourceSpan
-
-    @property
-    def name(self) -> str | None:
-        """Return the assigned scalar or array name when present."""
-        match self.target:
-            case NameLValue(name=name) | ArrayLValue(name=name):
-                return name
-            case _:
-                return None
-
-    @property
-    def index(self) -> Expr | None:
-        """Return the first array subscript when present."""
-        if isinstance(self.target, ArrayLValue) and self.target.subscripts:
-            return self.target.subscripts[0]
-        return None
-
-    @property
-    def extra_indexes(self) -> tuple[Expr, ...]:
-        """Return any remaining array subscripts after the first."""
-        if isinstance(self.target, ArrayLValue):
-            return self.target.subscripts[1:]
-        return ()
-
-    @property
-    def field_index(self) -> Expr | None:
-        """Return the field lvalue index when present."""
-        if isinstance(self.target, FieldLValue):
-            return self.target.index
-        return None
-
-
-@dataclass(frozen=True)
-class BlockStmt:
-    statements: tuple[Stmt, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class BreakStmt:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ContinueStmt:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class NextStmt:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class NextFileStmt:
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ExitStmt:
-    value: Expr | None
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ExprStmt:
-    value: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class DeleteStmt:
-    target: LValue
-    span: SourceSpan
-
-    @property
-    def array_name(self) -> str | None:
-        """Return the deleted name when present."""
-        match self.target:
-            case NameLValue(name=name) | ArrayLValue(name=name):
-                return name
-            case _:
-                return None
-
-    @property
-    def index(self) -> Expr | None:
-        """Return the first deleted array subscript when present."""
-        if isinstance(self.target, ArrayLValue) and self.target.subscripts:
-            return self.target.subscripts[0]
-        return None
-
-    @property
-    def extra_indexes(self) -> tuple[Expr, ...]:
-        """Return any remaining deleted array subscripts after the first."""
-        if isinstance(self.target, ArrayLValue):
-            return self.target.subscripts[1:]
-        return ()
-
-
-@dataclass(frozen=True)
-class IfStmt:
-    condition: Expr
-    then_branch: Stmt
-    else_branch: Stmt | None
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class WhileStmt:
-    condition: Expr
-    body: Stmt
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class DoWhileStmt:
-    body: Stmt
-    condition: Expr
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ForStmt:
-    init: tuple[Expr, ...]
-    condition: Expr | None
-    update: tuple[Expr, ...]
-    body: Stmt
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class ForInStmt:
-    name: str
-    iterable: Expr
-    body: Stmt
-    span: SourceSpan
-
-    @property
-    def array_name(self) -> str | None:
-        """Return the iterated array name when the iterable is a bare name."""
-        if isinstance(self.iterable, NameExpr):
-            return self.iterable.name
-        return None
-
-
-@dataclass(frozen=True)
-class ReturnStmt:
-    value: Expr | None
-    span: SourceSpan
-
-
-Stmt: TypeAlias = (
-    PrintStmt
-    | PrintfStmt
-    | AssignStmt
-    | BlockStmt
-    | BreakStmt
-    | ContinueStmt
-    | NextStmt
-    | NextFileStmt
-    | ExitStmt
-    | DeleteStmt
-    | IfStmt
-    | WhileStmt
-    | DoWhileStmt
-    | ForStmt
-    | ForInStmt
-    | ExprStmt
-    | ReturnStmt
-)
-
-
-@dataclass(frozen=True)
-class Action:
-    statements: tuple[Stmt, ...]
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class PatternAction:
-    pattern: Pattern | None
-    action: Action | None
-    span: SourceSpan
-
-
-@dataclass(frozen=True)
-class FunctionDef:
-    name: str
-    params: tuple[str, ...]
-    param_spans: tuple[SourceSpan, ...]
-    body: Action
-    span: SourceSpan
-
-
-Item: TypeAlias = FunctionDef | PatternAction
-
-
-@dataclass(frozen=True)
-class Program:
-    items: tuple[Item, ...]
-    span: SourceSpan
-
-
 def parse(tokens: list[Token]) -> Program:
     """Parse tokens into the generalized AST for the current supported subset."""
     return Parser(tokens).parse_program()
-
-
-def format_program(program: Program) -> str:
-    """Render the AST in a stable text form for `quawk --parse`."""
-    lines = [f"Program span={program.span.format_start()}"]
-    for item in program.items:
-        if isinstance(item, FunctionDef):
-            lines.append(f"  FunctionDef span={item.span.format_start()} name={item.name!r}")
-            if item.params:
-                lines.append(f"    Params {', '.join(repr(param) for param in item.params)}")
-            lines.append(f"    Action span={item.body.span.format_start()}")
-            for statement in item.body.statements:
-                lines.extend(format_statement(statement, "      "))
-            continue
-        lines.append(f"  PatternAction span={item.span.format_start()}")
-        if item.pattern is not None:
-            lines.extend(format_pattern(item.pattern, "    "))
-        if item.action is not None:
-            lines.append(f"    Action span={item.action.span.format_start()}")
-            for statement in item.action.statements:
-                lines.extend(format_statement(statement, "      "))
-    return "\n".join(lines) + "\n"
-
-
-def format_pattern(pattern: Pattern, indent: str) -> list[str]:
-    """Render one pattern node for stable inspection output."""
-    match pattern:
-        case BeginPattern():
-            return [f"{indent}BeginPattern span={pattern.span.format_start()}"]
-        case EndPattern():
-            return [f"{indent}EndPattern span={pattern.span.format_start()}"]
-        case ExprPattern():
-            lines = [f"{indent}ExprPattern span={pattern.span.format_start()}"]
-            lines.extend(format_expression(pattern.test, indent + "  "))
-            return lines
-        case RangePattern():
-            lines = [f"{indent}RangePattern span={pattern.span.format_start()}"]
-            lines.append(f"{indent}  Left")
-            lines.extend(format_pattern(pattern.left, indent + "    "))
-            lines.append(f"{indent}  Right")
-            lines.extend(format_pattern(pattern.right, indent + "    "))
-            return lines
-    raise AssertionError(f"unhandled pattern type: {type(pattern)!r}")
-
-
-def format_lvalue(target: LValue, indent: str) -> list[str]:
-    """Render one lvalue node for stable inspection output."""
-    match target:
-        case NameLValue():
-            return [f"{indent}NameLValue span={target.span.format_start()} name={target.name!r}"]
-        case ArrayLValue():
-            lines = [f"{indent}ArrayLValue span={target.span.format_start()} name={target.name!r}"]
-            for subscript in target.subscripts:
-                lines.extend(format_expression(subscript, indent + "  "))
-            return lines
-        case FieldLValue():
-            lines = [f"{indent}FieldLValue span={target.span.format_start()}"]
-            lines.extend(format_expression(target.index, indent + "  "))
-            return lines
-    raise AssertionError(f"unhandled lvalue type: {type(target)!r}")
-
-
-def format_assign_op(op: AssignOp) -> str:
-    """Return the stable inspection name for one assignment operator."""
-    match op:
-        case AssignOp.PLAIN:
-            return "PlainAssign"
-        case AssignOp.ADD:
-            return "AddAssign"
-        case AssignOp.SUB:
-            return "SubAssign"
-        case AssignOp.MUL:
-            return "MulAssign"
-        case AssignOp.DIV:
-            return "DivAssign"
-        case AssignOp.MOD:
-            return "ModAssign"
-        case AssignOp.POW:
-            return "PowAssign"
-    raise AssertionError(f"unhandled assign op: {op!r}")
-
-
-def format_statement(statement: Stmt, indent: str) -> list[str]:
-    """Render a statement node for stable `--parse` inspection output."""
-    match statement:
-        case PrintStmt():
-            lines = [f"{indent}PrintStmt span={statement.span.format_start()}"]
-            for argument in statement.arguments:
-                lines.extend(format_expression(argument, indent + "  "))
-            if statement.redirect is not None:
-                lines.append(f"{indent}  Redirect kind={statement.redirect.kind.name}")
-                lines.extend(format_expression(statement.redirect.target, indent + "    "))
-            return lines
-        case PrintfStmt():
-            lines = [f"{indent}PrintfStmt span={statement.span.format_start()}"]
-            for argument in statement.arguments:
-                lines.extend(format_expression(argument, indent + "  "))
-            if statement.redirect is not None:
-                lines.append(f"{indent}  Redirect kind={statement.redirect.kind.name}")
-                lines.extend(format_expression(statement.redirect.target, indent + "    "))
-            return lines
-        case AssignStmt():
-            lines = [
-                (
-                    f"{indent}AssignStmt span={statement.span.format_start()} "
-                    f"op={format_assign_op(statement.op)}"
-                )
-            ]
-            lines.extend(format_lvalue(statement.target, indent + "  "))
-            lines.append(f"{indent}  Value")
-            lines.extend(format_expression(statement.value, indent + "    "))
-            return lines
-        case ExprStmt():
-            lines = [f"{indent}ExprStmt span={statement.span.format_start()}"]
-            lines.extend(format_expression(statement.value, indent + "  "))
-            return lines
-        case BlockStmt():
-            lines = [f"{indent}BlockStmt span={statement.span.format_start()}"]
-            for nested in statement.statements:
-                lines.extend(format_statement(nested, indent + "  "))
-            return lines
-        case BreakStmt():
-            return [f"{indent}BreakStmt span={statement.span.format_start()}"]
-        case ContinueStmt():
-            return [f"{indent}ContinueStmt span={statement.span.format_start()}"]
-        case NextStmt():
-            return [f"{indent}NextStmt span={statement.span.format_start()}"]
-        case NextFileStmt():
-            return [f"{indent}NextFileStmt span={statement.span.format_start()}"]
-        case ExitStmt():
-            lines = [f"{indent}ExitStmt span={statement.span.format_start()}"]
-            if statement.value is not None:
-                lines.extend(format_expression(statement.value, indent + "  "))
-            return lines
-        case DeleteStmt():
-            lines = [f"{indent}DeleteStmt span={statement.span.format_start()}"]
-            lines.extend(format_lvalue(statement.target, indent + "  "))
-            return lines
-        case IfStmt():
-            lines = [f"{indent}IfStmt span={statement.span.format_start()}"]
-            lines.append(f"{indent}  Condition")
-            lines.extend(format_expression(statement.condition, indent + "    "))
-            lines.append(f"{indent}  Then")
-            lines.extend(format_statement(statement.then_branch, indent + "    "))
-            if statement.else_branch is not None:
-                lines.append(f"{indent}  Else")
-                lines.extend(format_statement(statement.else_branch, indent + "    "))
-            return lines
-        case WhileStmt():
-            lines = [f"{indent}WhileStmt span={statement.span.format_start()}"]
-            lines.append(f"{indent}  Condition")
-            lines.extend(format_expression(statement.condition, indent + "    "))
-            lines.append(f"{indent}  Body")
-            lines.extend(format_statement(statement.body, indent + "    "))
-            return lines
-        case DoWhileStmt():
-            lines = [f"{indent}DoWhileStmt span={statement.span.format_start()}"]
-            lines.append(f"{indent}  Body")
-            lines.extend(format_statement(statement.body, indent + "    "))
-            lines.append(f"{indent}  Condition")
-            lines.extend(format_expression(statement.condition, indent + "    "))
-            return lines
-        case ForStmt():
-            lines = [f"{indent}ForStmt span={statement.span.format_start()}"]
-            if statement.init:
-                lines.append(f"{indent}  Init")
-                for expression in statement.init:
-                    lines.extend(format_expression(expression, indent + "    "))
-            if statement.condition is not None:
-                lines.append(f"{indent}  Condition")
-                lines.extend(format_expression(statement.condition, indent + "    "))
-            if statement.update:
-                lines.append(f"{indent}  Update")
-                for expression in statement.update:
-                    lines.extend(format_expression(expression, indent + "    "))
-            lines.append(f"{indent}  Body")
-            lines.extend(format_statement(statement.body, indent + "    "))
-            return lines
-        case ForInStmt():
-            lines = [
-                (
-                    f"{indent}ForInStmt span={statement.span.format_start()} "
-                    f"name={statement.name!r}"
-                )
-            ]
-            lines.append(f"{indent}  Iterable")
-            lines.extend(format_expression(statement.iterable, indent + "    "))
-            lines.append(f"{indent}  Body")
-            lines.extend(format_statement(statement.body, indent + "    "))
-            return lines
-        case ReturnStmt():
-            lines = [f"{indent}ReturnStmt span={statement.span.format_start()}"]
-            if statement.value is not None:
-                lines.extend(format_expression(statement.value, indent + "  "))
-            return lines
-    raise AssertionError(f"unhandled statement type: {type(statement)!r}")
-
-
-def format_expression(expression: Expr, indent: str) -> list[str]:
-    """Render an expression node for stable `--parse` inspection output."""
-    match expression:
-        case StringLiteralExpr():
-            return [f"{indent}StringLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
-        case NumericLiteralExpr():
-            return [f"{indent}NumericLiteralExpr span={expression.span.format_start()} value={expression.value!r}"]
-        case RegexLiteralExpr():
-            return [f"{indent}RegexLiteralExpr span={expression.span.format_start()} raw_text={expression.raw_text!r}"]
-        case NameExpr():
-            return [f"{indent}NameExpr span={expression.span.format_start()} name={expression.name!r}"]
-        case FieldExpr():
-            if isinstance(expression.index, int):
-                return [f"{indent}FieldExpr span={expression.span.format_start()} index={expression.index}"]
-            lines = [f"{indent}FieldExpr span={expression.span.format_start()}"]
-            lines.extend(format_expression(expression.index, indent + "  "))
-            return lines
-        case CallExpr():
-            lines = [f"{indent}CallExpr span={expression.span.format_start()} function={expression.function!r}"]
-            for argument in expression.args:
-                lines.extend(format_expression(argument, indent + "  "))
-            return lines
-        case ArrayIndexExpr():
-            lines = [
-                (
-                    f"{indent}ArrayIndexExpr span={expression.span.format_start()} "
-                    f"array_name={expression.array_name!r}"
-                )
-            ]
-            for subscript in expression.subscripts:
-                lines.extend(format_expression(subscript, indent + "  "))
-            return lines
-        case GetlineExpr():
-            lines = [f"{indent}GetlineExpr span={expression.span.format_start()}"]
-            if expression.target is not None:
-                lines.append(f"{indent}  Target")
-                lines.extend(format_lvalue(expression.target, indent + "    "))
-            if expression.source is not None:
-                lines.append(f"{indent}  Source")
-                lines.extend(format_expression(expression.source, indent + "    "))
-            return lines
-        case BinaryExpr():
-            lines = [f"{indent}BinaryExpr span={expression.span.format_start()} op={expression.op.name}"]
-            lines.extend(format_expression(expression.left, indent + "  "))
-            lines.extend(format_expression(expression.right, indent + "  "))
-            return lines
-        case ConditionalExpr():
-            lines = [f"{indent}ConditionalExpr span={expression.span.format_start()}"]
-            lines.append(f"{indent}  Test")
-            lines.extend(format_expression(expression.test, indent + "    "))
-            lines.append(f"{indent}  IfTrue")
-            lines.extend(format_expression(expression.if_true, indent + "    "))
-            lines.append(f"{indent}  IfFalse")
-            lines.extend(format_expression(expression.if_false, indent + "    "))
-            return lines
-        case AssignExpr():
-            lines = [
-                (
-                    f"{indent}AssignExpr span={expression.span.format_start()} "
-                    f"op={format_assign_op(expression.op)}"
-                )
-            ]
-            lines.extend(format_lvalue(expression.target, indent + "  "))
-            lines.append(f"{indent}  Value")
-            lines.extend(format_expression(expression.value, indent + "    "))
-            return lines
-        case UnaryExpr():
-            lines = [f"{indent}UnaryExpr span={expression.span.format_start()} op={expression.op.name}"]
-            lines.extend(format_expression(expression.operand, indent + "  "))
-            return lines
-        case PostfixExpr():
-            lines = [f"{indent}PostfixExpr span={expression.span.format_start()} op={expression.op.name}"]
-            lines.extend(format_expression(expression.operand, indent + "  "))
-            return lines
-    raise AssertionError(f"unhandled expression type: {type(expression)!r}")
 
 
 class Parser:
@@ -1597,24 +940,6 @@ def is_expression_start(kind: TokenKind) -> bool:
         TokenKind.PLUS_PLUS,
         TokenKind.MINUS_MINUS,
     }
-
-
-def expression_to_lvalue(expression: Expr) -> LValue | None:
-    """Convert an expression node into its lvalue form when possible."""
-    match expression:
-        case NameExpr(name=name, span=span):
-            return NameLValue(name=name, span=span)
-        case ArrayIndexExpr(array_name=array_name, span=span):
-            return ArrayLValue(name=array_name, subscripts=expression.subscripts, span=span)
-        case FieldExpr(index=index, span=span):
-            if isinstance(index, int):
-                return FieldLValue(
-                    index=NumericLiteralExpr(value=float(index), raw_text=str(index), span=span),
-                    span=span,
-                )
-            return FieldLValue(index=index, span=span)
-        case _:
-            return None
 
 
 def decode_string_literal(token: Token) -> str:

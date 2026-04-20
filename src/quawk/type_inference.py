@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Callable, Mapping
 
-from .parser import (
+from .ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,

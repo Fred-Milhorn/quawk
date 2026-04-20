@@ -7,8 +7,10 @@ from __future__ import annotations
 import pytest
 
 from quawk.diagnostics import ParseError
+from quawk.ast_format import format_program
 from quawk.lexer import lex
-from quawk.parser import (
+from quawk.parser import parse
+from quawk.ast import (
     Action,
     ArrayIndexExpr,
     ArrayLValue,
@@ -55,8 +57,6 @@ from quawk.parser import (
     UnaryExpr,
     UnaryOp,
     WhileStmt,
-    format_program,
-    parse,
 )
 from quawk.source import combine_spans
 
