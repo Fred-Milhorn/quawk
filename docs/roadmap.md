@@ -56,6 +56,7 @@ This document is the phased implementation roadmap and active backlog for `quawk
 | P34 | Local Scalar SSA Promotion | Action-local numeric scalars move out of `%quawk.state` when safe so LLVM can optimize hot loops against local values instead of state traffic |
 | P35 | Agent Workflow Documentation Alignment | `AGENTS.md` and linked workflow docs are aligned with current setup, validation, compatibility, architecture, and doc-update guidance |
 | P36 | Implementation Readability Refactor | Large implementation modules are split by responsibility so contributors can understand and modify the compiler/runtime pipeline more easily |
+| P37 | Parser/EBNF Conformance Audit | Parser coverage is explicitly proven against `docs/quawk.ebnf` without conflating parse support with semantics or lowering support |
 
 ## Phase Entry and Exit Rules
 
@@ -887,10 +888,12 @@ Start here unless priorities change:
 
 `T-296` through `T-301` are complete. `P35` is complete.
 `T-302` through `T-311` are complete. `P36` is complete.
+`T-312` is complete. `P37` is active.
 
 Immediate next tasks:
-- no active `P36` tasks remain; future readability work should start as a new
-  scoped follow-on task
+- `T-313`: Inventory parser-contract coverage against `docs/quawk.ebnf`.
+- `T-314`: Expand parser conformance fixtures for the documented grammar.
+- `T-315`: Add direct parser edge-case and negative coverage.
 
 P36 closeout validation:
 - `uv run pytest -q tests/test_parser.py tests/test_parser_goldens.py tests/test_parser_conformance.py tests/test_jit.py tests/test_cli.py tests/test_p9_backend_parity.py tests/test_runtime_support.py tests/test_p8_runtime_baselines.py`
@@ -905,6 +908,42 @@ P36 entry criteria:
   backend ownership cleanup rather than reopening those completed moves
 - implementation notes for `P36` should follow
   [implementation-readability-refactor-plan.md](plans/implementation-readability-refactor-plan.md)
+
+### P37: Parser/EBNF Conformance Audit
+
+Objective:
+- prove the checked-in parser contract against `docs/quawk.ebnf` with explicit
+  parser-focused coverage
+
+In scope:
+- inventory every meaningful production and disambiguation rule in
+  `docs/quawk.ebnf`
+- expand parser conformance fixtures so the coverage matrix spans the full
+  documented parser contract
+- add direct parser tests for ambiguous and failure-prone grammar boundaries
+- update `docs/quawk.ebnf` only where the documented grammar and tested parser
+  contract diverge
+
+Out of scope:
+- semantics rebaselines
+- lowering or execution-surface expansion
+- changing the compiled execution contract just because parsing is widened
+
+Exit criteria:
+- every meaningful EBNF production/rule has explicit coverage classification
+- parser-focused fixtures and direct parser tests cover the full documented
+  parser contract
+- `docs/quawk.ebnf` and parser tests no longer disagree about the parser
+  contract
+- parser-focused validation passes
+
+Current status:
+- `T-312` is complete: the parser/EBNF conformance plan is checked in under
+  `docs/plans/`
+- active implementation work now starts at `T-313`
+
+Implementation notes:
+- see [parser-ebnf-conformance-plan.md](plans/parser-ebnf-conformance-plan.md)
 
 ## Backlog
 
@@ -1218,6 +1257,12 @@ Priority values:
 | T-309 | P36 | P1 | Split or explicitly defer splitting the C runtime source | T-308 | `qk_runtime.c` is split by runtime domain with build support, or a checked-in reviewed decision explains why the split should wait | done |
 | T-310 | P36 | P2 | Improve test discoverability for newly touched refactor coverage | T-304, T-308 | Newly touched tests prefer behavior-oriented module names or comments that preserve task traceability without requiring task-ID knowledge | done |
 | T-311 | P36 | P2 | Validate and close the implementation readability refactor | T-309, T-310 | Focused parser/backend/runtime checks and `uv run pytest -q -m core` pass, and the roadmap records the final readability-refactor closeout state | done |
+| T-312 | P37 | P0 | Author the parser/EBNF conformance plan | T-311 | `docs/plans/parser-ebnf-conformance-plan.md` records the parser-only scope, coverage-inventory approach, fixture expansion, edge-case testing, validation, and definition of done | done |
+| T-313 | P37 | P0 | Inventory parser-contract coverage against `docs/quawk.ebnf` | T-312 | Every meaningful production and disambiguation rule in `docs/quawk.ebnf` is mapped to current parser/test coverage as covered, partial, or uncovered | todo |
+| T-314 | P37 | P0 | Expand parser conformance fixtures for the documented grammar | T-313 | `tests/parser_conformance/` and `tests/test_parser_conformance.py` explicitly cover the documented parser contract rather than only a starter subset | todo |
+| T-315 | P37 | P1 | Add direct parser edge-case and negative coverage | T-313 | Direct parser tests cover concat adjacency, regex-vs-division, `for` vs `for ... in`, `printf`, `getline`, `delete`, lvalue restrictions, and representative invalid forms | todo |
+| T-316 | P37 | P1 | Sync parser-facing grammar docs with the tested parser contract | T-314, T-315 | `docs/quawk.ebnf` and related parser-facing wording only describe forms that the parser test surface now proves | todo |
+| T-317 | P37 | P1 | Validate and close the parser/EBNF conformance audit | T-314, T-315, T-316 | Parser-focused pytest suites pass, and the roadmap records the final parser/EBNF conformance status honestly | todo |
 
 ## Cross-Cutting Tracks
 
