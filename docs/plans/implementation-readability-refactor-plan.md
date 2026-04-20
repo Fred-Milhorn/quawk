@@ -249,6 +249,11 @@ Acceptance:
 
 ### Phase 6: Split statement and expression lowering
 
+This phase is now landed. Lowering ownership is split across
+`backend/lower_program.py`, `backend/lower_stmt.py`, `backend/lower_expr.py`,
+`backend/lower_lvalue.py`, and `backend/lower_builtins.py`, while `jit.py`
+remains the public facade and compatibility layer.
+
 Move lowering by domain into focused modules.
 
 Recommended initial module shape:

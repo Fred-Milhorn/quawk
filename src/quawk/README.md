@@ -49,6 +49,11 @@ compatibility tooling alongside it.
 | `backend/tools.py` | LLVM tool orchestration, IR assembly/linking, optimization, and execution helpers |
 | `backend/runtime_abi.py` | reusable runtime declaration text and low-level LLVM text helpers |
 | `backend/driver.py` | generated execution-driver IR and runtime slot/state helper logic |
+| `backend/lower_program.py` | reusable program-phase and action lowering orchestration |
+| `backend/lower_stmt.py` | statement lowering, print/printf emission, and loop/control-flow lowering |
+| `backend/lower_expr.py` | numeric/string/condition expression lowering and record-pattern lowering |
+| `backend/lower_lvalue.py` | variable-address, runtime name/slot, and string-assignment helper logic |
+| `backend/lower_builtins.py` | builtin-call lowering helpers shared by runtime-backed expressions |
 | `runtime_support.py` | LLVM/C tool lookup and runtime compilation |
 | `runtime/` | C runtime ABI and implementation |
 | `compat/` | corpus, upstream suite, and divergence tooling |
@@ -82,11 +87,11 @@ Current landed moves:
 - split backend tool orchestration, driver IR, ABI declarations, and lowering
   state into `backend/` while keeping `jit.py` as the public facade
 - add `backend/ir_builder.py` and use it in representative lowering paths
+- split program, statement, expression, lvalue, and builtin lowering into
+  focused backend modules while shrinking `jit.py` to the public facade
 
 Remaining planned moves:
 
-- split statement, expression, lvalue, and builtin lowering into focused
-  backend modules
 - split the C runtime into concise domain files under `runtime/`, such as
   `core.c`, `fields.c`, `values.c`, `arrays.c`, `io.c`, `builtins.c`, and
   `profile.c`

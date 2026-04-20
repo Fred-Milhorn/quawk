@@ -844,8 +844,11 @@ Current status:
 - `T-307` is now complete: a lightweight LLVM IR builder exists under
   `src/quawk/backend/`, and representative lowering paths now use it without
   changing the public backend facade
-- active implementation work now starts at `T-308`, focused on the lowering
-  module split, runtime-split decision, and test discoverability
+- `T-308` is now complete: lowering ownership is split across focused backend
+  modules for program, statement, expression, lvalue, and builtin lowering,
+  and `jit.py` is now the public facade over that backend surface
+- active implementation work now starts at `T-309`, focused on the runtime-split
+  decision and test discoverability
 
 In scope:
 - add a source-level implementation map for the `src/quawk` package
@@ -880,7 +883,6 @@ Start here unless priorities change:
 `T-302` through `T-305` are complete. `P36` is active.
 
 Immediate next tasks:
-- `T-308`: Split statement, expression, lvalue, and builtin lowering modules.
 - `T-309`: Split or explicitly defer splitting the C runtime source.
 - `T-310`: Improve test discoverability for newly touched refactor coverage.
 - `T-311`: Validate and close the implementation readability refactor.
@@ -1203,7 +1205,7 @@ Priority values:
 | T-305 | P36 | P0 | Introduce shared AST traversal helpers for analysis passes | T-304 | At least two existing passes use shared traversal helpers for expressions, statements, lvalues, patterns, or programs without behavior changes | done |
 | T-306 | P36 | P0 | Split backend orchestration, driver IR, runtime ABI, and lowering state out of `jit.py` | T-305 | LLVM tool/link orchestration, generated driver IR, runtime declarations, and lowering context/state each have focused ownership outside the monolithic backend file | done |
 | T-307 | P36 | P1 | Add a small LLVM IR builder and migrate representative lowering paths | T-306 | Common call/load/store/branch/binop/select/GEP emission goes through a lightweight helper in representative statement and expression lowering code | done |
-| T-308 | P36 | P1 | Split statement, expression, lvalue, and builtin lowering into focused backend modules | T-307 | Backend lowering modules have clear ownership and `jit.py` is reduced to a thin compatibility/public API facade or removed from the hot path | todo |
+| T-308 | P36 | P1 | Split statement, expression, lvalue, and builtin lowering into focused backend modules | T-307 | Backend lowering modules have clear ownership and `jit.py` is reduced to a thin compatibility/public API facade or removed from the hot path | done |
 | T-309 | P36 | P1 | Split or explicitly defer splitting the C runtime source | T-308 | `qk_runtime.c` is split by runtime domain with build support, or a checked-in reviewed decision explains why the split should wait | todo |
 | T-310 | P36 | P2 | Improve test discoverability for newly touched refactor coverage | T-304, T-308 | Newly touched tests prefer behavior-oriented module names or comments that preserve task traceability without requiring task-ID knowledge | todo |
 | T-311 | P36 | P2 | Validate and close the implementation readability refactor | T-309, T-310 | Focused parser/backend/runtime checks and `uv run pytest -q -m core` pass, and the roadmap records the final readability-refactor closeout state | todo |

@@ -54,9 +54,16 @@ markers = [
 target-version = "py314"
 line-length = 120
 preview = true
+exclude = ["third_party"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/quawk/backend/lower_builtins.py" = ["E501"]
+"src/quawk/backend/lower_expr.py" = ["E501"]
+"src/quawk/backend/lower_lvalue.py" = ["E501"]
+"src/quawk/backend/lower_stmt.py" = ["E501"]
 
 [tool.yapf]
 based_on_style = "pep8"
