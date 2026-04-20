@@ -1,13 +1,15 @@
+"""Behavior-oriented coverage for local-vs-runtime state storage boundaries (from T-294)."""
+
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
 
 from quawk import jit
+from quawk.ast import Program
 from quawk.lexer import lex
 from quawk.local_scalar_residency import classify_local_numeric_scalar_residency
 from quawk.normalization import normalize_program_for_lowering
-from quawk.ast import Program
 from quawk.parser import parse
 from quawk.source import ProgramSource
 from quawk.type_inference import LatticeType, infer_variable_types

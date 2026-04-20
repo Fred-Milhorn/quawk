@@ -49,7 +49,7 @@ Representative files that appear to exist only to pin document text include:
 - `tests/test_t180_testing_docs_and_commands.py`
 - `tests/test_t182_corpus_harness_and_smoke_docs.py`
 - `tests/test_t183_testing_workflow_audit.py`
-- `tests/test_t289_execution_model_doc_rebaseline.py`
+- `tests/test_execution_model_docs.py`
 - `tests/test_t295_local_scalar_rebaseline_docs.py`
 
 These are likely deletion candidates rather than edit candidates.

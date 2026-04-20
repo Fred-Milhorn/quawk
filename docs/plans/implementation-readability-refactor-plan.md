@@ -298,14 +298,42 @@ The build helper should compile and link all runtime sources. This should land
 only after the Python backend split is stable enough that runtime ABI
 declarations are easier to audit.
 
-Deferral is acceptable if the checked-in review concludes that most current
-runtime churn is still happening in the Python backend, and that a C split would
-add build/link complexity without materially improving near-term readability.
-An explicit deferral should record:
+`T-309` landed as an explicit deferral rather than a source split. The checked-in
+review kept the runtime as one translation unit for now because:
+
+- `runtime_support.py` still compiles exactly one C source into one object or
+  bitcode artifact, so a split would first need new multi-source compile/link
+  plumbing
+- `qk_runtime.c` still shares one opaque runtime struct and many private helper
+  routines across field, scalar, array, IO, and scratch-buffer behavior, so an
+  early split would mostly trade one large file for a new internal-header layer
+- recent readability churn has been concentrated in the Python backend; keeping
+  the runtime intact for one more phase keeps the public ABI easier to audit
+
+Deferral remains acceptable when the checked-in review concludes that most
+current runtime churn is still happening in the Python backend, and that a C
+split would add build/link complexity without materially improving near-term
+readability. An explicit deferral should record:
 
 - why the current runtime file layout is still acceptable
 - what signal would justify revisiting the split
 - which runtime domains are the first candidates if the split resumes later
+
+The current deferral records the following revisit signals:
+
+- runtime changes begin landing repeatedly in clearly separate domains in the
+  same review
+- private runtime declarations need an internal header for another reason
+- runtime compilation is already being widened to support multiple C artifacts
+
+If the split resumes later, start with the lowest-coupling files first:
+
+- `profile.c`
+- `io.c`
+- `fields.c`
+
+Then revisit `arrays.c`, `values.c`, and `builtins.c` once the private helper
+surface is smaller.
 
 Acceptance:
 
@@ -333,6 +361,10 @@ Acceptance:
 - a contributor can find coverage by feature area without knowing roadmap task
   IDs
 - suite commands and marker behavior remain unchanged
+
+`T-310` lands this phase by renaming the most relevant refactor-era task-numbered
+test modules to behavior-oriented names while keeping the originating task IDs in
+short module docstrings for traceability.
 
 ## Guardrails
 

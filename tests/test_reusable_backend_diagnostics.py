@@ -1,3 +1,5 @@
+"""Behavior-oriented coverage for reusable backend diagnostics and gating (from T-287)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -5,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from quawk import jit
-from quawk.lexer import lex
 from quawk.ast import Program
+from quawk.lexer import lex
 from quawk.parser import parse
 from quawk.source import ProgramSource
 
@@ -24,6 +26,7 @@ def test_t287_lowering_no_longer_blocks_supported_programs_behind_generic_backen
 
     assert "define void @quawk_begin(ptr %rt, ptr %state)" in llvm_ir
     assert "@qk_array_clear" in llvm_ir
+
 
 def test_t287_public_execution_no_longer_blocks_supported_programs_behind_generic_backend_subset_gates() -> None:
     program = parse_program("BEGIN { delete x }")

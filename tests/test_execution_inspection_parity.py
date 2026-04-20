@@ -1,3 +1,5 @@
+"""Behavior-oriented coverage for execution/inspection parity regressions (from T-288)."""
+
 from __future__ import annotations
 
 import subprocess

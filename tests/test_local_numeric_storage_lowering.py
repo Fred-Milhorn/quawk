@@ -1,8 +1,10 @@
+"""Behavior-oriented coverage for local numeric storage lowering (from T-292)."""
+
 from __future__ import annotations
 
 from quawk import jit
-from quawk.lexer import lex
 from quawk.ast import Program
+from quawk.lexer import lex
 from quawk.parser import parse
 from quawk.source import ProgramSource
 

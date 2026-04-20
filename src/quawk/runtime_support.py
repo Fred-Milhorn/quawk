@@ -1,6 +1,9 @@
 # Runtime support layer helpers.
 # This module locates and compiles the package-owned C runtime used by the
-# planned reusable record-driven execution backend.
+# planned reusable record-driven execution backend. The runtime remains one C
+# translation unit for now: T-309 explicitly defers a domain split until the
+# build helper and private runtime declarations would make that split reduce
+# indirection instead of just moving shared helpers into a new internal header.
 
 from __future__ import annotations
 
@@ -28,7 +31,7 @@ def runtime_header_path() -> Path:
 
 
 def runtime_source_path() -> Path:
-    """Return the C implementation file for the runtime support layer."""
+    """Return the current single C implementation file for the runtime support layer."""
     return runtime_directory() / "qk_runtime.c"
 
 

@@ -54,8 +54,8 @@ compatibility tooling alongside it.
 | `backend/lower_expr.py` | numeric/string/condition expression lowering and record-pattern lowering |
 | `backend/lower_lvalue.py` | variable-address, runtime name/slot, and string-assignment helper logic |
 | `backend/lower_builtins.py` | builtin-call lowering helpers shared by runtime-backed expressions |
-| `runtime_support.py` | LLVM/C tool lookup and runtime compilation |
-| `runtime/` | C runtime ABI and implementation |
+| `runtime_support.py` | LLVM/C tool lookup and the current single-source runtime compilation path |
+| `runtime/` | C runtime ABI plus the current single-translation-unit implementation |
 | `compat/` | corpus, upstream suite, and divergence tooling |
 | `architecture_audit.py` | architecture-support manifest checks |
 
@@ -89,12 +89,11 @@ Current landed moves:
 - add `backend/ir_builder.py` and use it in representative lowering paths
 - split program, statement, expression, lvalue, and builtin lowering into
   focused backend modules while shrinking `jit.py` to the public facade
+- explicitly defer the C runtime split until multi-source build support and
+  private runtime declarations would make the split simpler to follow
 
 Remaining planned moves:
 
-- split the C runtime into concise domain files under `runtime/`, such as
-  `core.c`, `fields.c`, `values.c`, `arrays.c`, `io.c`, `builtins.c`, and
-  `profile.c`
 - prefer behavior-oriented test names when touching task-numbered tests
 
 Naming should stay concise when the package or directory already supplies the
