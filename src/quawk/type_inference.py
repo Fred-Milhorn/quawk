@@ -45,6 +45,7 @@ from .ast import (
     WhileStmt,
     expression_to_lvalue,
 )
+from .ast_walk import lvalue_expressions
 
 
 class LatticeType(Enum):
@@ -196,14 +197,8 @@ def infer_variable_types(program: Program) -> dict[str, LatticeType]:
 
     def visit_lvalue_indexes(target: NameLValue | ArrayLValue | FieldLValue, local_names: frozenset[str]) -> bool:
         changed = False
-        match target:
-            case NameLValue():
-                return False
-            case ArrayLValue(subscripts=subscripts):
-                for subscript in subscripts:
-                    changed = visit_expression(subscript, local_names) or changed
-            case FieldLValue(index=index):
-                changed = visit_expression(index, local_names) or changed
+        for expression in lvalue_expressions(target):
+            changed = visit_expression(expression, local_names) or changed
         return changed
 
     def visit_expression(expression: Expr, local_names: frozenset[str]) -> bool:

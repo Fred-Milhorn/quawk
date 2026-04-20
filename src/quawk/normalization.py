@@ -41,6 +41,7 @@ from .ast import (
     UnaryExpr,
     WhileStmt,
 )
+from .ast_walk import lvalue_expressions
 from .builtins import BUILTIN_ARRAY_NAMES
 from .slot_allocation import SlotAllocation, allocate_slots_for_variable_indexes
 
@@ -192,10 +193,11 @@ def collect_variable_indexes(program: Program, extra_names: tuple[str, ...] = ()
             case ArrayLValue(name=name, subscripts=subscripts):
                 if name not in local_names:
                     note_name(name)
-                for subscript in subscripts:
-                    visit_expression(subscript, local_names)
-            case FieldLValue(index=index):
-                visit_expression(index, local_names)
+                for expression in lvalue_expressions(target):
+                    visit_expression(expression, local_names)
+            case FieldLValue():
+                for expression in lvalue_expressions(target):
+                    visit_expression(expression, local_names)
 
     def visit_statement(statement: Stmt, local_names: frozenset[str] = frozenset()) -> None:
         match statement:
@@ -317,10 +319,11 @@ def collect_array_names(program: Program) -> frozenset[str]:
                 if name in local_names:
                     return
                 names.add(name)
-                for subscript in subscripts:
-                    visit_expression(subscript, local_names)
-            case FieldLValue(index=index):
-                visit_expression(index, local_names)
+                for expression in lvalue_expressions(target):
+                    visit_expression(expression, local_names)
+            case FieldLValue():
+                for expression in lvalue_expressions(target):
+                    visit_expression(expression, local_names)
             case _:
                 return
 

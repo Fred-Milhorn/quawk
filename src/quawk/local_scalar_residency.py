@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
 
-from .builtins import is_builtin_variable_name
-from .normalization import NormalizedLoweringProgram, NormalizedRecordItem, normalize_program_for_lowering
 from .ast import (
     Action,
     ArrayIndexExpr,
@@ -45,6 +43,9 @@ from .ast import (
     UnaryOp,
     WhileStmt,
 )
+from .ast_walk import lvalue_expressions
+from .builtins import is_builtin_variable_name
+from .normalization import NormalizedLoweringProgram, NormalizedRecordItem, normalize_program_for_lowering
 from .type_inference import LatticeType, infer_variable_types
 
 
@@ -198,13 +199,7 @@ def classify_local_numeric_scalar_residency(
         assigned: frozenset[str],
         local_names: frozenset[str],
     ) -> _AnalysisResult:
-        match target:
-            case NameLValue():
-                return empty_result(assigned)
-            case ArrayLValue(subscripts=subscripts):
-                return analyze_expression_sequence(subscripts, assigned, local_names)
-            case FieldLValue(index=index):
-                return analyze_expression(index, assigned, local_names)
+        return analyze_expression_sequence(tuple(lvalue_expressions(target)), assigned, local_names)
 
     def analyze_expression_sequence(
         expressions: tuple[Expr, ...] | list[Expr],

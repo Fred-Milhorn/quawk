@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .builtins import builtin_accepts_arity, is_builtin_function_name
-from .diagnostics import SemanticError, SemanticErrorCode
 from .ast import (
     Action,
     ArrayIndexExpr,
@@ -49,6 +47,9 @@ from .ast import (
     WhileStmt,
     expression_to_lvalue,
 )
+from .ast_walk import expression_children, lvalue_expressions
+from .builtins import builtin_accepts_arity, is_builtin_function_name
+from .diagnostics import SemanticError, SemanticErrorCode
 
 
 @dataclass(frozen=True)
@@ -306,13 +307,9 @@ def validate_expression(
 ) -> None:
     """Validate one expression tree in the current subset."""
     match expression:
-        case BinaryExpr(left=left, right=right):
-            validate_expression(left, functions, scope=scope)
-            validate_expression(right, functions, scope=scope)
-        case ArrayIndexExpr(index=index, extra_indexes=extra_indexes):
-            validate_expression(index, functions, scope=scope)
-            for extra_index in extra_indexes:
-                validate_expression(extra_index, functions, scope=scope)
+        case BinaryExpr() | ArrayIndexExpr() | ConditionalExpr() | FieldExpr():
+            for child in expression_children(expression):
+                validate_expression(child, functions, scope=scope)
         case CallExpr(function=function_name, args=args, span=span):
             function_def = functions.get(function_name)
             if function_def is None and not is_builtin_function_name(function_name):
@@ -455,7 +452,7 @@ def validate_expression(
                             span,
                             SemanticErrorCode.INVALID_BUILTIN_CALL,
                         )
-            for argument in args:
+            for argument in expression_children(expression):
                 validate_expression(argument, functions, scope=scope)
             if function_def is None and function_name in {"sub", "gsub"} and len(args) == 3 and expression_to_lvalue(args[2]) is None:
                 raise SemanticError(
@@ -463,10 +460,6 @@ def validate_expression(
                     args[2].span,
                     SemanticErrorCode.INVALID_BUILTIN_CALL,
                 )
-        case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
-            validate_expression(test, functions, scope=scope)
-            validate_expression(if_true, functions, scope=scope)
-            validate_expression(if_false, functions, scope=scope)
         case GetlineExpr(target=target, source=source):
             if target is not None:
                 validate_lvalue(target, functions, scope=scope)
@@ -491,9 +484,6 @@ def validate_expression(
                     span,
                     SemanticErrorCode.INVALID_INCREMENT_TARGET,
                 )
-        case FieldExpr(index=index):
-            if not isinstance(index, int):
-                validate_expression(index, functions, scope=scope)
         case NameExpr():
             return
         case _:
@@ -521,10 +511,11 @@ def validate_lvalue(
                     span,
                     SemanticErrorCode.ASSIGN_TO_FUNCTION_NAME,
                 )
-            for subscript in subscripts:
-                validate_expression(subscript, functions, scope=scope)
-        case FieldLValue(index=index):
-            validate_expression(index, functions, scope=scope)
+            for expression in lvalue_expressions(target):
+                validate_expression(expression, functions, scope=scope)
+        case FieldLValue():
+            for expression in lvalue_expressions(target):
+                validate_expression(expression, functions, scope=scope)
 
 
 def validate_assignment_statement(

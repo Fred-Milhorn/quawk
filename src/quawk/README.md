@@ -14,8 +14,9 @@ compatibility tooling alongside it.
    `ast_format.py` renders stable AST output for `--parse`.
 5. `semantics.py` validates supported AWK constructs and produces program
    analysis used by the CLI and backend.
-6. `normalization.py`, `type_inference.py`, `slot_allocation.py`, and
-   `local_scalar_residency.py` prepare the program for lowering.
+6. `ast_walk.py`, `normalization.py`, `type_inference.py`,
+   `slot_allocation.py`, and `local_scalar_residency.py` prepare the program
+   for lowering.
 7. `jit.py` lowers supported AST forms to LLVM IR, runs LLVM tools, links the
    runtime support layer, and executes generated programs.
 8. `runtime_support.py` locates LLVM/C tools and compiles files under
@@ -35,6 +36,7 @@ compatibility tooling alongside it.
 | `ast.py` | AST dataclasses, enums, type aliases, and AST-only helpers |
 | `parser.py` | recursive-descent parsing and parser-local token helpers |
 | `ast_format.py` | stable AST rendering for `--parse` and golden tests |
+| `ast_walk.py` | shared AST child-expression traversal helpers |
 | `builtins.py` | builtin variable, array, and function metadata |
 | `semantics.py` | semantic validation and program analysis |
 | `normalization.py` | lowering-oriented program normalization |
@@ -70,7 +72,7 @@ ownership boundaries without changing public behavior.
 Planned moves:
 
 - keep AST definitions and AST formatting out of `parser.py`
-- add shared AST traversal helpers for analysis passes
+- expand shared AST traversal helpers for analysis passes
 - split backend tool orchestration, driver IR, ABI declarations, state, and
   lowering out of `jit.py`
 - introduce a small LLVM IR emitter for common instruction text
