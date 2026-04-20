@@ -60,13 +60,6 @@ Preferred suite commands:
 uv run pytest -q -m core
 uv run pytest -m compat_reference
 uv run pytest -m compat_corpus
-uv run pytest -m docs_contract
-```
-
-Roadmap-contract checks are opt-in:
-
-```sh
-QUAWK_RUN_ROADMAP_TESTS=1 uv run pytest -m roadmap_contract
 ```
 
 For debugging a serial test run:
@@ -182,12 +175,11 @@ tests: speed up default cycle and relax roadmap doc coupling
 
 - run pytest in parallel by default with xdist (`-n auto`)
 - add `pytest-xdist` to dev dependencies
-- mark roadmap-only contract tests as `roadmap_contract`
-- skip roadmap contract checks by default unless `QUAWK_RUN_ROADMAP_TESTS=1`
+- keep default test runs focused on executable behavior
 - remove brittle historical roadmap-string assertions from roadmap test files
 
 This keeps default test runs focused on executable behavior and cuts wall-clock
-time substantially, while preserving an explicit opt-in path for roadmap checks.
+time substantially without adding a separate documentation-test surface.
 MSG
 git commit -F "$tmp_msg"
 rm -f "$tmp_msg"

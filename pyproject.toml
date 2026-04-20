@@ -40,8 +40,6 @@ testpaths = ["tests"]
 addopts = "-n auto"
 markers = [
     "core: default fast repo test surface excluding compatibility suites",
-    "docs_contract: documentation and workflow contract checks selected by marker-based suite runs",
-    "roadmap_contract: documentation-only roadmap assertions, skipped by default unless QUAWK_RUN_ROADMAP_TESTS=1",
     "compat: full compatibility suite coverage, including corpus and differential checks",
     "compat_reference: reference-engine differential compatibility coverage",
     "compat_corpus: repo-owned supplemental compatibility corpus coverage",

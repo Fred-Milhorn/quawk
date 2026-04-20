@@ -824,7 +824,6 @@ Immediate next tasks:
   a new scoped follow-on task
 
 P35 closeout validation:
-- `uv run pytest -m docs_contract`
 - `uv run pytest -q -m core`
 
 ### P36: Implementation Readability Refactor

@@ -3,6 +3,14 @@
 This document records the follow-on cleanup to stop treating repository
 documentation as a pytest-enforced contract.
 
+This cleanup is now landed:
+
+- dedicated `docs_contract` and `roadmap_contract` pytest surfaces are removed
+- pure document-assertion pytest files are deleted
+- mixed files keep executable or tooling checks while dropping exact repo-doc
+  wording assertions
+- contributor guidance no longer tells users to run document-test suites
+
 The goal is not to remove useful engineering docs. The goal is to remove tests
 whose primary purpose is asserting exact document text, and to reword project
 guidance so tests are described as validating executable behavior rather than

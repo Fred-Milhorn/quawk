@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from quawk import jit
 from quawk.lexer import lex
 from quawk.parser import parse
 from quawk.source import ProgramSource
-
-ROOT = Path(__file__).resolve().parent.parent
 
 
 def parse_program(source_text: str):
@@ -22,43 +18,3 @@ def test_t270_representative_dynamic_printf_program_executes_through_public_exec
 
     assert jit.execute(program) == 0
     assert jit.lower_to_llvm_ir(program)
-
-
-def test_t266_matrix_records_the_representative_execution_completeness_gaps() -> None:
-    matrix_text = (ROOT / "docs" / "plans" / "execution-completeness-matrix.md").read_text(encoding="utf-8")
-
-    assert "Frontend semantic validation passes today" in matrix_text
-    assert "Public execute today" in matrix_text
-    assert "Inspection today" in matrix_text
-    assert "Public host fallback exists today" in matrix_text
-    assert "| Dynamic `printf` format |" not in matrix_text
-    assert "no row in this matrix currently keeps public Python host fallback alive" in matrix_text
-    assert "## T-266 Baseline Result" in matrix_text
-    assert "## T-267 Narrowing Result" in matrix_text
-    assert "## T-268 Narrowing Result" in matrix_text
-    assert "## T-269 Narrowing Result" in matrix_text
-    assert "## T-270 Narrowing Result" in matrix_text
-    assert "## T-271 Audit Result" in matrix_text
-
-
-def test_t266_plan_and_roadmap_point_to_the_checked_in_baseline() -> None:
-    plan_text = (ROOT / "docs" / "plans" / "execution-completeness-plan.md").read_text(encoding="utf-8")
-    roadmap_text = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
-
-    assert "[execution-completeness-matrix.md](execution-completeness-matrix.md)" in plan_text
-    assert "### P30: Execution Completeness Closure" in roadmap_text
-    assert "| T-266 | P30 | P0 | Author execution-completeness baseline and representative gap tests | T-265 | Direct tests and a checked-in matrix pin the remaining grammar-valid backend gaps before implementation | done |" in roadmap_text
-    assert "| T-267 | P30 | P0 | Widen runtime-backed user-defined function lowering and retire direct-function-only restrictions | T-266 |" in roadmap_text
-    assert "| T-269 | P30 | P1 | Lower side-effectful ternary expressions with correct short-circuit control flow | T-266 | Representative ternary programs with assignment, increment, and builtin side effects execute correctly and inspect cleanly | done |" in roadmap_text
-    assert "| T-270 | P30 | P1 | Remove remaining grammar-valid builtin-call shape restrictions | T-266, T-268 | Representative dynamic-`printf` and related grammar-valid builtin forms execute through the compiled backend/runtime path | done |" in roadmap_text
-    assert "| T-271 | P30 | P1 | Re-audit the grammar contract against backend execution and inspection support | T-267, T-268, T-269, T-270 | `docs/quawk.ebnf`, `design.md`, and the gap inventory agree that admitted forms execute end-to-end through the backend/runtime path | done |" in roadmap_text
-    assert "| P31 | Remaining POSIX Contract Closure |" in roadmap_text
-    assert "| P32 | Final POSIX Compatibility Corroboration |" in roadmap_text
-    assert "| T-272 | P31 | P0 | Author the remaining product-side POSIX gap inventory and classification baseline | T-271 | `SPEC.md`, the roadmap, and a checked-in plan explicitly classify compound assignment, non-name array-target forms, broader substitution targets, extra builtin names, top-level item shapes, and the direct-function lane before implementation choices start | done |" in roadmap_text
-    assert "| T-274 | P31 | P0 | Compound assignment end to end through public execution and inspection | T-272 | Representative `+=`, `-=`, `*=`, `/=`, `%=` and `^=` programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
-    assert "| T-275 | P31 | P0 | Parenthesized array-target wrappers end to end through public execution and inspection | T-272 | Representative parenthesized `for ... in`, `expr in array`, and `split()` target wrapper programs execute through the backend/runtime path and inspect cleanly | done |" in roadmap_text
-    assert "| T-276 | P31 | P0 | Close substitution-target lvalue gaps and classify builtin names | T-272, T-275 | Representative `sub()` / `gsub()` programs over scalar variables, fields, and multi-subscript array lvalues execute correctly, while builtin names beyond the current subset are documented as intentionally out of contract | done |" in roadmap_text
-    assert "| T-277 | P31 | P1 | Retire or collapse the narrow direct-function execution lane | T-274, T-275, T-276 | Claimed function programs now use the reusable backend lowering path and the separate restricted direct-function route is retired | done |" in roadmap_text
-    assert "| T-278 | P31 | P1 | Re-audit the remaining product-side admitted surface after the closure wave | T-274, T-275, T-276, T-277 | Contract docs, backend gap inventory, and direct tests agree that the only remaining product-side gaps are the explicit builtin-name and top-level-item exclusions | done |" in roadmap_text
-    assert "| T-279 | P32 | P0 | Author the remaining POSIX corroboration-gap baseline | T-278 | `docs/compatibility.md`, `SPEC.md`, and focused tests explicitly list the remaining corroboration-only gaps for field rebuild, record-target `gsub`, and `rand()` | done |" in roadmap_text
-    assert "T-271 audit confirmed that this design, the roadmap, and the backend gap inventory now agree on the admitted public execution surface" in (ROOT / "docs" / "design.md").read_text(encoding="utf-8")

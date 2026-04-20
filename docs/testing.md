@@ -80,7 +80,7 @@ CI parity:
 - `.github/workflows/compat-reference.yml` runs `uv run pytest -m compat_reference` after bootstrapping the pinned references on `ubuntu-latest`
 - static lint, type, and formatting checks remain part of the local and release validation workflow, not the current branch-push CI gate
 - the upstream workflow is informative today and becomes required only after the promotion criteria in [compatibility.md](compatibility.md) are met
-
+ 
 Current testing workflow after the `P16` cleanup:
 - local differential corpus coverage now runs through one shared `compat_corpus` pytest entrypoint in `tests/test_compat_corpus.py`
 - the historical `compat-baseline` corpus tag remains available for case metadata and grouping, but it no longer drives a separate pytest file
