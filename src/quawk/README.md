@@ -17,12 +17,13 @@ compatibility tooling alongside it.
 6. `ast_walk.py`, `normalization.py`, `type_inference.py`,
    `slot_allocation.py`, and `local_scalar_residency.py` prepare the program
    for lowering.
-7. `jit.py` lowers supported AST forms to LLVM IR, runs LLVM tools, links the
-   runtime support layer, and executes generated programs.
-8. `runtime_support.py` locates LLVM/C tools and compiles files under
+7. `jit.py` is the public backend facade for lowering and execution.
+8. `backend/` owns backend state, LLVM tool orchestration, runtime ABI text,
+   and generated driver IR.
+9. `runtime_support.py` locates LLVM/C tools and compiles files under
    `runtime/`.
-9. `compat/` owns corpus and upstream compatibility selection, execution, and
-   divergence metadata.
+10. `compat/` owns corpus and upstream compatibility selection, execution, and
+    divergence metadata.
 
 ## Main Modules
 
@@ -43,7 +44,11 @@ compatibility tooling alongside it.
 | `type_inference.py` | variable and expression type lattice inference |
 | `slot_allocation.py` | runtime state slot layout helpers |
 | `local_scalar_residency.py` | scalar-locality analysis for backend storage |
-| `jit.py` | current backend facade, lowering, LLVM orchestration, and driver IR |
+| `jit.py` | public backend facade and compatibility wrapper around lowering/execution helpers |
+| `backend/state.py` | lowering-state dataclass and initial-variable type aliases |
+| `backend/tools.py` | LLVM tool orchestration, IR assembly/linking, optimization, and execution helpers |
+| `backend/runtime_abi.py` | reusable runtime declaration text and low-level LLVM text helpers |
+| `backend/driver.py` | generated execution-driver IR and runtime slot/state helper logic |
 | `runtime_support.py` | LLVM/C tool lookup and runtime compilation |
 | `runtime/` | C runtime ABI and implementation |
 | `compat/` | corpus, upstream suite, and divergence tooling |
@@ -59,8 +64,9 @@ compatibility tooling alongside it.
 - Analysis changes: start in the pass that owns the question, then check
   repeated AST traversal in `normalization.py`, `semantics.py`,
   `type_inference.py`, and `local_scalar_residency.py`.
-- Backend execution changes: start in `jit.py`; runtime toolchain support lives
-  in `runtime_support.py`, and C ABI changes belong under `runtime/`.
+- Backend execution changes: start in `jit.py` for the public flow, then follow
+  into `backend/`; runtime toolchain support lives in `runtime_support.py`, and
+  C ABI changes belong under `runtime/`.
 - Compatibility changes: start in `compat/corpus.py` for local corpus behavior
   or `compat/upstream_suite.py` for imported upstream cases.
 
@@ -69,12 +75,15 @@ compatibility tooling alongside it.
 `P36` is a readability refactor wave. The goal is to move code along existing
 ownership boundaries without changing public behavior.
 
-Planned moves:
+Current landed moves:
 
 - keep AST definitions and AST formatting out of `parser.py`
 - expand shared AST traversal helpers for analysis passes
-- split backend tool orchestration, driver IR, ABI declarations, state, and
-  lowering out of `jit.py`
+- split backend tool orchestration, driver IR, ABI declarations, and lowering
+  state into `backend/` while keeping `jit.py` as the public facade
+
+Remaining planned moves:
+
 - introduce a small LLVM IR emitter for common instruction text
 - split statement, expression, lvalue, and builtin lowering into focused
   backend modules

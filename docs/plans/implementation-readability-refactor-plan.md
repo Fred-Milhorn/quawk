@@ -30,10 +30,21 @@ The first P36 foundation steps are already landed:
 - shared AST traversal helpers now live in `ast_walk.py`, and the first
   analysis passes already use them
 
-The active readability-refactor work now starts at `T-306`:
+The backend ownership extraction from `T-306` is now landed:
 
-- split backend orchestration, runtime ABI declarations, driver IR generation,
-  and lowering state out of `jit.py`
+- `backend/tools.py` now owns LLVM tool orchestration, optimization, assembly,
+  linking, and execution helpers
+- `backend/driver.py` now owns execution-driver IR generation plus reusable
+  runtime slot/state helper logic
+- `backend/runtime_abi.py` now owns reusable declaration text and low-level LLVM
+  string/GEP helpers
+- `backend/state.py` now owns the lowering-state dataclass and initial-variable
+  type aliases
+- `jit.py` remains the public backend facade and compatibility wrapper during
+  the refactor
+
+The active readability-refactor work now starts at `T-307`:
+
 - add a lightweight LLVM IR builder for recurring text emission
 - split backend lowering by ownership boundary without replacing one monolith
   with several tightly coupled files
@@ -167,6 +178,10 @@ Acceptance:
 - future AST additions have one obvious traversal utility to extend
 
 ### Phase 4: Split backend orchestration from lowering
+
+This phase is now landed. `jit.py` remains the public backend facade, but the
+tool orchestration, driver generation, runtime ABI text, and lowering-state
+types now have focused ownership under `backend/`.
 
 Extract backend process/tool orchestration out of `jit.py`.
 

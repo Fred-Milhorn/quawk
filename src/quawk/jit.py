@@ -9,12 +9,37 @@ import shutil
 import subprocess
 import sys
 import warnings
-from dataclasses import dataclass, field
 from pathlib import Path
-from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Mapping, TextIO
 
 from . import runtime_support
+from .backend import driver as backend_driver
+from .backend import tools as backend_tools
+from .backend.driver import (
+    collect_function_definitions,
+    has_end_pattern,
+    has_function_definitions,
+    has_input_aware_patterns,
+    is_reusable_runtime_state_name,
+    requires_input_aware_execution,
+    reusable_runtime_state_indexes,
+    runtime_numeric_slot_indexes,
+    runtime_slot_indexes,
+    runtime_string_slot_indexes,
+)
+from .backend.runtime_abi import (
+    awk_numeric_prefix,
+    awk_string_is_numeric,
+    declare_string,
+    emit_gep,
+    emit_gep_constant,
+    emit_gep_inline,
+    ensure_numeric_format,
+    format_double_literal,
+    render_reusable_function,
+    render_runtime_user_function,
+    reusable_program_declarations,
+)
+from .backend.state import InitialVariableValue, InitialVariables, LoweringState
 from .builtins import is_builtin_variable_name
 from .local_scalar_residency import classify_local_numeric_scalar_residency
 from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
@@ -35,7 +60,6 @@ from .ast import (
     ContinueStmt,
     DeleteStmt,
     DoWhileStmt,
-    EndPattern,
     ExitStmt,
     Expr,
     ExprPattern,
@@ -55,7 +79,6 @@ from .ast import (
     OutputRedirect,
     OutputRedirectKind,
     PostfixOp,
-    PatternAction,
     PostfixExpr,
     PrintfStmt,
     PrintStmt,
@@ -73,6 +96,12 @@ from .ast import (
 from .slot_allocation import SlotAllocation
 from .type_inference import LatticeType, infer_variable_types
 
+__all__ = [
+    "InitialVariableValue",
+    "InitialVariables",
+    "LoweringState",
+]
+
 DEFAULT_OFMT = "%.6g"
 DEFAULT_CONVFMT = "%.6g"
 RUNTIME_TEXT_ENCODING = "utf-8"
@@ -84,60 +113,6 @@ RAND_MODULUS = 2_147_483_648.0
 RAND_MASK = 0x7FFFFFFF
 RAND_MULTIPLIER = 1103515245
 RAND_INCREMENT = 12345
-FULL_NUMERIC_PATTERN = re.compile(r"^[ \t\r\n\f\v]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\r\n\f\v]*$")
-NUMERIC_PREFIX_PATTERN = re.compile(r"^[ \t\r\n\f\v]*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)")
-
-
-@dataclass
-class LoweringState:
-    """Mutable state for lowering one program into LLVM IR text."""
-
-    globals: list[str] = field(default_factory=list)
-    allocas: list[str] = field(default_factory=list)
-    entry_instructions: list[str] = field(default_factory=list)
-    instructions: list[str] = field(default_factory=list)
-    temp_index: int = 0
-    label_index: int = 0
-    string_index: int = 0
-    variable_slots: dict[str, str] = field(default_factory=dict)
-    uses_puts: bool = False
-    uses_printf: bool = False
-    numeric_format_declared: bool = False
-    runtime_param: str | None = None
-    state_param: str | None = None
-    variable_indexes: dict[str, int] = field(default_factory=dict)
-    slot_allocation: SlotAllocation | None = None
-    type_info: dict[str, LatticeType] = field(default_factory=dict)
-    action_exit_label: str | None = None
-    phase_exit_label: str | None = None
-    break_label: str | None = None
-    continue_label: str | None = None
-    array_names: frozenset[str] = field(default_factory=frozenset)
-    loop_string_bindings: dict[str, str] = field(default_factory=dict)
-    function_defs: dict[str, FunctionDef] = field(default_factory=dict)
-    return_slot: str | None = None
-    return_string_slot: str | None = None
-    return_label: str | None = None
-    initial_string_values: dict[str, str] = field(default_factory=dict)
-    local_names: frozenset[str] = field(default_factory=frozenset)
-    function_param_strings: dict[str, str] = field(default_factory=dict)
-    local_numeric_names: frozenset[str] = field(default_factory=frozenset)
-
-    def next_temp(self, prefix: str) -> str:
-        """Return a fresh SSA temporary name with the given prefix."""
-        name = f"%{prefix}.{self.temp_index}"
-        self.temp_index += 1
-        return name
-
-    def next_label(self, prefix: str) -> str:
-        """Return a fresh LLVM basic-block label name."""
-        name = f"{prefix}.{self.label_index}"
-        self.label_index += 1
-        return name
-
-
-InitialVariableValue = float | str
-InitialVariables = list[tuple[str, InitialVariableValue]]
 PRINTF_SPEC_PATTERN = re.compile(r"%(?:[-+ #0]*\d*(?:\.\d+)?)([%aAcdeEfgGiosuxX])")
 
 
@@ -146,19 +121,6 @@ def initial_variables_require_string_runtime(initial_variables: InitialVariables
     if initial_variables is None:
         return False
     return any(isinstance(value, str) for _, value in initial_variables)
-
-
-def awk_string_is_numeric(text: str) -> bool:
-    """Report whether one string is fully numeric under AWK comparison rules."""
-    return FULL_NUMERIC_PATTERN.fullmatch(text) is not None
-
-
-def awk_numeric_prefix(text: str) -> float:
-    """Parse one AWK numeric prefix, returning `0.0` when none is present."""
-    match = NUMERIC_PREFIX_PATTERN.match(text)
-    if match is None:
-        return 0.0
-    return float(match.group(1))
 
 
 def decode_regex_literal(raw_text: str) -> str:
@@ -197,21 +159,12 @@ def decode_regex_literal(raw_text: str) -> str:
 
 def emit_assembly(llvm_ir: str) -> str:
     """Run `llc` on LLVM IR and return the emitted assembly text."""
-    llc_path = shutil.which("llc")
-    if llc_path is None:
-        raise RuntimeError("LLVM code generation tool 'llc' is not available on PATH")
-    pruned_ir = prune_ir_for_assembly(llvm_ir)
-
-    result = subprocess.run(
-        [llc_path, "-o", "-", "-"],
-        input=pruned_ir,
-        capture_output=True,
-        text=True,
-        check=False,
+    return backend_tools.emit_assembly(
+        llvm_ir,
+        which=shutil.which,
+        subprocess_module=subprocess,
+        prune_ir_for_assembly_func=prune_ir_for_assembly,
     )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "llc failed to produce assembly output")
-    return result.stdout
 
 
 def execute(program: Program, initial_variables: InitialVariables | None = None, *, optimize: bool = False) -> int:
@@ -222,26 +175,7 @@ def execute(program: Program, initial_variables: InitialVariables | None = None,
 
 def execute_llvm_ir(llvm_ir: str) -> int:
     """Run one LLVM IR module with `lli` and return its exit status."""
-    lli_path = shutil.which("lli")
-    if lli_path is None:
-        raise RuntimeError("LLVM JIT tool 'lli' is not available on PATH")
-
-    with NamedTemporaryFile(mode="w", suffix=".ll", encoding="utf-8", delete=False) as file_obj:
-        file_obj.write(llvm_ir)
-        ir_path = Path(file_obj.name)
-
-    try:
-        result = run_process_with_current_stdin([lli_path, "--entry-function=quawk_main", str(ir_path)])
-    finally:
-        ir_path.unlink(missing_ok=True)
-
-    if result.stdout:
-        sys.stdout.buffer.write(result.stdout)
-        sys.stdout.buffer.flush()
-    if result.stderr:
-        sys.stderr.buffer.write(result.stderr)
-        sys.stderr.buffer.flush()
-    return result.returncode
+    return backend_tools.execute_llvm_ir(llvm_ir, which=shutil.which)
 
 
 def lower_to_llvm_ir(program: Program, initial_variables: InitialVariables | None = None) -> str:
@@ -286,56 +220,29 @@ def build_public_inspection_llvm_ir(
     return llvm_ir
 
 
-OPTIMIZATION_PASS_PIPELINES: dict[int, tuple[str, ...]] = {
-    1: ("-passes=mem2reg,instcombine,simplifycfg,gvn",),
-    2: ("-O2", "-vectorize-loops"),
-}
-ASSEMBLY_PRUNE_FLAGS: tuple[str, ...] = (
-    "-passes=internalize,globaldce",
-    "-internalize-public-api-list=quawk_main",
-)
-
-
 def optimization_passes_for_level(level: int) -> list[str]:
     """Return the LLVM `opt` flags for one supported optimization level."""
-    return list(OPTIMIZATION_PASS_PIPELINES.get(level, OPTIMIZATION_PASS_PIPELINES[1]))
+    return backend_tools.optimization_passes_for_level(level)
 
 
 def optimize_ir(llvm_ir: str, level: int = 1) -> str:
     """Run LLVM `opt` over one generated IR module and return optimized text."""
-    try:
-        opt_path = runtime_support.find_llvm_opt()
-    except RuntimeError as exc:
-        warnings.warn(str(exc), RuntimeWarning)
-        return llvm_ir
-    result = subprocess.run(
-        [opt_path, *optimization_passes_for_level(level), "-S"],
-        input=llvm_ir,
-        capture_output=True,
-        text=True,
-        check=False,
+    return backend_tools.optimize_ir(
+        llvm_ir,
+        level=level,
+        runtime_support_module=runtime_support,
+        subprocess_module=subprocess,
+        warnings_module=warnings,
     )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "opt failed to optimize generated IR")
-    return result.stdout
 
 
 def prune_ir_for_assembly(llvm_ir: str) -> str:
     """Drop unreachable linked helpers before lowering one module to assembly."""
-    try:
-        opt_path = runtime_support.find_llvm_opt()
-    except RuntimeError:
-        return llvm_ir
-    result = subprocess.run(
-        [opt_path, *ASSEMBLY_PRUNE_FLAGS, "-S"],
-        input=llvm_ir,
-        capture_output=True,
-        text=True,
-        check=False,
+    return backend_tools.prune_ir_for_assembly(
+        llvm_ir,
+        runtime_support_module=runtime_support,
+        subprocess_module=subprocess,
     )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "opt failed to prune generated assembly IR")
-    return result.stdout
 
 
 def program_requires_linked_execution_module(
@@ -427,87 +334,7 @@ def lower_reusable_program_to_llvm_ir(
     array_names = normalized_program.array_names
     state_type = render_state_type(normalized_program.slot_allocation)
     local_scalar_residency = classify_local_numeric_scalar_residency(program, normalized_program, type_info)
-
-    declarations = [
-        "declare ptr @qk_get_field_inline(ptr, i64)",
-        "declare void @qk_set_field_string(ptr, i64, ptr)",
-        "declare void @qk_set_field_number(ptr, i64, double)",
-        "declare void @qk_print_string(ptr, ptr)",
-        "declare void @qk_print_number(ptr, double)",
-        "declare void @qk_print_string_fragment(ptr, ptr)",
-        "declare void @qk_print_number_fragment(ptr, double)",
-        "declare void @qk_print_output_separator(ptr)",
-        "declare void @qk_print_output_record_separator(ptr)",
-        "declare ptr @qk_open_output(ptr, ptr, i32)",
-        "declare double @qk_close_output(ptr, ptr)",
-        "declare void @qk_write_output_string(ptr, ptr)",
-        "declare void @qk_write_output_number(ptr, ptr, double)",
-        "declare void @qk_write_output_separator(ptr, ptr)",
-        "declare void @qk_write_output_record_separator(ptr, ptr)",
-        "declare void @qk_nextfile(ptr)",
-        "declare void @qk_request_exit(ptr, i32)",
-        "declare i1 @qk_regex_match_current_record(ptr, ptr)",
-        "declare i1 @qk_regex_match_text(ptr, ptr)",
-        "declare ptr @qk_scalar_get_inline(ptr, ptr)",
-        "declare double @qk_scalar_get_number_inline(ptr, ptr)",
-        "declare i1 @qk_scalar_truthy(ptr, ptr)",
-        "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
-        "declare void @qk_scalar_set_number_inline(ptr, ptr, double)",
-        "declare void @qk_scalar_copy(ptr, ptr, ptr)",
-        "declare double @qk_slot_get_number(ptr, i64)",
-        "declare void @qk_slot_set_number(ptr, i64, double)",
-        "declare ptr @qk_slot_get_string(ptr, i64)",
-        "declare void @qk_slot_set_string(ptr, i64, ptr)",
-        "declare ptr @qk_capture_string_arg_inline(ptr, ptr)",
-        "declare double @qk_parse_number_text(ptr)",
-        "declare ptr @qk_format_number(ptr, double)",
-        "declare ptr @qk_concat(ptr, ptr, ptr)",
-        "declare double @qk_index(ptr, ptr, ptr)",
-        "declare double @qk_match(ptr, ptr, ptr)",
-        "declare double @qk_substitute(ptr, ptr, ptr, ptr, i1, ptr)",
-        "declare ptr @qk_sprintf(ptr, ptr, i32, ptr, ptr)",
-        "declare ptr @qk_tolower(ptr, ptr)",
-        "declare ptr @qk_toupper(ptr, ptr)",
-        "declare double @qk_atan2(double, double)",
-        "declare double @qk_cos(double)",
-        "declare double @qk_exp(double)",
-        "declare double @qk_int_builtin(double)",
-        "declare double @qk_log(double)",
-        "declare double @qk_rand(ptr)",
-        "declare double @qk_sin(double)",
-        "declare double @qk_sqrt(double)",
-        "declare double @qk_srand0(ptr)",
-        "declare double @qk_srand1(ptr, double)",
-        "declare double @qk_system(ptr, ptr)",
-        "declare double @qk_getline_main_record(ptr)",
-        "declare double @qk_getline_main_string(ptr, ptr)",
-        "declare double @qk_getline_file_record(ptr, ptr)",
-        "declare double @qk_getline_file_string(ptr, ptr, ptr)",
-        "declare double @qk_get_nr_inline(ptr)",
-        "declare double @qk_get_fnr_inline(ptr)",
-        "declare double @qk_get_nf_inline(ptr)",
-        "declare ptr @qk_get_filename_inline(ptr)",
-        "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
-        "declare ptr @qk_array_get(ptr, ptr, ptr)",
-        "declare i1 @qk_array_contains(ptr, ptr, ptr)",
-        "declare void @qk_array_set_string(ptr, ptr, ptr, ptr)",
-        "declare void @qk_array_set_number(ptr, ptr, ptr, double)",
-        "declare void @qk_array_delete(ptr, ptr, ptr)",
-        "declare void @qk_array_clear(ptr, ptr)",
-        "declare double @qk_array_length(ptr, ptr)",
-        "declare ptr @qk_array_first_key(ptr, ptr)",
-        "declare ptr @qk_array_next_key(ptr, ptr, ptr)",
-        "declare ptr @qk_substr2(ptr, ptr, i64)",
-        "declare ptr @qk_substr3(ptr, ptr, i64, i64)",
-        "declare i64 @strlen(ptr)",
-        "declare double @llvm.pow.f64(double, double)",
-        "declare double @llvm.trunc.f64(double)",
-        "declare i1 @qk_compare_values_inline(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
-        "declare i32 @fprintf(ptr, ptr, ...)",
-        "declare i32 @printf(ptr, ...)",
-    ]
-    if state_type is not None:
-        declarations.append(state_type)
+    declarations = reusable_program_declarations(state_type)
 
     function_globals, function_bodies, function_string_index = lower_runtime_user_functions_to_ir(
         program, variable_indexes, normalized_program.slot_allocation, type_info, array_names
@@ -3334,37 +3161,17 @@ def link_reusable_execution_module(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Link the reusable program module, runtime support, and execution driver into one IR module."""
-    with TemporaryDirectory() as temp_dir_name:
-        temp_dir = Path(temp_dir_name)
-        runtime_bitcode = runtime_support.compile_runtime_bitcode(temp_dir)
-        program_bitcode = assemble_llvm_ir(program_llvm_ir, temp_dir / "program.bc")
-        driver_ir = build_execution_driver_llvm_ir(
-            program,
-            program_llvm_ir,
-            input_files,
-            field_separator,
-            initial_variables,
-        )
-        driver_bitcode = assemble_llvm_ir(driver_ir, temp_dir / "driver.bc")
-        linked_ir_path = temp_dir / "linked.ll"
-
-        result = subprocess.run(
-            [
-                runtime_support.find_llvm_link(),
-                str(runtime_bitcode),
-                str(program_bitcode),
-                str(driver_bitcode),
-                "-S",
-                "-o",
-                str(linked_ir_path),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or "llvm-link failed to link the reusable execution module")
-        return linked_ir_path.read_text(encoding="utf-8")
+    return backend_tools.link_reusable_execution_module(
+        program_llvm_ir,
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        runtime_support_module=runtime_support,
+        subprocess_module=subprocess,
+        assemble_llvm_ir_func=assemble_llvm_ir,
+        build_execution_driver_llvm_ir_func=build_execution_driver_llvm_ir,
+    )
 
 
 def link_reusable_inspection_module(
@@ -3375,55 +3182,27 @@ def link_reusable_inspection_module(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Link the program module and reusable driver without runtime implementations."""
-    with TemporaryDirectory() as temp_dir_name:
-        temp_dir = Path(temp_dir_name)
-        program_bitcode = assemble_llvm_ir(program_llvm_ir, temp_dir / "program.bc")
-        driver_ir = build_execution_driver_llvm_ir(
-            program,
-            program_llvm_ir,
-            input_files,
-            field_separator,
-            initial_variables,
-        )
-        driver_bitcode = assemble_llvm_ir(driver_ir, temp_dir / "driver.bc")
-        linked_ir_path = temp_dir / "linked.ll"
-
-        result = subprocess.run(
-            [
-                runtime_support.find_llvm_link(),
-                str(program_bitcode),
-                str(driver_bitcode),
-                "-S",
-                "-o",
-                str(linked_ir_path),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr.strip() or "llvm-link failed to link the reusable inspection module")
-        return linked_ir_path.read_text(encoding="utf-8")
+    return backend_tools.link_reusable_inspection_module(
+        program_llvm_ir,
+        program,
+        input_files,
+        field_separator,
+        initial_variables,
+        runtime_support_module=runtime_support,
+        subprocess_module=subprocess,
+        assemble_llvm_ir_func=assemble_llvm_ir,
+        build_execution_driver_llvm_ir_func=build_execution_driver_llvm_ir,
+    )
 
 
 def assemble_llvm_ir(llvm_ir: str, output_path: Path) -> Path:
     """Assemble one LLVM IR module to bitcode and return the output path."""
-    source_path = output_path.with_suffix(".ll")
-    source_path.write_text(llvm_ir, encoding="utf-8")
-    result = subprocess.run(
-        [
-            runtime_support.find_llvm_as(),
-            str(source_path),
-            "-o",
-            str(output_path),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
+    return backend_tools.assemble_llvm_ir(
+        llvm_ir,
+        output_path,
+        runtime_support_module=runtime_support,
+        subprocess_module=subprocess,
     )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "llvm-as failed to assemble generated IR")
-    return output_path
 
 
 def build_execution_driver_llvm_ir(
@@ -3434,354 +3213,13 @@ def build_execution_driver_llvm_ir(
     initial_variables: InitialVariables | None = None,
 ) -> str:
     """Build the reusable execution driver that invokes runtime and program phases."""
-    normalized_program = normalize_program_for_lowering(program)
-    type_info = infer_variable_types(program)
-    has_record_phase = bool(normalized_program.record_items)
-    consumes_main_input = bool(normalized_program.record_items or normalized_program.end_actions)
-    state_type = extract_state_type_declaration(program_llvm_ir)
-    state_variable_indexes = reusable_runtime_state_indexes(normalized_program.variable_indexes)
-    slot_variable_indexes = runtime_slot_indexes(
-        normalized_program.variable_indexes, normalized_program.slot_allocation
+    return backend_driver.build_execution_driver_llvm_ir(
+        program,
+        program_llvm_ir,
+        input_files,
+        field_separator,
+        initial_variables,
     )
-    numeric_slot_variable_indexes = runtime_numeric_slot_indexes(
-        normalized_program.variable_indexes,
-        type_info,
-        normalized_program.slot_allocation,
-    )
-    string_slot_variable_indexes = runtime_string_slot_indexes(
-        normalized_program.variable_indexes,
-        type_info,
-        normalized_program.slot_allocation,
-    )
-    state_storage_indexes = dict(sorted((state_variable_indexes | numeric_slot_variable_indexes).items(), key=lambda item: item[1]))
-
-    globals_block = render_driver_globals(input_files, field_separator, initial_variables or [])
-    state_setup = render_driver_state_setup(state_storage_indexes, initial_variables or [])
-    scalar_preassignments = render_driver_scalar_preassignments(
-        state_storage_indexes, slot_variable_indexes, string_slot_variable_indexes, initial_variables or []
-    )
-    record_loop = render_driver_record_loop(consumes_main_input, has_record_phase)
-
-    return "\n".join(
-        [
-            "declare ptr @qk_runtime_create(i32, ptr, ptr)",
-            "declare void @qk_runtime_destroy(ptr)",
-            "declare i1 @qk_next_record_inline(ptr)",
-            "declare i1 @qk_should_exit(ptr)",
-            "declare i32 @qk_exit_status(ptr)",
-            "declare void @qk_scalar_set_number_inline(ptr, ptr, double)",
-            "declare void @qk_scalar_set_string(ptr, ptr, ptr)",
-            "declare void @qk_slot_set_number(ptr, i64, double)",
-            "declare void @qk_slot_set_string(ptr, i64, ptr)",
-            "declare void @quawk_begin(ptr, ptr)",
-            "declare void @quawk_record(ptr, ptr)",
-            "declare void @quawk_end(ptr, ptr)",
-            "",
-            *([state_type] if state_type is not None else []),
-            *([] if state_type is None else [""]),
-            *globals_block,
-            "",
-            "define i32 @quawk_main() {",
-            "entry:",
-            *state_setup,
-            *render_driver_runtime_create(input_files, field_separator),
-            *scalar_preassignments,
-            "  call void @quawk_begin(ptr %rt, ptr %state)",
-            *record_loop,
-            "  call void @quawk_end(ptr %rt, ptr %state)",
-            "  %exit.status = call i32 @qk_exit_status(ptr %rt)",
-            "  call void @qk_runtime_destroy(ptr %rt)",
-            "  ret i32 %exit.status",
-            "}",
-            "",
-        ]
-    )
-
-
-def render_driver_globals(
-    input_files: list[str],
-    field_separator: str | None,
-    initial_variables: InitialVariables,
-) -> list[str]:
-    """Render driver globals for input-file operands and field-separator text."""
-    globals_block: list[str] = []
-
-    for index, path in enumerate(input_files):
-        global_name = f"@.driver.input.{index}"
-        data = path.encode("utf-8") + b"\x00"
-        globals_block.append(declare_bytes(global_name, data))
-
-    if input_files:
-        elements = []
-        for index, path in enumerate(input_files):
-            global_name = f"@.driver.input.{index}"
-            byte_length = len(path.encode("utf-8")) + 1
-            elements.append(f"ptr {emit_gep_constant(byte_length, global_name)}")
-        globals_block.append(
-            f"@.driver.inputs = private unnamed_addr constant [{len(input_files)} x ptr] [{', '.join(elements)}]"
-        )
-
-    if field_separator is not None:
-        data = field_separator.encode("utf-8") + b"\x00"
-        globals_block.append(declare_bytes("@.driver.fs", data))
-
-    seen_scalars: set[str] = set()
-    for index, (name, value) in enumerate(initial_variables):
-        if name in seen_scalars:
-            if isinstance(value, str):
-                globals_block.append(declare_bytes(driver_scalar_value_global(index), value.encode("utf-8") + b"\x00"))
-            continue
-        seen_scalars.add(name)
-        global_name, _ = driver_scalar_name_global(name)
-        globals_block.append(declare_bytes(global_name, name.encode("utf-8") + b"\x00"))
-        if isinstance(value, str):
-            globals_block.append(declare_bytes(driver_scalar_value_global(index), value.encode("utf-8") + b"\x00"))
-
-    return globals_block
-
-
-def driver_scalar_name_global(name: str) -> tuple[str, int]:
-    """Return the global name and byte length for one driver scalar preassignment name."""
-    return f"@.driver.scalar.{name}", len(name.encode("utf-8")) + 1
-
-
-def driver_scalar_value_global(index: int) -> str:
-    """Return the driver-global name for one string `-v` value."""
-    return f"@.driver.scalar.value.{index}"
-
-
-def render_driver_state_setup(
-    variable_indexes: dict[str, int],
-    initial_variables: InitialVariables,
-) -> list[str]:
-    """Render driver setup for the reusable program state pointer."""
-    if not variable_indexes:
-        return ["  %state = getelementptr i8, ptr null, i64 0"]
-
-    setup = [
-        "  %state.storage = alloca %quawk.state",
-        "  %state = getelementptr i8, ptr %state.storage, i64 0",
-    ]
-    for name, index in sorted(variable_indexes.items(), key=lambda item: item[1]):
-        slot_name = f"%state.init.{name}"
-        setup.extend(
-            [
-                f"  {slot_name} = getelementptr inbounds %quawk.state, ptr %state, i32 0, i32 {index}",
-                f"  store double 0.000000000000000e+00, ptr {slot_name}",
-            ]
-        )
-
-    for name, value in initial_variables:
-        variable_index = variable_indexes.get(name)
-        if variable_index is None:
-            continue
-        slot_name = f"%state.preassign.{name}"
-        numeric_value = format_double_literal(awk_numeric_prefix(value)) if isinstance(value, str) else format_double_literal(value)
-        setup.extend(
-            [
-                (
-                    f"  {slot_name} = getelementptr inbounds %quawk.state, ptr %state, "
-                    f"i32 0, i32 {variable_index}"
-                ),
-                f"  store double {numeric_value}, ptr {slot_name}",
-            ]
-        )
-    return setup
-
-
-def render_driver_scalar_preassignments(
-    state_variable_indexes: dict[str, int],
-    slot_variable_indexes: dict[str, int],
-    string_slot_variable_indexes: dict[str, int],
-    initial_variables: InitialVariables,
-) -> list[str]:
-    """Render runtime scalar preassignments for names not stored in `%quawk.state`."""
-    setup: list[str] = []
-    for index, (name, value) in enumerate(initial_variables):
-        if name in state_variable_indexes:
-            continue
-        slot_index = slot_variable_indexes.get(name)
-        scalar_name, scalar_length = driver_scalar_name_global(name)
-        setup.append(f"  %preassign.name.{index} = {emit_gep_inline(scalar_length, scalar_name)}")
-        if isinstance(value, str):
-            byte_length = len(value.encode("utf-8")) + 1
-            setup.extend(
-                [
-                    f"  %preassign.value.{index} = {emit_gep_inline(byte_length, driver_scalar_value_global(index))}",
-                    f"  call void @qk_scalar_set_string(ptr %rt, ptr %preassign.name.{index}, ptr %preassign.value.{index})",
-                ]
-            )
-            string_slot_index = string_slot_variable_indexes.get(name)
-            if string_slot_index is not None:
-                setup.append(
-                    f"  call void @qk_slot_set_string(ptr %rt, i64 {string_slot_index}, ptr %preassign.value.{index})"
-                )
-            if slot_index is not None:
-                setup.append(
-                    (
-                        f"  call void @qk_slot_set_number("
-                        f"ptr %rt, i64 {slot_index}, double {format_double_literal(awk_numeric_prefix(value))})"
-                    )
-                )
-            continue
-        setup.append(
-            f"  call void @qk_scalar_set_number_inline(ptr %rt, ptr %preassign.name.{index}, double {format_double_literal(value)})"
-        )
-        if slot_index is not None:
-            setup.append(
-                f"  call void @qk_slot_set_number(ptr %rt, i64 {slot_index}, double {format_double_literal(value)})"
-            )
-    return setup
-
-
-def render_driver_runtime_create(input_files: list[str], field_separator: str | None) -> list[str]:
-    """Render the runtime-creation call for the execution driver."""
-    if input_files:
-        argv_setup = [
-            f"  %argv = getelementptr inbounds [{len(input_files)} x ptr], ptr @.driver.inputs, i64 0, i64 0",
-        ]
-        argc_operand = str(len(input_files))
-    else:
-        argv_setup = ["  %argv = getelementptr i8, ptr null, i64 0"]
-        argc_operand = "0"
-
-    if field_separator is None:
-        fs_setup = ["  %fs = getelementptr i8, ptr null, i64 0"]
-    else:
-        fs_length = len(field_separator.encode("utf-8")) + 1
-        fs_setup = [f"  %fs = {emit_gep_inline(fs_length, '@.driver.fs')}"]
-
-    return [
-        *argv_setup,
-        *fs_setup,
-        f"  %rt = call ptr @qk_runtime_create(i32 {argc_operand}, ptr %argv, ptr %fs)",
-    ]
-
-
-def render_driver_record_loop(consumes_main_input: bool, has_record_phase: bool) -> list[str]:
-    """Render the per-record runtime loop in the execution driver."""
-    if not consumes_main_input:
-        return []
-    body_lines = ["  call void @quawk_record(ptr %rt, ptr %state)"] if has_record_phase else []
-    return [
-        "  %should.exit.begin = call i1 @qk_should_exit(ptr %rt)",
-        "  br i1 %should.exit.begin, label %record.done, label %record.cond",
-        "record.cond:",
-        "  %has.record = call i1 @qk_next_record_inline(ptr %rt)",
-        "  br i1 %has.record, label %record.body, label %record.done",
-        "record.body:",
-        *body_lines,
-        "  %should.exit.record = call i1 @qk_should_exit(ptr %rt)",
-        "  br i1 %should.exit.record, label %record.done, label %record.cond",
-        "record.done:",
-    ]
-
-
-def extract_state_type_declaration(program_llvm_ir: str) -> str | None:
-    """Extract the reusable state-type declaration from one lowered program module."""
-    for line in program_llvm_ir.splitlines():
-        if line.startswith("%quawk.state = type "):
-            return line
-    return None
-
-
-def requires_input_aware_execution(program: Program) -> bool:
-    """Report whether `program` needs concrete input records during execution."""
-    pattern_action_count = sum(1 for item in program.items if isinstance(item, PatternAction))
-    return has_input_aware_patterns(program) or has_end_pattern(program) or pattern_action_count > 1
-
-
-def has_input_aware_patterns(program: Program) -> bool:
-    """Report whether `program` contains record-sensitive pattern actions."""
-    for item in program.items:
-        if not isinstance(item, PatternAction):
-            continue
-        if item.pattern is None:
-            return True
-        if isinstance(item.pattern, ExprPattern | RangePattern):
-            return True
-    return False
-
-
-def has_end_pattern(program: Program) -> bool:
-    """Report whether `program` contains any END action."""
-    return any(isinstance(item, PatternAction) and isinstance(item.pattern, EndPattern) for item in program.items)
-
-
-def has_function_definitions(program: Program) -> bool:
-    """Report whether `program` contains any top-level user-defined functions."""
-    return any(isinstance(item, FunctionDef) for item in program.items)
-
-
-def collect_function_definitions(program: Program) -> dict[str, FunctionDef]:
-    """Collect function definitions in source order for host-runtime execution."""
-    functions: dict[str, FunctionDef] = {}
-    for item in program.items:
-        if isinstance(item, FunctionDef):
-            functions[item.name] = item
-    return functions
-
-
-def is_reusable_runtime_state_name(name: str) -> bool:
-    """Report whether one lowering-only name should stay in `%quawk.state`."""
-    return name.startswith("__range.")
-
-
-def reusable_runtime_state_indexes(variable_indexes: dict[str, int]) -> dict[str, int]:
-    """Return `%quawk.state` indexes for reusable runtime-only names."""
-    return {
-        name: index
-        for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
-        if is_reusable_runtime_state_name(name)
-    }
-
-
-def runtime_slot_indexes(
-    variable_indexes: dict[str, int],
-    slot_allocation: SlotAllocation | None = None,
-) -> dict[str, int]:
-    """Return runtime slot indexes for known scalar names tracked by lowering."""
-    if slot_allocation is not None:
-        return {
-            slot.name: slot.index
-            for slot in slot_allocation.slots
-            if slot.storage == "slot"
-            and not is_builtin_variable_name(slot.name)
-            and not is_reusable_runtime_state_name(slot.name)
-        }
-    return {
-        name: index
-        for name, index in sorted(variable_indexes.items(), key=lambda item: item[1])
-        if not is_builtin_variable_name(name) and not is_reusable_runtime_state_name(name)
-    }
-
-
-def runtime_numeric_slot_indexes(
-    variable_indexes: dict[str, int],
-    type_info: Mapping[str, LatticeType],
-    slot_allocation: SlotAllocation | None = None,
-) -> dict[str, int]:
-    """Return runtime slot indexes for names inferred as numeric."""
-    slot_indexes = runtime_slot_indexes(variable_indexes, slot_allocation)
-    return {
-        name: index
-        for name, index in slot_indexes.items()
-        if type_info.get(name) is LatticeType.NUMERIC
-    }
-
-
-def runtime_string_slot_indexes(
-    variable_indexes: dict[str, int],
-    type_info: Mapping[str, LatticeType],
-    slot_allocation: SlotAllocation | None = None,
-) -> dict[str, int]:
-    """Return runtime slot indexes for names inferred as string."""
-    slot_indexes = runtime_slot_indexes(variable_indexes, slot_allocation)
-    return {
-        name: index
-        for name, index in slot_indexes.items()
-        if type_info.get(name) is LatticeType.STRING
-    }
 
 
 def render_state_type(slot_allocation: SlotAllocation) -> str | None:
@@ -3789,135 +3227,3 @@ def render_state_type(slot_allocation: SlotAllocation) -> str | None:
     if slot_allocation.variable_count == 0:
         return None
     return slot_allocation.state_struct_type
-
-
-def render_reusable_function(name: str, state: LoweringState) -> str:
-    """Render one reusable BEGIN/record/END function body."""
-    if state.phase_exit_label is None:
-        raise RuntimeError("reusable lowering requires a precomputed phase exit label")
-    return "\n".join(
-        [
-            f"define void @{name}(ptr %rt, ptr %state) {{",
-            "entry:",
-            *state.allocas,
-            *state.entry_instructions,
-            *state.instructions,
-            f"  br label %{state.phase_exit_label}",
-            f"{state.phase_exit_label}:",
-            "  ret void",
-            "}",
-        ]
-    )
-
-
-def render_user_function(function_def: FunctionDef, state: LoweringState) -> str:
-    """Render one lowered direct-backend user-defined function."""
-    arguments = ", ".join(["ptr %state", *(f"double %arg.{index}" for index, _ in enumerate(function_def.params))])
-    return "\n".join(
-        [
-            f"define double @qk_fn_{function_def.name}({arguments}) {{",
-            "entry:",
-            *state.allocas,
-            *state.entry_instructions,
-            *state.instructions,
-            "}",
-        ]
-    )
-
-
-def render_runtime_user_function(function_def: FunctionDef, state: LoweringState) -> str:
-    """Render one lowered runtime-backed user-defined function."""
-    arguments = ", ".join(["ptr %rt", "ptr %state", *(f"ptr %arg.{index}" for index, _ in enumerate(function_def.params))])
-    return "\n".join(
-        [
-            f"define ptr @qk_fn_{function_def.name}({arguments}) {{",
-            "entry:",
-            *state.allocas,
-            *state.entry_instructions,
-            *state.instructions,
-            "}",
-        ]
-    )
-
-
-def declare_string(state: LoweringState, literal: str) -> tuple[str, int]:
-    """Declare one global LLVM string constant for `literal`."""
-    global_name = f"@.str.{state.string_index}"
-    state.string_index += 1
-    data = literal.encode("utf-8") + b"\x00"
-    state.globals.append(declare_bytes(global_name, data))
-    return global_name, len(data)
-
-
-def ensure_numeric_format(state: LoweringState) -> tuple[str, int]:
-    """Declare the shared numeric print format if it is needed."""
-    global_name = "@.fmt.num"
-    data = b"%.6g\n\x00"
-    if not state.numeric_format_declared:
-        state.globals.append(declare_bytes(global_name, data))
-        state.numeric_format_declared = True
-    return global_name, len(data)
-
-
-def declare_bytes(global_name: str, data: bytes) -> str:
-    """Emit one global LLVM byte array constant."""
-    escaped = "".join(f"\\{byte:02X}" for byte in data)
-    return f'{global_name} = private unnamed_addr constant [{len(data)} x i8] c"{escaped}"'
-
-
-def emit_gep(target: str, byte_length: int, global_name: str) -> str:
-    """Emit a GEP from the start of a global byte array."""
-    return f"  {target} = getelementptr inbounds [{byte_length} x i8], ptr {global_name}, i64 0, i64 0"
-
-
-def emit_gep_inline(byte_length: int, global_name: str) -> str:
-    """Render an inline GEP expression from the start of a global byte array."""
-    return f"getelementptr inbounds [{byte_length} x i8], ptr {global_name}, i64 0, i64 0"
-
-
-def emit_gep_constant(byte_length: int, global_name: str) -> str:
-    """Render a constant-expression GEP from the start of a global byte array."""
-    return f"getelementptr inbounds ([{byte_length} x i8], ptr {global_name}, i64 0, i64 0)"
-
-
-def run_process_with_current_stdin(command: list[str]) -> subprocess.CompletedProcess[bytes]:
-    """Run one subprocess while forwarding the current stdin source when possible."""
-    stdin_handle = current_stdin_handle()
-    if stdin_handle is not None:
-        return subprocess.run(
-            command,
-            stdin=stdin_handle,
-            capture_output=True,
-            check=False,
-        )
-
-    try:
-        stdin_buffer = sys.stdin.buffer
-    except AttributeError:
-        try:
-            stdin_text = sys.stdin.read()
-        except OSError:
-            stdin_bytes = b""
-        else:
-            stdin_bytes = stdin_text.encode("utf-8")
-    else:
-        try:
-            stdin_bytes = stdin_buffer.read()
-        except OSError:
-            stdin_bytes = b""
-
-    return subprocess.run(command, input=stdin_bytes, capture_output=True, check=False)
-
-
-def current_stdin_handle() -> TextIO | None:
-    """Return the current stdin handle when it can be forwarded directly to a subprocess."""
-    try:
-        sys.stdin.fileno()
-    except (AttributeError, OSError):
-        return None
-    return sys.stdin
-
-
-def format_double_literal(value: float) -> str:
-    """Format a Python float as a stable LLVM IR double literal."""
-    return f"{value:.15e}"
