@@ -21,6 +21,25 @@ much at once before making a small change.
 - keep compatibility and corpus behavior unchanged unless a task explicitly
   adds characterization coverage before a move
 
+## Status Snapshot
+
+The first P36 foundation steps are already landed:
+
+- `src/quawk/README.md` now serves as the source-level implementation map
+- AST definitions and formatting now live in `ast.py` and `ast_format.py`
+- shared AST traversal helpers now live in `ast_walk.py`, and the first
+  analysis passes already use them
+
+The active readability-refactor work now starts at `T-306`:
+
+- split backend orchestration, runtime ABI declarations, driver IR generation,
+  and lowering state out of `jit.py`
+- add a lightweight LLVM IR builder for recurring text emission
+- split backend lowering by ownership boundary without replacing one monolith
+  with several tightly coupled files
+- decide whether the C runtime split should land now or be deferred explicitly
+- improve discoverability for newly touched refactor-related tests
+
 ## Current Readability Hotspots
 
 ### `src/quawk/jit.py`
@@ -52,9 +71,10 @@ large backend file.
 - token-to-operator helpers
 - literal decoding helpers
 
-The parser itself is readable, but its module has too many roles. Moving AST
-definitions and formatting helpers out would make grammar parsing easier to
-scan.
+This hotspot is now mostly addressed by the extracted AST modules. The
+remaining parser readability work is secondary to the backend split and should
+stay focused on parser-local helpers rather than reopen already-landed AST
+ownership moves.
 
 ### Repeated AST Traversal
 
@@ -86,6 +106,11 @@ more useful when a contributor is trying to find coverage for a language or
 backend feature.
 
 ## Proposed Refactor Phases
+
+### Landed foundation work
+
+Phases 1 through 3 below are retained as checked-in context for how the current
+P36 state was reached. New implementation work should start at Phase 4.
 
 ### Phase 1: Add an implementation map
 
@@ -145,13 +170,24 @@ Acceptance:
 
 Extract backend process/tool orchestration out of `jit.py`.
 
-Likely modules:
+Recommended first extraction shape:
 
-- `backend/tools.py` or `backend/link.py` for `lli`, `llc`, `llvm-as`,
-  `llvm-link`, and optimization orchestration
+- `backend/tools.py` for `lli`, `llc`, `llvm-as`, `llvm-link`, `opt`, and
+  subprocess orchestration
 - `backend/driver.py` for generated driver IR
 - `backend/runtime_abi.py` for runtime declaration text and ABI symbol names
 - `backend/state.py` for lowering state/context types
+
+Dependency-direction rules for this split:
+
+- `backend/tools.py`, `backend/runtime_abi.py`, and `backend/state.py` must not
+  import lowering modules
+- `backend/driver.py` may depend on ABI/state helpers, but ABI/state helpers
+  must not depend on driver rendering
+- lowering modules may depend on ABI/state helpers, but not on LLVM subprocess
+  orchestration
+- `jit.py` should shrink toward a thin public facade during the transition
+  rather than becoming a second ownership center
 
 Acceptance:
 
@@ -164,7 +200,8 @@ Acceptance:
 
 Add a lightweight helper for recurring LLVM text emission.
 
-The helper should cover common operations without hiding the generated IR:
+The helper should be a text-emission convenience, not a second IR abstraction
+layer. It should cover common operations without hiding the generated IR:
 
 - fresh temporaries and labels
 - `call`
@@ -173,6 +210,13 @@ The helper should cover common operations without hiding the generated IR:
 - numeric binary operations
 - simple `select`
 - GEP helpers for string globals
+
+It should not:
+
+- introduce a parallel semantic model of LLVM IR
+- absorb high-level AWK lowering decisions
+- force broad reformatting of emitted IR just because helper calls replaced
+  inline string formatting
 
 Acceptance:
 
@@ -186,19 +230,25 @@ Acceptance:
 
 Move lowering by domain into focused modules.
 
-Likely modules:
+Recommended initial module shape:
 
 - `backend/lower_program.py`
 - `backend/lower_stmt.py`
-- `backend/lower_expr_numeric.py`
-- `backend/lower_expr_string.py`
+- `backend/lower_expr.py`
 - `backend/lower_lvalue.py`
 - `backend/lower_builtins.py`
+
+Do not force an early split between numeric and string expression lowering if
+that would create circular imports or spread coercion logic across too many
+files. Numeric/string sub-splits can happen later if the first ownership split
+proves stable and readable.
 
 Acceptance:
 
 - each module has one clear lowering responsibility
 - no module becomes a second monolith
+- dependency direction remains simple enough that contributors can follow the
+  import graph without hopping through many thin wrappers
 - `jit.py` becomes a compatibility facade or thin public API wrapper during the
   transition
 - backend parity and core suites pass
@@ -222,6 +272,15 @@ The build helper should compile and link all runtime sources. This should land
 only after the Python backend split is stable enough that runtime ABI
 declarations are easier to audit.
 
+Deferral is acceptable if the checked-in review concludes that most current
+runtime churn is still happening in the Python backend, and that a C split would
+add build/link complexity without materially improving near-term readability.
+An explicit deferral should record:
+
+- why the current runtime file layout is still acceptable
+- what signal would justify revisiting the split
+- which runtime domains are the first candidates if the split resumes later
+
 Acceptance:
 
 - runtime object/bitcode build handles multiple C sources
@@ -237,6 +296,8 @@ Guidelines:
 
 - keep task IDs in comments where historical traceability is useful
 - prefer module names that answer "what behavior is covered here?"
+- prefer renaming or regrouping tests only when they are already being touched
+  for refactor work
 - do not move many unrelated tests in one review
 - preserve marker behavior and existing suite selection
 
@@ -255,8 +316,12 @@ Acceptance:
 - Keep public CLI, corpus, upstream compatibility, and generated runtime ABI
   behavior unchanged.
 - Do not combine broad formatting churn with semantic moves.
+- Keep foundational backend modules (`tools`, `runtime_abi`, `state`) below the
+  lowering layer in the dependency graph.
 - Keep `jit.py` imports or compatibility wrappers temporarily if that reduces
   review risk during the backend split.
+- Avoid broad golden or IR-output rebaselines unless a move forces them and the
+  review can explain why the changed output is semantically irrelevant.
 - Run focused tests after each move, then `uv run pytest -q -m core` at phase
   boundaries.
 

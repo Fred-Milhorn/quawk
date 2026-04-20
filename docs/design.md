@@ -447,7 +447,7 @@ Target baseline:
 - standard expression and operator behavior, including implicit concatenation
 
 Current limitations:
-- string-valued `-v` assignments are not supported yet
-- `--ir` and `--asm` do not yet cover every claimed execution family because backend lowering is still incomplete
 - assembly inspection output is backend- and platform-dependent
 - the repo-owned compatibility corpus is now supplemental to the upstream compatibility gate, and broader POSIX hardening is still ongoing
+- builtin names beyond the current POSIX-standard claimed subset remain intentionally out of contract
+- top-level items outside `PatternAction` / `FunctionDef` remain outside the current public execution contract

@@ -834,6 +834,13 @@ Objective:
   modules along real compiler/runtime ownership boundaries, adding a source map,
   and reducing repeated AST traversal and raw LLVM string construction
 
+Current status:
+- the P36 foundation work is already landed: the source-level implementation
+  map exists, AST definitions/formatting no longer live in `parser.py`, and
+  shared AST traversal helpers are checked in and adopted by analysis passes
+- active implementation work now starts at `T-306`, focused on the backend
+  split, LLVM IR builder, runtime-split decision, and test discoverability
+
 In scope:
 - add a source-level implementation map for the `src/quawk` package
 - split AST node definitions and AST formatting out of `parser.py`
@@ -879,6 +886,9 @@ P36 entry criteria:
 - the current implementation review identified `jit.py`, `parser.py`, repeated
   AST traversal, `qk_runtime.c`, and task-numbered tests as the main
   readability hotspots
+- the current checked-in baseline already covers the source map, AST split, and
+  shared traversal-helper foundation, so remaining execution should start with
+  backend ownership cleanup rather than reopening those completed moves
 - implementation notes for `P36` should follow
   [implementation-readability-refactor-plan.md](plans/implementation-readability-refactor-plan.md)
 
