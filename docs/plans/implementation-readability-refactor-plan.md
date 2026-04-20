@@ -43,9 +43,10 @@ The backend ownership extraction from `T-306` is now landed:
 - `jit.py` remains the public backend facade and compatibility wrapper during
   the refactor
 
-The active readability-refactor work now starts at `T-307`:
+The active readability-refactor work now starts at `T-308`:
 
-- add a lightweight LLVM IR builder for recurring text emission
+- split statement, expression, lvalue, and builtin lowering into focused backend
+  modules now that representative builder coverage exists
 - split backend lowering by ownership boundary without replacing one monolith
   with several tightly coupled files
 - decide whether the C runtime split should land now or be deferred explicitly
@@ -212,6 +213,11 @@ Acceptance:
 - tests that exercise `--ir`, `--asm`, and execution still pass
 
 ### Phase 5: Introduce a small LLVM IR builder
+
+This phase is now landed. `backend/ir_builder.py` owns a lightweight text helper
+for recurring LLVM emission, and representative lowering paths in `jit.py` now
+use it for control flow, calls, stores, arithmetic, select, phi, and string GEP
+construction.
 
 Add a lightweight helper for recurring LLVM text emission.
 

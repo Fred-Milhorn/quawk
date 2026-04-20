@@ -7,42 +7,10 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-import sys
 import warnings
 from pathlib import Path
 
 from . import runtime_support
-from .backend import driver as backend_driver
-from .backend import tools as backend_tools
-from .backend.driver import (
-    collect_function_definitions,
-    has_end_pattern,
-    has_function_definitions,
-    has_input_aware_patterns,
-    is_reusable_runtime_state_name,
-    requires_input_aware_execution,
-    reusable_runtime_state_indexes,
-    runtime_numeric_slot_indexes,
-    runtime_slot_indexes,
-    runtime_string_slot_indexes,
-)
-from .backend.runtime_abi import (
-    awk_numeric_prefix,
-    awk_string_is_numeric,
-    declare_string,
-    emit_gep,
-    emit_gep_constant,
-    emit_gep_inline,
-    ensure_numeric_format,
-    format_double_literal,
-    render_reusable_function,
-    render_runtime_user_function,
-    reusable_program_declarations,
-)
-from .backend.state import InitialVariableValue, InitialVariables, LoweringState
-from .builtins import is_builtin_variable_name
-from .local_scalar_residency import classify_local_numeric_scalar_residency
-from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .ast import (
     Action,
     ArrayIndexExpr,
@@ -50,7 +18,6 @@ from .ast import (
     AssignExpr,
     AssignOp,
     AssignStmt,
-    BeginPattern,
     BinaryExpr,
     BinaryOp,
     BlockStmt,
@@ -78,8 +45,8 @@ from .ast import (
     NumericLiteralExpr,
     OutputRedirect,
     OutputRedirectKind,
-    PostfixOp,
     PostfixExpr,
+    PostfixOp,
     PrintfStmt,
     PrintStmt,
     Program,
@@ -93,6 +60,30 @@ from .ast import (
     WhileStmt,
     expression_to_lvalue,
 )
+from .backend import driver as backend_driver
+from .backend import tools as backend_tools
+from .backend.driver import (
+    is_reusable_runtime_state_name,
+    runtime_numeric_slot_indexes,
+    runtime_slot_indexes,
+    runtime_string_slot_indexes,
+)
+from .backend.ir_builder import LLVMIRBuilder
+from .backend.runtime_abi import (
+    awk_numeric_prefix,
+    awk_string_is_numeric,
+    declare_string,
+    emit_gep,
+    ensure_numeric_format,
+    format_double_literal,
+    render_reusable_function,
+    render_runtime_user_function,
+    reusable_program_declarations,
+)
+from .backend.state import InitialVariables, InitialVariableValue, LoweringState
+from .builtins import is_builtin_variable_name
+from .local_scalar_residency import classify_local_numeric_scalar_residency
+from .normalization import NormalizedLoweringProgram, normalize_program_for_lowering
 from .slot_allocation import SlotAllocation
 from .type_inference import LatticeType, infer_variable_types
 
@@ -100,6 +91,9 @@ __all__ = [
     "InitialVariableValue",
     "InitialVariables",
     "LoweringState",
+    "runtime_numeric_slot_indexes",
+    "runtime_slot_indexes",
+    "runtime_string_slot_indexes",
 ]
 
 DEFAULT_OFMT = "%.6g"
@@ -665,32 +659,34 @@ def lower_action(action: Action, state: LoweringState) -> None:
 
 def lower_if_statement(statement: IfStmt, state: LoweringState) -> None:
     """Lower an `if` statement with a single then-branch."""
-    then_label = state.next_label("if.then")
-    else_label = state.next_label("if.else") if statement.else_branch is not None else None
-    end_label = state.next_label("if.end")
+    builder = LLVMIRBuilder(state)
+    then_label = builder.label("if.then")
+    else_label = builder.label("if.else") if statement.else_branch is not None else None
+    end_label = builder.label("if.end")
     condition = lower_condition_expression(statement.condition, state)
     false_target = end_label if else_label is None else else_label
-    state.instructions.append(f"  br i1 {condition}, label %{then_label}, label %{false_target}")
-    state.instructions.append(f"{then_label}:")
+    builder.cond_branch(condition, then_label, false_target)
+    builder.mark_label(then_label)
     lower_statement(statement.then_branch, state)
-    state.instructions.append(f"  br label %{end_label}")
+    builder.branch(end_label)
     if statement.else_branch is not None and else_label is not None:
-        state.instructions.append(f"{else_label}:")
+        builder.mark_label(else_label)
         lower_statement(statement.else_branch, state)
-        state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{end_label}:")
+        builder.branch(end_label)
+    builder.mark_label(end_label)
 
 
 def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
     """Lower a `while` loop over the current numeric condition subset."""
-    cond_label = state.next_label("while.cond")
-    body_label = state.next_label("while.body")
-    end_label = state.next_label("while.end")
-    state.instructions.append(f"  br label %{cond_label}")
-    state.instructions.append(f"{cond_label}:")
+    builder = LLVMIRBuilder(state)
+    cond_label = builder.label("while.cond")
+    body_label = builder.label("while.body")
+    end_label = builder.label("while.end")
+    builder.branch(cond_label)
+    builder.mark_label(cond_label)
     condition = lower_condition_expression(statement.condition, state)
-    state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
-    state.instructions.append(f"{body_label}:")
+    builder.cond_branch(condition, body_label, end_label)
+    builder.mark_label(body_label)
     previous_break_label = state.break_label
     previous_continue_label = state.continue_label
     state.break_label = end_label
@@ -700,17 +696,18 @@ def lower_while_statement(statement: WhileStmt, state: LoweringState) -> None:
     finally:
         state.break_label = previous_break_label
         state.continue_label = previous_continue_label
-    state.instructions.append(f"  br label %{cond_label}")
-    state.instructions.append(f"{end_label}:")
+    builder.branch(cond_label)
+    builder.mark_label(end_label)
 
 
 def lower_do_while_statement(statement: DoWhileStmt, state: LoweringState) -> None:
     """Lower a `do ... while` loop in the current backend subset."""
-    body_label = state.next_label("dowhile.body")
-    cond_label = state.next_label("dowhile.cond")
-    end_label = state.next_label("dowhile.end")
-    state.instructions.append(f"  br label %{body_label}")
-    state.instructions.append(f"{body_label}:")
+    builder = LLVMIRBuilder(state)
+    body_label = builder.label("dowhile.body")
+    cond_label = builder.label("dowhile.cond")
+    end_label = builder.label("dowhile.end")
+    builder.branch(body_label)
+    builder.mark_label(body_label)
     previous_break_label = state.break_label
     previous_continue_label = state.continue_label
     state.break_label = end_label
@@ -720,11 +717,11 @@ def lower_do_while_statement(statement: DoWhileStmt, state: LoweringState) -> No
     finally:
         state.break_label = previous_break_label
         state.continue_label = previous_continue_label
-    state.instructions.append(f"  br label %{cond_label}")
-    state.instructions.append(f"{cond_label}:")
+    builder.branch(cond_label)
+    builder.mark_label(cond_label)
     condition = lower_condition_expression(statement.condition, state)
-    state.instructions.append(f"  br i1 {condition}, label %{body_label}, label %{end_label}")
-    state.instructions.append(f"{end_label}:")
+    builder.cond_branch(condition, body_label, end_label)
+    builder.mark_label(end_label)
 
 
 def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
@@ -738,7 +735,7 @@ def lower_assignment_statement(statement: AssignStmt, state: LoweringState) -> N
     slot_name = variable_address(statement.name, state)
     state.initial_string_values.pop(statement.name, None)
     numeric_value = lower_numeric_expression(statement.value, state)
-    state.instructions.append(f"  store double {numeric_value}, ptr {slot_name}")
+    LLVMIRBuilder(state).store("double", numeric_value, slot_name)
 
 
 def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringState) -> None:
@@ -1086,6 +1083,7 @@ def variable_address(name: str, state: LoweringState) -> str:
 
 def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     """Lower one supported `print` expression into side-effecting IR."""
+    builder = LLVMIRBuilder(state)
     if (
         isinstance(expression, NameExpr)
         and expression.name in state.initial_string_values
@@ -1093,41 +1091,23 @@ def lower_print_expression(expression: Expr, state: LoweringState) -> None:
     ):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, state.initial_string_values[expression.name])
-        string_ptr = state.next_temp("strptr")
-        call_temp = state.next_temp("call")
-        state.instructions.extend(
-            [
-                emit_gep(string_ptr, byte_length, global_name),
-                f"  {call_temp} = call i32 @puts(ptr {string_ptr})",
-            ]
-        )
+        string_ptr = builder.gep("strptr", byte_length, global_name)
+        builder.call("call", "i32", "@puts", [f"ptr {string_ptr}"])
         return
     if isinstance(expression, StringLiteralExpr):
         state.uses_puts = True
         global_name, byte_length = declare_string(state, expression.value)
-        string_ptr = state.next_temp("strptr")
-        call_temp = state.next_temp("call")
-        state.instructions.extend(
-            [
-                emit_gep(string_ptr, byte_length, global_name),
-                f"  {call_temp} = call i32 @puts(ptr {string_ptr})",
-            ]
-        )
+        string_ptr = builder.gep("strptr", byte_length, global_name)
+        builder.call("call", "i32", "@puts", [f"ptr {string_ptr}"])
         return
     if isinstance(expression, FieldExpr):
         raise RuntimeError("field expressions require runtime-backed lowering")
 
     state.uses_printf = True
     format_name, format_length = ensure_numeric_format(state)
-    format_ptr = state.next_temp("fmtptr")
+    format_ptr = builder.gep("fmtptr", format_length, format_name)
     numeric_value = lower_numeric_expression(expression, state)
-    call_temp = state.next_temp("call")
-    state.instructions.extend(
-        [
-            emit_gep(format_ptr, format_length, format_name),
-            f"  {call_temp} = call i32 (ptr, ...) @printf(ptr {format_ptr}, double {numeric_value})",
-        ]
-    )
+    builder.call("call", "i32", "@printf", [f"ptr {format_ptr}", f"double {numeric_value}"])
 
 
 def lower_runtime_print_fragment(expression: Expr, state: LoweringState) -> None:
@@ -1441,6 +1421,7 @@ def lower_numeric_expression(expression: Expr, state: LoweringState) -> str:
 
 def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> str:
     """Lower one numeric expression in the runtime-backed backend subset."""
+    builder = LLVMIRBuilder(state)
     assert state.runtime_param is not None
     match expression:
         case NumericLiteralExpr(value=value):
@@ -1495,16 +1476,16 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_numeric_expression(operand, state)
         case UnaryExpr(op=UnaryOp.UMINUS, operand=operand):
             operand_value = lower_runtime_numeric_expression(operand, state)
-            temp = state.next_temp("neg")
-            state.instructions.append(f"  {temp} = fsub double 0.000000000000000e+00, {operand_value}")
-            return temp
+            return builder.binop("neg", "fsub", "double", "0.000000000000000e+00", operand_value)
         case UnaryExpr(op=UnaryOp.NOT, operand=operand):
             condition_value = lower_condition_expression(operand, state)
-            temp = state.next_temp("notnum")
-            state.instructions.append(
-                f"  {temp} = select i1 {condition_value}, double 0.000000000000000e+00, double 1.000000000000000e+00"
+            return builder.select(
+                "notnum",
+                condition_value,
+                "double",
+                "0.000000000000000e+00",
+                "1.000000000000000e+00",
             )
-            return temp
         case UnaryExpr(op=UnaryOp.PRE_INC, operand=operand):
             return lower_runtime_increment_expression(operand, 1.0, return_old=False, state=state)
         case UnaryExpr(op=UnaryOp.PRE_DEC, operand=operand):
@@ -1543,9 +1524,7 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             return lower_runtime_system_builtin(expression, state)
         case CallExpr(function=function_name, args=args) if function_name in state.function_defs:
             string_value = lower_runtime_user_function_call(function_name, args, state)
-            temp = state.next_temp("fncall.num")
-            state.instructions.append(f"  {temp} = call double @qk_parse_number_text(ptr {string_value})")
-            return temp
+            return builder.call("fncall.num", "double", "@qk_parse_number_text", [f"ptr {string_value}"])
         case CallExpr(function="atan2"):
             return lower_runtime_binary_numeric_builtin(expression, state, "@qk_atan2", "atan2")
         case CallExpr(function="cos"):
@@ -1557,27 +1536,19 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
         case BinaryExpr(op=BinaryOp.ADD, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
-            temp = state.next_temp("add")
-            state.instructions.append(f"  {temp} = fadd double {left_operand}, {right_operand}")
-            return temp
+            return builder.binop("add", "fadd", "double", left_operand, right_operand)
         case BinaryExpr(op=BinaryOp.SUB, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
-            temp = state.next_temp("sub")
-            state.instructions.append(f"  {temp} = fsub double {left_operand}, {right_operand}")
-            return temp
+            return builder.binop("sub", "fsub", "double", left_operand, right_operand)
         case BinaryExpr(op=BinaryOp.MUL, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
-            temp = state.next_temp("mul")
-            state.instructions.append(f"  {temp} = fmul double {left_operand}, {right_operand}")
-            return temp
+            return builder.binop("mul", "fmul", "double", left_operand, right_operand)
         case BinaryExpr(op=BinaryOp.DIV, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
-            temp = state.next_temp("div")
-            state.instructions.append(f"  {temp} = fdiv double {left_operand}, {right_operand}")
-            return temp
+            return builder.binop("div", "fdiv", "double", left_operand, right_operand)
         case BinaryExpr(op=BinaryOp.MOD, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
@@ -1597,9 +1568,12 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
         case BinaryExpr(op=BinaryOp.POW, left=left, right=right):
             left_operand = lower_runtime_numeric_expression(left, state)
             right_operand = lower_runtime_numeric_expression(right, state)
-            temp = state.next_temp("pow")
-            state.instructions.append(f"  {temp} = call double @llvm.pow.f64(double {left_operand}, double {right_operand})")
-            return temp
+            return builder.call(
+                "pow",
+                "double",
+                "@llvm.pow.f64",
+                [f"double {left_operand}", f"double {right_operand}"],
+            )
         case BinaryExpr(
             op=BinaryOp.LESS
             | BinaryOp.LESS_EQUAL
@@ -1614,8 +1588,8 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             | BinaryOp.IN
         ):
             condition_value = lower_condition_expression(expression, state)
-            temp = state.next_temp("boolnum")
-            state.instructions.append(f"  {temp} = uitofp i1 {condition_value} to double")
+            temp = builder.temp("boolnum")
+            builder.emit(f"  {temp} = uitofp i1 {condition_value} to double")
             return temp
         case ConditionalExpr(test=test, if_true=if_true, if_false=if_false):
             if runtime_expression_has_side_effects(if_true, state) or runtime_expression_has_side_effects(if_false, state):
@@ -1623,17 +1597,11 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             test_value = lower_condition_expression(test, state)
             true_operand = lower_runtime_numeric_expression(if_true, state)
             false_operand = lower_runtime_numeric_expression(if_false, state)
-            select_value = state.next_temp("ternary.num")
-            state.instructions.append(
-                f"  {select_value} = select i1 {test_value}, double {true_operand}, double {false_operand}"
-            )
-            return select_value
+            return builder.select("ternary.num", test_value, "double", true_operand, false_operand)
         case _:
             if runtime_expression_has_string_result(expression, state):
                 string_value = lower_runtime_captured_string_expression(expression, state)
-                temp = state.next_temp("num.coerce")
-                state.instructions.append(f"  {temp} = call double @qk_parse_number_text(ptr {string_value})")
-                return temp
+                return builder.call("num.coerce", "double", "@qk_parse_number_text", [f"ptr {string_value}"])
             raise RuntimeError("unsupported numeric expression in runtime-backed backend")
 
 
@@ -2504,9 +2472,7 @@ def lower_runtime_sprintf_builtin(expression: CallExpr, state: LoweringState) ->
 def lower_runtime_constant_string(value: str, state: LoweringState) -> str:
     """Lower one compile-time string constant to a runtime pointer."""
     global_name, byte_length = declare_string(state, value)
-    string_ptr = state.next_temp("strptr")
-    state.instructions.append(emit_gep(string_ptr, byte_length, global_name))
-    return string_ptr
+    return LLVMIRBuilder(state).gep("strptr", byte_length, global_name)
 
 
 def lower_runtime_scalar_name(name: str, state: LoweringState) -> str:
@@ -2840,71 +2806,72 @@ def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
 
 def lower_runtime_numeric_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
     """Lower one runtime-backed numeric ternary expression with short-circuit control flow."""
+    builder = LLVMIRBuilder(state)
     test_value = lower_condition_expression(expression.test, state)
-    true_label = state.next_label("ternary.true")
-    false_label = state.next_label("ternary.false")
-    end_label = state.next_label("ternary.end")
-    result = state.next_temp("ternary.num")
+    true_label = builder.label("ternary.true")
+    false_label = builder.label("ternary.false")
+    end_label = builder.label("ternary.end")
 
-    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
-    state.instructions.append(f"{true_label}:")
+    builder.cond_branch(test_value, true_label, false_label)
+    builder.mark_label(true_label)
     true_operand = lower_runtime_numeric_expression(expression.if_true, state)
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{false_label}:")
+    builder.branch(end_label)
+    builder.mark_label(false_label)
     false_operand = lower_runtime_numeric_expression(expression.if_false, state)
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{end_label}:")
-    state.instructions.append(f"  {result} = phi double [ {true_operand}, %{true_label} ], [ {false_operand}, %{false_label} ]")
-    return result
+    builder.branch(end_label)
+    builder.mark_label(end_label)
+    return builder.phi("ternary.num", "double", [(true_operand, true_label), (false_operand, false_label)])
 
 
 def lower_runtime_condition_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
     """Lower one runtime-backed boolean ternary expression with short-circuit control flow."""
+    builder = LLVMIRBuilder(state)
     test_value = lower_condition_expression(expression.test, state)
-    true_label = state.next_label("cond.true")
-    false_label = state.next_label("cond.false")
-    end_label = state.next_label("cond.end")
-    result = state.next_temp("cond")
+    true_label = builder.label("cond.true")
+    false_label = builder.label("cond.false")
+    end_label = builder.label("cond.end")
 
-    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
-    state.instructions.append(f"{true_label}:")
+    builder.cond_branch(test_value, true_label, false_label)
+    builder.mark_label(true_label)
     true_condition = lower_condition_expression(expression.if_true, state)
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{false_label}:")
+    builder.branch(end_label)
+    builder.mark_label(false_label)
     false_condition = lower_condition_expression(expression.if_false, state)
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{end_label}:")
-    state.instructions.append(f"  {result} = phi i1 [ {true_condition}, %{true_label} ], [ {false_condition}, %{false_label} ]")
-    return result
+    builder.branch(end_label)
+    builder.mark_label(end_label)
+    return builder.phi("cond", "i1", [(true_condition, true_label), (false_condition, false_label)])
 
 
 def lower_runtime_string_conditional_expression(expression: ConditionalExpr, state: LoweringState) -> str:
     """Lower one runtime-backed string ternary expression with short-circuit control flow."""
     assert state.runtime_param is not None
+    builder = LLVMIRBuilder(state)
     test_value = lower_condition_expression(expression.test, state)
-    true_label = state.next_label("ternary.true")
-    false_label = state.next_label("ternary.false")
-    end_label = state.next_label("ternary.end")
-    result = state.next_temp("ternary.str")
+    true_label = builder.label("ternary.true")
+    false_label = builder.label("ternary.false")
+    end_label = builder.label("ternary.end")
 
-    state.instructions.append(f"  br i1 {test_value}, label %{true_label}, label %{false_label}")
-    state.instructions.append(f"{true_label}:")
+    builder.cond_branch(test_value, true_label, false_label)
+    builder.mark_label(true_label)
     true_value = lower_runtime_string_expression(expression.if_true, state)
-    true_capture = state.next_temp("ternary.str.capture")
-    state.instructions.append(
-        f"  {true_capture} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {true_value})"
+    true_capture = builder.call(
+        "ternary.str.capture",
+        "ptr",
+        "@qk_capture_string_arg_inline",
+        [f"ptr {state.runtime_param}", f"ptr {true_value}"],
     )
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{false_label}:")
+    builder.branch(end_label)
+    builder.mark_label(false_label)
     false_value = lower_runtime_string_expression(expression.if_false, state)
-    false_capture = state.next_temp("ternary.str.capture")
-    state.instructions.append(
-        f"  {false_capture} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {false_value})"
+    false_capture = builder.call(
+        "ternary.str.capture",
+        "ptr",
+        "@qk_capture_string_arg_inline",
+        [f"ptr {state.runtime_param}", f"ptr {false_value}"],
     )
-    state.instructions.append(f"  br label %{end_label}")
-    state.instructions.append(f"{end_label}:")
-    state.instructions.append(f"  {result} = phi ptr [ {true_capture}, %{true_label} ], [ {false_capture}, %{false_label} ]")
-    return result
+    builder.branch(end_label)
+    builder.mark_label(end_label)
+    return builder.phi("ternary.str", "ptr", [(true_capture, true_label), (false_capture, false_label)])
 
 
 def runtime_expression_has_string_result(expression: Expr, state: LoweringState | None = None) -> bool:

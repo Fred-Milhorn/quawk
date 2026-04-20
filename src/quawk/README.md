@@ -81,10 +81,10 @@ Current landed moves:
 - expand shared AST traversal helpers for analysis passes
 - split backend tool orchestration, driver IR, ABI declarations, and lowering
   state into `backend/` while keeping `jit.py` as the public facade
+- add `backend/ir_builder.py` and use it in representative lowering paths
 
 Remaining planned moves:
 
-- introduce a small LLVM IR emitter for common instruction text
 - split statement, expression, lvalue, and builtin lowering into focused
   backend modules
 - split the C runtime into concise domain files under `runtime/`, such as
