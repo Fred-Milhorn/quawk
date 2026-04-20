@@ -853,8 +853,9 @@ Current status:
 - `T-310` is now complete: the most relevant refactor-era tests use
   behavior-oriented module names, with short task-traceability docstrings kept
   in place
-- active implementation work now starts at `T-311`, focused on refactor
-  closeout validation
+- `T-311` is now complete: focused parser/backend/runtime validation and the
+  core suite passed, closing the implementation readability refactor
+- `P36` is now complete
 
 In scope:
 - add a source-level implementation map for the `src/quawk` package
@@ -886,10 +887,15 @@ Exit criteria:
 Start here unless priorities change:
 
 `T-296` through `T-301` are complete. `P35` is complete.
-`T-302` through `T-305` are complete. `P36` is active.
+`T-302` through `T-311` are complete. `P36` is complete.
 
 Immediate next tasks:
-- `T-311`: Validate and close the implementation readability refactor.
+- no active `P36` tasks remain; future readability work should start as a new
+  scoped follow-on task
+
+P36 closeout validation:
+- `uv run pytest -q tests/test_parser.py tests/test_parser_goldens.py tests/test_parser_conformance.py tests/test_jit.py tests/test_cli.py tests/test_p9_backend_parity.py tests/test_runtime_support.py tests/test_p8_runtime_baselines.py`
+- `uv run pytest -q -m core`
 
 P36 entry criteria:
 - the current implementation review identified `jit.py`, `parser.py`, repeated
@@ -1212,7 +1218,7 @@ Priority values:
 | T-308 | P36 | P1 | Split statement, expression, lvalue, and builtin lowering into focused backend modules | T-307 | Backend lowering modules have clear ownership and `jit.py` is reduced to a thin compatibility/public API facade or removed from the hot path | done |
 | T-309 | P36 | P1 | Split or explicitly defer splitting the C runtime source | T-308 | `qk_runtime.c` is split by runtime domain with build support, or a checked-in reviewed decision explains why the split should wait | done |
 | T-310 | P36 | P2 | Improve test discoverability for newly touched refactor coverage | T-304, T-308 | Newly touched tests prefer behavior-oriented module names or comments that preserve task traceability without requiring task-ID knowledge | done |
-| T-311 | P36 | P2 | Validate and close the implementation readability refactor | T-309, T-310 | Focused parser/backend/runtime checks and `uv run pytest -q -m core` pass, and the roadmap records the final readability-refactor closeout state | todo |
+| T-311 | P36 | P2 | Validate and close the implementation readability refactor | T-309, T-310 | Focused parser/backend/runtime checks and `uv run pytest -q -m core` pass, and the roadmap records the final readability-refactor closeout state | done |
 
 ## Cross-Cutting Tracks
 

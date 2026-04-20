@@ -1,8 +1,8 @@
 # Implementation Readability Refactor Plan
 
-This plan records a follow-on refactor wave focused on making the `quawk`
-implementation easier to read, navigate, and modify without changing public
-behavior.
+This plan records the completed readability-refactor wave that made the
+`quawk` implementation easier to read, navigate, and modify without changing
+public behavior.
 
 The current codebase has a clear phase model: CLI, source handling, lexing,
 parsing, semantic analysis, normalization, backend lowering, runtime support,
@@ -43,14 +43,14 @@ The backend ownership extraction from `T-306` is now landed:
 - `jit.py` remains the public backend facade and compatibility wrapper during
   the refactor
 
-The active readability-refactor work now starts at `T-308`:
+The remaining P36 execution is now also landed:
 
-- split statement, expression, lvalue, and builtin lowering into focused backend
-  modules now that representative builder coverage exists
-- split backend lowering by ownership boundary without replacing one monolith
-  with several tightly coupled files
-- decide whether the C runtime split should land now or be deferred explicitly
-- improve discoverability for newly touched refactor-related tests
+- statement, expression, lvalue, and builtin lowering now live in focused
+  backend modules
+- the runtime-source split now has an explicit checked-in deferral decision
+- the most relevant refactor-era tests now use behavior-oriented module names
+- `T-311` closeout validation ran the focused parser/backend/runtime slice plus
+  `uv run pytest -q -m core`
 
 ## Current Readability Hotspots
 
@@ -344,6 +344,8 @@ Acceptance:
 
 ### Phase 8: Improve test discoverability
 
+This phase is now landed.
+
 Gradually migrate task-numbered tests into behavior-oriented test modules.
 
 Guidelines:
@@ -426,3 +428,8 @@ The readability refactor wave is complete when:
   split should wait
 - newly touched tests use behavior-oriented organization
 - core validation passes after the final refactor task
+
+`T-311` closes the wave with:
+
+- `uv run pytest -q tests/test_parser.py tests/test_parser_goldens.py tests/test_parser_conformance.py tests/test_jit.py tests/test_cli.py tests/test_p9_backend_parity.py tests/test_runtime_support.py tests/test_p8_runtime_baselines.py`
+- `uv run pytest -q -m core`

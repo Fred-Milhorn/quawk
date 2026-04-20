@@ -75,10 +75,11 @@ compatibility tooling alongside it.
 - Compatibility changes: start in `compat/corpus.py` for local corpus behavior
   or `compat/upstream_suite.py` for imported upstream cases.
 
-## Current Refactor Direction
+## Current Refactor Status
 
-`P36` is a readability refactor wave. The goal is to move code along existing
-ownership boundaries without changing public behavior.
+`P36` is complete. The implementation readability refactor moved code along
+existing ownership boundaries without changing the public compiled-backend
+contract.
 
 Current landed moves:
 
@@ -91,14 +92,15 @@ Current landed moves:
   focused backend modules while shrinking `jit.py` to the public facade
 - explicitly defer the C runtime split until multi-source build support and
   private runtime declarations would make the split simpler to follow
-
-Remaining planned moves:
-
-- prefer behavior-oriented test names when touching task-numbered tests
+- rename the most relevant refactor-era task-numbered tests to behavior-oriented
+  module names with short traceability docstrings
 
 Naming should stay concise when the package or directory already supplies the
 context. For example, a future `runtime/fields.c` is clearer than repeating
 `runtime` in the filename.
 
+No active `P36` tasks remain. Future readability work should start as a new
+scoped follow-on task rather than reopening this wave implicitly.
+
 See `../../docs/plans/implementation-readability-refactor-plan.md` for the full
-plan.
+landed plan and closeout criteria.
