@@ -16,6 +16,69 @@ from quawk.source import ProgramSource
 
 CONFORMANCE_ROOT = Path(__file__).resolve().parent / "parser_conformance"
 
+DOCUMENTED_GRAMMAR_SECTIONS = {
+    "program",
+    "item.function_def",
+    "function_def",
+    "function_def.param_list",
+    "item.pattern_action",
+    "pattern.BEGIN",
+    "pattern.END",
+    "pattern.expr",
+    "pattern.expr_regex",
+    "pattern.range",
+    "action",
+    "stmt_list",
+    "sep.statement",
+    "stmt.block",
+    "stmt.if",
+    "stmt.while",
+    "stmt.do_while",
+    "stmt.for",
+    "stmt.for_in",
+    "stmt.break",
+    "stmt.continue",
+    "stmt.next",
+    "stmt.nextfile",
+    "stmt.exit",
+    "stmt.return",
+    "stmt.delete",
+    "stmt.assignment",
+    "stmt.print",
+    "stmt.printf",
+    "stmt.expr",
+    "expr_list",
+    "output_redirect",
+    "subscript_list",
+    "lvalue.name",
+    "lvalue.array",
+    "lvalue.field",
+    "expr.number",
+    "expr.string",
+    "expr.regex",
+    "expr.name",
+    "expr.field",
+    "expr.call",
+    "expr.grouped",
+    "expr.assign",
+    "expr.conditional",
+    "expr.logical_or",
+    "expr.logical_and",
+    "expr.less",
+    "expr.compare_other",
+    "expr.equal",
+    "expr.match",
+    "expr.in",
+    "expr.concat",
+    "expr.add",
+    "expr.mul",
+    "expr.pow",
+    "expr.unary",
+    "expr.postfix",
+    "disambiguation.concat",
+    "disambiguation.regex_vs_division",
+}
+
 REQUIRED_GRAMMAR_SECTIONS = {
     "program",
     "item.pattern_action",
@@ -77,6 +140,14 @@ def test_parser_conformance_case(case: ParserConformanceCase) -> None:
     program = parse(lex(source))
 
     assert program.items, case.description
+
+
+def test_parser_conformance_sections_use_documented_inventory_names() -> None:
+    assert REQUIRED_GRAMMAR_SECTIONS.issubset(DOCUMENTED_GRAMMAR_SECTIONS)
+
+    used_sections = {section for case in load_conformance_cases() for section in case.grammar_sections}
+    unknown_sections = sorted(used_sections.difference(DOCUMENTED_GRAMMAR_SECTIONS))
+    assert not unknown_sections, f"unknown grammar section labels: {', '.join(unknown_sections)}"
 
 
 def test_parser_conformance_coverage_matrix() -> None:

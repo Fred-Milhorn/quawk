@@ -96,6 +96,10 @@ Acceptance:
 - the inventory makes current coverage gaps explicit
 - inventory terminology matches `docs/quawk.ebnf`
 
+Landed inventory:
+
+- [parser-ebnf-coverage-inventory.md](parser-ebnf-coverage-inventory.md)
+
 ### Phase 2: Expand parser conformance fixtures
 
 Grow `tests/parser_conformance/` and `tests/test_parser_conformance.py` so the
