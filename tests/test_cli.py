@@ -40,6 +40,13 @@ def test_quawk_short_help_exits_zero() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_help_mentions_debug_flag() -> None:
+    result = run_quawk("--help")
+
+    assert result.returncode == 0, result.stderr
+    assert "--debug" in result.stdout
+
+
 def test_quawk_version_exits_zero() -> None:
     result = run_quawk("--version")
 
@@ -813,6 +820,46 @@ def test_quawk_reports_missing_progfile_without_traceback() -> None:
 
     assert result.returncode == 2
     assert result.stderr == f"quawk: {missing_path}: No such file or directory\n"
+
+
+def test_quawk_reports_keyboard_interrupt_without_traceback(monkeypatch, capsys) -> None:
+    def fake_execute_with_inputs(*args, **kwargs) -> int:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "execute_with_inputs", fake_execute_with_inputs)
+
+    assert cli.main(["BEGIN { print 1 }"]) == 130
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "quawk: interrupted\n"
+
+
+def test_quawk_debug_reraises_keyboard_interrupt(monkeypatch) -> None:
+    def fake_execute_with_inputs(*args, **kwargs) -> int:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "execute_with_inputs", fake_execute_with_inputs)
+
+    try:
+        cli.main(["--debug", "BEGIN { print 1 }"])
+    except KeyboardInterrupt:
+        pass
+    else:
+        raise AssertionError("expected KeyboardInterrupt to be re-raised under --debug")
+
+
+def test_quawk_debug_reraises_runtime_errors(monkeypatch) -> None:
+    def fake_execute_with_inputs(*args, **kwargs) -> int:
+        raise RuntimeError("backend exploded")
+
+    monkeypatch.setattr(cli, "execute_with_inputs", fake_execute_with_inputs)
+
+    try:
+        cli.main(["--debug", "BEGIN { print 1 }"])
+    except RuntimeError as exc:
+        assert str(exc) == "backend exploded"
+    else:
+        raise AssertionError("expected RuntimeError to be re-raised under --debug")
 
 
 def test_quawk_ir_flag_prints_backend_ir_for_supported_p21_logical_or_program() -> None:

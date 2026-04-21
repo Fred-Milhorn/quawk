@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from importlib import metadata
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import Sequence
 
 from . import __version__
+from .ast_format import format_program
 from .diagnostics import LexError, ParseError, SemanticError, format_error
 from .jit import (
     InitialVariableValue,
@@ -20,7 +22,6 @@ from .jit import (
     execute_with_inputs,
 )
 from .lexer import format_tokens, lex
-from .ast_format import format_program
 from .parser import parse
 from .semantics import ProgramAnalysis, analyze
 from .source import ProgramSource
@@ -78,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the user-facing version and exit.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Re-raise internal exceptions for contributor debugging.",
+    )
     stop_stage = parser.add_mutually_exclusive_group()
     stop_stage.add_argument(
         "--lex",
@@ -134,6 +140,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.files = [args.program, *args.files]
         args.program = None
 
+    debug_exceptions = args.debug or os.environ.get("QUAWK_DEBUG") == "1"
+
     try:
         initial_variables = parse_assignments(args.assignments)
         source = load_program_source(args.program_files, args.program)
@@ -185,16 +193,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             optimize=args.optimize,
         )
 
+    except KeyboardInterrupt:
+        if debug_exceptions:
+            raise
+        sys.stderr.write("quawk: interrupted\n")
+        return 130
     except OSError as exc:
+        if debug_exceptions:
+            raise
         sys.stderr.write(f"quawk: {exc}\n")
         return 2
     except (LexError, ParseError, SemanticError) as exc:
         sys.stderr.write(format_error(exc))
         return 2
     except ValueError as exc:
+        if debug_exceptions:
+            raise
         sys.stderr.write(f"quawk: {exc}\n")
         return 2
     except RuntimeError as exc:
+        if debug_exceptions:
+            raise
         sys.stderr.write(f"quawk: {exc}\n")
         return 4
 

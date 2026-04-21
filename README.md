@@ -14,16 +14,10 @@ What works today:
 - scalar variables, associative arrays, `delete`, classic `for`, `for ... in`, and user-defined functions
 - field reads and assignment, builtin variables, `getline`, and multi-file input processing
 - control flow including `if`, `while`, `do ... while`, `break`, `continue`, `next`, `nextfile`, and `exit`
-- the current claimed expression surface: arithmetic, comparisons, logical operators, match operators, `in`, concatenation, ternary, assignment expressions, and pre/post increment and decrement
+- arithmetic, comparisons, logical operators, match operators, `in`, concatenation, ternary, assignment expressions, and pre/post increment and decrement
 - `print` / `printf`, separator and format builtin-variable control, and output redirection with `close()`
-- the current POSIX builtin surface, including string, regex, numeric, system, and math builtins
+- the current POSIX builtins, including string, regex, numeric, system, and math builtins
 - inspection modes: `--lex`, `--parse`, `--ir`, and `--asm`
-
-Current limits:
-- the project is still in active implementation
-- full GNU awk extension parity is not a current goal
-- some inspection and extension corners are still narrower than ordinary execution
-- system LLVM tools are required locally; `quawk` does not bundle LLVM
 
 Detailed implementation status and remaining work live in [SPEC.md](SPEC.md),
 [docs/design.md](docs/design.md), and [docs/roadmap.md](docs/roadmap.md).
@@ -36,7 +30,7 @@ Detailed implementation status and remaining work live in [SPEC.md](SPEC.md),
 
 ## Non-Goals
 
-- full GNU awk extension parity on first release
+- full GNU awk extension parity
 - bundling an LLVM toolchain
 - compiled artifact caching in the initial implementation
 
@@ -80,6 +74,10 @@ uv venv --python 3.14 .venv
 source .venv/bin/activate
 uv pip install -e .[dev]
 ```
+
+For contributor debugging of compilation or runtime failures, add `--debug` to
+re-raise internal exceptions instead of turning them into user-facing one-line
+CLI diagnostics.
 
 Pinned upstream compatibility references now live under `third_party/`. From a
 fresh checkout, initialize them with `git submodule update --init --recursive`.

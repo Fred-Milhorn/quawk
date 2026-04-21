@@ -70,6 +70,11 @@ source .venv/bin/activate
 uv pip install -e .[dev]
 ```
 
+For contributor debugging of internal compilation or runtime failures, run
+`quawk --debug ...` to re-raise internal exceptions and get the full Python
+traceback. Without `--debug`, `quawk` keeps end-user diagnostics concise and
+turns Ctrl-C into `quawk: interrupted`.
+
 Initialize the pinned upstream compatibility sources:
 
 ```sh
