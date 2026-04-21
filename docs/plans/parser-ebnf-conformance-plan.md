@@ -166,6 +166,11 @@ Acceptance:
 - the roadmap can honestly say whether parser/EBNF coverage is exhaustive
 - no parser-facing doc wording overclaims semantics or lowering support
 
+Landed parser-facing doc sync:
+
+- `docs/quawk.ebnf`
+- `docs/plans/parser-ebnf-coverage-inventory.md`
+
 ## Suggested Validation
 
 Primary validation:

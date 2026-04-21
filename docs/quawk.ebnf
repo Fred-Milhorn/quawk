@@ -47,7 +47,7 @@ stmt                ::= action
                       | "nextfile"
                       | "exit" expr?
                       | "return" expr?
-                      | "delete" lvalue ("[" subscript_list "]")?
+                      | "delete" lvalue
                       | simple_stmt
 
 for_init            ::= expr_list
@@ -100,12 +100,23 @@ postfix_expr        ::= primary ("++" | "--")?
 primary             ::= NUMBER
                       | STRING
                       | REGEX
+                      | getline_expr
+                      | bare_length_call
                       | lvalue
                       | func_call
                       | "(" expr ")"
 
 func_call           ::= IDENT "(" arg_list? ")"
 arg_list            ::= expr ("," expr)*
+
+bare_length_call    ::= "length"
+
+getline_expr        ::= "getline" "<" expr
+                      | "getline" getline_target_only
+                      | "getline" getline_named_target "<" expr
+getline_target_only ::= IDENT
+                      | "$" expr
+getline_named_target ::= IDENT
 
 (* Disambiguation rules
  *

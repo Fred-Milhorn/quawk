@@ -109,23 +109,17 @@ Current result:
 | `disambiguation.concat` | covered | covered | `tests/conformance/expression_surface.awk`; targeted concat-boundary tests in `tests/test_parser.py` | — |
 | `disambiguation.regex_vs_division` | covered | covered | `tests/conformance/expression_surface.awk`; targeted regex-vs-division tests in `tests/test_parser.py` | — |
 
-## Documented Grammar Vs Current Parser Divergences
+## Parser-Facing Contract Sync Result
 
-These notes are intentionally separate from the labeled inventory above because
-they are not clean one-to-one EBNF sections today.
+`T-316` resolves the remaining parser-facing doc drift called out by the
+inventory work:
 
-1. `getline` is parser-admitted as a special expression form, but
-   `docs/quawk.ebnf` does not currently model it with a dedicated production.
-   Current evidence: `test_parses_getline_into_named_target_with_file_source`,
-   `test_parses_getline_target_only_variants`, and
-   `test_format_program_includes_getline_expression_shape`.
-2. Bare `length` is parser-admitted as a zero-argument builtin call without
-   parentheses, but the documented `func_call` production currently requires
-   `IDENT "(" arg_list? ")"`.
-   Current evidence: `test_parses_bare_length_as_zero_argument_builtin_call`.
-3. The documented `delete` production currently implies an extra optional
-   bracketed subscript tail after `lvalue`, while the parser only accepts the
-   ordinary lvalue forms it already knows how to parse.
+1. `docs/quawk.ebnf` now models the documented `getline` expression forms that
+   the parser-focused tests prove today.
+2. `docs/quawk.ebnf` now models bare `length` as a zero-argument builtin-call
+   form.
+3. `docs/quawk.ebnf` now matches the parser's `delete lvalue` shape instead of
+   implying a second bracketed tail after `lvalue`.
 
-Those divergences belong to `T-316` after fixture and direct-test coverage are
-expanded enough to make the parser-facing contract decision explicit.
+No remaining parser-facing doc divergence is currently tracked for the checked-in
+parser contract.

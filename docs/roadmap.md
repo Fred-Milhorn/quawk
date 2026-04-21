@@ -888,10 +888,9 @@ Start here unless priorities change:
 
 `T-296` through `T-301` are complete. `P35` is complete.
 `T-302` through `T-311` are complete. `P36` is complete.
-`T-312` through `T-315` are complete. `P37` is active.
+`T-312` through `T-316` are complete. `P37` is active.
 
 Immediate next tasks:
-- `T-316`: Sync parser-facing grammar docs with the tested parser contract.
 - `T-317`: Validate and close the parser/EBNF conformance audit.
 
 P36 closeout validation:
@@ -948,7 +947,9 @@ Current status:
 - `T-315` is complete: direct parser tests now cover concat boundaries,
   regex-vs-division, `for`/`for ... in` ambiguity, `getline`/`delete` variants,
   assignment and ternary associativity, and representative invalid forms
-- active implementation work now starts at `T-316`
+- `T-316` is complete: `docs/quawk.ebnf` now matches the tested parser contract
+  for `getline`, bare `length`, and `delete`
+- active implementation work now starts at `T-317`
 
 Implementation notes:
 - see [parser-ebnf-conformance-plan.md](plans/parser-ebnf-conformance-plan.md)
@@ -1269,7 +1270,7 @@ Priority values:
 | T-313 | P37 | P0 | Inventory parser-contract coverage against `docs/quawk.ebnf` | T-312 | Every meaningful production and disambiguation rule in `docs/quawk.ebnf` is mapped to current parser/test coverage as covered, partial, or uncovered | done |
 | T-314 | P37 | P0 | Expand parser conformance fixtures for the documented grammar | T-313 | `tests/conformance/` and `tests/test_parser_conformance.py` explicitly cover the documented parser contract rather than only a starter subset | done |
 | T-315 | P37 | P1 | Add direct parser edge-case and negative coverage | T-313 | Direct parser tests cover concat adjacency, regex-vs-division, `for` vs `for ... in`, `printf`, `getline`, `delete`, lvalue restrictions, and representative invalid forms | done |
-| T-316 | P37 | P1 | Sync parser-facing grammar docs with the tested parser contract | T-314, T-315 | `docs/quawk.ebnf` and related parser-facing wording only describe forms that the parser test surface now proves | todo |
+| T-316 | P37 | P1 | Sync parser-facing grammar docs with the tested parser contract | T-314, T-315 | `docs/quawk.ebnf` and related parser-facing wording only describe forms that the parser test surface now proves | done |
 | T-317 | P37 | P1 | Validate and close the parser/EBNF conformance audit | T-314, T-315, T-316 | Parser-focused pytest suites pass, and the roadmap records the final parser/EBNF conformance status honestly | todo |
 
 ## Cross-Cutting Tracks
