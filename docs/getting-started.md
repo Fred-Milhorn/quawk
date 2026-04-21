@@ -27,16 +27,6 @@ Toolchains are not vendored in this repo.
 
 `quawk` shells out to system LLVM binaries. If your LLVM install is not on `PATH` by default, export the directory containing these tools before running the CLI or test suite.
 
-## Bootstrap
-
-Recommended bootstrap flow:
-
-```sh
-uv python install 3.14
-uv venv --python 3.14 .venv
-source .venv/bin/activate
-```
-
 ## Install `quawk` From A Local Clone
 
 For a local user install on macOS:
@@ -45,25 +35,38 @@ For a local user install on macOS:
 git clone https://github.com/Fred-Milhorn/quawk.git
 cd quawk
 brew install llvm
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 uv python install 3.14
-uv venv --python 3.14 .venv
-source .venv/bin/activate
-uv pip install -e .
+uv tool install --python 3.14 --editable .
+uv tool update-shell
 quawk --help
 quawk 'BEGIN { print "hello" }'
 ```
 
-This installs the `quawk` console script into `.venv/bin/`.
+This installs the `quawk` console script as a user-facing tool, instead of into
+a repo-local virtualenv.
 
-If your Homebrew prefix is different, export the matching LLVM `bin/`
-directory instead.
+You also need the LLVM binaries on your login-shell `PATH`. For a standard Apple
+Silicon Homebrew install:
+
+```sh
+echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.zprofile
+```
+
+If your Homebrew prefix is different, add the matching LLVM `bin/` directory
+instead.
+
+`uv tool update-shell` updates your shell config so the `quawk` executable
+itself remains on `PATH` after logout/login.
 
 ## Contributor Bootstrap
 
-Install the project and development dependencies:
+If you want the editable development environment instead of only the installed
+CLI:
 
 ```sh
+uv python install 3.14
+uv venv --python 3.14 .venv
+source .venv/bin/activate
 uv pip install -e .[dev]
 ```
 

@@ -56,21 +56,28 @@ Install from a local clone:
 git clone https://github.com/Fred-Milhorn/quawk.git
 cd quawk
 brew install llvm
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 uv python install 3.14
-uv venv --python 3.14 .venv
-source .venv/bin/activate
-uv pip install -e .
+uv tool install --python 3.14 --editable .
+uv tool update-shell
 quawk --help
 ```
 
 Full setup and local command guidance live in [docs/getting-started.md](docs/getting-started.md).
 
-The current runtime shells out to system LLVM binaries rather than bundling an LLVM distribution. On macOS, package-manager LLVM installs are often not on `PATH` by default, so make sure the directory containing these tools is exported before running `quawk`.
+The current runtime shells out to system LLVM binaries rather than bundling an LLVM distribution. On macOS, package-manager LLVM installs are often not on `PATH` by default, so add the LLVM `bin/` directory to your login-shell config before using `quawk` after a fresh login. For a standard Apple Silicon Homebrew install:
+
+```sh
+echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> ~/.zprofile
+```
+
+`uv tool update-shell` similarly updates your shell config so the `quawk`
+executable remains on `PATH` after logout/login.
 
 If you want the contributor/test setup instead of a user install, use:
 
 ```sh
+uv venv --python 3.14 .venv
+source .venv/bin/activate
 uv pip install -e .[dev]
 ```
 
