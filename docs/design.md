@@ -157,6 +157,7 @@ Implemented AST lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
 These files have distinct roles:
 - `docs/quawk.ebnf` is the source of truth for tokens, precedence, separators, and concrete parsing rules
 - `docs/quawk.asdl` is the source of truth for the implemented AST shape
+- `docs/quawk.asdl` follows `src/quawk/ast.py` closely; only helper sum types remain where ASDL cannot express a Python union field directly
 - this design document explains how the concrete grammar, implemented AST, public execution, and backend support fit together
 
 ## Execution Model

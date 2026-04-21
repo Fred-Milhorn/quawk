@@ -1,17 +1,13 @@
 -- quawk implemented AST
 --
--- This file documents the AST shape emitted by `src/quawk/parser.py` today.
--- It is the source of truth for the tree shown by `quawk --parse` and
--- consumed by semantic analysis and normalization.
+-- This file documents the AST dataclasses defined in `src/quawk/ast.py`.
+-- Constructor names and field shapes follow the Python implementation closely.
 --
 -- The concrete syntax contract lives in `docs/quawk.ebnf`.
 --
--- Notes about Python implementation details that are intentionally smoothed
--- over here:
--- - numeric literals carry both a parsed numeric value and the original token text
--- - field references use either a literal integer index or a dynamic expression
--- - array refs and lvalues cache the first subscript separately from later ones
--- - function definitions also cache per-parameter source spans
+-- Note:
+-- - helper sum types are used where ASDL cannot directly express a Python union
+--   field, such as `FieldExpr.index: int | Expr`
 
 module Quawk {
     loc = Loc(
@@ -24,92 +20,100 @@ module Quawk {
 
     program = Program(item* items) attributes (loc? loc)
 
-    item = FunctionDef(identifier name, identifier* params, action body)
+    item = FunctionDef(identifier name, identifier* params, loc* param_spans, action body)
          | PatternAction(pattern? pattern, action? action)
          attributes (loc? loc)
 
-    pattern = Begin
-            | End
+    pattern = BeginPattern
+            | EndPattern
             | ExprPattern(expr test)
             | RangePattern(pattern left, pattern right)
             attributes (loc? loc)
 
     action = Action(stmt* statements) attributes (loc? loc)
 
-    stmt = Print(expr* args)
-         | Printf(expr* args)
-         | Assign(lvalue target, assign_op op, expr value)
-         | Block(stmt* statements)
-         | Break
-         | Continue
-         | Next
-         | NextFile
-         | Exit(expr? value)
-         | Delete(lvalue target)
-         | If(expr condition, stmt then_branch, stmt? else_branch)
-         | While(expr condition, stmt body)
-         | DoWhile(stmt body, expr condition)
-         | For(expr* init, expr? condition, expr* update, stmt body)
-         | ForIn(identifier name, expr iterable, stmt body)
+    stmt = PrintStmt(expr* arguments, output_redirect? redirect)
+         | PrintfStmt(expr* arguments, output_redirect? redirect)
+         | AssignStmt(lvalue target, assign_op op, expr value)
+         | BlockStmt(stmt* statements)
+         | BreakStmt
+         | ContinueStmt
+         | NextStmt
+         | NextFileStmt
+         | ExitStmt(expr? value)
+         | DeleteStmt(lvalue target)
+         | IfStmt(expr condition, stmt then_branch, stmt? else_branch)
+         | WhileStmt(expr condition, stmt body)
+         | DoWhileStmt(stmt body, expr condition)
+         | ForStmt(expr* init, expr? condition, expr* update, stmt body)
+         | ForInStmt(identifier name, expr iterable, stmt body)
          | ExprStmt(expr value)
-         | Return(expr? value)
+         | ReturnStmt(expr? value)
          attributes (loc? loc)
 
-    expr = StringLiteral(string value, string raw_text)
-         | NumberLiteral(string raw_text)
-         | RegexLiteral(string raw_text)
-         | Name(identifier id)
-         | FieldRef(field_index index)
-         | Call(identifier function, expr* args)
-         | ArrayRef(identifier name, expr* subscripts)
-         | Binary(expr left, binary_op op, expr right)
-         | Conditional(expr test, expr if_true, expr if_false)
+    expr = StringLiteralExpr(string value, string raw_text)
+         | NumericLiteralExpr(float value, string raw_text)
+         | RegexLiteralExpr(string raw_text)
+         | NameExpr(identifier name)
+         | FieldExpr(field_index index)
+         | CallExpr(identifier function, expr* args)
+         | ArrayIndexExpr(identifier array_name, expr index, expr* extra_indexes)
+         | GetlineExpr(lvalue? target, expr? source)
+         | BinaryExpr(expr left, binary_op op, expr right)
+         | ConditionalExpr(expr test, expr if_true, expr if_false)
          | AssignExpr(lvalue target, assign_op op, expr value)
-         | Unary(unary_op op, expr operand)
-         | Postfix(expr operand, postfix_op op)
+         | UnaryExpr(unary_op op, expr operand)
+         | PostfixExpr(expr operand, postfix_op op)
          attributes (loc? loc)
 
-    field_index = StaticField(int index)
-                | DynamicField(expr value)
+    field_index = StaticFieldIndex(int value)
+                | DynamicFieldIndex(expr value)
 
-    lvalue = NameLValue(identifier id)
+    lvalue = NameLValue(identifier name)
            | ArrayLValue(identifier name, expr* subscripts)
            | FieldLValue(expr index)
            attributes (loc? loc)
 
-    assign_op = PlainAssign
-              | AddAssign
-              | SubAssign
-              | MulAssign
-              | DivAssign
-              | ModAssign
-              | PowAssign
+    output_redirect = OutputRedirect(output_redirect_kind kind, expr target)
+                      attributes (loc? loc)
 
-    binary_op = Add
-              | Sub
-              | Mul
-              | Div
-              | Mod
-              | Pow
-              | Lt
-              | Le
-              | Gt
-              | Ge
-              | Eq
-              | Ne
-              | And
-              | Or
-              | Match
-              | NotMatch
-              | In
-              | Concat
+    output_redirect_kind = WRITE
+                         | APPEND
+                         | PIPE
 
-    unary_op = UPlus
-             | UMinus
-             | Not
-             | PreInc
-             | PreDec
+    assign_op = PLAIN
+              | ADD
+              | SUB
+              | MUL
+              | DIV
+              | MOD
+              | POW
 
-    postfix_op = PostInc
-               | PostDec
+    binary_op = ADD
+              | SUB
+              | MUL
+              | DIV
+              | MOD
+              | POW
+              | LESS
+              | LESS_EQUAL
+              | GREATER
+              | GREATER_EQUAL
+              | EQUAL
+              | NOT_EQUAL
+              | LOGICAL_AND
+              | LOGICAL_OR
+              | MATCH
+              | NOT_MATCH
+              | IN
+              | CONCAT
+
+    unary_op = UPLUS
+             | UMINUS
+             | NOT
+             | PRE_INC
+             | PRE_DEC
+
+    postfix_op = POST_INC
+               | POST_DEC
 }
