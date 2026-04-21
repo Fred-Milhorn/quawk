@@ -171,6 +171,12 @@ Landed parser-facing doc sync:
 - `docs/quawk.ebnf`
 - `docs/plans/parser-ebnf-coverage-inventory.md`
 
+Final closeout validation:
+
+```sh
+uv run pytest -q tests/test_parser.py tests/test_parser_goldens.py tests/test_parser_conformance.py
+```
+
 ## Suggested Validation
 
 Primary validation:
@@ -196,3 +202,7 @@ This wave is complete when:
 - `docs/quawk.ebnf` and checked-in parser tests no longer disagree about the
   parser contract
 - the roadmap records the final parser/EBNF conformance status honestly
+
+Current closeout status:
+
+- complete

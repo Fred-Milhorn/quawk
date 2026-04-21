@@ -882,31 +882,6 @@ Exit criteria:
 - runtime C source is split or a reviewed deferral decision is checked in
 - core validation passes after the final refactor task
 
-## Immediate Next Tasks
-
-Start here unless priorities change:
-
-`T-296` through `T-301` are complete. `P35` is complete.
-`T-302` through `T-311` are complete. `P36` is complete.
-`T-312` through `T-316` are complete. `P37` is active.
-
-Immediate next tasks:
-- `T-317`: Validate and close the parser/EBNF conformance audit.
-
-P36 closeout validation:
-- `uv run pytest -q tests/test_parser.py tests/test_parser_goldens.py tests/test_parser_conformance.py tests/test_jit.py tests/test_cli.py tests/test_p9_backend_parity.py tests/test_runtime_support.py tests/test_p8_runtime_baselines.py`
-- `uv run pytest -q -m core`
-
-P36 entry criteria:
-- the current implementation review identified `jit.py`, `parser.py`, repeated
-  AST traversal, `qk_runtime.c`, and task-numbered tests as the main
-  readability hotspots
-- the current checked-in baseline already covers the source map, AST split, and
-  shared traversal-helper foundation, so remaining execution should start with
-  backend ownership cleanup rather than reopening those completed moves
-- implementation notes for `P36` should follow
-  [implementation-readability-refactor-plan.md](plans/implementation-readability-refactor-plan.md)
-
 ### P37: Parser/EBNF Conformance Audit
 
 Objective:
@@ -935,6 +910,20 @@ Exit criteria:
   contract
 - parser-focused validation passes
 
+Implementation notes:
+- see [parser-ebnf-conformance-plan.md](plans/parser-ebnf-conformance-plan.md)
+
+## Immediate Next Tasks
+
+Start here unless priorities change:
+
+`T-296` through `T-301` are complete. `P35` is complete.
+`T-302` through `T-311` are complete. `P36` is complete.
+`T-312` through `T-317` are complete. `P37` is complete.
+
+Immediate next tasks:
+- no immediate parser/EBNF audit tasks remain in `P37`
+
 Current status:
 - `T-312` is complete: the parser/EBNF conformance plan is checked in under
   `docs/plans/`
@@ -949,10 +938,9 @@ Current status:
   assignment and ternary associativity, and representative invalid forms
 - `T-316` is complete: `docs/quawk.ebnf` now matches the tested parser contract
   for `getline`, bare `length`, and `delete`
-- active implementation work now starts at `T-317`
-
-Implementation notes:
-- see [parser-ebnf-conformance-plan.md](plans/parser-ebnf-conformance-plan.md)
+- `T-317` is complete: `uv run pytest -q tests/test_parser.py
+  tests/test_parser_goldens.py tests/test_parser_conformance.py` passed during
+  the final parser/EBNF audit closeout
 
 ## Backlog
 
@@ -1271,7 +1259,7 @@ Priority values:
 | T-314 | P37 | P0 | Expand parser conformance fixtures for the documented grammar | T-313 | `tests/conformance/` and `tests/test_parser_conformance.py` explicitly cover the documented parser contract rather than only a starter subset | done |
 | T-315 | P37 | P1 | Add direct parser edge-case and negative coverage | T-313 | Direct parser tests cover concat adjacency, regex-vs-division, `for` vs `for ... in`, `printf`, `getline`, `delete`, lvalue restrictions, and representative invalid forms | done |
 | T-316 | P37 | P1 | Sync parser-facing grammar docs with the tested parser contract | T-314, T-315 | `docs/quawk.ebnf` and related parser-facing wording only describe forms that the parser test surface now proves | done |
-| T-317 | P37 | P1 | Validate and close the parser/EBNF conformance audit | T-314, T-315, T-316 | Parser-focused pytest suites pass, and the roadmap records the final parser/EBNF conformance status honestly | todo |
+| T-317 | P37 | P1 | Validate and close the parser/EBNF conformance audit | T-314, T-315, T-316 | Parser-focused pytest suites pass, and the roadmap records the final parser/EBNF conformance status honestly | done |
 
 ## Cross-Cutting Tracks
 
