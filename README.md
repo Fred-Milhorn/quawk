@@ -6,32 +6,38 @@ A POSIX-oriented AWK compiler and JIT runtime written in Python, using LLVM tool
 
 ## Status
 
-This repository is in active implementation.
+`quawk` is a best-effort POSIX-complete implementation of AWK.
 
-Implemented now:
-- consolidated project documentation
-- a working `quawk` CLI with lexer, parser, semantic checks, and public execution for the current POSIX-first surface
-- phased implementation roadmap and backlog
-- ordered repeatable `-f`, `-F`, numeric `-v`, `--`, and `-` stdin operand handling
-- mixed `BEGIN` / record / `END` execution, regex and range patterns, and default-print pattern rules
-- scalar variables, associative arrays, `delete`, classic `for`, and `for ... in`
-- field reads and assignment, builtin variables, and multi-file input processing
+What works today:
+- inline programs and `-f` program files, plus `-F`, `-v`, `--`, and `-` stdin operands
+- `BEGIN` / record / `END` programs, regex and range patterns, and default-print pattern rules
+- scalar variables, associative arrays, `delete`, classic `for`, `for ... in`, and user-defined functions
+- field reads and assignment, builtin variables, `getline`, and multi-file input processing
 - control flow including `if`, `while`, `do ... while`, `break`, `continue`, `next`, `nextfile`, and `exit`
-- user-defined functions plus the current POSIX builtin surface, including string, regex, numeric, system, and math builtins
-- differential compatibility coverage against pinned `one-true-awk` and `gawk --posix`, with the upstream suite now the primary compatibility authority
+- the current claimed expression surface: arithmetic, comparisons, logical operators, match operators, `in`, concatenation, ternary, assignment expressions, and pre/post increment and decrement
+- `print` / `printf`, separator and format builtin-variable control, and output redirection with `close()`
+- the current POSIX builtin surface, including string, regex, numeric, system, and math builtins
+- inspection modes: `--lex`, `--parse`, `--ir`, and `--asm`
 
-Implementation sequencing and upcoming work live in [docs/roadmap.md](docs/roadmap.md), which is the source of truth for current and next phases.
+Current limits:
+- the project is still in active implementation
+- full GNU awk extension parity is not a current goal
+- some inspection and extension corners are still narrower than ordinary execution
+- system LLVM tools are required locally; `quawk` does not bundle LLVM
+
+Detailed implementation status and remaining work live in [SPEC.md](SPEC.md),
+[docs/design.md](docs/design.md), and [docs/roadmap.md](docs/roadmap.md).
 
 ## Goals
 
-- POSIX-first AWK behavior and compatibility
-- an early end-to-end executable path for a tiny AWK subset
-- incremental expansion driven by the working end-to-end path established in `P1`, now followed by compatibility hardening and explicit remaining POSIX gap closure
+- make a useful POSIX-oriented AWK implementation available behind a normal CLI
+- keep behavior predictable and compatibility-driven
+- support inspection and compiled execution through one coherent pipeline
 
 ## Non-Goals
 
 - full GNU awk extension parity on first release
-- a full ahead-of-time native compiler workflow
+- bundling an LLVM toolchain
 - compiled artifact caching in the initial implementation
 
 ## Quickstart
@@ -63,6 +69,14 @@ gawk wrappers with `uv run quawk-upstream bootstrap`.
 GitHub Actions now runs a fast `ci-fast` workflow on pushes and pull requests
 for the `core` pytest suite, and keeps a separate reference-compatibility
 workflow for the heavier `compat_reference` subset.
+
+Useful commands:
+
+```sh
+uv run quawk --help
+uv run quawk 'BEGIN { print "hello" }'
+uv run quawk --parse 'BEGIN { print 1 + 2 }'
+```
 
 ## Docs Map
 
