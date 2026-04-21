@@ -5,15 +5,15 @@ fixed-width files directly.
 
 The showcase lives entirely in this directory:
 
-- [README.md](/Users/fred/dev/quawk/examples/noaa-climate-report/README.md)
-- [climate_report.awk](/Users/fred/dev/quawk/examples/noaa-climate-report/climate_report.awk)
+- [README.md](README.md)
+- [climate_report.awk](climate_report.awk)
 
 ## Goal
 
 The program consumes:
 
 1. `ghcnd-stations.txt`
-2. one or more station `.dly` files
+2. station `.dly` record content, usually streamed from NOAA's tar archive
 
 and emits a yearly state-level climate summary.
 
@@ -25,7 +25,10 @@ Recommended first target:
 Expected command shape:
 
 ```sh
-quawk -v state=CA -v year=2023 -f examples/noaa-climate-report/climate_report.awk ghcnd-stations.txt selected/*.dly
+tar -xOf ghcnd_all.tar.gz -T selected-stations.txt \
+  | quawk -v state=CA -v year=2023 \
+      -f examples/noaa-climate-report/climate_report.awk \
+      ghcnd-stations.txt -
 ```
 
 ## Official NOAA Source Files
@@ -52,7 +55,6 @@ Example commands:
 ```sh
 curl -O https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt
 curl -O https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd_all.tar.gz
-tar xzf ghcnd_all.tar.gz
 ```
 
 For spot checks or small demos, individual station files can also be fetched
@@ -68,17 +70,49 @@ workdir or any local data directory.
 ## Practical Local Workflow
 
 The program expects the first input file to be `ghcnd-stations.txt`. Every
-later input is treated as a station `.dly` file.
+later input, including `-` for stdin, is treated as station `.dly` content.
 
-A practical workflow is:
+Do not extract the full NOAA archive just to run this example:
+
+- `ghcnd_all.tar.gz` is very large
+- untarring it locally is slow and disk-heavy
+- `selected/*.dly` can exceed shell command-line limits for larger states
+
+Instead, stream only the station members you want from the tarball into stdin.
+
+Recommended workflow:
 
 1. download `ghcnd-stations.txt`
-2. download and extract `ghcnd_all.tar.gz`
-3. copy or symlink the target state's station `.dly` files into a local
-   `selected/` directory
-4. run Quawk over `ghcnd-stations.txt` plus `selected/*.dly`
+2. download `ghcnd_all.tar.gz`
+3. derive a list of station member names for the state you want
+4. ask `tar` to write just those members to stdout
+5. pass that stdout stream to Quawk as `-`
 
-This keeps the AWK program simple and keeps the data out of the repo.
+For example, this builds a California member list from the fixed-width station
+metadata and then streams those `.dly` members directly from the archive:
+
+```sh
+awk 'substr($0, 39, 2) == "CA" { print substr($0, 1, 11) ".dly" }' \
+  ghcnd-stations.txt > selected-stations.txt
+
+tar -xOf ghcnd_all.tar.gz -T selected-stations.txt \
+  | quawk -v state=CA -v year=2023 \
+      -f examples/noaa-climate-report/climate_report.awk \
+      ghcnd-stations.txt -
+```
+
+That keeps the data out of the repo, avoids unpacking a multi-gigabyte archive,
+and avoids an oversized shell glob.
+
+For a very small demo or spot check, downloading one station file directly is
+still fine:
+
+```sh
+curl -O https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/USW00023183.dly
+quawk -v state=CA -v year=2023 \
+  -f examples/noaa-climate-report/climate_report.awk \
+  ghcnd-stations.txt USW00023183.dly
+```
 
 ## Input Contract
 
@@ -99,7 +133,9 @@ Only stations whose `STATE` matches `-v state=...` are retained.
 
 ### Station `.dly` files
 
-The program reads NOAA's fixed-width monthly records directly.
+The program reads NOAA's fixed-width monthly records directly. Those records may
+come from ordinary `.dly` files or from a concatenated stdin stream produced by
+`tar -xOf ...`.
 
 Relevant columns from the NOAA readme:
 
@@ -299,7 +335,7 @@ The scaffold program uses these functions:
 2. first input file
    - parse `ghcnd-stations.txt`
    - retain only stations whose fixed-width `STATE` matches
-3. later input files
+3. later input files or stdin
    - parse station `.dly` monthly records
    - expand day slots for `TMAX`, `TMIN`, and `PRCP`
    - reject `-9999` and nonblank `QFLAG`

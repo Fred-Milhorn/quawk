@@ -1,9 +1,20 @@
+# NOAA climate summary over GHCN-Daily fixed-width data.
+#
+# Input contract:
+# 1. the first input file is ghcnd-stations.txt
+# 2. every later input, including "-" for stdin, is station .dly record content
+#
+# The common large-data workflow is:
+# tar -xOf ghcnd_all.tar.gz -T selected-stations.txt | quawk ... ghcnd-stations.txt -
+
 BEGIN {
     top_n = 10
     require_param("state")
     require_param("year")
 }
 
+# Remember the first input name so we can treat it as station metadata and every
+# later input as .dly climate records.
 NR == 1 {
     metadata_filename = FILENAME
 }
@@ -87,6 +98,8 @@ function process_dly_record(    id, rec_year, rec_month, element, day, base, raw
     element_record_count += 1
 
     rec_month = substr($0, 16, 2) + 0
+    # NOAA stores one monthly record as 31 repeated day slots beginning at
+    # column 22, with 8 characters per day.
     for (day = 1; day <= 31; day++) {
         base = 22 + ((day - 1) * 8)
         raw_value = substr($0, base, 5)
@@ -107,6 +120,7 @@ function process_day_value(id, rec_year, rec_month, rec_day, element, raw_value,
         return
     }
 
+    # Keep only NOAA daily values without a quality flag.
     if (qflag != " ") {
         qflag_skip_count += 1
         skip_value_count += 1
@@ -114,6 +128,7 @@ function process_day_value(id, rec_year, rec_month, rec_day, element, raw_value,
     }
 
     numeric_value = raw_value + 0
+    # NOAA stores temperatures and precipitation in tenths.
     if (element == "TMAX" || element == "TMIN") {
         numeric_value = numeric_value / 10.0
     } else if (element == "PRCP") {
