@@ -1,0 +1,10 @@
+id = "expression_pattern"
+description = "Expression pattern without an action."
+program = "expression_pattern.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.expr",
+  "expr.number",
+  "expr.less",
+]

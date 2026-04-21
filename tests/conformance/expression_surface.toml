@@ -1,0 +1,32 @@
+id = "expression_surface"
+description = "Conditional, comparison, match, membership, concat, arithmetic, and unary expression families."
+program = "expression_surface.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt_list",
+  "sep.statement",
+  "stmt.print",
+  "stmt.expr",
+  "expr_list",
+  "expr.number",
+  "expr.string",
+  "expr.regex",
+  "expr.name",
+  "expr.grouped",
+  "expr.conditional",
+  "expr.logical_or",
+  "expr.compare_other",
+  "expr.equal",
+  "expr.match",
+  "expr.in",
+  "expr.concat",
+  "expr.mul",
+  "expr.pow",
+  "expr.unary",
+  "expr.postfix",
+  "disambiguation.concat",
+  "disambiguation.regex_vs_division",
+]

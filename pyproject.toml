@@ -43,6 +43,7 @@ markers = [
     "compat: full compatibility suite coverage, including corpus and differential checks",
     "compat_reference: reference-engine differential compatibility coverage",
     "compat_corpus: repo-owned supplemental compatibility corpus coverage",
+    "conformance: parser conformance fixture and coverage-matrix tests",
     "corpus: single-engine compatibility corpus coverage",
     "property: reserved for property-based tests",
     "smoke: reserved for smoke coverage",

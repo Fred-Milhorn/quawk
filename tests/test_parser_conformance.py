@@ -14,7 +14,7 @@ from quawk.lexer import lex
 from quawk.parser import parse
 from quawk.source import ProgramSource
 
-CONFORMANCE_ROOT = Path(__file__).resolve().parent / "parser_conformance"
+CONFORMANCE_ROOT = Path(__file__).resolve().parent / "conformance"
 
 DOCUMENTED_GRAMMAR_SECTIONS = {
     "program",
@@ -79,27 +79,7 @@ DOCUMENTED_GRAMMAR_SECTIONS = {
     "disambiguation.regex_vs_division",
 }
 
-REQUIRED_GRAMMAR_SECTIONS = {
-    "program",
-    "item.pattern_action",
-    "pattern.BEGIN",
-    "pattern.END",
-    "pattern.expr_regex",
-    "action",
-    "stmt.print",
-    "stmt.assignment",
-    "stmt.if",
-    "stmt.while",
-    "expr.string",
-    "expr.number",
-    "expr.name",
-    "expr.field",
-    "expr.add",
-    "expr.less",
-    "expr.equal",
-    "expr.logical_and",
-    "expr.grouped",
-}
+REQUIRED_GRAMMAR_SECTIONS = set(DOCUMENTED_GRAMMAR_SECTIONS)
 
 
 @dataclass(frozen=True)

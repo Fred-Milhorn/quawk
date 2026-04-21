@@ -1,0 +1,23 @@
+id = "range_for_loops"
+description = "Range patterns, classic for loops, for-in loops, and expression lists."
+program = "range_for_loops.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.range",
+  "pattern.expr_regex",
+  "action",
+  "stmt_list",
+  "sep.statement",
+  "stmt.for",
+  "stmt.for_in",
+  "stmt.print",
+  "expr_list",
+  "lvalue.name",
+  "expr.number",
+  "expr.name",
+  "expr.assign",
+  "expr.compare_other",
+  "expr.unary",
+  "expr.postfix",
+]

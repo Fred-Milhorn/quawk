@@ -26,5 +26,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     repetitive per-file `pytestmark` boilerplate.
     """
     for item in items:
+        if item.nodeid.startswith("tests/test_parser_conformance.py::"):
+            item.add_marker(pytest.mark.conformance)
         if "compat" not in item.keywords:
             item.add_marker(pytest.mark.core)

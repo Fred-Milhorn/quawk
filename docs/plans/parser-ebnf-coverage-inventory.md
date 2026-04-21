@@ -7,7 +7,7 @@ parser-focused test surface:
 
 - direct parser tests in `tests/test_parser.py`
 - parser goldens in `tests/test_parser_goldens.py`
-- file-backed conformance fixtures in `tests/parser_conformance/`
+- file-backed conformance fixtures in `tests/conformance/`
 
 The section labels below are the same names used by
 `tests/test_parser_conformance.py`.
@@ -16,7 +16,7 @@ The section labels below are the same names used by
 
 - `Overall parser evidence` means the current checked-in parser-focused tests
   prove at least one representative form for that grammar area today.
-- `Fixture matrix` means the current `tests/parser_conformance/` surface covers
+- `Fixture matrix` means the current `tests/conformance/` surface covers
   that grammar area explicitly.
 - `partial` means the area has some evidence today, but not enough to claim the
   whole documented surface is directly pinned.
@@ -24,27 +24,28 @@ The section labels below are the same names used by
 Current result:
 
 - the parser-focused test surface already covers most documented productions
-- the conformance fixture matrix still covers only a starter subset
-- the remaining work is mostly to widen fixture coverage (`T-314`) and add
-  ambiguity-focused direct tests (`T-315`)
+- the conformance fixture matrix now covers every labeled documented grammar
+  section used by `tests/test_parser_conformance.py`
+- the remaining work is now concentrated in ambiguity-focused direct tests
+  (`T-315`) and parser-vs-doc sync decisions (`T-316`)
 
 ## Top-Level Items And Structure
 
 | Section | Overall parser evidence | Fixture matrix | Current evidence | Notes |
 |---|---|---|---|---|
 | `program` | covered | covered | all conformance fixtures; `tests/test_parser.py` multi-item and single-item parses | base top-level shape is already pinned |
-| `item.function_def` | covered | uncovered | `test_parses_function_definition_and_call`; `tests/parser_goldens/function_surface.awk` | no conformance fixture yet |
-| `function_def` | covered | uncovered | direct function-definition test; `function_surface` golden | body/action integration is already covered |
-| `function_def.param_list` | covered | uncovered | one-parameter direct test; two-parameter `function_surface` golden | no conformance fixture yet |
+| `item.function_def` | covered | covered | `tests/conformance/function_surface.awk`; direct and golden function coverage | — |
+| `function_def` | covered | covered | `tests/conformance/function_surface.awk`; direct function-definition test; `function_surface` golden | body/action integration is already covered |
+| `function_def.param_list` | covered | covered | `tests/conformance/function_surface.awk`; direct and golden function coverage | — |
 | `item.pattern_action` | covered | covered | all conformance fixtures; bare-action and pattern-only direct tests | covered across BEGIN, record, END, and expression forms |
 | `pattern.BEGIN` | covered | covered | `begin_*` fixtures; multiple direct tests | — |
 | `pattern.END` | covered | covered | `mixed_begin_record_end` fixture; END direct tests | — |
-| `pattern.expr` | covered | partial | `test_parses_expression_pattern_without_action`; `regex_filter` fixture | fixture coverage only covers regex-shaped expression patterns today |
+| `pattern.expr` | covered | covered | `tests/conformance/expression_pattern.awk`; `regex_filter` fixture; direct expression-pattern test | — |
 | `pattern.expr_regex` | covered | covered | `regex_filter` fixture; regex expression-pattern direct tests | — |
-| `pattern.range` | covered | uncovered | `test_parses_range_pattern_and_if_else`; `tests/parser_goldens/range_if_else.awk` | no conformance fixture yet |
+| `pattern.range` | covered | covered | `tests/conformance/range_for_loops.awk`; direct and golden range-pattern coverage | — |
 | `action` | covered | covered | all action-bearing fixtures; many direct tests | — |
-| `stmt_list` | covered | partial | `begin_assignment` and `begin_while_loop` fixtures; many direct tests | fixture coverage covers semicolon-separated statement lists, not newline-heavy forms |
-| `sep.statement` | covered | partial | semicolon-separated fixtures; newline-separation direct tests | newline-separated simple statements are not in the fixture matrix yet |
+| `stmt_list` | covered | covered | multi-statement conformance fixtures now cover both semicolon and newline-separated lists | — |
+| `sep.statement` | covered | covered | conformance fixtures now include semicolon and NEWLINE-separated statement boundaries | — |
 
 ## Statements
 
@@ -53,60 +54,60 @@ Current result:
 | `stmt.block` | covered | covered | `begin_while_loop` fixture; while/do-while direct tests | nested braced statement bodies are pinned |
 | `stmt.if` | covered | covered | `begin_if_less` fixture; `range_if_else` direct/golden coverage | — |
 | `stmt.while` | covered | covered | `begin_while_loop` fixture; direct tests | — |
-| `stmt.do_while` | covered | uncovered | `test_parses_do_while_next_nextfile_and_exit`; `tests/parser_goldens/do_while_next_exit.awk`; newline-before-`while` direct test | no conformance fixture yet |
-| `stmt.for` | covered | uncovered | classic `for` direct tests, including comma lists and newline body | no conformance fixture yet |
-| `stmt.for_in` | covered | uncovered | direct tests for plain and parenthesized iterables | no conformance fixture yet |
-| `stmt.break` | covered | uncovered | `test_parses_break_and_continue_inside_while_block` | no conformance fixture yet |
-| `stmt.continue` | covered | uncovered | `test_parses_break_and_continue_inside_while_block` | no conformance fixture yet |
-| `stmt.next` | covered | uncovered | `test_parses_do_while_next_nextfile_and_exit`; `do_while_next_exit` golden | no conformance fixture yet |
-| `stmt.nextfile` | covered | uncovered | `test_parses_do_while_next_nextfile_and_exit`; `do_while_next_exit` golden | no conformance fixture yet |
-| `stmt.exit` | covered | uncovered | `test_parses_do_while_next_nextfile_and_exit`; `do_while_next_exit` golden | no conformance fixture yet |
-| `stmt.return` | covered | uncovered | `test_parses_function_definition_and_call`; `function_surface` golden | no conformance fixture yet |
-| `stmt.delete` | partial | uncovered | `test_parses_delete_statement`; `test_parses_dynamic_fields_multi_subscripts_and_delete_name`; `tests/parser_goldens/fields_arrays.awk` | the EBNF currently suggests an extra optional bracket tail that the parser does not parse separately |
+| `stmt.do_while` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden do-while coverage | — |
+| `stmt.for` | covered | covered | `tests/conformance/range_for_loops.awk`; classic `for` direct tests | — |
+| `stmt.for_in` | covered | covered | `tests/conformance/range_for_loops.awk`; direct `for ... in` tests | — |
+| `stmt.break` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct break/continue test | — |
+| `stmt.continue` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct break/continue test | — |
+| `stmt.next` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden `next` coverage | — |
+| `stmt.nextfile` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden `nextfile` coverage | — |
+| `stmt.exit` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden exit coverage | — |
+| `stmt.return` | covered | covered | `tests/conformance/function_surface.awk`; direct and golden return coverage | — |
+| `stmt.delete` | partial | covered | `tests/conformance/fields_delete.awk`; direct delete tests; `fields_arrays` golden | the EBNF currently suggests an extra optional bracket tail that the parser does not parse separately |
 | `stmt.assignment` | covered | covered | `begin_assignment` and `begin_while_loop` fixtures; many direct tests | fixture coverage does not yet include compound assignment |
 | `stmt.print` | covered | covered | multiple fixtures and direct tests | — |
-| `stmt.printf` | covered | uncovered | `test_parses_printf_expr_stmt_and_assignment_forms`; `test_parses_parenthesized_printf_with_substr_argument`; `tests/parser_goldens/printf_assign_forms.awk` | no conformance fixture yet |
-| `stmt.expr` | covered | uncovered | direct tests for `getline`, `close(...)`, prefix increment, and postfix increment | no conformance fixture yet |
+| `stmt.printf` | covered | covered | `tests/conformance/printf_redirect_call.awk`; direct and golden printf coverage | — |
+| `stmt.expr` | covered | covered | `tests/conformance/printf_redirect_call.awk` and `expression_surface.awk`; direct expression-statement coverage | — |
 
 ## Lists, LValues, And Expression Surface
 
 | Section | Overall parser evidence | Fixture matrix | Current evidence | Notes |
 |---|---|---|---|---|
-| `expr_list` | covered | uncovered | direct tests for `for` init/update lists and `printf` argument lists | conformance fixtures only use single-expression lists today |
-| `output_redirect` | covered | uncovered | `test_parses_print_and_printf_output_redirects` | all three redirect kinds are covered directly, but not in fixtures |
-| `subscript_list` | covered | uncovered | `test_parses_dynamic_fields_multi_subscripts_and_delete_name`; `fields_arrays` golden | no conformance fixture yet |
+| `expr_list` | covered | covered | conformance fixtures now cover print/printf lists and classic `for` init/update lists | — |
+| `output_redirect` | covered | covered | `tests/conformance/printf_redirect_call.awk`; direct redirect tests | all three redirect kinds are now in the fixture matrix |
+| `subscript_list` | covered | covered | `tests/conformance/fields_delete.awk`; direct tests; `fields_arrays` golden | — |
 | `lvalue.name` | covered | covered | assignment fixtures; many direct tests | — |
-| `lvalue.array` | covered | uncovered | array assignment/read direct tests; `fields_arrays` golden | no conformance fixture yet |
-| `lvalue.field` | covered | uncovered | dynamic field assignment direct test | no conformance fixture yet |
+| `lvalue.array` | covered | covered | `tests/conformance/fields_delete.awk`; direct tests; `fields_arrays` golden | — |
+| `lvalue.field` | covered | covered | `tests/conformance/fields_delete.awk`; dynamic field assignment direct test | — |
 | `expr.number` | covered | covered | multiple fixtures and direct tests | — |
 | `expr.string` | covered | covered | `begin_print_literal` and `mixed_begin_record_end` fixtures; direct tests | — |
-| `expr.regex` | covered | partial | regex literal direct tests; `regex_filter` fixture | fixture coverage only covers regex literals in pattern position |
+| `expr.regex` | covered | covered | `tests/conformance/expression_surface.awk`; `regex_filter` fixture; direct regex tests | — |
 | `expr.name` | covered | covered | assignment and while fixtures; direct tests | — |
 | `expr.field` | covered | covered | `mixed_begin_record_end` and `regex_filter` fixtures; direct tests | — |
-| `expr.call` | covered | uncovered | function-call direct tests; `function_surface` golden; builtin-call direct tests | no conformance fixture yet |
+| `expr.call` | covered | covered | `tests/conformance/function_surface.awk` and `printf_redirect_call.awk`; direct and golden call coverage | — |
 | `expr.grouped` | covered | covered | `begin_boolean_expr` fixture; direct tests | — |
-| `expr.assign` | covered | uncovered | `print (x = 1)` direct test; `printf_assign_forms` golden | no conformance fixture yet |
-| `expr.conditional` | covered | uncovered | `test_parses_remaining_expression_families`; `function_surface` golden | no conformance fixture yet |
-| `expr.logical_or` | covered | uncovered | `test_parses_remaining_expression_families` | no conformance fixture yet |
+| `expr.assign` | covered | covered | `tests/conformance/range_for_loops.awk`; direct assignment-expression tests; `printf_assign_forms` golden | — |
+| `expr.conditional` | covered | covered | `tests/conformance/function_surface.awk` and `expression_surface.awk`; direct and golden conditional coverage | — |
+| `expr.logical_or` | covered | covered | `tests/conformance/expression_surface.awk`; direct logical-or test | — |
 | `expr.logical_and` | covered | covered | `begin_boolean_expr` fixture; direct tests | — |
 | `expr.less` | covered | covered | `begin_if_less`, `begin_while_loop`, and `begin_boolean_expr` fixtures; direct tests | — |
-| `expr.compare_other` | covered | uncovered | `test_parses_remaining_expression_families` covers `<=`, `>`, `>=`, and `!=` | no conformance fixture yet |
+| `expr.compare_other` | covered | covered | `tests/conformance/expression_surface.awk` and `range_for_loops.awk`; direct comparison-family test | — |
 | `expr.equal` | covered | covered | `begin_boolean_expr` fixture; direct test | — |
-| `expr.match` | covered | uncovered | `test_parses_remaining_expression_families` | no conformance fixture yet |
-| `expr.in` | covered | uncovered | `test_parses_remaining_expression_families`; `for ... in` direct tests | no conformance fixture yet |
-| `expr.concat` | partial | uncovered | `test_parses_remaining_expression_families` parses a simple adjacency case | still needs broader ambiguity coverage |
+| `expr.match` | covered | covered | `tests/conformance/expression_surface.awk`; direct match/not-match test | — |
+| `expr.in` | covered | covered | `tests/conformance/expression_surface.awk`; direct membership and `for ... in` tests | — |
+| `expr.concat` | partial | covered | `tests/conformance/expression_surface.awk`; direct concat test | still needs broader ambiguity coverage |
 | `expr.add` | covered | covered | assignment and while fixtures; direct tests | — |
-| `expr.mul` | covered | uncovered | `test_parses_remaining_expression_families` | no conformance fixture yet |
-| `expr.pow` | covered | uncovered | `test_parses_remaining_expression_families` | no conformance fixture yet |
-| `expr.unary` | covered | uncovered | `test_parses_remaining_expression_families` | no conformance fixture yet |
-| `expr.postfix` | covered | uncovered | classic `for` direct tests; `test_parses_remaining_expression_families` | no conformance fixture yet |
+| `expr.mul` | covered | covered | `tests/conformance/expression_surface.awk`; direct arithmetic-family test | — |
+| `expr.pow` | covered | covered | `tests/conformance/expression_surface.awk`; direct arithmetic-family test | — |
+| `expr.unary` | covered | covered | `tests/conformance/expression_surface.awk` and `range_for_loops.awk`; direct unary tests | — |
+| `expr.postfix` | covered | covered | `tests/conformance/expression_surface.awk` and `range_for_loops.awk`; direct postfix tests | — |
 
 ## Disambiguation Rules
 
 | Section | Overall parser evidence | Fixture matrix | Current evidence | Notes |
 |---|---|---|---|---|
-| `disambiguation.concat` | partial | uncovered | direct concat coverage in `test_parses_remaining_expression_families` | adjacency/blocker boundaries still need targeted direct tests |
-| `disambiguation.regex_vs_division` | partial | uncovered | direct tests cover both regex literals and `/` as division, but not an ambiguity-focused pair | needs targeted direct coverage in `T-315` |
+| `disambiguation.concat` | partial | covered | `tests/conformance/expression_surface.awk`; direct concat coverage in `test_parses_remaining_expression_families` | adjacency/blocker boundaries still need targeted direct tests |
+| `disambiguation.regex_vs_division` | partial | covered | `tests/conformance/expression_surface.awk`; direct tests cover both regex literals and `/` as division | still needs an ambiguity-focused pair in `T-315` |
 
 ## Documented Grammar Vs Current Parser Divergences
 

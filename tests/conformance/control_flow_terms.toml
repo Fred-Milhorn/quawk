@@ -1,0 +1,21 @@
+id = "control_flow_terms"
+description = "Control-flow statements with newline separators and nested blocks."
+program = "control_flow_terms.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "pattern.END",
+  "action",
+  "stmt_list",
+  "sep.statement",
+  "stmt.block",
+  "stmt.while",
+  "stmt.do_while",
+  "stmt.break",
+  "stmt.continue",
+  "stmt.next",
+  "stmt.nextfile",
+  "stmt.exit",
+  "expr.number",
+]

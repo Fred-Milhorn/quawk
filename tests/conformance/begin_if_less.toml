@@ -8,6 +8,7 @@ grammar_sections = [
   "action",
   "stmt.if",
   "stmt.print",
+  "expr_list",
   "expr.number",
   "expr.less",
 ]

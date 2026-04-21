@@ -4,8 +4,10 @@ program = "regex_filter.awk"
 grammar_sections = [
   "program",
   "item.pattern_action",
+  "pattern.expr",
   "pattern.expr_regex",
   "action",
   "stmt.print",
+  "expr_list",
   "expr.field",
 ]

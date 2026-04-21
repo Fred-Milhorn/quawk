@@ -1,0 +1,19 @@
+id = "function_surface"
+description = "Function definition, parameter list, return statement, and call expression."
+program = "function_surface.awk"
+grammar_sections = [
+  "program",
+  "item.function_def",
+  "function_def",
+  "function_def.param_list",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt.return",
+  "stmt.print",
+  "expr_list",
+  "expr.number",
+  "expr.name",
+  "expr.call",
+  "expr.conditional",
+]

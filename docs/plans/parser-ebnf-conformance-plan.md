@@ -102,7 +102,7 @@ Landed inventory:
 
 ### Phase 2: Expand parser conformance fixtures
 
-Grow `tests/parser_conformance/` and `tests/test_parser_conformance.py` so the
+Grow `tests/conformance/` and `tests/test_parser_conformance.py` so the
 fixture-backed coverage matrix spans the documented parser contract rather than a
 small starter subset.
 
@@ -116,6 +116,11 @@ Acceptance:
 - the conformance coverage matrix fails if a documented grammar area loses all
   fixture coverage
 - conformance fixture names stay understandable without roadmap-task knowledge
+
+Landed fixture expansion:
+
+- `tests/conformance/`
+- `tests/test_parser_conformance.py`
 
 ### Phase 3: Add ambiguous and negative parser coverage
 

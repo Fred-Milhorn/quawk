@@ -58,6 +58,7 @@ Preferred suite commands:
 
 ```sh
 uv run pytest -q -m core
+uv run pytest -q -m conformance
 uv run pytest -m compat_reference
 uv run pytest -m compat_corpus
 ```

@@ -1,0 +1,22 @@
+id = "fields_delete"
+description = "Field lvalues, array subscripts, and delete statements."
+program = "fields_delete.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt_list",
+  "sep.statement",
+  "stmt.assignment",
+  "stmt.print",
+  "stmt.delete",
+  "expr_list",
+  "subscript_list",
+  "lvalue.name",
+  "lvalue.array",
+  "lvalue.field",
+  "expr.number",
+  "expr.name",
+  "expr.field",
+]

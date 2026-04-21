@@ -1,0 +1,20 @@
+id = "printf_redirect_call"
+description = "Parenthesized printf, redirects, call expressions, and expression statements."
+program = "printf_redirect_call.awk"
+grammar_sections = [
+  "program",
+  "item.pattern_action",
+  "pattern.BEGIN",
+  "action",
+  "stmt_list",
+  "sep.statement",
+  "stmt.print",
+  "stmt.printf",
+  "stmt.expr",
+  "expr_list",
+  "output_redirect",
+  "expr.number",
+  "expr.string",
+  "expr.name",
+  "expr.call",
+]
