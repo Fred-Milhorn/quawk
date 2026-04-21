@@ -47,20 +47,32 @@ Toolchain baseline:
 - Python `3.14.x`
 - LLVM command-line tools on `PATH`:
   - `lli` for executing generated LLVM IR
-  - `clang`, `llvm-as`, and `llvm-link` for the current record/input execution path
-  - `llc` for `quawk --asm`
+- `clang`, `llvm-as`, and `llvm-link` for the current record/input execution path
+- `llc` for `quawk --asm`
 
-Bootstrap:
+Install from a local clone:
 
 ```sh
+git clone https://github.com/Fred-Milhorn/quawk.git
+cd quawk
+brew install llvm
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 uv python install 3.14
 uv venv --python 3.14 .venv
 source .venv/bin/activate
+uv pip install -e .
+quawk --help
 ```
 
 Full setup and local command guidance live in [docs/getting-started.md](docs/getting-started.md).
 
 The current runtime shells out to system LLVM binaries rather than bundling an LLVM distribution. On macOS, package-manager LLVM installs are often not on `PATH` by default, so make sure the directory containing these tools is exported before running `quawk`.
+
+If you want the contributor/test setup instead of a user install, use:
+
+```sh
+uv pip install -e .[dev]
+```
 
 Pinned upstream compatibility references now live under `third_party/`. From a
 fresh checkout, initialize them with `git submodule update --init --recursive`.

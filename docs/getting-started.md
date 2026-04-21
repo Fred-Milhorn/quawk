@@ -1,6 +1,7 @@
 # Getting Started
 
-This guide covers local setup and the first commands contributors should expect to use while `quawk` continues active implementation.
+This guide covers local setup both for people who want to run `quawk` from a
+local clone and for contributors who want the full development toolchain.
 
 ## Toolchain Baseline
 
@@ -35,6 +36,30 @@ uv python install 3.14
 uv venv --python 3.14 .venv
 source .venv/bin/activate
 ```
+
+## Install `quawk` From A Local Clone
+
+For a local user install on macOS:
+
+```sh
+git clone https://github.com/Fred-Milhorn/quawk.git
+cd quawk
+brew install llvm
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+uv python install 3.14
+uv venv --python 3.14 .venv
+source .venv/bin/activate
+uv pip install -e .
+quawk --help
+quawk 'BEGIN { print "hello" }'
+```
+
+This installs the `quawk` console script into `.venv/bin/`.
+
+If your Homebrew prefix is different, export the matching LLVM `bin/`
+directory instead.
+
+## Contributor Bootstrap
 
 Install the project and development dependencies:
 
