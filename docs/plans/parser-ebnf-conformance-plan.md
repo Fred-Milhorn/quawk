@@ -146,6 +146,10 @@ Acceptance:
 - invalid forms fail with parser errors rather than silently producing the wrong
   tree
 
+Landed direct edge-case coverage:
+
+- `tests/test_parser.py`
+
 ### Phase 4: Sync parser-facing docs and close out
 
 After the coverage expansion lands:

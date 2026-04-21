@@ -26,8 +26,8 @@ Current result:
 - the parser-focused test surface already covers most documented productions
 - the conformance fixture matrix now covers every labeled documented grammar
   section used by `tests/test_parser_conformance.py`
-- the remaining work is now concentrated in ambiguity-focused direct tests
-  (`T-315`) and parser-vs-doc sync decisions (`T-316`)
+- the remaining work is now concentrated in parser-vs-doc sync decisions
+  (`T-316`) and final closeout validation (`T-317`)
 
 ## Top-Level Items And Structure
 
@@ -63,7 +63,7 @@ Current result:
 | `stmt.nextfile` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden `nextfile` coverage | — |
 | `stmt.exit` | covered | covered | `tests/conformance/control_flow_terms.awk`; direct and golden exit coverage | — |
 | `stmt.return` | covered | covered | `tests/conformance/function_surface.awk`; direct and golden return coverage | — |
-| `stmt.delete` | partial | covered | `tests/conformance/fields_delete.awk`; direct delete tests; `fields_arrays` golden | the EBNF currently suggests an extra optional bracket tail that the parser does not parse separately |
+| `stmt.delete` | partial | covered | `tests/conformance/fields_delete.awk`; direct delete-target tests; `fields_arrays` golden | the EBNF currently suggests an extra optional bracket tail that the parser does not parse separately |
 | `stmt.assignment` | covered | covered | `begin_assignment` and `begin_while_loop` fixtures; many direct tests | fixture coverage does not yet include compound assignment |
 | `stmt.print` | covered | covered | multiple fixtures and direct tests | — |
 | `stmt.printf` | covered | covered | `tests/conformance/printf_redirect_call.awk`; direct and golden printf coverage | — |
@@ -95,7 +95,7 @@ Current result:
 | `expr.equal` | covered | covered | `begin_boolean_expr` fixture; direct test | — |
 | `expr.match` | covered | covered | `tests/conformance/expression_surface.awk`; direct match/not-match test | — |
 | `expr.in` | covered | covered | `tests/conformance/expression_surface.awk`; direct membership and `for ... in` tests | — |
-| `expr.concat` | partial | covered | `tests/conformance/expression_surface.awk`; direct concat test | still needs broader ambiguity coverage |
+| `expr.concat` | covered | covered | `tests/conformance/expression_surface.awk`; direct concat-boundary tests in `tests/test_parser.py` | — |
 | `expr.add` | covered | covered | assignment and while fixtures; direct tests | — |
 | `expr.mul` | covered | covered | `tests/conformance/expression_surface.awk`; direct arithmetic-family test | — |
 | `expr.pow` | covered | covered | `tests/conformance/expression_surface.awk`; direct arithmetic-family test | — |
@@ -106,8 +106,8 @@ Current result:
 
 | Section | Overall parser evidence | Fixture matrix | Current evidence | Notes |
 |---|---|---|---|---|
-| `disambiguation.concat` | partial | covered | `tests/conformance/expression_surface.awk`; direct concat coverage in `test_parses_remaining_expression_families` | adjacency/blocker boundaries still need targeted direct tests |
-| `disambiguation.regex_vs_division` | partial | covered | `tests/conformance/expression_surface.awk`; direct tests cover both regex literals and `/` as division | still needs an ambiguity-focused pair in `T-315` |
+| `disambiguation.concat` | covered | covered | `tests/conformance/expression_surface.awk`; targeted concat-boundary tests in `tests/test_parser.py` | — |
+| `disambiguation.regex_vs_division` | covered | covered | `tests/conformance/expression_surface.awk`; targeted regex-vs-division tests in `tests/test_parser.py` | — |
 
 ## Documented Grammar Vs Current Parser Divergences
 
@@ -116,8 +116,9 @@ they are not clean one-to-one EBNF sections today.
 
 1. `getline` is parser-admitted as a special expression form, but
    `docs/quawk.ebnf` does not currently model it with a dedicated production.
-   Current evidence: `test_parses_getline_into_named_target_with_file_source`
-   and `test_format_program_includes_getline_expression_shape`.
+   Current evidence: `test_parses_getline_into_named_target_with_file_source`,
+   `test_parses_getline_target_only_variants`, and
+   `test_format_program_includes_getline_expression_shape`.
 2. Bare `length` is parser-admitted as a zero-argument builtin call without
    parentheses, but the documented `func_call` production currently requires
    `IDENT "(" arg_list? ")"`.

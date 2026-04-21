@@ -6,10 +6,6 @@ from __future__ import annotations
 
 import pytest
 
-from quawk.diagnostics import ParseError
-from quawk.ast_format import format_program
-from quawk.lexer import lex
-from quawk.parser import parse
 from quawk.ast import (
     Action,
     ArrayIndexExpr,
@@ -58,6 +54,10 @@ from quawk.ast import (
     UnaryOp,
     WhileStmt,
 )
+from quawk.ast_format import format_program
+from quawk.diagnostics import ParseError
+from quawk.lexer import lex
+from quawk.parser import parse
 from quawk.source import combine_spans
 
 
@@ -176,6 +176,28 @@ def test_format_program_includes_getline_expression_shape() -> None:
     )
 
 
+def test_parses_getline_target_only_variants() -> None:
+    program = parse(lex("BEGIN { getline x; getline $1 }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    target_only = action.statements[0]
+    assert isinstance(target_only, ExprStmt)
+    assert isinstance(target_only.value, GetlineExpr)
+    assert isinstance(target_only.value.target, NameLValue)
+    assert target_only.value.target.name == "x"
+    assert target_only.value.source is None
+
+    field_target_only = action.statements[1]
+    assert isinstance(field_target_only, ExprStmt)
+    assert isinstance(field_target_only.value, GetlineExpr)
+    assert isinstance(field_target_only.value.target, FieldLValue)
+    assert isinstance(field_target_only.value.target.index, NumericLiteralExpr)
+    assert field_target_only.value.target.index.value == 1.0
+    assert field_target_only.value.source is None
+
+
 def test_parses_delete_statement() -> None:
     program = parse(lex('BEGIN { delete a["x"] }'))
 
@@ -186,6 +208,25 @@ def test_parses_delete_statement() -> None:
     assert statement.array_name == "a"
     assert isinstance(statement.index, StringLiteralExpr)
     assert statement.index.value == "x"
+
+
+def test_parses_delete_field_and_multi_subscript_targets() -> None:
+    program = parse(lex("BEGIN { delete a[1, 2]; delete $i }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    array_delete = action.statements[0]
+    assert isinstance(array_delete, DeleteStmt)
+    assert isinstance(array_delete.target, ArrayLValue)
+    assert len(array_delete.target.subscripts) == 2
+    assert len(array_delete.extra_indexes) == 1
+
+    field_delete = action.statements[1]
+    assert isinstance(field_delete, DeleteStmt)
+    assert isinstance(field_delete.target, FieldLValue)
+    assert isinstance(field_delete.target.index, NameExpr)
+    assert field_delete.target.index.name == "i"
 
 
 def test_parses_classic_for_statement() -> None:
@@ -244,6 +285,17 @@ def test_parses_for_in_statement_with_parenthesized_iterable() -> None:
     assert loop.name == "k"
     assert isinstance(loop.iterable, NameExpr)
     assert loop.iterable.name == "a"
+
+
+def test_parses_for_in_statement_with_expression_iterable() -> None:
+    program = parse(lex("BEGIN { for (k in a[1]) print k }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    loop = action.statements[0]
+    assert isinstance(loop, ForInStmt)
+    assert isinstance(loop.iterable, ArrayIndexExpr)
+    assert loop.array_name is None
 
 
 def test_parses_bare_action_with_field_expression() -> None:
@@ -720,6 +772,82 @@ def test_parses_remaining_expression_families() -> None:
     assert isinstance(action.statements[8], ExprStmt)
     assert isinstance(action.statements[8].value, PostfixExpr)
     assert action.statements[8].value.op is PostfixOp.POST_INC
+
+
+def test_parses_concat_after_division_and_stops_at_argument_separator() -> None:
+    program = parse(lex("BEGIN { print a / b c, d }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+    print_stmt = action.statements[0]
+    assert isinstance(print_stmt, PrintStmt)
+    assert len(print_stmt.arguments) == 2
+
+    concat = print_stmt.arguments[0]
+    assert isinstance(concat, BinaryExpr)
+    assert concat.op is BinaryOp.CONCAT
+    assert isinstance(concat.left, BinaryExpr)
+    assert concat.left.op is BinaryOp.DIV
+    assert isinstance(concat.right, NameExpr)
+    assert concat.right.name == "c"
+
+    second_argument = print_stmt.arguments[1]
+    assert isinstance(second_argument, NameExpr)
+    assert second_argument.name == "d"
+
+
+def test_distinguishes_regex_literals_from_division_expressions() -> None:
+    program = parse(lex("BEGIN { print /x+/; print a / b / c }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    regex_print = action.statements[0]
+    assert isinstance(regex_print, PrintStmt)
+    assert isinstance(regex_print.arguments[0], RegexLiteralExpr)
+
+    division_print = action.statements[1]
+    assert isinstance(division_print, PrintStmt)
+    division = division_print.arguments[0]
+    assert isinstance(division, BinaryExpr)
+    assert division.op is BinaryOp.DIV
+    assert isinstance(division.left, BinaryExpr)
+    assert division.left.op is BinaryOp.DIV
+
+
+def test_parses_right_associative_assignment_and_ternary_expressions() -> None:
+    program = parse(lex("BEGIN { a = b = 1; print 1 ? 2 : 3 ? 4 : 5 }"))
+
+    action = program.items[0].action
+    assert isinstance(action, Action)
+
+    assignment = action.statements[0]
+    assert isinstance(assignment, AssignStmt)
+    assert isinstance(assignment.value, AssignExpr)
+    assert isinstance(assignment.value.target, NameLValue)
+    assert assignment.value.target.name == "b"
+
+    conditional_print = action.statements[1]
+    assert isinstance(conditional_print, PrintStmt)
+    conditional = conditional_print.arguments[0]
+    assert isinstance(conditional, ConditionalExpr)
+    assert isinstance(conditional.if_false, ConditionalExpr)
+
+
+@pytest.mark.parametrize(
+    ("source", "match"),
+    [
+        ("BEGIN { for (k in a; k < 2; k++) print k }", "expected RPAREN, got SEMICOLON"),
+        ("BEGIN { printf() }", "expected expression, got RPAREN"),
+        ("BEGIN { delete (a) }", "expected lvalue, got LPAREN"),
+        ("BEGIN { (x + 1) = 2 }", "expected assignable expression on left-hand side"),
+        ("BEGIN { f() = 1 }", "expected assignable expression on left-hand side"),
+        ("BEGIN { 1 = 2 }", "expected assignable expression on left-hand side"),
+    ],
+)
+def test_rejects_invalid_parser_boundary_forms(source: str, match: str) -> None:
+    with pytest.raises(ParseError, match=match):
+        parse(lex(source))
 
 
 def test_parses_newline_separated_for_loop_body() -> None:
