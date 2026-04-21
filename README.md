@@ -80,13 +80,11 @@ uv run quawk --parse 'BEGIN { print 1 + 2 }'
 
 ## Docs Map
 
-- [CHANGELOG.md](CHANGELOG.md): user-visible release history
 - [CONTRIBUTING.md](CONTRIBUTING.md): contributor workflow, standards, and PR expectations
 - [POSIX.md](POSIX.md): POSIX alignment status, remaining reviewed gaps, and historical closeout notes
 - [SPEC.md](SPEC.md): implemented/planned/out-of-scope feature matrix
 - [docs/getting-started.md](docs/getting-started.md): local setup and first commands
 - [AGENTS.md](AGENTS.md): agent/operator workflow for `uv` commands and Git commit practice
-- [docs/release-checklist.md](docs/release-checklist.md): versioned release workflow
 - [docs/design.md](docs/design.md): architecture, execution, and CLI design
 - [docs/quawk.ebnf](docs/quawk.ebnf): concrete syntax grammar
 - [docs/quawk.asdl](docs/quawk.asdl): implemented AST schema

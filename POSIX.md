@@ -992,9 +992,8 @@ Rationale:
   than close a remaining known product gap
 - the roadmap should not imply that broader expression support is already owed
   by the current public contract
-- supporting analysis lives in:
-  - [docs/plans/expression-surface-decision-table.md](docs/plans/expression-surface-decision-table.md)
-  - [docs/plans/expression-surface-widening-analysis.md](docs/plans/expression-surface-widening-analysis.md)
+- supporting analysis now lives directly in the checked-in `SPEC.md`,
+  `docs/design.md`, and roadmap contract language
 
 Decision-gated broader surface, not current product debt:
 
@@ -1026,9 +1025,8 @@ Residual host-runtime boundary follow-up:
 - the broader expression surface originally remained intentionally unclaimed,
   and the repo needed a clearer inventory of where ordinary public execution
   could reach the Python host runtime
-- that follow-up audit is planned separately in:
-- [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
-- [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
+- that follow-up audit is now reflected directly in `SPEC.md`,
+  `docs/design.md`, and the roadmap
 
 ### T-202 Execution-Model Rebaseline Result
 
@@ -1045,14 +1043,8 @@ What changed in the documented contract:
 - the former claimed value-fallback debt from `P20` is now closed for the
   current claimed surface
 
-Supporting follow-on planning lives in:
-
-- [docs/plans/host-runtime-boundary-audit.md](docs/plans/host-runtime-boundary-audit.md)
-- [docs/plans/residual-host-runtime-matrix.md](docs/plans/residual-host-runtime-matrix.md)
-- [docs/plans/claimed-value-fallback-cleanup.md](docs/plans/claimed-value-fallback-cleanup.md)
-- [docs/plans/claimed-value-fallback-matrix.md](docs/plans/claimed-value-fallback-matrix.md)
-- [docs/plans/expression-surface-widening-analysis.md](docs/plans/expression-surface-widening-analysis.md)
-- [docs/plans/expression-surface-decision-table.md](docs/plans/expression-surface-decision-table.md)
+Supporting follow-on planning is now reflected directly in `SPEC.md`,
+`docs/design.md`, `docs/compatibility.md`, and the roadmap.
 
 ### T-207 Execution-Model Final Rebaseline Result
 

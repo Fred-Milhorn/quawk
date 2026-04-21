@@ -3,8 +3,8 @@
 This document records the AWK forms that still sit outside Quawk's compiled
 backend/runtime contract.
 
-The implementation follow-up plan for closing these gaps lives in
-[execution-completeness-plan.md](execution-completeness-plan.md).
+It is the kept living inventory for the remaining grammar-valid but
+not-yet-lowered backend surface.
 
 The intended execution model remains:
 
