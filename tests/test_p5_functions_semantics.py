@@ -84,6 +84,50 @@ def test_zero_argument_function_with_multiple_local_only_parameters_keeps_each_l
     assert result.stderr == ""
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-319/P38: quawk collapses concatenated string returns instead of preserving the full text",
+)
+def test_function_return_preserves_simple_concatenated_string_text() -> None:
+    result = run_quawk('function join3(a, b, c) { return a "-" b "-" c }\nBEGIN { print join3("A", "B", "C") }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "A-B-C\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-319/P38: quawk collapses helper-built string returns used for formatting",
+)
+def test_function_return_preserves_helper_built_padding_text() -> None:
+    result = run_quawk(
+        'function pad2(x) { if (x < 10) return "0" x; return x "" }\n'
+        "BEGIN { print pad2(7); print pad2(12) }"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "07\n12\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-319/P38: quawk collapses composite helper-built return text such as date/report fragments",
+)
+def test_function_return_preserves_composite_date_and_report_fragment_text() -> None:
+    result = run_quawk(
+        'function pad2(x) { if (x < 10) return "0" x; return x "" }\n'
+        'function date_string(y, m, d) { return y "-" pad2(m) "-" pad2(d) }\n'
+        'function hottest_line(value, when, name) { return "Hottest day: " value " C  " when "  " name }\n'
+        'BEGIN { print date_string(2023, 7, 19); print hottest_line("48.3", "2023-07-19", "PHOENIX AP") }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "2023-07-19\nHottest day: 48.3 C  2023-07-19  PHOENIX AP\n"
+    assert result.stderr == ""
+
+
 def test_duplicate_function_definitions_report_semantic_error() -> None:
     result = run_quawk("function f(x) { return x }\nfunction f(y) { return y }\nBEGIN { print f(1) }")
 
