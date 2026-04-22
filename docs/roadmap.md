@@ -8,10 +8,13 @@ ledger now live in [docs/roadmap-archive.md](roadmap-archive.md).
 ## Current Status
 
 - `P0` through `P37` are complete.
+- `P38` is now active.
 - The current claimed `quawk` surface is documented as a best-effort
   POSIX-complete implementation of AWK.
-- No implementation phase is currently active.
-- There is no active backlog.
+- The NOAA climate-report example now has a reference-awk baseline under
+  `one-true-awk` and `gawk --posix`.
+- The active backlog is a focused quawk follow-up on function-local semantics
+  and concatenated string-return behavior.
 
 ## Working Rules
 
@@ -26,11 +29,46 @@ ledger now live in [docs/roadmap-archive.md](roadmap-archive.md).
 
 ## Immediate Next Tasks
 
-There is no active implementation task at the moment.
+The current implementation phase is `P38`.
 
-If future priorities change, treat any broader POSIX expression-surface
-widening as a new scoped initiative rather than as leftover live backlog from an
-older phase.
+| ID | Phase | Priority | Task | Depends On | Acceptance | Status |
+|---|---|---|---|---|---|---|
+| T-318 | P38 | P0 | Add end-to-end regressions for AWK-style extra-parameter locals | - | Direct runtime tests fail under current quawk and pass under the reference awk baseline for representative zero-argument helper and `function f(x,    tmp) { ... }` local-parameter shapes | done |
+| T-319 | P38 | P0 | Add regressions for concatenated string returns and helper-built text | - | Direct runtime tests fail under current quawk and pass under the reference awk baseline for date/helper/report-style string-return shapes | todo |
+| T-320 | P38 | P1 | Diagnose the function-local binding failure in quawk | T-318 | The implementation path that misbinds or loses AWK-style local parameters is identified and documented in the code or task notes | todo |
+| T-321 | P38 | P1 | Diagnose the string-return and concatenation failure in quawk | T-319 | The implementation path that collapses returned concatenated strings is identified and documented in the code or task notes | todo |
+| T-322 | P38 | P0 | Fix quawk function-local semantics | T-320 | AWK-style extra-parameter locals behave like one-true-awk and `gawk --posix` in direct runtime tests | todo |
+| T-323 | P38 | P0 | Fix quawk string-return semantics | T-321 | Helper-built and concatenated string returns preserve the full expected text in direct runtime tests | todo |
+| T-324 | P38 | P1 | Validate focused function regressions plus the NOAA sample workflow | T-322, T-323 | The new focused regressions pass and the NOAA sample matches the reference-awk baseline under the documented stdin-streaming workflow | todo |
+
+## Active Phase
+
+### P38: Function Semantics Regression Closure
+
+Objective:
+- close the newly exposed runtime gaps in function-local binding and
+  concatenated string-return behavior, using a reference-awk baseline and
+  focused regressions outside the NOAA example
+
+In scope:
+- add small direct regressions for AWK-style extra-parameter locals used as true
+  function-local storage
+- add small direct regressions for helper functions that return concatenated
+  strings or formatted report fragments
+- diagnose the lowering/runtime path for each failure separately
+- fix quawk itself rather than narrowing the example around the bugs
+- use the NOAA climate-report sample as a final validation workload after the
+  direct regressions are in place
+
+Exit criteria:
+- direct tests pin the function-local and string-return failures independently of
+  the NOAA example
+- quawk matches `one-true-awk` and `gawk --posix` for the new direct
+  regressions
+- the NOAA bundled-sample workflow matches the reference-awk baseline under both
+  direct-file and stdin-stream input shapes
+- the roadmap can move `P38` to the completed set without leaving this behavior
+  as hidden example-only debt
 
 ## Recent Completed Phases
 

@@ -7,6 +7,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -26,6 +28,59 @@ def test_function_definition_and_call_execute() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "3\n"
+    assert result.stderr == ""
+
+
+def test_multi_parameter_function_call_executes_with_argument_order_preserved() -> None:
+    result = run_quawk("function add(x, y) { return x + y }\nBEGIN { print add(2, 3) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "5\n"
+    assert result.stderr == ""
+
+
+def test_multi_parameter_function_call_keeps_parameters_distinct_from_each_other_and_globals() -> None:
+    result = run_quawk(
+        "function pair_sum(x, y) { x = x + 1; return x + y }\nBEGIN { y = 100; print pair_sum(2, 3); print y }"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "6\n100\n"
+    assert result.stderr == ""
+
+
+def test_three_parameter_function_call_preserves_position() -> None:
+    result = run_quawk("function pick(a, b, c) { return b }\nBEGIN { print pick(10, 20, 30) }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "20\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-318/P38: quawk misbinds local-only AWK function parameters in some zero-argument helpers",
+)
+def test_zero_argument_function_with_local_only_string_parameter_returns_the_local_value() -> None:
+    result = run_quawk('function f(    id) { id = "abc"; return id }\nBEGIN { print f() }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "abc\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-318/P38: quawk misbinds multiple local-only AWK function parameters in fixed-width helper shapes",
+)
+def test_zero_argument_function_with_multiple_local_only_parameters_keeps_each_local_distinct() -> None:
+    result = run_quawk(
+        'function load(    id, state) { id = substr("USW00023183AZ", 1, 11); state = substr("USW00023183AZ", 12, 2); '
+        'print id; print state }\nBEGIN { load() }'
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "USW00023183\nAZ\n"
     assert result.stderr == ""
 
 
