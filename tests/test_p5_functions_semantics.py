@@ -57,22 +57,14 @@ def test_three_parameter_function_call_preserves_position() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-318/P38: quawk misbinds local-only AWK function parameters in some zero-argument helpers",
-)
-def test_zero_argument_function_with_local_only_string_parameter_returns_the_local_value() -> None:
-    result = run_quawk('function f(    id) { id = "abc"; return id }\nBEGIN { print f() }')
+def test_zero_argument_function_with_local_only_string_parameter_prints_the_local_value() -> None:
+    result = run_quawk('function f(    id) { id = "abc"; print id }\nBEGIN { f() }')
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "abc\n"
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-318/P38: quawk misbinds multiple local-only AWK function parameters in fixed-width helper shapes",
-)
 def test_zero_argument_function_with_multiple_local_only_parameters_keeps_each_local_distinct() -> None:
     result = run_quawk(
         'function load(    id, state) { id = substr("USW00023183AZ", 1, 11); state = substr("USW00023183AZ", 12, 2); '
@@ -81,6 +73,34 @@ def test_zero_argument_function_with_multiple_local_only_parameters_keeps_each_l
 
     assert result.returncode == 0, result.stderr
     assert result.stdout == "USW00023183\nAZ\n"
+    assert result.stderr == ""
+
+
+def test_function_local_string_assignment_from_parameter_preserves_text() -> None:
+    result = run_quawk('function copy(x,    tmp) { tmp = x; print tmp }\nBEGIN { copy("abc") }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "abc\n"
+    assert result.stderr == ""
+
+
+def test_function_local_string_assignment_expression_preserves_text() -> None:
+    result = run_quawk('function copy(x,    tmp) { print (tmp = x) }\nBEGIN { copy("abc") }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "abc\n"
+    assert result.stderr == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-321/P38: generic caller coercion still treats user-defined string returns as numeric",
+)
+def test_user_defined_function_return_of_local_string_preserves_text_at_the_caller() -> None:
+    result = run_quawk('function f(    id) { id = "abc"; return id }\nBEGIN { print f() }')
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "abc\n"
     assert result.stderr == ""
 
 

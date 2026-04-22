@@ -104,7 +104,11 @@ def load_runtime_function_param_string(name: str, state: LoweringState) -> str:
 def store_runtime_function_param_string(name: str, string_value: str, state: LoweringState) -> None:
     """Store one mutable runtime function parameter/local string value back to its slot."""
     slot_name = state.function_param_strings[name]
-    state.instructions.append(f"  store ptr {string_value}, ptr {slot_name}")
+    captured_value = state.next_temp("param.str.capture")
+    state.instructions.append(
+        f"  {captured_value} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})"
+    )
+    state.instructions.append(f"  store ptr {captured_value}, ptr {slot_name}")
 
 
 def lower_runtime_argument_string(expression: Expr, state: LoweringState) -> str:
@@ -266,6 +270,8 @@ def runtime_assignment_preserves_string(expression: Expr, state: LoweringState) 
         case NameExpr(name="FILENAME"):
             return True
         case NameExpr(name=name) if name in state.loop_string_bindings:
+            return True
+        case NameExpr(name=name) if name in state.function_param_strings:
             return True
         case NameExpr(name=name):
             return runtime_name_uses_only_scalar_runtime(name,

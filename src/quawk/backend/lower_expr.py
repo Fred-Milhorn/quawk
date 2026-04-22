@@ -489,6 +489,21 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                 f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {numeric_value})"
             )
         case NameLValue(name=name):
+            if name in state.function_param_strings:
+                if expression.op is AssignOp.PLAIN and runtime_assignment_preserves_string(expression.value, state):
+                    string_value = lower_runtime_string_expression(expression.value, state)
+                    store_runtime_function_param_string(name, string_value, state)
+                    numeric_value = state.next_temp("assign.param.num")
+                    stored_value = load_runtime_function_param_string(name, state)
+                    state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {stored_value})")
+                    return numeric_value
+                current_ptr = load_runtime_function_param_string(name, state)
+                current_value = state.next_temp("param.current.num")
+                state.instructions.append(f"  {current_value} = call double @qk_parse_number_text(ptr {current_ptr})")
+                numeric_value = lower_runtime_numeric_expression(expression.value, state)
+                numeric_value = combine_numeric_assignment(current_value, numeric_value)
+                store_runtime_function_param_string(name, lower_runtime_string_from_numeric_value(numeric_value, state), state)
+                return numeric_value
             if is_reusable_runtime_state_name(name):
                 slot_name = variable_address(name, state)
                 current_value = state.next_temp("state.current")
@@ -762,6 +777,10 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                     )
                     return string_value
                 case NameLValue(name=name) if runtime_assignment_preserves_string(value, state):
+                    if name in state.function_param_strings:
+                        string_value = lower_runtime_string_expression(value, state)
+                        store_runtime_function_param_string(name, string_value, state)
+                        return load_runtime_function_param_string(name, state)
                     if is_reusable_runtime_state_name(name):
                         raise RuntimeError(
                             "string-valued assignment expressions are not supported for reusable numeric state"
