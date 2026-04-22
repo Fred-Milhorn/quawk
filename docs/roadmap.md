@@ -38,7 +38,7 @@ The current implementation phase is `P38`.
 | T-320 | P38 | P1 | Diagnose the function-local binding failure in quawk | T-318 | The implementation path that misbinds or loses AWK-style local parameters is identified and documented in the code or task notes | done |
 | T-321 | P38 | P1 | Diagnose the string-return and concatenation failure in quawk | T-319 | The implementation path that collapses returned concatenated strings is identified and documented in the code or task notes | done |
 | T-322 | P38 | P0 | Fix quawk function-local semantics | T-320 | AWK-style extra-parameter locals behave like one-true-awk and `gawk --posix` in direct runtime tests | done |
-| T-323 | P38 | P0 | Fix quawk string-return semantics | T-321 | Helper-built and concatenated string returns preserve the full expected text in direct runtime tests | todo |
+| T-323 | P38 | P0 | Fix quawk string-return semantics | T-321 | Helper-built and concatenated string returns preserve the full expected text in direct runtime tests | done |
 | T-324 | P38 | P1 | Validate focused function regressions plus the NOAA sample workflow | T-322, T-323 | The new focused regressions pass and the NOAA sample matches the reference-awk baseline under the documented stdin-streaming workflow | todo |
 
 ## Active Phase

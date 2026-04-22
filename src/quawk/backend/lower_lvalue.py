@@ -195,6 +195,8 @@ def runtime_expression_is_known_string(expression: Expr, state: LoweringState) -
                 name in state.loop_string_bindings or name in state.function_param_strings
                 or runtime_name_is_inferred_string(name, state)
             )
+        case CallExpr(function=function_name) if function_name in state.function_defs:
+            return True
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
@@ -293,6 +295,8 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
                 or runtime_name_uses_only_scalar_runtime(name, state)
                 or runtime_name_uses_string_slot_runtime(name, state)
             )
+        case CallExpr(function=function_name):
+            return state is not None and function_name in state.function_defs
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):

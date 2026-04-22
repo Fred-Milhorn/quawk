@@ -7,8 +7,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -92,10 +90,6 @@ def test_function_local_string_assignment_expression_preserves_text() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-321/P38: generic caller coercion still treats user-defined string returns as numeric",
-)
 def test_user_defined_function_return_of_local_string_preserves_text_at_the_caller() -> None:
     result = run_quawk('function f(    id) { id = "abc"; return id }\nBEGIN { print f() }')
 
@@ -104,10 +98,6 @@ def test_user_defined_function_return_of_local_string_preserves_text_at_the_call
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-319/P38: quawk collapses concatenated string returns instead of preserving the full text",
-)
 def test_function_return_preserves_simple_concatenated_string_text() -> None:
     result = run_quawk('function join3(a, b, c) { return a "-" b "-" c }\nBEGIN { print join3("A", "B", "C") }')
 
@@ -116,10 +106,6 @@ def test_function_return_preserves_simple_concatenated_string_text() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-319/P38: quawk collapses helper-built string returns used for formatting",
-)
 def test_function_return_preserves_helper_built_padding_text() -> None:
     result = run_quawk(
         'function pad2(x) { if (x < 10) return "0" x; return x "" }\n'
@@ -131,10 +117,6 @@ def test_function_return_preserves_helper_built_padding_text() -> None:
     assert result.stderr == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-319/P38: quawk collapses composite helper-built return text such as date/report fragments",
-)
 def test_function_return_preserves_composite_date_and_report_fragment_text() -> None:
     result = run_quawk(
         'function pad2(x) { if (x < 10) return "0" x; return x "" }\n'
