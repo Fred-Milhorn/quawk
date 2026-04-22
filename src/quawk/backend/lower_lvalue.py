@@ -295,8 +295,8 @@ def runtime_expression_has_string_result(expression: Expr, state: LoweringState 
                 or runtime_name_uses_only_scalar_runtime(name, state)
                 or runtime_name_uses_string_slot_runtime(name, state)
             )
-        case CallExpr(function=function_name):
-            return state is not None and function_name in state.function_defs
+        case CallExpr(function=function_name) if state is not None and function_name in state.function_defs:
+            return True
         case CallExpr(function="sprintf" | "substr" | "tolower" | "toupper"):
             return True
         case BinaryExpr(op=BinaryOp.CONCAT):
@@ -442,15 +442,22 @@ def lower_runtime_assign_string_lvalue(
 ) -> None:
     """Assign one runtime string result back through a supported lvalue."""
     assert state.runtime_param is not None
+    captured_value = state.next_temp("assign.str.capture")
+    state.instructions.append(
+        f"  {captured_value} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})"
+    )
     match target:
         case NameLValue(name=name):
+            if name in state.function_param_strings:
+                store_runtime_function_param_string(name, captured_value, state)
+                return
             slot_index = runtime_name_slot_index(name, state)
             if runtime_name_uses_string_slot_runtime(name, state):
                 assert slot_index is not None
                 numeric_value = state.next_temp("assign.str.slot")
-                state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})")
+                state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {captured_value})")
                 state.instructions.append(
-                    f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+                    f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {captured_value})"
                 )
                 state.instructions.append(
                     f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
@@ -458,20 +465,16 @@ def lower_runtime_assign_string_lvalue(
             else:
                 scalar_name = lower_runtime_scalar_name(name, state)
                 state.instructions.append(
-                    f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
+                    f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {captured_value})"
                 )
         case FieldLValue(index=index):
             index_value = lower_runtime_field_index(index, state)
             state.instructions.append(
-                f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
+                f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {captured_value})"
             )
         case ArrayLValue(name=name, subscripts=subscripts):
             array_name_ptr = lower_runtime_constant_string(name, state)
             key_ptr = lower_runtime_array_subscripts(subscripts, state)
-            captured_value = state.next_temp("array.str.capture")
-            state.instructions.append(
-                f"  {captured_value} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})"
-            )
             state.instructions.append(
                 f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {captured_value})"
             )

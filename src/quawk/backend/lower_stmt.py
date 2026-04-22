@@ -39,6 +39,7 @@ from .lower_expr import (
 from .lower_lvalue import (
     load_runtime_function_param_string,
     lower_runtime_array_subscripts,
+    lower_runtime_captured_string_expression,
     lower_runtime_constant_string,
     lower_runtime_field_index,
     lower_runtime_scalar_name,
@@ -307,7 +308,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
     if field_index is not None:
         index_value = lower_runtime_field_index(field_index, state)
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-            string_value = lower_runtime_string_expression(statement.value, state)
+            string_value = lower_runtime_captured_string_expression(statement.value, state)
             state.instructions.append(
                 f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
             )
@@ -349,7 +350,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
         key_ptr = lower_runtime_array_subscripts((statement.index, *statement.extra_indexes), state)
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-            string_value = lower_runtime_string_expression(statement.value, state)
+            string_value = lower_runtime_captured_string_expression(statement.value, state)
             state.instructions.append(
                 f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
             )
@@ -412,7 +413,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             )
         return
     if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-        string_value = lower_runtime_string_expression(statement.value, state)
+        string_value = lower_runtime_captured_string_expression(statement.value, state)
         if runtime_name_uses_string_slot_runtime(statement.name, state):
             assert slot_index is not None
             numeric_value = state.next_temp("slot.assign.str")
@@ -694,7 +695,7 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
         operands: list[str] = []
         for specifier, argument in zip(specifiers, arguments[1:], strict=True):
             if specifier == "s":
-                operands.append(f"ptr {lower_runtime_string_expression(argument, state)}")
+                operands.append(f"ptr {lower_runtime_captured_string_expression(argument, state)}")
                 continue
             if specifier in {"c", "d", "i", "o", "u", "x", "X"}:
                 integer_value = state.next_temp("printf.int")
@@ -737,7 +738,7 @@ def lower_runtime_printf_statement(statement: PrintfStmt, state: LoweringState) 
         for index, argument in enumerate(arguments[1:]):
             number_ptr = state.next_temp("printf.number.ptr")
             string_ptr = state.next_temp("printf.string.ptr")
-            string_value = lower_runtime_string_expression(argument, state)
+            string_value = lower_runtime_captured_string_expression(argument, state)
             try:
                 numeric_value = lower_runtime_numeric_expression(argument, state)
             except RuntimeError:

@@ -105,11 +105,11 @@ That keeps the data out of the repo, avoids unpacking a multi-gigabyte archive,
 and avoids an oversized shell glob.
 
 For a very small demo or spot check, downloading one station file directly is
-still fine:
+still fine. `USW00023183` is Phoenix, Arizona, so the state must match:
 
 ```sh
 curl -O https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/USW00023183.dly
-quawk -v state=CA -v year=2023 \
+quawk -v state=AZ -v year=2023 \
   -f examples/noaa-climate-report/climate_report.awk \
   ghcnd-stations.txt USW00023183.dly
 ```

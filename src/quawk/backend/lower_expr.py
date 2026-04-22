@@ -763,7 +763,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             match target:
                 case FieldLValue(index=index) if runtime_assignment_preserves_string(value, state):
                     field_index = lower_runtime_field_index(index, state)
-                    string_value = lower_runtime_string_expression(value, state)
+                    string_value = lower_runtime_captured_string_expression(value, state)
                     state.instructions.append(
                         f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {field_index}, ptr {string_value})"
                     )
@@ -771,7 +771,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                 case ArrayLValue(name=name, subscripts=subscripts) if runtime_assignment_preserves_string(value, state):
                     array_name_ptr = lower_runtime_constant_string(name, state)
                     key_ptr = lower_runtime_array_subscripts(subscripts, state)
-                    string_value = lower_runtime_string_expression(value, state)
+                    string_value = lower_runtime_captured_string_expression(value, state)
                     state.instructions.append(
                         f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
                     )
@@ -786,7 +786,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                             "string-valued assignment expressions are not supported for reusable numeric state"
                         )
                     slot_index = runtime_name_slot_index(name, state)
-                    string_value = lower_runtime_string_expression(value, state)
+                    string_value = lower_runtime_captured_string_expression(value, state)
                     if runtime_name_uses_string_slot_runtime(name, state):
                         assert slot_index is not None
                         numeric_value = state.next_temp("assign.str.slot")
