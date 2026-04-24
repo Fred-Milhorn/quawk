@@ -23,7 +23,7 @@ That is the correct scope because:
 
 - One True Awk's `testdir` includes broad historical regression, systematic
   feature tests, and timing tests; upstream's own
-  [README.TESTS](/Users/fred/dev/quawk/third_party/onetrueawk/testdir/README.TESTS)
+  [README.TESTS](../third_party/onetrueawk/testdir/README.TESTS)
   describes roughly 60 `p.*`, 160 `t.*`, about 20 `T.*`, and timing-oriented
   `tt.*` files
 - gawk's `test/` tree is much larger and includes substantial GNU-specific,

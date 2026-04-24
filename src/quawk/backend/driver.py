@@ -208,17 +208,14 @@ def render_driver_scalar_preassignments(
                     ),
                 ]
             )
-            string_slot_index = string_slot_variable_indexes.get(name)
-            if string_slot_index is not None:
-                setup.append(
-                    f"  call void @qk_slot_set_string(ptr %rt, i64 {string_slot_index}, ptr %preassign.value.{index})"
-                )
             if slot_index is not None:
                 setup.append(
-                    (
-                        f"  call void @qk_slot_set_number("
-                        f"ptr %rt, i64 {slot_index}, double {format_double_literal(awk_numeric_prefix(value))})"
-                    )
+                    f"  call void @qk_slot_set_string(ptr %rt, i64 {slot_index}, ptr %preassign.value.{index})"
+                )
+            elif name in string_slot_variable_indexes:
+                string_slot_index = string_slot_variable_indexes[name]
+                setup.append(
+                    f"  call void @qk_slot_set_string(ptr %rt, i64 {string_slot_index}, ptr %preassign.value.{index})"
                 )
             continue
         setup.append(

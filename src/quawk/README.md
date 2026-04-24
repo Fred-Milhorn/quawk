@@ -102,5 +102,5 @@ context. For example, a future `runtime/fields.c` is clearer than repeating
 No active `P36` tasks remain. Future readability work should start as a new
 scoped follow-on task rather than reopening this wave implicitly.
 
-See `../../docs/plans/implementation-readability-refactor-plan.md` for the full
-landed plan and closeout criteria.
+See `../../docs/roadmap-archive.md` for the archived P36 task ledger and
+closeout criteria.

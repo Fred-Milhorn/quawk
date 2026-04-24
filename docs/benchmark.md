@@ -165,6 +165,65 @@ Required coverage:
 
 Do not add tests that assert specific timing or memory thresholds.
 
+## T-325 NOAA Runtime Gap Benchmark
+
+For `T-325`, the repo now includes a NOAA-style benchmark harness that runs the
+checked-in climate-report program against deterministic synthetic fixed-width
+inputs:
+
+```sh
+uv run python scripts/benchmark_noaa_runtime_gap.py
+```
+
+The harness reports two timing families:
+
+- `startup_heavy`
+  - `uv run quawk` versus `gawk --posix`
+- `steady_state`
+  - direct `.venv/bin/quawk` versus `gawk --posix` on repeated input
+
+This split is intentional:
+
+- the startup-heavy family keeps the real user-facing `uv run quawk` path visible
+- the steady-state family uses the direct project binary and a repeated-input
+  workload so runtime changes are not drowned out by fixed startup cost
+
+Recommended passing smoke command:
+
+```sh
+uv run python scripts/benchmark_noaa_runtime_gap.py --dataset-scale smoke --repetitions 1 --warmups 0
+```
+
+Use `--json PATH` for machine-readable output and `--keep-workdir` when you want
+to inspect the generated station metadata and synthetic `.dly` input. Use
+`--family steady_state` when startup-heavy timing is not relevant to the
+workload you are validating.
+
+Known failing investigation commands:
+
+```sh
+uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale medium
+uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale large
+```
+
+Those larger steady-state scales currently expose a reference-output mismatch in
+the monthly summary output, so they are useful for diagnosis but should not be
+treated as passing validation commands until `T-332` is closed.
+
+## T-326 Elapsed-Time Runtime Profile
+
+The runtime hot-path profiler now reports both call counts and aggregate elapsed
+time per helper when `QUAWK_RUNTIME_PROFILE=1` is enabled. Use the checked-in
+consumer script to rank helpers by wall-clock cost instead of call count alone:
+
+```sh
+uv run python scripts/profile_runtime_hot_paths.py --dataset-scale smoke --repetitions 1 --warmups 0
+```
+
+The script aggregates runtime stderr output across the selected workloads and
+prints the top helpers by total elapsed time, along with total call counts and
+average nanoseconds per call.
+
 ## T-234 Slot vs Hash Microbenchmark
 
 For `T-234`, the repo now includes a focused microbenchmark script:

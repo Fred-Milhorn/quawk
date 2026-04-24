@@ -222,10 +222,77 @@ def test_runtime_hot_path_inline_wrappers_round_trip(tmp_path: Path) -> None:
                 "        qk_runtime_destroy(runtime);",
                 "        return 9;",
                 "    }",
+                "    (void)qk_compare_strings_inline(\"a\", \"b\", 0);",
                 "    (void)qk_compare_values_inline(\"1\", 1.0, false, false, \"1\", 1.0, false, false, 0);",
                 '    if (strcmp(qk_get_filename_inline(runtime), "-") != 0) {',
                 "        qk_runtime_destroy(runtime);",
                 "        return 10;",
+                "    }",
+                "    qk_runtime_destroy(runtime);",
+                "    return 0;",
+                "}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            runtime_support.find_clang(),
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            str(runtime_support.runtime_source_path()),
+            str(harness_path),
+            "-I",
+            str(runtime_support.runtime_directory()),
+            "-o",
+            str(executable_path),
+            "-lm",
+        ],
+        check=True,
+    )
+    subprocess.run([str(executable_path)], check=True)
+
+
+def test_runtime_dual_view_scalar_and_string_slot_cache_round_trip(tmp_path: Path) -> None:
+    harness_path = tmp_path / "runtime_dual_view_harness.c"
+    executable_path = tmp_path / "runtime_dual_view_harness"
+    harness_path.write_text(
+        "\n".join(
+            [
+                '#include "qk_runtime.h"',
+                "",
+                '#include <math.h>',
+                '#include <string.h>',
+                "",
+                "int main(void)",
+                "{",
+                "    qk_runtime *runtime = qk_runtime_create_with_slots(0, (char **)0, (const char *)0, 0, 2, 0);",
+                "    if (runtime == NULL) {",
+                "        return 1;",
+                "    }",
+                '    qk_scalar_set_string(runtime, "x", "12.5z");',
+                '    if (fabs(qk_scalar_get_number_inline(runtime, "x") - 12.5) > 1e-12) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 2;",
+                "    }",
+                "    qk_scalar_set_number_inline(runtime, \"x\", 7.25);",
+                '    if (strcmp(qk_scalar_get_inline(runtime, "x"), "7.25") != 0) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 3;",
+                "    }",
+                '    qk_slot_set_string_inline(runtime, 1, "9.5abc");',
+                "    if (fabs(qk_slot_get_number_inline(runtime, 1) - 9.5) > 1e-12) {",
+                "        qk_runtime_destroy(runtime);",
+                "        return 4;",
+                "    }",
+                "    qk_slot_set_number_inline(runtime, 1, 42.25);",
+                '    if (strcmp(qk_slot_get_string_inline(runtime, 1), "42.25") != 0) {',
+                "        qk_runtime_destroy(runtime);",
+                "        return 5;",
                 "    }",
                 "    qk_runtime_destroy(runtime);",
                 "    return 0;",

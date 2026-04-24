@@ -1701,6 +1701,15 @@ def test_lower_to_llvm_ir_emits_numeric_comparison_fast_path_for_inferred_numeri
     assert "call i1 @qk_compare_values_inline" not in llvm_ir
 
 
+def test_lower_to_llvm_ir_emits_string_comparison_fast_path_for_forced_string_operands() -> None:
+    program = parse_program('BEGIN { s = "foo"; print (s < "bar") }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call i1 @qk_compare_strings_inline(" in llvm_ir
+    assert "call i1 @qk_compare_values_inline(" not in llvm_ir
+    assert "call double @qk_slot_get_number(" not in llvm_ir
+
+
 def test_lower_to_llvm_ir_emits_numeric_arithmetic_fast_path_ops() -> None:
     program = parse_program("{ x = 8; y = 2; print (x + y); print (x - y); print (x * y); print (x / y) }")
 
@@ -1718,6 +1727,37 @@ def test_lower_to_llvm_ir_emits_string_concat_fast_path_without_capture_for_know
     assert "call ptr @qk_concat" in llvm_ir
     assert "call ptr @qk_capture_string_arg_inline" not in llvm_ir
     assert "call ptr @qk_format_number" not in llvm_ir
+
+
+def test_lower_to_llvm_ir_avoids_string_capture_for_direct_string_assignment() -> None:
+    program = parse_program("{ s = $1; print s }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert (
+        "call void @qk_slot_set_string" in llvm_ir
+        or "call void @qk_scalar_set_string" in llvm_ir
+    )
+    assert "call ptr @qk_capture_string_arg_inline" not in llvm_ir
+
+
+def test_lower_to_llvm_ir_avoids_string_capture_for_single_dimension_array_keys() -> None:
+    program = parse_program("{ a[$1] = $2; print a[$1] }")
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call void @qk_array_set_string" in llvm_ir
+    assert "call ptr @qk_array_get" in llvm_ir
+    assert "call ptr @qk_capture_string_arg_inline" not in llvm_ir
+
+
+def test_lower_to_llvm_ir_uses_slot_reads_for_mixed_scalar_access() -> None:
+    program = parse_program('BEGIN { x = "12"; print x; print x + 1 }')
+
+    llvm_ir = jit.lower_to_llvm_ir(program)
+    assert "call void @qk_slot_set_string" in llvm_ir
+    assert "call ptr @qk_slot_get_string" in llvm_ir
+    assert "call double @qk_slot_get_number" in llvm_ir
+    assert "call ptr @qk_scalar_get_inline" not in llvm_ir
+    assert "call double @qk_scalar_get_number_inline" not in llvm_ir
 
 
 def test_lower_to_llvm_ir_uses_local_numeric_storage_for_inferred_numeric_slot_names() -> None:

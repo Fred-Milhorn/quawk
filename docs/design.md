@@ -150,9 +150,9 @@ Milestone order:
 
 ## Syntax and AST Specs
 
-Concrete syntax lives in [quawk.ebnf](/Users/fred/dev/quawk/docs/quawk.ebnf).
+Concrete syntax lives in [quawk.ebnf](quawk.ebnf).
 
-Implemented AST lives in [quawk.asdl](/Users/fred/dev/quawk/docs/quawk.asdl).
+Implemented AST lives in [quawk.asdl](quawk.asdl).
 
 These files have distinct roles:
 - `docs/quawk.ebnf` is the source of truth for tokens, precedence, separators, and concrete parsing rules

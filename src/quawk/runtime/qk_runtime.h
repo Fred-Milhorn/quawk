@@ -110,6 +110,7 @@ bool qk_scalar_truthy(qk_runtime *runtime, const char *name);
 void qk_scalar_set_string(qk_runtime *runtime, const char *name, const char *value);
 void qk_scalar_set_number(qk_runtime *runtime, const char *name, double value);
 void qk_scalar_copy(qk_runtime *runtime, const char *target_name, const char *source_name);
+bool qk_compare_strings(const char *left_string, const char *right_string, int32_t op);
 bool qk_compare_values(
     const char *left_string,
     double left_number,
@@ -220,6 +221,11 @@ static inline bool qk_compare_values_inline(
         right_force_string,
         op
     );
+}
+
+static inline bool qk_compare_strings_inline(const char *left_string, const char *right_string, int32_t op)
+{
+    return qk_compare_strings(left_string, right_string, op);
 }
 
 static inline double qk_get_nr_inline(qk_runtime *runtime)

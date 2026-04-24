@@ -1,8 +1,9 @@
 """Profile runtime hot paths across representative AWK workloads.
 
-The runtime emits call-count summaries when `QUAWK_RUNTIME_PROFILE=1` is set.
-This script runs a small workload set under that mode, aggregates the counts,
-and prints the top called runtime functions for the current P29 profiling pass.
+The runtime emits call-count and elapsed-time summaries when
+`QUAWK_RUNTIME_PROFILE=1` is set. This script runs a small workload set under
+that mode, aggregates the counts and elapsed nanoseconds, and prints the hottest
+runtime functions ranked by wall-clock cost.
 """
 
 from __future__ import annotations
@@ -38,7 +39,9 @@ MULTI_FILE_REDUCTION_PROGRAM = (
     "END { print total + file_count + NR }"
 )
 
-PROFILE_LINE_RE = re.compile(r"^quawk-runtime-profile\s+(\d+)\s+([A-Za-z0-9_]+)\s+(\d+)$")
+PROFILE_LINE_RE = re.compile(
+    r"^quawk-runtime-profile\s+(\d+)\s+([A-Za-z0-9_]+)\s+count=(\d+)\s+elapsed_ns=(\d+)$"
+)
 
 
 @dataclass(frozen=True)
@@ -135,28 +138,38 @@ def select_workloads(all_workloads: list[Workload], requested_names: list[str]) 
     return [indexed[name] for name in requested_names]
 
 
-def parse_profile_lines(stderr_text: str) -> Counter[str]:
+def parse_profile_lines(stderr_text: str) -> tuple[Counter[str], Counter[str]]:
     """Parse runtime profile lines from stderr."""
     counts: Counter[str] = Counter()
+    elapsed_ns: Counter[str] = Counter()
     for raw_line in stderr_text.splitlines():
         line = raw_line.strip()
         if not line:
             continue
-        if line == "quawk-runtime-profile top=10":
+        if line.startswith("quawk-runtime-profile top="):
             continue
         match = PROFILE_LINE_RE.fullmatch(line)
         if match is None:
             raise RuntimeError(f"unexpected stderr from profiled run: {line}")
         counts[match.group(2)] += int(match.group(3))
-    return counts
+        elapsed_ns[match.group(2)] += int(match.group(4))
+    return counts, elapsed_ns
 
 
-def top_functions(counts: Counter[str], top_n: int) -> list[dict[str, object]]:
-    """Return the top `top_n` functions by call count."""
-    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+def top_functions(counts: Counter[str], elapsed_ns: Counter[str], top_n: int) -> list[dict[str, object]]:
+    """Return the top `top_n` functions by elapsed time."""
+    names = set(counts) | set(elapsed_ns)
+    ranked = sorted(names, key=lambda name: (-elapsed_ns[name], -counts[name], name))
     return [
-        {"rank": rank, "name": name, "count": count}
-        for rank, (name, count) in enumerate(ranked[:top_n], start=1)
+        {
+            "rank": rank,
+            "name": name,
+            "count": counts[name],
+            "elapsed_nanoseconds": elapsed_ns[name],
+            "elapsed_milliseconds": elapsed_ns[name] / 1_000_000.0,
+            "average_nanoseconds": (elapsed_ns[name] / counts[name]) if counts[name] > 0 else 0.0,
+        }
+        for rank, name in enumerate(ranked[:top_n], start=1)
     ]
 
 
@@ -164,14 +177,28 @@ def format_count(value: int) -> str:
     return f"{value:,}"
 
 
-def run_profiled_workload(workload: Workload, *, warmups: int, repetitions: int) -> tuple[str, Counter[str]]:
-    """Run one workload with runtime profiling enabled and aggregate the counts."""
+def format_elapsed_ms(value: float) -> str:
+    return f"{value:.3f} ms"
+
+
+def format_average_ns(value: float) -> str:
+    return f"{value:.1f} ns"
+
+
+def run_profiled_workload(
+    workload: Workload,
+    *,
+    warmups: int,
+    repetitions: int,
+) -> tuple[str, Counter[str], Counter[str]]:
+    """Run one workload with runtime profiling enabled and aggregate the totals."""
     command = [sys.executable, "-m", "quawk", workload.program_text, *workload.input_files]
     env = os.environ.copy()
     env["QUAWK_RUNTIME_PROFILE"] = "1"
 
     reference_output = ""
     aggregated_counts: Counter[str] = Counter()
+    aggregated_elapsed_ns: Counter[str] = Counter()
 
     for _ in range(warmups):
         completed = subprocess.run(
@@ -204,13 +231,17 @@ def run_profiled_workload(workload: Workload, *, warmups: int, repetitions: int)
         if reference_output and completed.stdout != reference_output:
             raise RuntimeError("benchmark output mismatch; profiled runs are not comparable")
         reference_output = completed.stdout
-        aggregated_counts.update(parse_profile_lines(completed.stderr))
+        sample_counts, sample_elapsed_ns = parse_profile_lines(completed.stderr)
+        aggregated_counts.update(sample_counts)
+        aggregated_elapsed_ns.update(sample_elapsed_ns)
 
-    return reference_output, aggregated_counts
+    return reference_output, aggregated_counts, aggregated_elapsed_ns
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Profile current runtime hot paths across representative AWK workloads.")
+    parser = argparse.ArgumentParser(
+        description="Profile current runtime hot paths across representative AWK workloads."
+    )
     parser.add_argument("--dataset-scale", choices=sorted(SCALE_CONFIGS), default="medium")
     parser.add_argument("--repetitions", type=int, default=1)
     parser.add_argument("--warmups", type=int, default=1)
@@ -232,25 +263,27 @@ def main() -> int:
         workdir = Path(temp_dir_name)
         workloads = select_workloads(prepare_workloads(scale, workdir), args.workload)
         aggregate_counts: Counter[str] = Counter()
+        aggregate_elapsed_ns: Counter[str] = Counter()
         workload_results: list[dict[str, object]] = []
 
         for workload in workloads:
-            reference_output, workload_counts = run_profiled_workload(
+            reference_output, workload_counts, workload_elapsed_ns = run_profiled_workload(
                 workload,
                 warmups=args.warmups,
                 repetitions=args.repetitions,
             )
             aggregate_counts.update(workload_counts)
+            aggregate_elapsed_ns.update(workload_elapsed_ns)
             workload_results.append(
                 {
                     "name": workload.name,
                     "description": workload.description,
                     "output": reference_output.strip(),
-                    "top_functions": top_functions(workload_counts, args.top),
+                    "top_functions": top_functions(workload_counts, workload_elapsed_ns, args.top),
                 }
             )
 
-    aggregate_top = top_functions(aggregate_counts, args.top)
+    aggregate_top = top_functions(aggregate_counts, aggregate_elapsed_ns, args.top)
     payload = {
         "dataset_scale": scale.name,
         "repetitions": args.repetitions,
@@ -259,6 +292,7 @@ def main() -> int:
         "workloads": workload_results,
         "top_functions": aggregate_top,
         "call_counts": dict(sorted(aggregate_counts.items(), key=lambda item: (-item[1], item[0]))),
+        "elapsed_nanoseconds": dict(sorted(aggregate_elapsed_ns.items(), key=lambda item: (-item[1], item[0]))),
     }
 
     print("runtime-hot-path profile")
@@ -268,11 +302,21 @@ def main() -> int:
         print(f"workload: {workload['name']}")
         print(f"  {workload['description']}")
         for entry in workload["top_functions"]:
-            print(f"  {entry['rank']}. {entry['name']}: {format_count(int(entry['count']))}")
+            print(
+                f"  {entry['rank']}. {entry['name']}: "
+                f"{format_elapsed_ms(float(entry['elapsed_milliseconds']))} total, "
+                f"{format_count(int(entry['count']))} calls, "
+                f"{format_average_ns(float(entry['average_nanoseconds']))} avg"
+            )
         print("")
-    print(f"aggregate top {args.top}:")
+    print(f"aggregate top {args.top} by elapsed time:")
     for entry in aggregate_top:
-        print(f"  {entry['rank']}. {entry['name']}: {format_count(int(entry['count']))}")
+        print(
+            f"  {entry['rank']}. {entry['name']}: "
+            f"{format_elapsed_ms(float(entry['elapsed_milliseconds']))} total, "
+            f"{format_count(int(entry['count']))} calls, "
+            f"{format_average_ns(float(entry['average_nanoseconds']))} avg"
+        )
 
     if args.json is not None:
         args.json.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

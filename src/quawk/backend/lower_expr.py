@@ -63,6 +63,7 @@ from .lower_lvalue import (
     runtime_name_uses_numeric_slot_state,
     runtime_name_uses_only_scalar_runtime,
     runtime_name_uses_scalar_runtime,
+    runtime_name_uses_slot_cached_runtime,
     runtime_name_uses_string_slot_runtime,
     store_runtime_function_param_string,
     variable_address,
@@ -259,7 +260,7 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
                 state.instructions.append(f"  {temp} = load double, ptr {slot_name}")
                 return temp
             slot_index = runtime_name_slot_index(name, state)
-            if runtime_name_uses_string_slot_runtime(name, state):
+            if runtime_name_uses_slot_cached_runtime(name, state):
                 assert slot_index is not None
                 temp = state.next_temp("slot.num")
                 state.instructions.append(
@@ -723,7 +724,7 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             state.instructions.append(f"  {temp} = call ptr @qk_get_filename_inline(ptr {state.runtime_param})")
             return temp
         case NameExpr(name=name):
-            if runtime_name_uses_string_slot_runtime(name, state):
+            if runtime_name_uses_slot_cached_runtime(name, state):
                 slot_index = runtime_name_slot_index(name, state)
                 assert slot_index is not None
                 temp = state.next_temp("slot.str")
@@ -763,19 +764,27 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
             match target:
                 case FieldLValue(index=index) if runtime_assignment_preserves_string(value, state):
                     field_index = lower_runtime_field_index(index, state)
-                    string_value = lower_runtime_captured_string_expression(value, state)
+                    string_value = lower_runtime_string_expression(value, state)
                     state.instructions.append(
                         f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {field_index}, ptr {string_value})"
                     )
-                    return string_value
+                    stored_value = state.next_temp("assign.field.str")
+                    state.instructions.append(
+                        f"  {stored_value} = call ptr @qk_get_field_inline(ptr {state.runtime_param}, i64 {field_index})"
+                    )
+                    return stored_value
                 case ArrayLValue(name=name, subscripts=subscripts) if runtime_assignment_preserves_string(value, state):
                     array_name_ptr = lower_runtime_constant_string(name, state)
                     key_ptr = lower_runtime_array_subscripts(subscripts, state)
-                    string_value = lower_runtime_captured_string_expression(value, state)
+                    string_value = lower_runtime_string_expression(value, state)
                     state.instructions.append(
                         f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
                     )
-                    return string_value
+                    stored_value = state.next_temp("assign.array.str")
+                    state.instructions.append(
+                        f"  {stored_value} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+                    )
+                    return stored_value
                 case NameLValue(name=name) if runtime_assignment_preserves_string(value, state):
                     if name in state.function_param_strings:
                         string_value = lower_runtime_string_expression(value, state)
@@ -786,18 +795,11 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                             "string-valued assignment expressions are not supported for reusable numeric state"
                         )
                     slot_index = runtime_name_slot_index(name, state)
-                    string_value = lower_runtime_captured_string_expression(value, state)
+                    string_value = lower_runtime_string_expression(value, state)
                     if runtime_name_uses_string_slot_runtime(name, state):
                         assert slot_index is not None
-                        numeric_value = state.next_temp("assign.str.slot")
-                        state.instructions.append(
-                            f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
-                        )
                         state.instructions.append(
                             f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
-                        )
-                        state.instructions.append(
-                            f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
                         )
                         stored_value = state.next_temp("assign.str")
                         state.instructions.append(
@@ -809,20 +811,19 @@ def lower_runtime_string_expression(expression: Expr, state: LoweringState) -> s
                         f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
                     )
                     if slot_index is not None:
-                        numeric_value = state.next_temp("assign.str.slot")
                         state.instructions.append(
-                            f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
-                        )
-                        state.instructions.append(
-                            (
-                                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, "
-                                f"i64 {slot_index}, double {numeric_value})"
-                            )
+                            f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
                         )
                     stored_value = state.next_temp("assign.str")
-                    state.instructions.append(
-                        f"  {stored_value} = call ptr @qk_scalar_get_inline(ptr {state.runtime_param}, ptr {scalar_name})"
-                    )
+                    if runtime_name_uses_slot_cached_runtime(name, state):
+                        assert slot_index is not None
+                        state.instructions.append(
+                            f"  {stored_value} = call ptr @qk_slot_get_string(ptr {state.runtime_param}, i64 {slot_index})"
+                        )
+                    else:
+                        state.instructions.append(
+                            f"  {stored_value} = call ptr @qk_scalar_get_inline(ptr {state.runtime_param}, ptr {scalar_name})"
+                        )
                     return stored_value
         case CallExpr(function="substr"):
             return lower_runtime_substr_builtin(expression, state)
@@ -1052,9 +1053,27 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 BinaryOp.EQUAL,
                 BinaryOp.NOT_EQUAL,
         }:
+            op_code = {
+                BinaryOp.LESS: 0,
+                BinaryOp.LESS_EQUAL: 1,
+                BinaryOp.GREATER: 2,
+                BinaryOp.GREATER_EQUAL: 3,
+                BinaryOp.EQUAL: 4,
+                BinaryOp.NOT_EQUAL: 5,
+            }[expression.op]
             if state.runtime_param is not None:
-                if (not expression_forces_string_comparison(expression.left)
-                        and not expression_forces_string_comparison(expression.right)
+                left_forces_string = expression_forces_string_comparison(expression.left)
+                right_forces_string = expression_forces_string_comparison(expression.right)
+                if left_forces_string or right_forces_string:
+                    left_string = lower_runtime_captured_string_expression(expression.left, state)
+                    right_string = lower_runtime_captured_string_expression(expression.right, state)
+                    temp = state.next_temp("cmp")
+                    state.instructions.append(
+                        f"  {temp} = call i1 @qk_compare_strings_inline(ptr {left_string}, ptr {right_string}, i32 {op_code})"
+                    )
+                    return temp
+                if (not left_forces_string
+                        and not right_forces_string
                         and runtime_expression_is_definitely_numeric(expression.left, state)
                         and runtime_expression_is_definitely_numeric(expression.right, state)):
                     left_operand = lower_runtime_numeric_expression(expression.left, state)
@@ -1076,16 +1095,8 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 right_number = lower_runtime_numeric_expression(expression.right, state)
                 left_needs_check = str(runtime_expression_has_string_result(expression.left, state)).lower()
                 right_needs_check = str(runtime_expression_has_string_result(expression.right, state)).lower()
-                left_forces_string = str(expression_forces_string_comparison(expression.left)).lower()
-                right_forces_string = str(expression_forces_string_comparison(expression.right)).lower()
-                op_code = {
-                    BinaryOp.LESS: 0,
-                    BinaryOp.LESS_EQUAL: 1,
-                    BinaryOp.GREATER: 2,
-                    BinaryOp.GREATER_EQUAL: 3,
-                    BinaryOp.EQUAL: 4,
-                    BinaryOp.NOT_EQUAL: 5,
-                }[expression.op]
+                left_forces_string = str(left_forces_string).lower()
+                right_forces_string = str(right_forces_string).lower()
                 temp = state.next_temp("cmp")
                 state.instructions.append(
                     f"  {temp} = call i1 @qk_compare_values_inline("

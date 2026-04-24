@@ -175,6 +175,16 @@ def runtime_name_uses_string_slot_runtime(name: str, state: LoweringState) -> bo
     )
 
 
+def runtime_name_uses_slot_cached_runtime(name: str, state: LoweringState) -> bool:
+    """Report whether one scalar name should use cached runtime slot access."""
+    return (
+        runtime_name_uses_scalar_runtime(name, state)
+        and runtime_name_slot_index(name, state) is not None
+        and not runtime_name_uses_numeric_slot_state(name, state)
+        and not runtime_name_uses_local_numeric_storage(name, state)
+    )
+
+
 def runtime_name_uses_only_scalar_runtime(name: str, state: LoweringState) -> bool:
     """Report whether one scalar name should use scalar runtime helpers only."""
     return (
@@ -370,29 +380,21 @@ def lower_runtime_array_key(expression: Expr, state: LoweringState) -> str:
             return state.loop_string_bindings[name]
         case NumericLiteralExpr(value=value):
             temp = state.next_temp("array.key.num")
-            captured = state.next_temp("array.key.capture")
             state.instructions.append(
                 f"  {temp} = call ptr @qk_format_number(ptr {state.runtime_param}, double {format_double_literal(value)})"
             )
-            state.instructions.append(
-                f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {temp})"
-            )
-            return captured
+            return temp
         case StringLiteralExpr(value=value):
             return lower_runtime_constant_string(value, state)
         case _:
             if runtime_expression_has_string_result(expression, state):
-                return lower_runtime_captured_string_expression(expression, state)
+                return lower_runtime_string_expression(expression, state)
             numeric_value = lower_runtime_numeric_expression(expression, state)
             formatted = state.next_temp("array.key.num")
-            captured = state.next_temp("array.key.capture")
             state.instructions.append(
                 f"  {formatted} = call ptr @qk_format_number(ptr {state.runtime_param}, double {numeric_value})"
             )
-            state.instructions.append(
-                f"  {captured} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {formatted})"
-            )
-            return captured
+            return formatted
 
 
 def lower_runtime_array_subscripts(subscripts: tuple[Expr, ...], state: LoweringState) -> str:
@@ -418,11 +420,7 @@ def lower_runtime_array_subscripts(subscripts: tuple[Expr, ...], state: Lowering
                 f"  {next_key_value} = call ptr @qk_concat(ptr {state.runtime_param}, ptr {joined_value}, ptr {right_value})"
             )
             key_value = next_key_value
-    captured_key = state.next_temp("array.key.capture")
-    state.instructions.append(
-        f"  {captured_key} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {key_value})"
-    )
-    return captured_key
+    return key_value
 
 
 def lower_runtime_field_index(index: int | Expr, state: LoweringState) -> str:
@@ -442,41 +440,36 @@ def lower_runtime_assign_string_lvalue(
 ) -> None:
     """Assign one runtime string result back through a supported lvalue."""
     assert state.runtime_param is not None
-    captured_value = state.next_temp("assign.str.capture")
-    state.instructions.append(
-        f"  {captured_value} = call ptr @qk_capture_string_arg_inline(ptr {state.runtime_param}, ptr {string_value})"
-    )
     match target:
         case NameLValue(name=name):
             if name in state.function_param_strings:
-                store_runtime_function_param_string(name, captured_value, state)
+                store_runtime_function_param_string(name, string_value, state)
                 return
             slot_index = runtime_name_slot_index(name, state)
             if runtime_name_uses_string_slot_runtime(name, state):
                 assert slot_index is not None
-                numeric_value = state.next_temp("assign.str.slot")
-                state.instructions.append(f"  {numeric_value} = call double @qk_parse_number_text(ptr {captured_value})")
                 state.instructions.append(
-                    f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {captured_value})"
-                )
-                state.instructions.append(
-                    f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
+                    f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
                 )
             else:
                 scalar_name = lower_runtime_scalar_name(name, state)
                 state.instructions.append(
-                    f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {captured_value})"
+                    f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {scalar_name}, ptr {string_value})"
                 )
+                if slot_index is not None:
+                    state.instructions.append(
+                        f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
+                    )
         case FieldLValue(index=index):
             index_value = lower_runtime_field_index(index, state)
             state.instructions.append(
-                f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {captured_value})"
+                f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
             )
         case ArrayLValue(name=name, subscripts=subscripts):
             array_name_ptr = lower_runtime_constant_string(name, state)
             key_ptr = lower_runtime_array_subscripts(subscripts, state)
             state.instructions.append(
-                f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {captured_value})"
+                f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
             )
         case _:
             raise RuntimeError("unsupported string assignment target in the runtime-backed backend")

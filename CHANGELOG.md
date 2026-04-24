@@ -14,10 +14,12 @@ Format conventions:
 - Public feature matrix in `SPEC.md`.
 - Versioned release checklist in `docs/release-checklist.md`.
 - Release-smoke baseline coverage for the supported CLI path and release artifacts.
+- NOAA runtime-gap benchmark and elapsed-time runtime profiling documentation.
 
 ### Changed
 - CLI help now documents stable run-path behavior for `-f`, `--`, and `-` stdin operands.
 - Compatibility coverage now uses a seeded supported corpus plus a checked-in divergence manifest.
+- `-v` string preassignments now initialize optimized scalar slots correctly.
 
 ## 0.1.0
 

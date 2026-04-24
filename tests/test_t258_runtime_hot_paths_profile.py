@@ -33,7 +33,7 @@ def test_t258_runtime_hot_paths_profile_script_runs_and_emits_json(tmp_path) -> 
 
     assert result.returncode == 0, result.stderr
     assert "runtime-hot-path profile" in result.stdout
-    assert "aggregate top 10:" in result.stdout
+    assert "aggregate top 10 by elapsed time:" in result.stdout
     assert json_path.is_file()
 
     payload = json.loads(json_path.read_text(encoding="utf-8"))
@@ -53,3 +53,7 @@ def test_t258_runtime_hot_paths_profile_script_runs_and_emits_json(tmp_path) -> 
     assert top_functions[0]["rank"] == 1
     assert top_functions[0]["name"] != ""
     assert top_functions[0]["count"] > 0
+    assert top_functions[0]["elapsed_nanoseconds"] > 0
+    assert top_functions[0]["elapsed_milliseconds"] > 0.0
+    assert top_functions[0]["average_nanoseconds"] > 0.0
+    assert payload["elapsed_nanoseconds"][top_functions[0]["name"]] > 0

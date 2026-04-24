@@ -82,6 +82,7 @@ REUSABLE_PROGRAM_DECLARATIONS: tuple[str, ...] = (
     "declare i64 @strlen(ptr)",
     "declare double @llvm.pow.f64(double, double)",
     "declare double @llvm.trunc.f64(double)",
+    "declare i1 @qk_compare_strings_inline(ptr, ptr, i32)",
     "declare i1 @qk_compare_values_inline(ptr, double, i1, i1, ptr, double, i1, i1, i32)",
     "declare i32 @fprintf(ptr, ptr, ...)",
     "declare i32 @printf(ptr, ...)",

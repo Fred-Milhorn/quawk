@@ -92,7 +92,7 @@ For example, this builds a California member list from the fixed-width station
 metadata and then streams those `.dly` members directly from the archive:
 
 ```sh
-awk 'substr($0, 39, 2) == "CA" { print substr($0, 1, 11) ".dly" }' \
+quawk 'substr($0, 39, 2) == "CA" { print substr($0, 1, 11) ".dly" }' \
   ghcnd-stations.txt > selected-stations.txt
 
 tar -xOf ghcnd_all.tar.gz -T selected-stations.txt \

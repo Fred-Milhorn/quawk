@@ -308,7 +308,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
     if field_index is not None:
         index_value = lower_runtime_field_index(field_index, state)
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-            string_value = lower_runtime_captured_string_expression(statement.value, state)
+            string_value = lower_runtime_string_expression(statement.value, state)
             state.instructions.append(
                 f"  call void @qk_set_field_string(ptr {state.runtime_param}, i64 {index_value}, ptr {string_value})"
             )
@@ -350,7 +350,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         array_name_ptr = lower_runtime_constant_string(statement.name, state)
         key_ptr = lower_runtime_array_subscripts((statement.index, *statement.extra_indexes), state)
         if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-            string_value = lower_runtime_captured_string_expression(statement.value, state)
+            string_value = lower_runtime_string_expression(statement.value, state)
             state.instructions.append(
                 f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
             )
@@ -413,30 +413,19 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
             )
         return
     if statement.op is AssignOp.PLAIN and runtime_assignment_preserves_string(statement.value, state):
-        string_value = lower_runtime_captured_string_expression(statement.value, state)
+        string_value = lower_runtime_string_expression(statement.value, state)
         if runtime_name_uses_string_slot_runtime(statement.name, state):
             assert slot_index is not None
-            numeric_value = state.next_temp("slot.assign.str")
-            state.instructions.append(
-                f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
-            )
             state.instructions.append(
                 f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
-            )
-            state.instructions.append(
-                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
             )
             return
         state.instructions.append(
             f"  call void @qk_scalar_set_string(ptr {state.runtime_param}, ptr {target_name}, ptr {string_value})"
         )
         if slot_index is not None:
-            numeric_value = state.next_temp("slot.assign.str")
             state.instructions.append(
-                f"  {numeric_value} = call double @qk_parse_number_text(ptr {string_value})"
-            )
-            state.instructions.append(
-                f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
+                f"  call void @qk_slot_set_string(ptr {state.runtime_param}, i64 {slot_index}, ptr {string_value})"
             )
         return
 

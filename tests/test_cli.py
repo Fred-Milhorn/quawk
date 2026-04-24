@@ -83,6 +83,14 @@ def test_quawk_applies_numeric_v_assignment_before_execution() -> None:
     assert result.stderr == ""
 
 
+def test_quawk_applies_string_v_assignment_before_execution() -> None:
+    result = run_quawk("-v", "state=AZ", "BEGIN { print state }")
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "AZ\n"
+    assert result.stderr == ""
+
+
 def test_quawk_optimize_flag_executes_program() -> None:
     result = run_quawk("-O", "BEGIN { print 1 + 2 }")
 
@@ -599,6 +607,15 @@ def test_quawk_ir_flag_shows_specialized_numeric_comparison_fast_path() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "fcmp olt double" in result.stdout
+    assert "call i1 @qk_compare_values_inline(" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_quawk_ir_flag_shows_specialized_string_comparison_fast_path() -> None:
+    result = run_quawk("--ir", 'BEGIN { s = "foo"; print (s < "bar") }')
+
+    assert result.returncode == 0, result.stderr
+    assert "call i1 @qk_compare_strings_inline(" in result.stdout
     assert "call i1 @qk_compare_values_inline(" not in result.stdout
     assert result.stderr == ""
 

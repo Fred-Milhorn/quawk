@@ -8,3 +8,7 @@ build/
 dist/
 result
 result-*
+examples/noaa-climate-report/ghcnd-stations.txt
+examples/noaa-climate-report/ghcnd_all.tar.gz
+examples/noaa-climate-report/selected-stations.txt
+examples/noaa-climate-report/*.dly
