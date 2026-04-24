@@ -83,7 +83,7 @@ def test_quawk_applies_numeric_v_assignment_before_execution() -> None:
     assert result.stderr == ""
 
 
-def test_quawk_applies_string_v_assignment_before_execution() -> None:
+def test_quawk_applies_state_string_v_assignment_before_execution() -> None:
     result = run_quawk("-v", "state=AZ", "BEGIN { print state }")
 
     assert result.returncode == 0, result.stderr
@@ -238,7 +238,7 @@ def test_quawk_reports_invalid_v_assignment_name() -> None:
     assert result.stderr == "quawk: invalid -v variable name '1x'\n"
 
 
-def test_quawk_applies_string_v_assignment_before_execution() -> None:
+def test_quawk_applies_string_v_assignment_before_string_use() -> None:
     result = run_quawk("-v", "x=hello", 'BEGIN { print x; print x "!" }')
 
     assert result.returncode == 0, result.stderr
@@ -667,7 +667,7 @@ def test_quawk_ir_flag_shows_mixed_type_slow_path_fallback() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "call i1 @qk_compare_values_inline(" in result.stdout
-    assert "call double @qk_scalar_get_number_inline(" in result.stdout
+    assert "call double @qk_slot_get_number(" in result.stdout
     assert result.stderr == ""
 
 
@@ -982,7 +982,10 @@ def test_quawk_ir_flag_prints_backend_ir_for_runtime_compound_assignment_program
 def test_quawk_ir_flag_prints_backend_ir_for_compound_assignment_expressions() -> None:
     result = run_quawk(
         "--ir",
-        'BEGIN { x = 1; print (x += 2); print (x -= 1); print (x *= 4); print (x /= 2); print (x %= 3); print (x ^= 3) }',
+        (
+            "BEGIN { x = 1; print (x += 2); print (x -= 1); print (x *= 4); "
+            "print (x /= 2); print (x %= 3); print (x ^= 3) }"
+        ),
     )
 
     assert result.returncode == 0, result.stderr
@@ -1157,7 +1160,6 @@ def test_quawk_supports_p24_match_and_membership_semantics() -> None:
     assert result.stderr == ""
 
 
-
 def test_quawk_ir_flag_prints_backend_ir_for_supported_function_programs() -> None:
     result = run_quawk("--ir", "function f(x) { return x + 1 }\nBEGIN { y = 2; print f(y) }")
 
@@ -1201,7 +1203,10 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_exit_programs() -> None:
     assert result.returncode == 0, result.stderr
     assert "@qk_request_exit(" in result.stdout
     assert "@qk_exit_status(" in result.stdout
-    assert "call void @qk_request_exit(ptr %rt, i32 %exit.status" in result.stdout or "call void @qk_request_exit(ptr %rt, i32 7)" in result.stdout
+    assert (
+        "call void @qk_request_exit(ptr %rt, i32 %exit.status" in result.stdout
+        or "call void @qk_request_exit(ptr %rt, i32 7)" in result.stdout
+    )
     assert result.stderr == ""
 
 
@@ -1210,7 +1215,6 @@ def test_quawk_ir_flag_prints_backend_ir_for_supported_scalar_string_programs() 
 
     assert result.returncode == 0, result.stderr
     assert "@qk_slot_set_string(" in result.stdout
-    assert "@qk_slot_set_number(" in result.stdout
     assert "@qk_slot_get_number(" in result.stdout
     assert "@qk_slot_get_string(" in result.stdout
     assert "@qk_concat(" in result.stdout
@@ -1224,7 +1228,7 @@ def test_quawk_ir_flag_prints_backend_ir_for_string_v_preassignments() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "@qk_scalar_set_string(" in result.stdout
-    assert "@qk_slot_set_number(" in result.stdout
+    assert "@qk_slot_set_string(" in result.stdout
     assert "@.driver.scalar.value.0" in result.stdout
     assert result.stderr == ""
 

@@ -69,6 +69,7 @@ REUSABLE_PROGRAM_DECLARATIONS: tuple[str, ...] = (
     "declare ptr @qk_get_filename_inline(ptr)",
     "declare double @qk_split_into_array(ptr, ptr, ptr, ptr)",
     "declare ptr @qk_array_get(ptr, ptr, ptr)",
+    "declare double @qk_array_get_number(ptr, ptr, ptr)",
     "declare i1 @qk_array_contains(ptr, ptr, ptr)",
     "declare void @qk_array_set_string(ptr, ptr, ptr, ptr)",
     "declare void @qk_array_set_number(ptr, ptr, ptr, double)",

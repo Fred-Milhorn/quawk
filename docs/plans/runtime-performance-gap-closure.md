@@ -53,26 +53,29 @@ workloads this phase is targeting, startup caching is now out of scope.
 
 ## Todos
 
-1. build a stable benchmark harness for NOAA-like workloads
-2. extend runtime profiling to collect elapsed time, not just call counts
+All P39 todos are complete:
+
+1. built a stable benchmark harness for NOAA-like workloads
+2. extended runtime profiling to collect elapsed time, not just call counts
 3. cut avoidable `qk_capture_string_arg()` copies in hot lowering/runtime paths
-4. add cached dual string/numeric value views for hot scalar/slot cases
-5. expand slot/local specialization for hot scalar accesses
-6. reduce generic `qk_compare_values` use with more lowering-time specialization
-7. re-benchmark after each optimization slice and compare against `gawk`
+4. added cached dual string/numeric value views for hot scalar/slot cases
+5. expanded slot/local specialization for hot scalar accesses
+6. reduced generic `qk_compare_values` use with more lowering-time specialization
+7. re-benchmarked steady-state NOAA workloads and compared against `gawk`
 
 ## Validation update
 
-- the benchmark harness now supports `--family steady_state` so long-running
+- the benchmark harness supports `--family steady_state` so long-running
   workload validation can ignore startup-heavy timing
 - focused perf regressions pass, including the benchmark/profiler harness tests,
   slot/cache regressions, and the direct string `-v` preassignment regression
 - `compat_corpus` passes
-- `compat_reference` still has open mismatches in upstream cases `p.26a`,
-  `p.50`, and `t.a`
-- the steady-state NOAA benchmark matches the reference output at `smoke` scale
-  but still diverges at `medium` and `large` in the monthly summary output, so
-  the phase cannot close yet
+- `compat_reference` passes
+- the steady-state NOAA benchmark matches the reference output at `smoke`,
+  `medium`, and `large` scale
+- final single-run steady-state measurements in this closeout were:
+  `medium` direct `quawk` at `9.96x` `gawk --posix`, and `large` direct
+  `quawk` at `3.16x` `gawk --posix`
 
 ## Notes
 

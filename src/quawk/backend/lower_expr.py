@@ -402,6 +402,14 @@ def lower_runtime_numeric_expression(expression: Expr, state: LoweringState) -> 
             true_operand = lower_runtime_numeric_expression(if_true, state)
             false_operand = lower_runtime_numeric_expression(if_false, state)
             return builder.select("ternary.num", test_value, "double", true_operand, false_operand)
+        case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
+            array_name_ptr = lower_runtime_constant_string(array_name, state)
+            key_ptr = lower_runtime_array_subscripts((index, *extra_indexes), state)
+            temp = state.next_temp("array.num")
+            state.instructions.append(
+                f"  {temp} = call double @qk_array_get_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
+            )
+            return temp
         case _:
             if runtime_expression_has_string_result(expression, state):
                 string_value = lower_runtime_captured_string_expression(expression, state)
@@ -476,13 +484,9 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                 raise RuntimeError(
                     "string-valued array assignment expressions are not supported yet in runtime-backed backend"
                 )
-            current_entry = state.next_temp("array.current")
             current_value = state.next_temp("array.current.num")
-            state.instructions.extend(
-                [
-                    f"  {current_entry} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
-                    f"  {current_value} = call double @qk_parse_number_text(ptr {current_entry})",
-                ]
+            state.instructions.append(
+                f"  {current_value} = call double @qk_array_get_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
             )
             numeric_value = lower_runtime_numeric_expression(expression.value, state)
             numeric_value = combine_numeric_assignment(current_value, numeric_value)
@@ -592,7 +596,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                             )
                 else:
                     current_value = state.next_temp("scalar.current")
-                    if runtime_name_uses_string_slot_runtime(name, state):
+                    if runtime_name_uses_slot_cached_runtime(name, state):
                         assert slot_index is not None
                         state.instructions.append(
                             f"  {current_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
@@ -603,7 +607,7 @@ def lower_runtime_assignment_expression(expression: AssignExpr, state: LoweringS
                         )
                     numeric_value = lower_runtime_numeric_expression(expression.value, state)
                     numeric_value = combine_numeric_assignment(current_value, numeric_value)
-                    if runtime_name_uses_string_slot_runtime(name, state):
+                    if runtime_name_uses_slot_cached_runtime(name, state):
                         assert slot_index is not None
                         state.instructions.append(
                             f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"
@@ -654,7 +658,7 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
             scalar_name = lower_runtime_scalar_name(name, state)
             old_value = state.next_temp("inc.old")
             new_value = state.next_temp("inc.new")
-            if runtime_name_uses_string_slot_runtime(name, state):
+            if runtime_name_uses_slot_cached_runtime(name, state):
                 assert slot_index is not None
                 state.instructions.append(
                     f"  {old_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
@@ -664,7 +668,7 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
                     f"  {old_value} = call double @qk_scalar_get_number_inline(ptr {state.runtime_param}, ptr {scalar_name})"
                 )
             state.instructions.append(f"  {new_value} = {opcode} double {old_value}, {amount}")
-            if runtime_name_uses_string_slot_runtime(name, state):
+            if runtime_name_uses_slot_cached_runtime(name, state):
                 assert slot_index is not None
                 state.instructions.append(
                     f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {new_value})"
@@ -690,13 +694,11 @@ def lower_runtime_increment_expression(operand: Expr, delta: float, *, return_ol
         case ArrayIndexExpr(array_name=array_name, index=index, extra_indexes=extra_indexes):
             array_name_ptr = lower_runtime_constant_string(array_name, state)
             key_ptr = lower_runtime_array_subscripts((index, *extra_indexes), state)
-            old_text = state.next_temp("inc.array")
             old_value = state.next_temp("inc.old")
             new_value = state.next_temp("inc.new")
             state.instructions.extend(
                 [
-                    f"  {old_text} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
-                    f"  {old_value} = call double @qk_parse_number_text(ptr {old_text})",
+                    f"  {old_value} = call double @qk_array_get_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
                     f"  {new_value} = {opcode} double {old_value}, {amount}",
                     f"  call void @qk_array_set_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, double {new_value})",
                 ]
@@ -1095,13 +1097,13 @@ def lower_condition_expression(expression: Expr, state: LoweringState) -> str:
                 right_number = lower_runtime_numeric_expression(expression.right, state)
                 left_needs_check = str(runtime_expression_has_string_result(expression.left, state)).lower()
                 right_needs_check = str(runtime_expression_has_string_result(expression.right, state)).lower()
-                left_forces_string = str(left_forces_string).lower()
-                right_forces_string = str(right_forces_string).lower()
+                left_force_string_flag = str(left_forces_string).lower()
+                right_force_string_flag = str(right_forces_string).lower()
                 temp = state.next_temp("cmp")
                 state.instructions.append(
                     f"  {temp} = call i1 @qk_compare_values_inline("
-                    f"ptr {left_string}, double {left_number}, i1 {left_needs_check}, i1 {left_forces_string}, "
-                    f"ptr {right_string}, double {right_number}, i1 {right_needs_check}, i1 {right_forces_string}, "
+                    f"ptr {left_string}, double {left_number}, i1 {left_needs_check}, i1 {left_force_string_flag}, "
+                    f"ptr {right_string}, double {right_number}, i1 {right_needs_check}, i1 {right_force_string_flag}, "
                     f"i32 {op_code})"
                 )
                 return temp

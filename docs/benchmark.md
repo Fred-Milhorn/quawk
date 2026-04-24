@@ -188,10 +188,12 @@ This split is intentional:
 - the steady-state family uses the direct project binary and a repeated-input
   workload so runtime changes are not drowned out by fixed startup cost
 
-Recommended passing smoke command:
+Recommended validation commands:
 
 ```sh
 uv run python scripts/benchmark_noaa_runtime_gap.py --dataset-scale smoke --repetitions 1 --warmups 0
+uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale medium --repetitions 1 --warmups 0
+uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale large --repetitions 1 --warmups 0
 ```
 
 Use `--json PATH` for machine-readable output and `--keep-workdir` when you want
@@ -199,16 +201,8 @@ to inspect the generated station metadata and synthetic `.dly` input. Use
 `--family steady_state` when startup-heavy timing is not relevant to the
 workload you are validating.
 
-Known failing investigation commands:
-
-```sh
-uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale medium
-uv run python scripts/benchmark_noaa_runtime_gap.py --family steady_state --dataset-scale large
-```
-
-Those larger steady-state scales currently expose a reference-output mismatch in
-the monthly summary output, so they are useful for diagnosis but should not be
-treated as passing validation commands until `T-332` is closed.
+The `medium` and `large` steady-state scales are the P39 closeout validation
+surface for long-running workload behavior.
 
 ## T-326 Elapsed-Time Runtime Profile
 

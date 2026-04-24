@@ -177,9 +177,11 @@ def runtime_name_uses_string_slot_runtime(name: str, state: LoweringState) -> bo
 
 def runtime_name_uses_slot_cached_runtime(name: str, state: LoweringState) -> bool:
     """Report whether one scalar name should use cached runtime slot access."""
+    inferred_type = state.type_info.get(name)
     return (
         runtime_name_uses_scalar_runtime(name, state)
         and runtime_name_slot_index(name, state) is not None
+        and inferred_type in {LatticeType.STRING, LatticeType.MIXED}
         and not runtime_name_uses_numeric_slot_state(name, state)
         and not runtime_name_uses_local_numeric_storage(name, state)
     )

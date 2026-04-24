@@ -9,6 +9,37 @@ planning snapshots or superseded backlog entries rather than the current live
 state. That includes the archived `P18` widening placeholders (`T-193` through
 `T-196`), which are not current live backlog.
 
+## Completed Phases After Archive Split
+
+| Phase | Summary |
+|---|---|
+| P38 | Focused regressions closed the function-local binding and concatenated string-return bugs that the NOAA sample had exposed. |
+| P39 | Runtime performance gap closure added steady-state NOAA benchmarking, elapsed-time profiling, hot-path scalar/string optimizations, numeric array accumulation caching, and final reference validation. |
+
+### P38 Task Ledger
+
+| ID | Phase | Priority | Task | Depends On | Acceptance | Status |
+|---|---|---|---|---|---|---|
+| T-318 | P38 | P0 | Add end-to-end regressions for AWK-style extra-parameter locals | - | Direct runtime tests fail under current quawk and pass under the reference awk baseline for representative zero-argument helper and `function f(x,    tmp) { ... }` local-parameter shapes | done |
+| T-319 | P38 | P0 | Add regressions for concatenated string returns and helper-built text | - | Direct runtime tests fail under current quawk and pass under the reference awk baseline for simple concatenation, date/helper, and report-fragment string-return shapes | done |
+| T-320 | P38 | P1 | Diagnose the function-local binding failure in quawk | T-318 | The implementation path that misbinds or loses AWK-style local parameters is identified and documented in the code or task notes | done |
+| T-321 | P38 | P1 | Diagnose the string-return and concatenation failure in quawk | T-319 | The implementation path that collapses returned concatenated strings is identified and documented in the code or task notes | done |
+| T-322 | P38 | P0 | Fix quawk function-local semantics | T-320 | AWK-style extra-parameter locals behave like one-true-awk and `gawk --posix` in direct runtime tests | done |
+| T-323 | P38 | P0 | Fix quawk string-return semantics | T-321 | Helper-built and concatenated string returns preserve the full expected text in direct runtime tests | done |
+| T-324 | P38 | P1 | Validate focused function regressions plus the NOAA sample workflow | T-322, T-323 | The new focused regressions pass and the NOAA sample matches the reference-awk baseline under the documented stdin-streaming workflow | done |
+
+### P39 Task Ledger
+
+| ID | Phase | Priority | Task | Depends On | Acceptance | Status |
+|---|---|---|---|---|---|---|
+| T-325 | P39 | P0 | Build a stable performance benchmark harness | - | A documented NOAA-style benchmark workflow reports both startup-heavy `uv run quawk` timings and steady-state direct-binary timings against `gawk --posix` | done |
+| T-326 | P39 | P0 | Add elapsed-time runtime profiling | T-325 | `QUAWK_RUNTIME_PROFILE` or its replacement reports per-helper elapsed time in addition to counts so hot wall-clock costs can be ranked on the benchmark workload | done |
+| T-327 | P39 | P0 | Reduce hot-path string capture copies | T-326 | Hot lowering/runtime paths avoid unnecessary `qk_capture_string_arg()` copies without changing observed AWK behavior on focused regressions and the NOAA workload | done |
+| T-328 | P39 | P1 | Cache dual string/numeric views on hot values | T-326 | Repeated string/number coercions are reduced for hot scalar or slot-backed values, with focused tests covering cache correctness and benchmark evidence of fewer conversion hot spots | done |
+| T-329 | P39 | P1 | Expand slot/local specialization for hot scalar access | T-326 | More hot scalar access sites lower into slots or locals instead of generic name-based runtime lookup, while preserving current semantics and inspection modes | done |
+| T-330 | P39 | P1 | Specialize hot comparison paths | T-326 | More definitely-string or definitely-numeric comparisons bypass generic `qk_compare_values`, with focused coverage for mixed-value correctness and benchmark confirmation on the NOAA workload | done |
+| T-332 | P39 | P0 | Validate the performance phase against baseline and references | T-327, T-328, T-329, T-330 | Updated steady-state benchmark runs show the post-phase direct-binary results against the recorded baseline and `gawk --posix`, with no regression in the focused correctness suites and reference surfaces used for this phase | done |
+
 # Previous Roadmap
 
 This document is the phased implementation roadmap and active backlog for `quawk`.

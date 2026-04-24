@@ -50,6 +50,7 @@ from .lower_lvalue import (
     runtime_name_uses_local_numeric_storage,
     runtime_name_uses_numeric_slot_state,
     runtime_name_uses_scalar_runtime,
+    runtime_name_uses_slot_cached_runtime,
     runtime_name_uses_string_slot_runtime,
     store_runtime_function_param_string,
     variable_address,
@@ -355,13 +356,9 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
                 f"  call void @qk_array_set_string(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr}, ptr {string_value})"
             )
             return
-        current_entry = state.next_temp("array.current")
         current_value = state.next_temp("array.current.num")
-        state.instructions.extend(
-            [
-                f"  {current_entry} = call ptr @qk_array_get(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})",
-                f"  {current_value} = call double @qk_parse_number_text(ptr {current_entry})",
-            ]
+        state.instructions.append(
+            f"  {current_value} = call double @qk_array_get_number(ptr {state.runtime_param}, ptr {array_name_ptr}, ptr {key_ptr})"
         )
         numeric_value = lower_runtime_numeric_expression(statement.value, state)
         numeric_value = combine_numeric_assignment(current_value, numeric_value)
@@ -430,7 +427,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         return
 
     current_value = state.next_temp("scalar.current")
-    if runtime_name_uses_string_slot_runtime(statement.name, state):
+    if runtime_name_uses_slot_cached_runtime(statement.name, state):
         assert slot_index is not None
         state.instructions.append(
             f"  {current_value} = call double @qk_slot_get_number(ptr {state.runtime_param}, i64 {slot_index})"
@@ -441,7 +438,7 @@ def lower_runtime_assignment_statement(statement: AssignStmt, state: LoweringSta
         )
     numeric_value = lower_runtime_numeric_expression(statement.value, state)
     numeric_value = combine_numeric_assignment(current_value, numeric_value)
-    if runtime_name_uses_string_slot_runtime(statement.name, state):
+    if runtime_name_uses_slot_cached_runtime(statement.name, state):
         assert slot_index is not None
         state.instructions.append(
             f"  call void @qk_slot_set_number(ptr {state.runtime_param}, i64 {slot_index}, double {numeric_value})"

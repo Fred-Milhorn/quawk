@@ -20,6 +20,8 @@ Format conventions:
 - CLI help now documents stable run-path behavior for `-f`, `--`, and `-` stdin operands.
 - Compatibility coverage now uses a seeded supported corpus plus a checked-in divergence manifest.
 - `-v` string preassignments now initialize optimized scalar slots correctly.
+- Numeric array updates now preserve numeric views across repeated accumulation,
+  avoiding `CONVFMT` precision loss in long-running workloads.
 
 ## 0.1.0
 

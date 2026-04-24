@@ -80,6 +80,8 @@ struct qk_scalar_entry {
 struct qk_array_entry {
     char *key;
     char *value;
+    double number;
+    bool has_number;
     struct qk_array_entry *next;
 };
 
@@ -196,6 +198,14 @@ static bool qk_initialize_mixed_slots(qk_runtime *runtime, size_t slot_count);
 static bool qk_scalar_set_string_value(qk_runtime *runtime, const char *name, const char *value);
 static bool qk_scalar_set_number_value(qk_runtime *runtime, const char *name, double value);
 static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, const char *key, const char *value);
+static bool qk_array_set_cell(
+    struct qk_runtime *runtime,
+    const char *array_name,
+    const char *key,
+    const char *value,
+    bool has_number,
+    double number
+);
 
 static const char *qk_output_variable_text(qk_runtime *runtime, const char *name, const char *fallback);
 static bool qk_rebuild_fields(qk_runtime *runtime);
@@ -908,6 +918,18 @@ static void qk_clear_array(struct qk_array *array)
 
 static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, const char *key, const char *value)
 {
+    return qk_array_set_cell(runtime, array_name, key, value, true, qk_parse_awk_numeric_prefix(value));
+}
+
+static bool qk_array_set_cell(
+    struct qk_runtime *runtime,
+    const char *array_name,
+    const char *key,
+    const char *value,
+    bool has_number,
+    double number
+)
+{
     struct qk_array *array = qk_find_array(runtime, array_name, true);
     if (array == NULL) {
         return false;
@@ -922,6 +944,8 @@ static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, con
             }
             free(entry->value);
             entry->value = copy;
+            entry->number = number;
+            entry->has_number = has_number;
             return true;
         }
         entry = entry->next;
@@ -940,6 +964,8 @@ static bool qk_array_set(struct qk_runtime *runtime, const char *array_name, con
         return false;
     }
     entry->next = array->entries;
+    entry->number = number;
+    entry->has_number = has_number;
     array->entries = entry;
     return true;
 }
@@ -959,6 +985,28 @@ static const char *qk_array_get_value(struct qk_runtime *runtime, const char *ar
         entry = entry->next;
     }
     return QK_EMPTY_FIELD;
+}
+
+static double qk_array_get_number_value(struct qk_runtime *runtime, const char *array_name, const char *key)
+{
+    struct qk_array *array = qk_find_array(runtime, array_name, false);
+    if (array == NULL) {
+        return 0.0;
+    }
+
+    struct qk_array_entry *entry = array->entries;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            if (entry->has_number) {
+                return entry->number;
+            }
+            entry->number = qk_parse_awk_numeric_prefix(entry->value);
+            entry->has_number = true;
+            return entry->number;
+        }
+        entry = entry->next;
+    }
+    return 0.0;
 }
 
 static bool qk_array_delete_value(struct qk_runtime *runtime, const char *array_name, const char *key)
@@ -3160,6 +3208,14 @@ const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char
     return qk_array_get_value(runtime, array_name, key);
 }
 
+double qk_array_get_number(qk_runtime *runtime, const char *array_name, const char *key)
+{
+    if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
+        return 0.0;
+    }
+    return qk_array_get_number_value(runtime, array_name, key);
+}
+
 bool qk_array_contains(qk_runtime *runtime, const char *array_name, const char *key)
 {
     struct qk_array *array;
@@ -3194,10 +3250,20 @@ void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char
 
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value)
 {
+    char *stable_key;
+    const char *formatted_value;
+
     if ((runtime == NULL) || (array_name == NULL) || (key == NULL)) {
         return;
     }
-    (void)qk_array_set(runtime, array_name, key, qk_format_number(runtime, value));
+
+    stable_key = qk_strdup_or_null(key);
+    if (stable_key == NULL) {
+        return;
+    }
+    formatted_value = qk_format_number(runtime, value);
+    (void)qk_array_set_cell(runtime, array_name, stable_key, formatted_value, true, value);
+    free(stable_key);
 }
 
 void qk_array_delete(qk_runtime *runtime, const char *array_name, const char *key)

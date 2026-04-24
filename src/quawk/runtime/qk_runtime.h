@@ -156,6 +156,7 @@ double qk_get_nf(qk_runtime *runtime);
 const char *qk_get_filename(qk_runtime *runtime);
 double qk_split_into_array(qk_runtime *runtime, const char *text, const char *array_name, const char *separator);
 const char *qk_array_get(qk_runtime *runtime, const char *array_name, const char *key);
+double qk_array_get_number(qk_runtime *runtime, const char *array_name, const char *key);
 bool qk_array_contains(qk_runtime *runtime, const char *array_name, const char *key);
 void qk_array_set_string(qk_runtime *runtime, const char *array_name, const char *key, const char *value);
 void qk_array_set_number(qk_runtime *runtime, const char *array_name, const char *key, double value);
